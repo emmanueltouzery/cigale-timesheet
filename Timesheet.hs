@@ -25,6 +25,7 @@ process monthStr = do
 	let firstDayOfMonth = fromGregorian (toInteger $ head ymd) (ymd !! 1) 1
 	let firstDayNextMonth = addGregorianMonthsClip 1 firstDayOfMonth
 	let lastDayOfMonth = addDays (-1) firstDayNextMonth
-	Svn.getRepoCommits repoUrl firstDayOfMonth lastDayOfMonth
+	commits <- Svn.getRepoCommits repoUrl firstDayOfMonth lastDayOfMonth
+	print commits
 	where
 		toInt s = read (T.unpack s) :: Int

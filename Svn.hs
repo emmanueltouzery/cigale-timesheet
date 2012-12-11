@@ -1,9 +1,15 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Svn where
 
 import qualified System.Process as Process
 import qualified System.IO as IO
 import Data.Time.Clock
 import Data.Time.Calendar
+import qualified Data.Text as T
+import Text.Regex
+import Data.Maybe
+import Debug.Trace
 
 -- at first I started using VCSWrapper
 -- but it didn't compile, neither for GHC 7.0
@@ -13,18 +19,34 @@ import Data.Time.Calendar
 -- but even that wasn't working for me, and
 -- on top of that it works on a checkout while
 -- i want to work on a whole repository...
--- so in the end i rolled my own, but a bit
--- inspired by VCSWrapper, taking some of their code.
--- VCSWrapper is GPLv2...
+-- also, VCSWrapper is GPLv2...
+-- so in the end i rolled my own
 
-getRepoCommits :: String -> Day -> Day -> IO ()
+getRepoCommits :: String -> Day -> Day -> IO [Commit]
 getRepoCommits url startDate endDate = do
 	let dateRange = formatDateRange startDate endDate
 	(inh, Just outh, errh, pid) <- Process.createProcess (Process.proc "svn" ["log", url, "-r", dateRange]) {Process.std_out = Process.CreatePipe}
 	ex <- Process.waitForProcess pid
 	output <- IO.hGetContents outh
-	putStrLn $ show $ length output
-	return ()
+	print $ lines output
+	return $ parseCommits $ lines output
+
+data Commit = Commit
+	{
+		-- date :: UTCTime
+		date :: String
+	}
+	deriving (Eq, Show)
+
+parseCommits :: [String] -> [Commit]
+parseCommits [] = []
+parseCommits (a:[]) = [] -- in the end only the separator is left.
+-- skip the first line which is "----.."
+parseCommits (separator:x:xs) = trace x (Commit (headerInfo !! 2)) : (parseCommits $ drop (linesCount+1) xs)
+	where
+		linesCount = read (headerInfo !! 3) :: Int
+		headerInfo = fromJust $ matchRegex headerRegex x
+		headerRegex = mkRegex "r([0-9]+)[ \t]*\\|([^\\|]+)\\|([^\\|]+)\\|[ \t]*([0-9]+) line.*"
 
 formatDateRange :: Day -> Day -> String
 formatDateRange startDate endDate =

@@ -11,17 +11,6 @@ import Text.Regex
 import Data.Maybe
 import Debug.Trace
 
--- at first I started using VCSWrapper
--- but it didn't compile, neither for GHC 7.0
--- on fedora nor 7.4 on windows. I found a fixed
--- version but the patch wasn't accepted by the
--- maintainers yet (https://github.com/leksah/haskellVCSWrapper/tree/21fb59ff0b994193c98021fe8bcd628676e783ec)
--- but even that wasn't working for me, and
--- on top of that it works on a checkout while
--- i want to work on a whole repository...
--- also, VCSWrapper is GPLv2...
--- so in the end i rolled my own
-
 getRepoCommits :: String -> Day -> Day -> IO [Commit]
 getRepoCommits url startDate endDate = do
 	let dateRange = formatDateRange startDate endDate

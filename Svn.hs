@@ -9,7 +9,6 @@ import Data.Time.Calendar
 import qualified Data.Text as T
 import Text.Regex.PCRE.Rex
 import Data.Maybe
-import Debug.Trace
 import Data.String.Utils
 
 getRepoCommits :: String -> Day -> Day -> IO [Commit]
@@ -18,7 +17,7 @@ getRepoCommits url startDate endDate = do
 	(inh, Just outh, errh, pid) <- Process.createProcess (Process.proc "svn" ["log", url, "-r", dateRange]) {Process.std_out = Process.CreatePipe}
 	ex <- Process.waitForProcess pid
 	output <- IO.hGetContents outh
-	print $ lines output
+--	print $ lines output
 	return $ parseCommits $ lines output
 
 data Commit = Commit
@@ -35,7 +34,7 @@ parseCommits :: [String] -> [Commit]
 parseCommits [] = []
 parseCommits (a:[]) = [] -- in the end only the separator is left.
 -- skip the first line which is "----.."
-parseCommits (separator:x:xs) = trace x commit : (parseCommits $ drop ((linesCount commit)+1) xs)
+parseCommits (separator:x:xs) = commit : (parseCommits $ drop ((linesCount commit)+1) xs)
 	where
 		commit = parseSingleCommit x
 

@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell, QuasiQuotes, OverloadedStrings, ViewPatterns #-}
 
 module Svn where
 
@@ -7,9 +7,10 @@ import qualified System.IO as IO
 import Data.Time.Clock
 import Data.Time.Calendar
 import qualified Data.Text as T
-import Text.Regex
+import Text.Regex.PCRE.Rex
 import Data.Maybe
 import Debug.Trace
+import Data.String.Utils
 
 getRepoCommits :: String -> Day -> Day -> IO [Commit]
 getRepoCommits url startDate endDate = do
@@ -23,7 +24,10 @@ getRepoCommits url startDate endDate = do
 data Commit = Commit
 	{
 		-- date :: UTCTime
-		date :: String
+		revision :: Int,
+		date :: String,
+		user :: String,
+		linesCount :: Int
 	}
 	deriving (Eq, Show)
 
@@ -31,11 +35,14 @@ parseCommits :: [String] -> [Commit]
 parseCommits [] = []
 parseCommits (a:[]) = [] -- in the end only the separator is left.
 -- skip the first line which is "----.."
-parseCommits (separator:x:xs) = trace x (Commit (headerInfo !! 2)) : (parseCommits $ drop (linesCount+1) xs)
+parseCommits (separator:x:xs) = trace x commit : (parseCommits $ drop ((linesCount commit)+1) xs)
 	where
-		linesCount = read (headerInfo !! 3) :: Int
-		headerInfo = fromJust $ matchRegex headerRegex x
-		headerRegex = mkRegex "r([0-9]+)[ \t]*\\|([^\\|]+)\\|([^\\|]+)\\|[ \t]*([0-9]+) line.*"
+		commit = parseSingleCommit x
+
+parseSingleCommit :: String -> Commit
+-- i have to use \x7C instead of | otherwise I get the pattern [^|] and |] is
+-- exactly the terminator for quasiquoting, causing a mess.
+parseSingleCommit [rex|r(?{read -> revision}\d+)\s*\|\s*(?{strip -> user}[^\x7C]+)\s*\|\s*(?{date}[^\x7C]+)\s*\|\s*(?{read->linesCount}\d+)\s+line|] = Commit revision date user linesCount
 
 formatDateRange :: Day -> Day -> String
 formatDateRange startDate endDate =

@@ -23,11 +23,11 @@ getRepoCommits url startDate endDate = do
 
 data Commit = Commit
 	{
-		-- date :: UTCTime
 		revision :: T.Text,
 		date :: T.Text,
 		user :: T.Text,
-		linesCount :: Int
+		linesCount :: Int,
+		comment :: [String]
 	}
 	deriving (Eq, Show)
 
@@ -35,10 +35,10 @@ parseCommits :: [String] -> [Commit]
 parseCommits [] = []
 parseCommits (a:[]) = [] -- in the end only the separator is left.
 -- skip the first line which is "----.."
-parseCommits (separator:x:xs) = commit : (parseCommits $ drop (linesCount+1) xs)
+parseCommits (separator:commit_header:blank:xs) = commit : (parseCommits $ drop linesCount xs)
 	where
-		commit = Commit revision date user linesCount
-		(revision:user:date:lines:[]) = T.splitOn "|" (T.pack x)
+		commit = Commit revision date user linesCount (take linesCount xs)
+		(revision:user:date:lines:[]) = T.splitOn "|" (T.pack commit_header)
 		linesCount = read $ fst $ break (not . isDigit) (T.unpack $ T.strip lines)
 
 formatDateRange :: Day -> Day -> String

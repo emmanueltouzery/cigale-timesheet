@@ -8,6 +8,7 @@ import qualified Data.Text as T
 import Data.Time.Calendar
 import qualified Data.Aeson as JSON
 import qualified Data.ByteString.Lazy.Char8 as BL
+import System.IO
 
 -- TODO must filter by user too...
 repoUrl = "https://svn2.redgale.com/ak"
@@ -28,6 +29,8 @@ process monthStr = do
 	let firstDayNextMonth = addGregorianMonthsClip 1 firstDayOfMonth
 	let lastDayOfMonth = addDays (-1) firstDayNextMonth
 	commits <- Svn.getRepoCommits repoUrl firstDayOfMonth lastDayOfMonth
-	BL.putStrLn $ JSON.encode commits
+	fileH <- openFile ((T.unpack monthStr) ++ ".json") WriteMode
+	BL.hPut fileH (JSON.encode commits)
+	hClose fileH
 	where
 		toInt s = read (T.unpack s)

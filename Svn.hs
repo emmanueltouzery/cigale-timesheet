@@ -1,4 +1,4 @@
-{-# LANGUAGE QuasiQuotes, OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes, OverloadedStrings, DeriveGeneric #-}
 
 module Svn where
 
@@ -11,6 +11,8 @@ import Data.Maybe
 import Data.String.Utils
 import Data.Char
 import Debug.Trace
+import qualified Data.Aeson as JSON
+import GHC.Generics
 
 getRepoCommits :: String -> Day -> Day -> IO [Commit]
 getRepoCommits url startDate endDate = do
@@ -27,9 +29,11 @@ data Commit = Commit
 		date :: T.Text,
 		user :: T.Text,
 		linesCount :: Int,
-		comment :: [String]
+		comment :: String
 	}
-	deriving (Eq, Show)
+	deriving (Eq, Show, Generic)
+
+instance JSON.ToJSON Commit
 
 parseCommits :: [String] -> [Commit]
 parseCommits [] = []
@@ -37,7 +41,7 @@ parseCommits (a:[]) = [] -- in the end only the separator is left.
 -- skip the first line which is "----.."
 parseCommits (separator:commit_header:blank:xs) = commit : (parseCommits $ drop linesCount xs)
 	where
-		commit = Commit revision date user linesCount (take linesCount xs)
+		commit = Commit revision date user linesCount (unlines $ take linesCount xs)
 		(revision:user:date:lines:[]) = map T.strip (T.splitOn "|" (T.pack commit_header))
 		linesCount = read $ fst $ break (not . isDigit) (T.unpack $ T.strip lines)
 

@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, QuasiQuotes, OverloadedStrings, ViewPatterns #-}
+{-# LANGUAGE QuasiQuotes, OverloadedStrings #-}
 
 module Svn where
 
@@ -7,9 +7,10 @@ import qualified System.IO as IO
 import Data.Time.Clock
 import Data.Time.Calendar
 import qualified Data.Text as T
-import Text.Regex.PCRE.Rex
 import Data.Maybe
 import Data.String.Utils
+import Data.Char
+import Debug.Trace
 
 getRepoCommits :: String -> Day -> Day -> IO [Commit]
 getRepoCommits url startDate endDate = do
@@ -23,9 +24,9 @@ getRepoCommits url startDate endDate = do
 data Commit = Commit
 	{
 		-- date :: UTCTime
-		revision :: Int,
-		date :: String,
-		user :: String,
+		revision :: T.Text,
+		date :: T.Text,
+		user :: T.Text,
 		linesCount :: Int
 	}
 	deriving (Eq, Show)
@@ -34,14 +35,11 @@ parseCommits :: [String] -> [Commit]
 parseCommits [] = []
 parseCommits (a:[]) = [] -- in the end only the separator is left.
 -- skip the first line which is "----.."
-parseCommits (separator:x:xs) = commit : (parseCommits $ drop ((linesCount commit)+1) xs)
+parseCommits (separator:x:xs) = commit : (parseCommits $ drop (linesCount+1) xs)
 	where
-		commit = parseSingleCommit x
-
-parseSingleCommit :: String -> Commit
--- i have to use \x7C instead of | otherwise I get the pattern [^|] and |] is
--- exactly the terminator for quasiquoting, causing a mess.
-parseSingleCommit [rex|r(?{read -> revision}\d+)\s*\|\s*(?{strip -> user}[^\x7C]+)\s*\|\s*(?{date}[^\x7C]+)\s*\|\s*(?{read->linesCount}\d+)\s+line|] = Commit revision date user linesCount
+		commit = Commit revision date user linesCount
+		(revision:user:date:lines:[]) = T.splitOn "|" (T.pack x)
+		linesCount = read $ fst $ break (not . isDigit) (T.unpack $ T.strip lines)
 
 formatDateRange :: Day -> Day -> String
 formatDateRange startDate endDate =

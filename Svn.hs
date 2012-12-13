@@ -38,7 +38,7 @@ parseCommits (a:[]) = [] -- in the end only the separator is left.
 parseCommits (separator:commit_header:blank:xs) = commit : (parseCommits $ drop linesCount xs)
 	where
 		commit = Commit revision date user linesCount (take linesCount xs)
-		(revision:user:date:lines:[]) = T.splitOn "|" (T.pack commit_header)
+		(revision:user:date:lines:[]) = map T.strip (T.splitOn "|" (T.pack commit_header))
 		linesCount = read $ fst $ break (not . isDigit) (T.unpack $ T.strip lines)
 
 formatDateRange :: Day -> Day -> String

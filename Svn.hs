@@ -15,16 +15,16 @@ import qualified Data.Aeson as JSON
 import GHC.Generics
 import Data.Text.Read
 
-getRepoCommits :: String -> Day -> Day -> IO [Commit]
-getRepoCommits url startDate endDate = do
+getRepoCommits :: String -> T.Text -> Day -> Day -> IO [Commit]
+getRepoCommits url username startDate endDate = do
 	let dateRange = formatDateRange startDate endDate
 	(inh, Just outh, errh, pid) <- Process.createProcess
 		(Process.proc "svn" ["log", url, "-r", dateRange])
 		{Process.std_out = Process.CreatePipe}
 	ex <- Process.waitForProcess pid
 	output <- IO.hGetContents outh
---	print $ lines output
-	return $ parseCommits $ T.lines output
+	let commits = parseCommits $ T.lines output
+	return $ filter ((==username) . user) commits
 
 data Commit = Commit
 	{

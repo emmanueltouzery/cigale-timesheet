@@ -11,7 +11,7 @@ import qualified Data.Aeson as JSON
 import qualified Data.ByteString.Lazy.Char8 as BL
 import System.IO
 
--- TODO must filter by user too...
+svnUser = "emmanuelt"
 repoUrl = "https://svn2.redgale.com/ak"
 
 main = do
@@ -29,8 +29,7 @@ process monthStr = do
 	let firstDayOfMonth = fromGregorian (toInteger $ head ymd) (ymd !! 1) 1
 	let firstDayNextMonth = addGregorianMonthsClip 1 firstDayOfMonth
 	let lastDayOfMonth = addDays (-1) firstDayNextMonth
-	-- TODO filter only commits from emmanuelt
-	commits <- Svn.getRepoCommits repoUrl firstDayOfMonth lastDayOfMonth
+	commits <- Svn.getRepoCommits repoUrl svnUser firstDayOfMonth lastDayOfMonth
 	emails <- Email.getEmails firstDayOfMonth lastDayOfMonth
 	fileH <- openFile ((T.unpack monthStr) ++ ".json") WriteMode
 	BL.hPut fileH (JSON.encode commits)

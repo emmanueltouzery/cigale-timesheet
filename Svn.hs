@@ -3,7 +3,7 @@
 module Svn where
 
 import qualified System.Process as Process
-import qualified System.IO as IO
+import qualified Data.Text.IO as IO
 import Data.Time.Clock
 import Data.Time.Calendar
 import qualified Data.Text as T
@@ -24,7 +24,7 @@ getRepoCommits url startDate endDate = do
 	ex <- Process.waitForProcess pid
 	output <- IO.hGetContents outh
 --	print $ lines output
-	return $ parseCommits $ lines output
+	return $ parseCommits $ T.lines output
 
 data Commit = Commit
 	{
@@ -32,20 +32,20 @@ data Commit = Commit
 		date :: T.Text,
 		user :: T.Text,
 		linesCount :: Int,
-		comment :: String
+		comment :: T.Text
 	}
 	deriving (Eq, Show, Generic)
 
 instance JSON.ToJSON Commit
 
-parseCommits :: [String] -> [Commit]
+parseCommits :: [T.Text] -> [Commit]
 parseCommits [] = []
 parseCommits (a:[]) = [] -- in the end only the separator is left.
 -- skip the first line which is "----.."
 parseCommits (separator:commit_header:blank:xs) = commit : (parseCommits $ drop linesCount xs)
 	where
-		commit = Commit revision date user linesCount (unlines $ take linesCount xs)
-		(revision:user:date:lines:[]) = map T.strip (T.splitOn "|" (T.pack commit_header))
+		commit = Commit revision date user linesCount (T.unlines $ take linesCount xs)
+		(revision:user:date:lines:[]) = map T.strip (T.splitOn "|" commit_header)
 		linesCount = safePromise $ decimal (T.strip lines)
 		safePromise (Right (v,_)) = v
 

@@ -13,11 +13,14 @@ import Data.Char
 import Debug.Trace
 import qualified Data.Aeson as JSON
 import GHC.Generics
+import Data.Text.Read
 
 getRepoCommits :: String -> Day -> Day -> IO [Commit]
 getRepoCommits url startDate endDate = do
 	let dateRange = formatDateRange startDate endDate
-	(inh, Just outh, errh, pid) <- Process.createProcess (Process.proc "svn" ["log", url, "-r", dateRange]) {Process.std_out = Process.CreatePipe}
+	(inh, Just outh, errh, pid) <- Process.createProcess
+		(Process.proc "svn" ["log", url, "-r", dateRange])
+		{Process.std_out = Process.CreatePipe}
 	ex <- Process.waitForProcess pid
 	output <- IO.hGetContents outh
 --	print $ lines output
@@ -43,7 +46,8 @@ parseCommits (separator:commit_header:blank:xs) = commit : (parseCommits $ drop 
 	where
 		commit = Commit revision date user linesCount (unlines $ take linesCount xs)
 		(revision:user:date:lines:[]) = map T.strip (T.splitOn "|" (T.pack commit_header))
-		linesCount = read $ fst $ break (not . isDigit) (T.unpack $ T.strip lines)
+		linesCount = safePromise $ decimal (T.strip lines)
+		safePromise (Right (v,_)) = v
 
 formatDateRange :: Day -> Day -> String
 formatDateRange startDate endDate =

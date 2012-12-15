@@ -10,6 +10,9 @@ import Data.Time.Calendar
 import qualified Data.Aeson as JSON
 import qualified Data.ByteString.Lazy.Char8 as BL
 import System.IO
+import Data.Text.Read
+
+import qualified Util
 
 svnUser = "emmanuelt"
 repoUrl = "https://svn2.redgale.com/ak"
@@ -25,14 +28,13 @@ main = do
 
 process :: T.Text -> IO ()
 process monthStr = do
-	let ymd = map toInt (T.splitOn "-" monthStr)
+	let ymd = map (Util.safePromise . decimal) (T.splitOn "-" monthStr)
 	let firstDayOfMonth = fromGregorian (toInteger $ head ymd) (ymd !! 1) 1
 	let firstDayNextMonth = addGregorianMonthsClip 1 firstDayOfMonth
 	let lastDayOfMonth = addDays (-1) firstDayNextMonth
-	commits <- Svn.getRepoCommits repoUrl svnUser firstDayOfMonth lastDayOfMonth
+	--commits <- Svn.getRepoCommits repoUrl svnUser firstDayOfMonth lastDayOfMonth
 	emails <- Email.getEmails firstDayOfMonth lastDayOfMonth
-	fileH <- openFile ((T.unpack monthStr) ++ ".json") WriteMode
-	BL.hPut fileH (JSON.encode commits)
-	hClose fileH
-	where
-		toInt s = read (T.unpack s)
+	--fileH <- openFile ((T.unpack monthStr) ++ ".json") WriteMode
+	--BL.hPut fileH (JSON.encode commits)
+	--hClose fileH
+	putStrLn "done!"

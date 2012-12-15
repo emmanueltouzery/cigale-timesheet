@@ -15,6 +15,8 @@ import qualified Data.Aeson as JSON
 import GHC.Generics
 import Data.Text.Read
 
+import qualified Util
+
 getRepoCommits :: String -> T.Text -> Day -> Day -> IO [Commit]
 getRepoCommits url username startDate endDate = do
 	let dateRange = formatDateRange startDate endDate
@@ -46,8 +48,7 @@ parseCommits (separator:commit_header:blank:xs) = commit : (parseCommits $ drop 
 	where
 		commit = Commit revision date user linesCount (T.unlines $ take linesCount xs)
 		(revision:user:date:lines:[]) = map T.strip (T.splitOn "|" commit_header)
-		linesCount = safePromise $ decimal (T.strip lines)
-		safePromise (Right (v,_)) = v
+		linesCount = Util.safePromise $ decimal (T.strip lines)
 
 formatDateRange :: Day -> Day -> String
 formatDateRange startDate endDate =

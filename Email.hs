@@ -5,9 +5,8 @@ module Email where
 import Codec.Mbox
 import Data.Time.Clock
 import Data.Time.Calendar
-import qualified Data.ByteString.Lazy as BSL
-import qualified Data.ByteString.Lazy.Char8 as BS
-import qualified Data.ByteString.Char8 as BSS
+import qualified Data.ByteString.Lazy.Char8 as B
+import qualified Data.ByteString.Char8 as BL
 import Data.Maybe
 import Data.List
 import Data.Time
@@ -23,7 +22,8 @@ sent_mbox = "C:\\Users\\emmanuelto\\AppData\\Roaming\\Thunderbird\\Profiles\\k5e
 data Email = Email
 	{
 		date :: UTCTime,
-		to :: BS.ByteString
+		to :: B.ByteString
+--		subject :: B.ByteString
 	}
 	deriving (Eq, Show)
 
@@ -36,22 +36,22 @@ getEmails fromDate toDate = do
 	-- need to reverse messages because i'm reading from the end.
 	let messages1 = takeWhile isBefore (reverse messages)
 	print messages1
-	--BS.putStrLn $ (headerVal "To: ") $ 
+	--B.putStrLn $ (headerVal "To: ") $ 
 	return []
 	where
 		isAfter email = (utctDay $ date email) >= fromDate
 		isBefore email = (utctDay $ date email) <= toDate
 
-parseMessage :: MboxMessage BS.ByteString -> Email
+parseMessage :: MboxMessage B.ByteString -> Email
 parseMessage msg = Email (parseEmailDate $ Util.toStrict1 $ _mboxMsgTime msg) (headerVal "To: " msg)
 
-readT :: BSS.ByteString -> Int
-readT = fst . fromJust . BSS.readInt
+readT :: BL.ByteString -> Int
+readT = fst . fromJust . BL.readInt
 
-readTT :: BSS.ByteString -> Integer
-readTT = fst . fromJust . BSS.readInteger
+readTT :: BL.ByteString -> Integer
+readTT = fst . fromJust . BL.readInteger
 
-parseEmailDate :: BSS.ByteString -> UTCTime
+parseEmailDate :: BL.ByteString -> UTCTime
 parseEmailDate [brex|(?{month}\w+)\s+(?{readT -> day}\d+)\s+
 		(?{readTT -> hour}\d+):(?{readTT -> min}\d+):(?{readTT -> sec}\d+)\s+
 		(?{readTT -> year}\d+)|] =
@@ -70,9 +70,9 @@ parseEmailDate [brex|(?{month}\w+)\s+(?{readT -> day}\d+)\s+
 			"Oct" -> 10
 			"Nov" -> 11
 			"Dec" -> 12
-			otherwise -> error $ "Unknown month " ++ (BSS.unpack month)
+			otherwise -> error $ "Unknown month " ++ (BL.unpack month)
 		secOfDay = (hour*3600 + min*60 + sec) :: Integer
 
-headerVal :: BS.ByteString -> MboxMessage BS.ByteString -> BS.ByteString
-headerVal header msg = BS.drop (BS.length header) $ fromJust maybeRow
-	where maybeRow = find (BS.isPrefixOf $ header) (BS.lines $ _mboxMsgBody msg)
+headerVal :: B.ByteString -> MboxMessage B.ByteString -> B.ByteString
+headerVal header msg = B.drop (B.length header) $ fromJust maybeRow
+	where maybeRow = find (B.isPrefixOf $ header) (B.lines $ _mboxMsgBody msg)

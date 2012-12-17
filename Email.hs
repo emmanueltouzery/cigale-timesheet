@@ -22,8 +22,9 @@ sent_mbox = "C:\\Users\\emmanuelto\\AppData\\Roaming\\Thunderbird\\Profiles\\k5e
 data Email = Email
 	{
 		date :: UTCTime,
-		to :: B.ByteString
---		subject :: B.ByteString
+		to :: B.ByteString,
+		cc :: Maybe B.ByteString,
+		subject :: B.ByteString
 	}
 	deriving (Eq, Show)
 
@@ -43,7 +44,10 @@ getEmails fromDate toDate = do
 		isBefore email = (utctDay $ date email) <= toDate
 
 parseMessage :: MboxMessage B.ByteString -> Email
-parseMessage msg = Email (parseEmailDate $ Util.toStrict1 $ _mboxMsgTime msg) (headerVal "To: " msg)
+parseMessage msg = Email (parseEmailDate $ Util.toStrict1 $ _mboxMsgTime msg)
+			(fromJust $ headerVal "To: " msg)
+			(headerVal "CC: " msg)
+			(fromJust $ headerVal "Subject: " msg)
 
 readT :: BL.ByteString -> Int
 readT = fst . fromJust . BL.readInt
@@ -73,6 +77,6 @@ parseEmailDate [brex|(?{month}\w+)\s+(?{readT -> day}\d+)\s+
 			otherwise -> error $ "Unknown month " ++ (BL.unpack month)
 		secOfDay = (hour*3600 + min*60 + sec) :: Integer
 
-headerVal :: B.ByteString -> MboxMessage B.ByteString -> B.ByteString
-headerVal header msg = B.drop (B.length header) $ fromJust maybeRow
+headerVal :: B.ByteString -> MboxMessage B.ByteString -> Maybe B.ByteString
+headerVal header msg = fmap (B.drop (B.length header)) maybeRow
 	where maybeRow = find (B.isPrefixOf $ header) (B.lines $ _mboxMsgBody msg)

@@ -5,13 +5,18 @@ module Email where
 import Codec.Mbox
 import Data.Time.Clock
 import Data.Time.Calendar
+import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Data.ByteString.Char8 as BSS
 import Data.Maybe
 import Data.List
 import Data.Time
+import Data.Text.Read
+import Data.Maybe
 
 import Text.Regex.PCRE.Rex
+
+import Util
 
 sent_mbox = "C:\\Users\\emmanuelto\\AppData\\Roaming\\Thunderbird\\Profiles\\k5eh13s1.newprofile_windows7\\Mail\\mail.regulussoft.com\\Sent"
 
@@ -38,13 +43,18 @@ getEmails fromDate toDate = do
 		isBefore email = (utctDay $ date email) <= toDate
 
 parseMessage :: MboxMessage BS.ByteString -> Email
-parseMessage msg = Email (parseEmailDate $ BS.unpack $ _mboxMsgTime msg) (headerVal "To: " msg)
+parseMessage msg = Email (parseEmailDate $ Util.toStrict1 $ _mboxMsgTime msg) (headerVal "To: " msg)
 
--- TODO i'd rather this takes a byte string... should be possible with "brex"
-parseEmailDate :: String -> UTCTime
-parseEmailDate [rex|(?{month}\w+)\s+(?{read -> day}\d+)\s+
-		(?{read -> hour}\d+):(?{read -> min}\d+):(?{read -> sec}\d+)\s+
-		(?{read -> year}\d+)|] =
+readT :: BSS.ByteString -> Int
+readT = fst . fromJust . BSS.readInt
+
+readTT :: BSS.ByteString -> Integer
+readTT = fst . fromJust . BSS.readInteger
+
+parseEmailDate :: BSS.ByteString -> UTCTime
+parseEmailDate [brex|(?{month}\w+)\s+(?{readT -> day}\d+)\s+
+		(?{readTT -> hour}\d+):(?{readTT -> min}\d+):(?{readTT -> sec}\d+)\s+
+		(?{readTT -> year}\d+)|] =
 	UTCTime (fromGregorian year monthI day) (secondsToDiffTime secOfDay)
 	where
 		monthI = case month of
@@ -60,7 +70,7 @@ parseEmailDate [rex|(?{month}\w+)\s+(?{read -> day}\d+)\s+
 			"Oct" -> 10
 			"Nov" -> 11
 			"Dec" -> 12
-			otherwise -> error $ "Unknown month " ++ month
+			otherwise -> error $ "Unknown month " ++ (BSS.unpack month)
 		secOfDay = (hour*3600 + min*60 + sec) :: Integer
 
 headerVal :: BS.ByteString -> MboxMessage BS.ByteString -> BS.ByteString

@@ -14,3 +14,7 @@ safePromise (Right (v,_)) = v
 -- to replace to toStrict when upgrading to a recent enough haskell...
 toStrict1 :: BL.ByteString -> B.ByteString
 toStrict1 = B.concat . BL.toChunks
+
+maybeHead :: [a] -> Maybe a
+maybeHead [] = Nothing
+maybeHead (x:_) = Just x

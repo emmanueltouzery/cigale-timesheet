@@ -45,7 +45,7 @@ data Commit = Commit
 instance JSON.ToJSON Commit
 
 toEvent :: String -> Commit -> Event.Event
-toEvent projectName (Commit _ date _ _ comment) = Event.Event date Event.Svn projectName comment
+toEvent projectName (Commit _ date _ _ comment) = Event.Event date Event.Svn (Just projectName) comment
 
 parseCommits :: [T.Text] -> [Commit]
 parseCommits [] = []

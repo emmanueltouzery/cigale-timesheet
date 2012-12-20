@@ -5,13 +5,15 @@ module Email where
 import Codec.Mbox
 import Data.Time.Clock
 import Data.Time.Calendar
-import qualified Data.ByteString.Lazy.Char8 as B
-import qualified Data.ByteString.Char8 as BL
+import qualified Data.ByteString.Lazy.Char8 as BL
+import qualified Data.ByteString.Char8 as B
 import Data.Maybe
 import Data.List
 import Data.Time
 import Data.Text.Read
 import Data.Maybe
+import qualified Data.Text as T
+import Data.Text.Encoding 
 
 import Text.Regex.PCRE.Rex
 
@@ -22,9 +24,9 @@ sent_mbox = "C:\\Users\\emmanuelto\\AppData\\Roaming\\Thunderbird\\Profiles\\k5e
 data Email = Email
 	{
 		date :: UTCTime,
-		to :: B.ByteString,
-		cc :: Maybe B.ByteString,
-		subject :: B.ByteString
+		to :: T.Text,
+		cc :: Maybe T.Text,
+		subject :: T.Text
 	}
 	deriving (Eq, Show)
 
@@ -36,26 +38,26 @@ getEmails fromDate toDate = do
 	let messages = takeWhile isAfter (map parseMessage (mboxMessages mbox))
 	-- need to reverse messages because i'm reading from the end.
 	let messages1 = takeWhile isBefore (reverse messages)
-	print messages1
+	--print messages1
 	--B.putStrLn $ (headerVal "To: ") $ 
-	return []
+	return messages1
 	where
 		isAfter email = (utctDay $ date email) >= fromDate
 		isBefore email = (utctDay $ date email) <= toDate
 
-parseMessage :: MboxMessage B.ByteString -> Email
+parseMessage :: MboxMessage BL.ByteString -> Email
 parseMessage msg = Email (parseEmailDate $ Util.toStrict1 $ _mboxMsgTime msg)
 			(fromJust $ headerVal "To: " msg)
 			(headerVal "CC: " msg)
 			(fromJust $ headerVal "Subject: " msg)
 
-readT :: BL.ByteString -> Int
-readT = fst . fromJust . BL.readInt
+readT :: B.ByteString -> Int
+readT = fst . fromJust . B.readInt
 
-readTT :: BL.ByteString -> Integer
-readTT = fst . fromJust . BL.readInteger
+readTT :: B.ByteString -> Integer
+readTT = fst . fromJust . B.readInteger
 
-parseEmailDate :: BL.ByteString -> UTCTime
+parseEmailDate :: B.ByteString -> UTCTime
 parseEmailDate [brex|(?{month}\w+)\s+(?{readT -> day}\d+)\s+
 		(?{readTT -> hour}\d+):(?{readTT -> min}\d+):(?{readTT -> sec}\d+)\s+
 		(?{readTT -> year}\d+)|] =
@@ -74,9 +76,11 @@ parseEmailDate [brex|(?{month}\w+)\s+(?{readT -> day}\d+)\s+
 			"Oct" -> 10
 			"Nov" -> 11
 			"Dec" -> 12
-			otherwise -> error $ "Unknown month " ++ (BL.unpack month)
+			otherwise -> error $ "Unknown month " ++ (B.unpack month)
 		secOfDay = (hour*3600 + min*60 + sec) :: Integer
 
-headerVal :: B.ByteString -> MboxMessage B.ByteString -> Maybe B.ByteString
-headerVal header msg = fmap (B.drop (B.length header)) maybeRow
-	where maybeRow = find (B.isPrefixOf $ header) (B.lines $ _mboxMsgBody msg)
+headerVal :: B.ByteString -> MboxMessage BL.ByteString -> Maybe T.Text
+headerVal header msg = fmap (decodeUtf8 . (B.drop (B.length header))) maybeRow
+	where
+		msgContents = Util.toStrict1 $ _mboxMsgBody msg
+		maybeRow = find (B.isPrefixOf $ header) (B.lines msgContents)

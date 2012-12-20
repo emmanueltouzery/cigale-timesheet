@@ -13,12 +13,15 @@ import System.IO
 import Data.Text.Read
 import qualified Data.Map as Map
 import Data.Maybe
+import Data.List
 
 import qualified Util
 import qualified Event
 
 svnUser = "emmanuelt"
 svnByProjects = Map.fromList [ ("ADRIA", ["https://svn2.redgale.com/ak"]) ]
+
+emailsByProjects = Map.fromList [ ("ADRIA", ["@adriakombi.si"]), ("METREL", ["@metrel.si"])]
 
 main = do
 	args <- getArgs
@@ -30,12 +33,37 @@ main = do
 
 getSvnEvents :: Day -> Day -> IO [Event.Event]
 getSvnEvents firstDayOfMonth lastDayOfMonth = do
-		let fetchCommits = Svn.getRepoCommits svnUser firstDayOfMonth lastDayOfMonth
-		let projRepos = [(projectName, svnRepo)
-				| projectName <- Map.keys svnByProjects,
-				  svnRepo <- fromJust $ Map.lookup projectName svnByProjects ]
-		commits <- sequence $ fmap (uncurry fetchCommits) projRepos
-		return $ foldr (++) [] commits
+	let projRepos = [(projectName, svnRepo)
+			| projectName <- Map.keys svnByProjects,
+			  svnRepo <- fromJust $ Map.lookup projectName svnByProjects ]
+	commits <- sequence $ fmap (uncurry fetchCommits) projRepos
+	return $ foldr (++) [] commits
+	where fetchCommits = Svn.getRepoCommits svnUser firstDayOfMonth lastDayOfMonth
+
+getEmailEvents :: Day -> Day -> IO [Event.Event]
+getEmailEvents firstDayOfMonth lastDayOfMonth = do
+	emails <- Email.getEmails firstDayOfMonth lastDayOfMonth
+	return $ map toEvent emails
+
+toEvent :: Email.Email -> Event.Event
+toEvent email = Event.Event
+			{
+				Event.eventDate = Email.date email,
+				Event.eventType = Event.Email,
+				Event.project  = getEmailProject email,
+				Event.extraInfo = Email.subject email
+			}
+
+getEmailProject :: Email.Email -> Maybe Event.Project
+getEmailProject email = fmap fst $ find ((isEmailInProject email) . snd) (Map.toList emailsByProjects)
+
+isEmailInProject :: Email.Email -> [T.Text] -> Bool
+isEmailInProject email emailsList = null $ filter emailMatches emailsList
+	where
+		emailMatches mails = not . null $ filter (emailHasTargetAddress email) emailsList
+		emailHasTargetAddress email address = address `T.isInfixOf` (emailToCc email)
+		emailToCc mail = T.concat [Email.to email, maybe "" id (Email.cc email)]
+
 
 process :: T.Text -> IO ()
 process monthStr = do
@@ -45,8 +73,10 @@ process monthStr = do
 	let lastDayOfMonth = addDays (-1) firstDayNextMonth
 	svnEvents <- getSvnEvents firstDayNextMonth lastDayOfMonth
 	--commits <- Svn.getRepoCommits repoUrl svnUser firstDayOfMonth lastDayOfMonth
-	emails <- Email.getEmails firstDayOfMonth lastDayOfMonth
-	--fileH <- openFile ((T.unpack monthStr) ++ ".json") WriteMode
-	--BL.hPut fileH (JSON.encode commits)
-	--hClose fileH
+	--emails <- Email.getEmails firstDayOfMonth lastDayOfMonth
+	emailEvents <- getEmailEvents firstDayOfMonth lastDayOfMonth
+	putStrLn $ "email events " ++ (show $ length emailEvents)
+	fileH <- openFile ((T.unpack monthStr) ++ ".json") WriteMode
+	BL.hPut fileH (JSON.encode $ svnEvents ++ emailEvents)
+	hClose fileH
 	putStrLn "done!"

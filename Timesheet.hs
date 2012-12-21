@@ -21,7 +21,7 @@ import qualified Event
 svnUser = "emmanuelt"
 svnByProjects = Map.fromList [ ("ADRIA", ["https://svn2.redgale.com/ak"]) ]
 
-emailsByProjects = Map.fromList [ ("ADRIA", ["@adriakombi.si"]), ("METREL", ["@metrel.si"])]
+emailsByProjects = [ ("ADRIA", ["@adriakombi.si"]), ("METREL", ["@metrel.si"])]
 
 main = do
 	args <- getArgs
@@ -55,11 +55,13 @@ toEvent email = Event.Event
 			}
 
 getEmailProject :: Email.Email -> Maybe Event.Project
-getEmailProject email = fmap fst $ find ((isEmailInProject email) . snd) (Map.toList emailsByProjects)
+getEmailProject email = fmap fst $ find ((isEmailInProject email) . snd) emailsByProjects
 
+-- TODO rename "emailsList" to "addressList" for clarity
 isEmailInProject :: Email.Email -> [T.Text] -> Bool
 isEmailInProject email emailsList = null $ filter emailMatches emailsList
 	where
+		-- TODO mails => addresses
 		emailMatches mails = not . null $ filter (emailHasTargetAddress email) emailsList
 		emailHasTargetAddress email address = address `T.isInfixOf` (emailToCc email)
 		emailToCc mail = T.concat [Email.to email, maybe "" id (Email.cc email)]

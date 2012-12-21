@@ -1,2 +1,4 @@
 cabal install aeson
 cabal install codec-mbox
+cabal install rex
+cabal install iCalendar

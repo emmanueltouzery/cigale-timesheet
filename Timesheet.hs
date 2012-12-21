@@ -18,16 +18,21 @@ import Data.List
 import qualified Util
 import qualified Event
 
+svnUser :: T.Text
 svnUser = "emmanuelt"
+
+svnByProjects :: Map.Map String [String]
 svnByProjects = Map.fromList [ ("ADRIA", ["https://svn2.redgale.com/ak"]) ]
 
+emailsByProjects :: [(Event.Project, [T.Text])]
 emailsByProjects = [ ("ADRIA", ["@adriakombi.si"]), ("METREL", ["@metrel.si"])]
 
+main :: IO ()
 main = do
 	args <- getArgs
 	case length args of
 		1 -> process $ T.pack $ head args
-		otherwise -> do
+		_ -> do
 			putStrLn "Parameters: <month to get the data - 2012-12 for instance>"
 			exitFailure
 
@@ -57,14 +62,11 @@ toEvent email = Event.Event
 getEmailProject :: Email.Email -> Maybe Event.Project
 getEmailProject email = fmap fst $ find ((isEmailInProject email) . snd) emailsByProjects
 
--- TODO rename "emailsList" to "addressList" for clarity
 isEmailInProject :: Email.Email -> [T.Text] -> Bool
-isEmailInProject email emailsList = null $ filter emailMatches emailsList
+isEmailInProject email addressList = not . null $ filter emailMatches addressList
 	where
-		-- TODO mails => addresses
-		emailMatches mails = not . null $ filter (emailHasTargetAddress email) emailsList
-		emailHasTargetAddress email address = address `T.isInfixOf` (emailToCc email)
-		emailToCc mail = T.concat [Email.to email, maybe "" id (Email.cc email)]
+		emailMatches address = address `T.isInfixOf` emailToCc
+		emailToCc = T.concat [Email.to email, maybe "" id (Email.cc email)]
 
 
 process :: T.Text -> IO ()

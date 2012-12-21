@@ -59,7 +59,7 @@ readTT = fst . fromJust . B.readInteger
 
 parseEmailDate :: B.ByteString -> UTCTime
 parseEmailDate [brex|(?{month}\w+)\s+(?{readT -> day}\d+)\s+
-		(?{readTT -> hour}\d+):(?{readTT -> min}\d+):(?{readTT -> sec}\d+)\s+
+		(?{readTT -> hour}\d+):(?{readTT -> mins}\d+):(?{readTT -> sec}\d+)\s+
 		(?{readTT -> year}\d+)|] =
 	UTCTime (fromGregorian year monthI day) (secondsToDiffTime secOfDay)
 	where
@@ -77,7 +77,7 @@ parseEmailDate [brex|(?{month}\w+)\s+(?{readT -> day}\d+)\s+
 			"Nov" -> 11
 			"Dec" -> 12
 			_ -> error $ "Unknown month " ++ (B.unpack month)
-		secOfDay = (hour*3600 + min*60 + sec) :: Integer
+		secOfDay = (hour*3600 + mins*60 + sec) :: Integer
 
 headerVal :: B.ByteString -> MboxMessage BL.ByteString -> Maybe T.Text
 headerVal header msg = fmap (decodeUtf8 . (B.drop (B.length header))) maybeRow

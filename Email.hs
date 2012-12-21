@@ -18,6 +18,7 @@ import Text.Regex.PCRE.Rex
 
 import Util
 
+sent_mbox :: FilePath
 sent_mbox = "C:\\Users\\emmanuelto\\AppData\\Roaming\\Thunderbird\\Profiles\\k5eh13s1.newprofile_windows7\\Mail\\mail.regulussoft.com\\Sent"
 
 data Email = Email
@@ -75,7 +76,7 @@ parseEmailDate [brex|(?{month}\w+)\s+(?{readT -> day}\d+)\s+
 			"Oct" -> 10
 			"Nov" -> 11
 			"Dec" -> 12
-			otherwise -> error $ "Unknown month " ++ (B.unpack month)
+			_ -> error $ "Unknown month " ++ (B.unpack month)
 		secOfDay = (hour*3600 + min*60 + sec) :: Integer
 
 headerVal :: B.ByteString -> MboxMessage BL.ByteString -> Maybe T.Text

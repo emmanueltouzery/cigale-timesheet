@@ -49,14 +49,14 @@ toEvent projectName (Commit _ date _ _ comment) = Event.Event date Event.Svn (Ju
 
 parseCommits :: [T.Text] -> [Commit]
 parseCommits [] = []
-parseCommits (a:[]) = [] -- in the end only the separator is left.
+parseCommits (_:[]) = [] -- in the end only the separator is left.
 -- skip the first line which is "----.."
-parseCommits (separator:commit_header:blank:xs) = commit : (parseCommits $ drop linesCount xs)
+parseCommits (_:commit_header:_:xs) = commit : (parseCommits $ drop linesCnt xs)
 	where
-		commit = Commit revision date user linesCount (T.unlines $ take linesCount xs)
-		date = parseSvnDate $ T.unpack dateStr
-		(revision:user:dateStr:lines:[]) = map T.strip (T.splitOn "|" commit_header)
-		linesCount = Util.safePromise $ decimal (T.strip lines)
+		commit = Commit rev dateVal usr linesCnt (T.unlines $ take linesCnt xs)
+		dateVal = parseSvnDate $ T.unpack dateStr
+		(rev:usr:dateStr:linesVal:[]) = map T.strip (T.splitOn "|" commit_header)
+		linesCnt = Util.safePromise $ decimal (T.strip linesVal)
 
 formatDateRange :: Day -> Day -> String
 formatDateRange startDate endDate =

@@ -45,7 +45,7 @@ data Commit = Commit
 instance JSON.ToJSON Commit
 
 toEvent :: String -> Commit -> Event.Event
-toEvent projectName (Commit _ date _ _ comment) = Event.Event date Event.Svn (Just projectName) comment
+toEvent projectName (Commit _ dateVal _ _ commentVal) = Event.Event dateVal Event.Svn (Just projectName) commentVal
 
 parseCommits :: [T.Text] -> [Commit]
 parseCommits [] = []
@@ -57,6 +57,7 @@ parseCommits (_:commit_header:_:xs) = commit : (parseCommits $ drop linesCnt xs)
 		dateVal = parseSvnDate $ T.unpack dateStr
 		(rev:usr:dateStr:linesVal:[]) = map T.strip (T.splitOn "|" commit_header)
 		linesCnt = Util.safePromise $ decimal (T.strip linesVal)
+parseCommits _ = error "Should not happen"
 
 formatDateRange :: Day -> Day -> String
 formatDateRange startDate endDate =
@@ -71,6 +72,6 @@ formatDate day =
 
 parseSvnDate :: String -> UTCTime
 parseSvnDate [rex|(?{read -> year}\d+)-(?{read -> month}\d+)-
-		(?{read -> day}\d+)\s(?{read -> hour}\d+):(?{read -> min}\d+):
+		(?{read -> day}\d+)\s(?{read -> hour}\d+):(?{read -> mins}\d+):
 		(?{read -> sec}\d+)|] =
-	UTCTime (fromGregorian year month day) (secondsToDiffTime (hour*3600+min*60+sec))
+	UTCTime (fromGregorian year month day) (secondsToDiffTime (hour*3600+mins*60+sec))

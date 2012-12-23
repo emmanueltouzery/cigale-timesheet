@@ -27,10 +27,9 @@ eventsTxt = "crap\r\nBEGIN:VEVENT\r\nDTSTART:20121220T113000Z\r\nDTEND:20121220T
 
 getCalendarEvents :: IO [Event.Event]
 getCalendarEvents = do
-	--icalData <- withSocketsDo $ simpleHttp icalAddress
-	--let icalText = TE.decodeUtf8 $ BL.toStrict icalData
+	icalData <- withSocketsDo $ simpleHttp icalAddress
+	let icalText = TE.decodeUtf8 $ BL.toStrict icalData
 	--let parseResult = parseEventsParsec icalText
-	--let parseResult = parseEventsParsec eventsTxt
 	let parseResult = parseEventsParsec $ T.pack eventsTxt
 	case parseResult of
 		Left _ -> putStrLn "parse error"

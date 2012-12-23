@@ -45,7 +45,8 @@ parseEvents = do
 	T.manyTill T.anyChar (T.try $ T.lookAhead parseBegin)
 	many parseEvent
 
-eol = string "\r\n" --many1 $ oneOf "\r\n"
+--eol = string "\r\n" --many1 $ oneOf "\r\n"
+eol = many1 $ oneOf "\r\n"
 
 parseEvent = do
 	parseBegin
@@ -67,7 +68,8 @@ parseRow = do
 
 unknownCalendarInfo = do
 	dataS <- many1 $ noneOf "\r\n"
-	return $ Just $ Description dataS
+	--return $ Just $ Description dataS
+	return Nothing
 
 startDate = do
 	string "DTSTART:"

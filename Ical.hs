@@ -44,7 +44,6 @@ parseEvents = do
 	T.manyTill T.anyChar (T.try $ T.lookAhead parseBegin)
 	many parseEvent
 
---eol = string "\r\n" --many1 $ oneOf "\r\n"
 eol = many1 $ oneOf "\r\n"
 
 parseEvent = do
@@ -64,7 +63,6 @@ parseRow = do
 			<|> (T.try endDate)
 			<|> (T.try description)
 			<|> unknownCalendarInfo
-	--contents <- unknownCalendarInfo
 	eol
 	return contents
 
@@ -108,28 +106,3 @@ parsedToInt digits = foldl ((+).(*10)) 0 (map digitToInt digits)
 parseEnd = do
 	string "END:VEVENT"
 	optional eol -- at the end of the file there may not be a carriage return.
-
-
--- icalFile = do
--- 	h <- header
--- 	entries <- many entry
--- 	f <- footer
--- 	return entries
--- 
--- header = endBy $ string "X-WR-TIMEZONE:Europe/Belgrade"
--- 
--- entry = endBy $ string "END:VEVENT"
--- 
--- footer = string "END:VCALENDAR"
--- 
--- --parseEvents :: T.Text -> [Event.Event]
--- parseEvents = parse icalFile "" 
--- 
--- -- events :: GenParser T.Text st [T.Text]
--- -- events = do
--- -- 	skipMany $ noneOf "BEGIN:VEVENT"
--- -- 	string "DTSTART:"
--- -- 	digit
--- -- 
--- -- --tillNextEventStart :: GenParser T.Text st [T.Text]
--- -- tillNextEventStart = many (noneOf "BEGIN:VEVENT")

@@ -11,13 +11,14 @@ import qualified Data.Text as T
 import Text.ParserCombinators.Parsec
 import Text.Parsec.Text
 import qualified Text.Parsec as T
+import Data.Char (digitToInt)
 
 import qualified Event
 
 icalAddress :: String
 icalAddress = "https://www.google.com/calendar/ical/etouzery%40gmail.com/private-d63868fef84ee0826c4ad9bf803048cc/basic.ics"
 
-data CalendarInfo = StartDate UTCTime
+data CalendarInfo = StartDate [Int] --UTCTime
 	| EndDate UTCTime
 	| Description String
 	deriving (Eq, Show)
@@ -41,7 +42,7 @@ getCalendarEvents = do
 parseEventsParsec t = parse parseEvents "" t
 
 parseEvents = do
-	--manyTill T.anyChar (try $ lookAhead parseBegin)
+	T.manyTill T.anyChar (T.try $ T.lookAhead parseBegin)
 	many parseEvent
 
 eol = string "\r\n" --many1 $ oneOf "\r\n"
@@ -59,9 +60,29 @@ parseBegin = do
 parseRow = do
 	notFollowedBy $ string "END:VEVENT"
 	notFollowedBy $ string "BEGIN:VEVENT"
-	contents <- many1 $ noneOf "\r\n"
+	contents <-  (T.try startDate) <|> unknownCalendarInfo
+	--contents <- unknownCalendarInfo
 	eol
 	return contents
+
+unknownCalendarInfo = do
+	dataS <- many1 $ noneOf "\r\n"
+	return $ Just $ Description dataS
+
+startDate = do
+	string "DTSTART:"
+	year <- count 4 digit
+	month <- count 2 digit
+	day <- count 2 digit
+	T.char 'T'
+	hour <- count 2 digit
+	mins <- count 2 digit
+	sec <- count 2 digit
+	many1 $ noneOf "\r\n"
+	return $ Just $ StartDate $ map parsedToInt [year,month,day,hour,mins,sec]
+
+parsedToInt :: [Char] -> Int
+parsedToInt digits = foldl ((+).(*10)) 0 (map digitToInt digits)
 
 parseEnd = do
 	string "END:VEVENT"

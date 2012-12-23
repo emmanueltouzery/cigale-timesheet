@@ -19,11 +19,11 @@ icalAddress :: String
 icalAddress = "https://www.google.com/calendar/ical/etouzery%40gmail.com/private-d63868fef84ee0826c4ad9bf803048cc/basic.ics"
 
 data CalendarInfo = StartDate [Int] --UTCTime
-	| EndDate UTCTime
+	| EndDate [Int] --UTCTime
 	| Description String
 	deriving (Eq, Show)
 
-eventsTxt = "crap\r\nBEGIN:VEVENT\r\nDTSTART:20121220T113000Z\r\nDTEND:20121220T123000Z\r\nDTSTAMP:20121222T202323Z\r\nUID:libdtse87aoci8tar144sctm7g@google.com\r\nCREATED:20121221T102110Z\r\nDESCRIPTION:\r\nLAST-MODIFIED:20121221T102116Z\r\nLOCATION:\r\nSEQUENCE:2\r\nSTATUS:CONFIRMED\r\nSUMMARY:sestanek Matej\r\nTRANSP:OPAQUE\r\nEND:VEVENT"
+eventsTxt = "crap\r\nBEGIN:VEVENT\r\nDTSTART:20121220T113000Z\r\nDTEND:20121220T123000Z\r\nDTSTAMP:20121222T202323Z\r\nUID:libdtse87aoci8tar144sctm7g@google.com\r\nCREATED:20121221T102110Z\r\nDESCRIPTION:test\r\nLAST-MODIFIED:20121221T102116Z\r\nLOCATION:\r\nSEQUENCE:2\r\nSTATUS:CONFIRMED\r\nSUMMARY:sestanek Matej\r\nTRANSP:OPAQUE\r\nEND:VEVENT"
 
 getCalendarEvents :: IO [Event.Event]
 getCalendarEvents = do
@@ -61,7 +61,10 @@ parseBegin = do
 parseRow = do
 	notFollowedBy $ string "END:VEVENT"
 	notFollowedBy $ string "BEGIN:VEVENT"
-	contents <-  (T.try startDate) <|> unknownCalendarInfo
+	contents <-  (T.try startDate) 
+			<|> (T.try endDate)
+			<|> (T.try description)
+			<|> unknownCalendarInfo
 	--contents <- unknownCalendarInfo
 	eol
 	return contents
@@ -82,6 +85,23 @@ startDate = do
 	sec <- count 2 digit
 	many1 $ noneOf "\r\n"
 	return $ Just $ StartDate $ map parsedToInt [year,month,day,hour,mins,sec]
+
+endDate = do
+	string "DTEND:"
+	year <- count 4 digit
+	month <- count 2 digit
+	day <- count 2 digit
+	T.char 'T'
+	hour <- count 2 digit
+	mins <- count 2 digit
+	sec <- count 2 digit
+	many1 $ noneOf "\r\n"
+	return $ Just $ EndDate $ map parsedToInt [year,month,day,hour,mins,sec]
+
+description = do
+	string "DESCRIPTION:"
+	text <- many1 $ noneOf "\r\n"
+	return $ Just $ Description text
 
 parsedToInt :: [Char] -> Int
 parsedToInt digits = foldl ((+).(*10)) 0 (map digitToInt digits)

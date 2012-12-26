@@ -27,8 +27,8 @@ eventsTxt = "crap\r\nBEGIN:VEVENT\r\nDTSTART:20121220T113000Z\r\nDTEND:20121220T
 
 getCalendarEvents :: IO [Event.Event]
 getCalendarEvents = do
-	icalData <- withSocketsDo $ simpleHttp icalAddress
-	let icalText = TE.decodeUtf8 $ BL.toStrict icalData
+	--icalData <- withSocketsDo $ simpleHttp icalAddress
+	--let icalText = TE.decodeUtf8 $ BL.toStrict icalData
 	--let parseResult = parseEventsParsec icalText
 	let parseResult = parseEventsParsec $ T.pack eventsTxt
 	case parseResult of
@@ -48,26 +48,22 @@ eol = many1 $ oneOf "\r\n"
 
 parseEvent = do
 	parseBegin
-	contents <- many1 parseRow
+	contents <- many1 $ (T.try startDate)
+			<|> (T.try endDate)
+			<|> (T.try description)
+			<|> unknownCalendarInfo
 	parseEnd
 	return contents
+--	return Event.Event { eventDate =  }
 
 parseBegin = do
 	string "BEGIN:VEVENT"
 	eol
 
-parseRow = do
-	notFollowedBy $ string "END:VEVENT"
-	notFollowedBy $ string "BEGIN:VEVENT"
-	contents <-  (T.try startDate) 
-			<|> (T.try endDate)
-			<|> (T.try description)
-			<|> unknownCalendarInfo
-	eol
-	return contents
-
 unknownCalendarInfo = do
+	notFollowedBy $ string "END:VEVENT"
 	dataS <- many1 $ noneOf "\r\n"
+	eol
 	--return $ Just $ Description dataS
 	return Nothing
 
@@ -81,6 +77,7 @@ startDate = do
 	mins <- count 2 digit
 	sec <- count 2 digit
 	many1 $ noneOf "\r\n"
+	eol
 	return $ Just $ StartDate $ map parsedToInt [year,month,day,hour,mins,sec]
 
 endDate = do
@@ -93,11 +90,13 @@ endDate = do
 	mins <- count 2 digit
 	sec <- count 2 digit
 	many1 $ noneOf "\r\n"
+	eol
 	return $ Just $ EndDate $ map parsedToInt [year,month,day,hour,mins,sec]
 
 description = do
 	string "DESCRIPTION:"
 	text <- many1 $ noneOf "\r\n"
+	eol
 	return $ Just $ Description text
 
 parsedToInt :: [Char] -> Int

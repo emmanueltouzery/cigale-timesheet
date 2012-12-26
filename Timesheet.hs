@@ -17,6 +17,7 @@ import Data.List
 
 import qualified Util
 import qualified Event
+import qualified Ical
 
 svnUser :: T.Text
 svnUser = "emmanuelt"
@@ -75,12 +76,11 @@ process monthStr = do
 	let firstDayOfMonth = fromGregorian (toInteger $ head ymd) (ymd !! 1) 1
 	let firstDayNextMonth = addGregorianMonthsClip 1 firstDayOfMonth
 	let lastDayOfMonth = addDays (-1) firstDayNextMonth
-	svnEvents <- getSvnEvents firstDayNextMonth lastDayOfMonth
-	--commits <- Svn.getRepoCommits repoUrl svnUser firstDayOfMonth lastDayOfMonth
-	--emails <- Email.getEmails firstDayOfMonth lastDayOfMonth
-	emailEvents <- getEmailEvents firstDayOfMonth lastDayOfMonth
-	putStrLn $ "email events " ++ (show $ length emailEvents)
+	--svnEvents <- getSvnEvents firstDayNextMonth lastDayOfMonth
+	--emailEvents <- getEmailEvents firstDayOfMonth lastDayOfMonth
+	Ical.getCalendarEvents
+	{-putStrLn $ "email events " ++ (show $ length emailEvents)
 	fileH <- openFile ((T.unpack monthStr) ++ ".json") WriteMode
 	BL.hPut fileH (JSON.encode $ svnEvents ++ emailEvents)
-	hClose fileH
+	hClose fileH -}
 	putStrLn "done!"

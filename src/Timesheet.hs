@@ -1,15 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
+module Timesheet where
 
 import qualified Svn
 import qualified Email
 
-import System.Environment
-import System.Exit
 import qualified Data.Text as T
 import Data.Time.Calendar
 import qualified Data.Aeson as JSON
 import qualified Data.ByteString.Lazy.Char8 as BL
-import System.IO
 import Data.Text.Read
 import qualified Data.Map as Map
 import Data.Maybe
@@ -28,14 +26,14 @@ svnByProjects = Map.fromList [ ("ADRIA", ["https://svn2.redgale.com/ak"]) ]
 emailsByProjects :: [(Event.Project, [T.Text])]
 emailsByProjects = [ ("ADRIA", ["@adriakombi.si"]), ("METREL", ["@metrel.si"])]
 
-main :: IO ()
-main = do
-	args <- getArgs
-	case length args of
-		1 -> process $ T.pack $ head args
-		_ -> do
-			putStrLn "Parameters: <month to get the data - 2012-12 for instance>"
-			exitFailure
+-- main :: IO ()
+-- main = do
+-- 	args <- getArgs
+-- 	case length args of
+-- 		1 -> process $ T.pack $ head args
+-- 		_ -> do
+-- 			putStrLn "Parameters: <month to get the data - 2012-12 for instance>"
+-- 			exitFailure
 
 getSvnEvents :: Day -> Day -> IO [Event.Event]
 getSvnEvents firstDayOfMonth lastDayOfMonth = do
@@ -70,18 +68,18 @@ isEmailInProject email addressList = not . null $ filter emailMatches addressLis
 		emailToCc = T.concat [Email.to email, maybe "" id (Email.cc email)]
 
 
-process :: T.Text -> IO ()
+process :: T.Text -> IO BL.ByteString
 process monthStr = do
 	let ymd = map (Util.safePromise . decimal) (T.splitOn "-" monthStr)
 	let firstDayOfMonth = fromGregorian (toInteger $ head ymd) (ymd !! 1) 1
 	let firstDayNextMonth = addGregorianMonthsClip 1 firstDayOfMonth
 	let lastDayOfMonth = addDays (-1) firstDayNextMonth
-	--svnEvents <- getSvnEvents firstDayNextMonth lastDayOfMonth
-	--emailEvents <- getEmailEvents firstDayOfMonth lastDayOfMonth
+	svnEvents <- getSvnEvents firstDayNextMonth lastDayOfMonth
+	emailEvents <- getEmailEvents firstDayOfMonth lastDayOfMonth
 	icalEvents <- Ical.getCalendarEvents firstDayOfMonth lastDayOfMonth
 	print icalEvents
 	{-putStrLn $ "email events " ++ (show $ length emailEvents)
 	fileH <- openFile ((T.unpack monthStr) ++ ".json") WriteMode
 	BL.hPut fileH (JSON.encode $ svnEvents ++ emailEvents)
 	hClose fileH -}
-	putStrLn "done!"
+	return $ JSON.encode $ svnEvents ++ emailEvents ++ icalEvents

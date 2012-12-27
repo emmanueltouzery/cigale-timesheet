@@ -1,0 +1,32 @@
+Name:                timesheet
+Version:             0.1
+Synopsis:            Project Synopsis Here
+Description:         Project Description Here
+License:             AllRightsReserved
+Author:              Author
+Maintainer:          etouzery@gmail.com
+Stability:           Experimental
+Category:            Web
+Build-type:          Simple
+Cabal-version:       >=1.2
+
+Executable timesheet
+  hs-source-dirs: src
+  main-is: Main.hs
+
+  Build-depends:
+    base                      >= 4     && < 5,
+    bytestring                >= 0.9.1 && < 0.11,
+    MonadCatchIO-transformers >= 0.2.1 && < 0.4,
+    mtl                       >= 2     && < 3,
+    snap-core                 >= 0.9   && < 0.11,
+    snap-server               >= 0.9   && < 0.11,
+    aeson                     >= 0.6   && < 0.7,
+    rex                       >= 0.3   && < 0.4,
+    codec-mbox                >= 0.1   && < 0.2
+
+  if impl(ghc >= 6.12.0)
+    ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2
+                 -fno-warn-unused-do-bind
+  else
+    ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2

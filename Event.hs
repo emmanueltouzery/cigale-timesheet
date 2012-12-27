@@ -11,6 +11,7 @@ import Data.Text.Read
 
 data EventType = Svn
 	| Email
+	| Calendar
 	deriving (Eq, Show, Generic)
 
 instance JSON.ToJSON EventType

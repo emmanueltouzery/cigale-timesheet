@@ -34,15 +34,23 @@ data CalendarRecord = CalendarRecord
 
 --eventsTxt = "crap\r\nBEGIN:VEVENT\r\nDTSTART:20121220T113000Z\r\nDTEND:20121220T123000Z\r\nDTSTAMP:20121222T202323Z\r\nUID:libdtse87aoci8tar144sctm7g@google.com\r\nCREATED:20121221T102110Z\r\nDESCRIPTION:test\r\nLAST-MODIFIED:20121221T102116Z\r\nLOCATION:\r\nSEQUENCE:2\r\nSTATUS:CONFIRMED\r\nSUMMARY:sestanek Matej\r\nTRANSP:OPAQUE\r\nEND:VEVENT"
 
-getCalendarEvents :: IO [Event.Event]
-getCalendarEvents = do
+getCalendarEvents :: Day -> Day -> IO [Event.Event]
+getCalendarEvents startDay endDay = do
 	icalData <- withSocketsDo $ simpleHttp icalAddress
 	let icalText = TE.decodeUtf8 $ BL.toStrict icalData
 	let parseResult = parseEventsParsec $ filterUnknownEvents icalText
 	--let parseResult = parseEventsParsec $ filterUnknownEvents $ T.pack eventsTxt
 	case parseResult of
 		Left _ -> do putStrLn "parse error"; return []
-		Right x -> do print x; return x
+		Right x -> return $ filterDate startDay endDay x
+
+filterDate :: Day -> Day -> [Event.Event] -> [Event.Event]
+filterDate startDay endDay events = filter (eventInDateRange startDay endDay) events
+
+eventInDateRange :: Day -> Day -> Event.Event -> Bool
+eventInDateRange startDay endDay event =  eventDay >= startDay && eventDay <= endDay
+	where
+		eventDay = utctDay $ Event.eventDate event
 
 filterUnknownEvents :: T.Text -> T.Text
 filterUnknownEvents input = T.unlines $ filter isKnownCommand (T.lines input)

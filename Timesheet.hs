@@ -78,7 +78,8 @@ process monthStr = do
 	let lastDayOfMonth = addDays (-1) firstDayNextMonth
 	--svnEvents <- getSvnEvents firstDayNextMonth lastDayOfMonth
 	--emailEvents <- getEmailEvents firstDayOfMonth lastDayOfMonth
-	Ical.getCalendarEvents
+	icalEvents <- Ical.getCalendarEvents firstDayOfMonth lastDayOfMonth
+	print icalEvents
 	{-putStrLn $ "email events " ++ (show $ length emailEvents)
 	fileH <- openFile ((T.unpack monthStr) ++ ".json") WriteMode
 	BL.hPut fileH (JSON.encode $ svnEvents ++ emailEvents)

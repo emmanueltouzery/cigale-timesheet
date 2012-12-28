@@ -22,6 +22,7 @@ site =
 
 timesheet :: Snap ()
 timesheet = do
+    setTimeout $ 3600
     param <- getParam "tsparam"
     maybe (writeBS "must specify the month and year in URL, like so: /timesheet/2012-11")
           handleTimesheet param

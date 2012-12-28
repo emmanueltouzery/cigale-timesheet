@@ -1,0 +1,1 @@
+ghc -prof -auto-all -rtsopts -osuf prof Timesheet.hs

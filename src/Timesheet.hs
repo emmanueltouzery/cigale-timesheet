@@ -78,6 +78,8 @@ process monthStr = do
 	emailEvents <- getEmailEvents firstDayOfMonth lastDayOfMonth
 	icalEvents <- Ical.getCalendarEvents firstDayOfMonth lastDayOfMonth
 	print icalEvents
+	print svnEvents
+	print emailEvents
 	{-putStrLn $ "email events " ++ (show $ length emailEvents)
 	fileH <- openFile ((T.unpack monthStr) ++ ".json") WriteMode
 	BL.hPut fileH (JSON.encode $ svnEvents ++ emailEvents)

@@ -18,10 +18,7 @@ import Text.Regex.PCRE.Rex
 
 getRepoCommits :: T.Text -> Day -> Day -> String -> String -> IO [Event.Event]
 getRepoCommits username startDate endDate projectName url = do
-	let dateRange = formatDateRange startDate endDate
-	putStrLn "################"
-	putStrLn dateRange
-	putStrLn "################"
+	let dateRange = formatDateRange startDate (addDays 1 endDate)
 	(inh, Just outh, errh, pid) <- Process.createProcess
 		(Process.proc "svn" ["log", url, "-r", dateRange])
 		{Process.std_out = Process.CreatePipe}

@@ -17,28 +17,60 @@
 			return displayDate.getFullYear() + "-" + (displayDate.getMonth()+1) + "-" + displayDate.getDate();
 		}
 
+		function getDateDescStr() {
+			switch (displayDate.getDay()) {
+				case 0: dayDesc = "Sunday"; break;
+				case 1: dayDesc = "Monday"; break;
+				case 2: dayDesc = "Tuesday"; break;
+				case 3: dayDesc = "Wednesday"; break;
+				case 4: dayDesc = "Thursday"; break;
+				case 5: dayDesc = "Friday"; break;
+				case 6: dayDesc = "Saturday"; break;
+			}
+			return getDateStr() + " (" + dayDesc + ")";
+		}
+
+		function showPrevNext(val) {
+			if (val) {
+				$('#nextDay').show();
+				$('#previousDay').show();
+			} else {
+				$('#nextDay').hide();
+				$('#previousDay').hide();
+			}
+		}
+
 		function updateDisplay() {
 			$('table#eventsTable').empty();
 			$.getJSON('/timesheet/' + getDateStr(), function(data) {
 				$.each(data, function(index, value) {
 					$('table#eventsTable').append("<tr><td>" + value.project + "</td><td>" + value.eventDate + "</td><td>" + eventTypeStr(value.eventType) + "</td><td>" + value.extraInfo +"</td></tr>")
 				})
+				showPrevNext(true);
 			});
-			$('span#date').html(getDateStr());
+			$('span#date').html(getDateDescStr());
 		}
 
 		$(document).ready(function() {
 			updateDisplay();
 
-			$('#nextDay').click(function() { displayDate.setDate(displayDate.getDate() + 1); updateDisplay(); })
-			$('#previousDay').click(function() { displayDate.setDate(displayDate.getDate() - 1); updateDisplay(); })
+			$('#nextDay').click(function() {
+				showPrevNext(false);
+				displayDate.setDate(displayDate.getDate() + 1);
+				updateDisplay();
+			})
+			$('#previousDay').click(function() {
+				showPrevNext(false);
+				displayDate.setDate(displayDate.getDate() - 1);
+				updateDisplay();
+			})
 		});
 	</script>
 
-	Displaying date <span id="date"></span>.
+	Displaying date <span id="date"></span>.<br/>
+
+	<span id="previousDay">[Previous day]</span>
+	<span id="nextDay">[Next day]</span>
 
 	<table id="eventsTable"></table>
-
-	<span id="previousDay">Previous day</span>
-	<span id="nextDay">Next day</span>
 </html>

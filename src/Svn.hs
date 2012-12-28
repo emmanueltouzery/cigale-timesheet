@@ -7,10 +7,6 @@ import qualified Data.Text.IO as IO
 import Data.Time.Clock
 import Data.Time.Calendar
 import qualified Data.Text as T
-import Data.Maybe
-import Data.String.Utils
-import Data.Char
-import Debug.Trace
 import qualified Data.Aeson as JSON
 import GHC.Generics
 import Data.Text.Read
@@ -23,6 +19,9 @@ import Text.Regex.PCRE.Rex
 getRepoCommits :: T.Text -> Day -> Day -> String -> String -> IO [Event.Event]
 getRepoCommits username startDate endDate projectName url = do
 	let dateRange = formatDateRange startDate endDate
+	putStrLn "################"
+	putStrLn dateRange
+	putStrLn "################"
 	(inh, Just outh, errh, pid) <- Process.createProcess
 		(Process.proc "svn" ["log", url, "-r", dateRange])
 		{Process.std_out = Process.CreatePipe}
@@ -30,7 +29,12 @@ getRepoCommits username startDate endDate projectName url = do
 	output <- IO.hGetContents outh
 	let commits = parseCommits $ T.lines output
 	let myCommits = filter ((==username) . user) commits
-	return $ map (toEvent projectName) myCommits
+	-- need to filter again by date, because SVN obviously
+	-- returns me commits which are CLOSE to the dates I
+	-- requested, but not necessarily WITHIN the dates I
+	-- requested...
+	let myCommitsInInterval = filter ((\d -> d >= startDate && d <= endDate) . utctDay . date) myCommits
+	return $ map (toEvent projectName) myCommitsInInterval
 
 data Commit = Commit
 	{

@@ -11,14 +11,34 @@
 			return result;
 		}
 
-		$(document).ready(function() {
-			$.getJSON('/timesheet/2012-12-01', function(data) {
+		displayDate = new Date();
+
+		function getDateStr() {
+			return displayDate.getFullYear() + "-" + (displayDate.getMonth()+1) + "-" + displayDate.getDate();
+		}
+
+		function updateDisplay() {
+			$('table#eventsTable').empty();
+			$.getJSON('/timesheet/' + getDateStr(), function(data) {
 				$.each(data, function(index, value) {
 					$('table#eventsTable').append("<tr><td>" + value.project + "</td><td>" + value.eventDate + "</td><td>" + eventTypeStr(value.eventType) + "</td><td>" + value.extraInfo +"</td></tr>")
 				})
 			});
+			$('span#date').html(getDateStr());
+		}
+
+		$(document).ready(function() {
+			updateDisplay();
+
+			$('#nextDay').click(function() { displayDate.setDate(displayDate.getDate() + 1); updateDisplay(); })
+			$('#previousDay').click(function() { displayDate.setDate(displayDate.getDate() - 1); updateDisplay(); })
 		});
 	</script>
 
+	Displaying date <span id="date"></span>.
+
 	<table id="eventsTable"></table>
+
+	<span id="previousDay">Previous day</span>
+	<span id="nextDay">Next day</span>
 </html>

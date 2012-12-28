@@ -9,8 +9,6 @@ import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.ByteString.Char8 as B
 import Data.Maybe
 import Data.List
-import Data.Time
-import Data.Text.Read
 import qualified Data.Text as T
 import Data.Text.Encoding 
 
@@ -28,13 +26,13 @@ data Email = Email
 		cc :: Maybe T.Text,
 		subject :: T.Text
 	}
-	deriving (Eq, Show)
+	deriving (Eq)
 
 getEmails :: Day -> Day -> IO [Email]
 getEmails fromDate toDate = do
 	mbox <- parseMboxFile Backward sent_mbox
-	print $ head $ (map _mboxMsgTime (mboxMessages mbox))
-	print $ head $ (map parseMessage (mboxMessages mbox))
+	--print $ head $ (map _mboxMsgTime (mboxMessages mbox))
+	--print $ head $ (map parseMessage (mboxMessages mbox))
 	let messages = takeWhile isAfter (map parseMessage (mboxMessages mbox))
 	-- need to reverse messages because i'm reading from the end.
 	let messages1 = takeWhile isBefore (reverse messages)

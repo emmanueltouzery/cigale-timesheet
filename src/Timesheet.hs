@@ -70,13 +70,16 @@ isEmailInProject email addressList = not . null $ filter emailMatches addressLis
 
 process :: T.Text -> IO BL.ByteString
 process monthStr = do
+	-- TODO this will fail with cryptic error messages if not given
+	-- a string by the right format!
 	let ymd = map (Util.safePromise . decimal) (T.splitOn "-" monthStr)
-	let firstDayOfMonth = fromGregorian (toInteger $ head ymd) (ymd !! 1) 1
-	let firstDayNextMonth = addGregorianMonthsClip 1 firstDayOfMonth
-	let lastDayOfMonth = addDays (-1) firstDayNextMonth
-	svnEvents <- getSvnEvents firstDayNextMonth lastDayOfMonth
-	emailEvents <- getEmailEvents firstDayOfMonth lastDayOfMonth
-	icalEvents <- Ical.getCalendarEvents firstDayOfMonth lastDayOfMonth
+	let date = fromGregorian (toInteger $ head ymd) (ymd !! 1) (ymd !! 2)
+	--let firstDayOfMonth = fromGregorian (toInteger $ head ymd) (ymd !! 1) 1
+	--let firstDayNextMonth = addGregorianMonthsClip 1 firstDayOfMonth
+	--let lastDayOfMonth = addDays (-1) firstDayNextMonth
+	svnEvents <- getSvnEvents date date
+	emailEvents <- getEmailEvents date date
+	icalEvents <- Ical.getCalendarEvents date date
 	print icalEvents
 	print svnEvents
 	print emailEvents

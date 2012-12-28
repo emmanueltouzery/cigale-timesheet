@@ -47,9 +47,14 @@ getEmails fromDate toDate = do
 
 parseMessage :: MboxMessage BL.ByteString -> Email
 parseMessage msg = Email (parseEmailDate $ Util.toStrict1 $ _mboxMsgTime msg)
-			(fromJust $ headerVal "To: " msg)
+			(headerValSafe "To: " msg)
 			(headerVal "CC: " msg)
-			(fromJust $ headerVal "Subject: " msg)
+			(headerValSafe "Subject: " msg)
+
+headerValSafe :: B.ByteString -> MboxMessage BL.ByteString -> T.Text
+headerValSafe fieldHeader msg = case (headerVal fieldHeader msg) of
+	Just a -> a
+	Nothing -> T.pack ("ERROR: " ++ (T.unpack $ decodeUtf8 fieldHeader) ++ " -- " ++ (T.unpack $ decodeUtf8 $ Util.toStrict1 $ _mboxMsgBody msg))
 
 readT :: B.ByteString -> Int
 readT = fst . fromJust . B.readInt

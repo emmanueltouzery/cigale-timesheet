@@ -21,7 +21,8 @@ svnUser :: T.Text
 svnUser = "emmanuelt"
 
 svnByProjects :: Map.Map String [String]
-svnByProjects = Map.fromList [ ("ADRIA", ["https://svn2.redgale.com/ak"]) ]
+svnByProjects = Map.fromList [ ("ADRIA", ["https://svn2.redgale.com/ak"]), ("METREL", ["https://svn2.redgale.com/met"]),
+				("BUS", ["https://svn2.redgale.com/android"])]
 
 emailsByProjects :: [(Event.Project, [T.Text])]
 emailsByProjects = [ ("ADRIA", ["@adriakombi.si"]), ("METREL", ["@metrel.si"])]

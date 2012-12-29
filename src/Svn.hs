@@ -1,4 +1,4 @@
-{-# LANGUAGE QuasiQuotes, OverloadedStrings, DeriveGeneric, ViewPatterns #-}
+{-# LANGUAGE QuasiQuotes, OverloadedStrings, ViewPatterns #-}
 
 module Svn where
 
@@ -7,8 +7,6 @@ import qualified Data.Text.IO as IO
 import Data.Time.Clock
 import Data.Time.Calendar
 import qualified Data.Text as T
-import qualified Data.Aeson as JSON
-import GHC.Generics
 import Data.Text.Read
 
 import qualified Util
@@ -41,9 +39,7 @@ data Commit = Commit
 		linesCount :: Int,
 		comment :: T.Text
 	}
-	deriving (Eq, Show, Generic)
-
-instance JSON.ToJSON Commit
+	deriving (Eq, Show)
 
 toEvent :: String -> Commit -> Event.Event
 toEvent projectName (Commit _ dateVal _ _ commentVal) = Event.Event dateVal Event.Svn (Just projectName) commentVal

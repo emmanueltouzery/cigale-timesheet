@@ -13,6 +13,8 @@ import qualified Data.Map as Map
 import Data.Maybe
 import Data.List
 
+import GHC.Exts
+
 import Control.Concurrent.Async
 
 import qualified Util
@@ -77,17 +79,9 @@ process monthStr = do
 	-- a string by the right format!
 	let ymd = map (Util.safePromise . decimal) (T.splitOn "-" monthStr)
 	let date = fromGregorian (toInteger $ head ymd) (ymd !! 1) (ymd !! 2)
-	--let firstDayOfMonth = fromGregorian (toInteger $ head ymd) (ymd !! 1) 1
-	--let firstDayNextMonth = addGregorianMonthsClip 1 firstDayOfMonth
-	--let lastDayOfMonth = addDays (-1) firstDayNextMonth
 	svnEvents <- getSvnEvents date date
 	emailEvents <- getEmailEvents date date
 	icalEvents <- Ical.getCalendarEvents date date
-	print icalEvents
-	print svnEvents
-	print emailEvents
-	{-putStrLn $ "email events " ++ (show $ length emailEvents)
-	fileH <- openFile ((T.unpack monthStr) ++ ".json") WriteMode
-	BL.hPut fileH (JSON.encode $ svnEvents ++ emailEvents)
-	hClose fileH -}
-	return $ JSON.encode $ svnEvents ++ emailEvents ++ icalEvents
+	let allEvents = svnEvents ++ emailEvents ++ icalEvents
+	let sortedEvents = sortWith Event.eventDate allEvents
+	return $ JSON.encode sortedEvents 

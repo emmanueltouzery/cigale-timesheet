@@ -9,13 +9,18 @@ import Network.HTTP.Conduit
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Encoding as TE
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import Text.ParserCombinators.Parsec
 import Text.Parsec.Text
 import Text.Parsec.Perm
 import qualified Text.Parsec as T
 import Data.Char (digitToInt)
+import System.IO
+import qualified System.Directory as Dir
+import qualified System.IO.Error as IOEx
 
 import qualified Event
+import qualified Settings
 
 icalAddress :: String
 icalAddress = "https://www.google.com/calendar/ical/etouzery%40gmail.com/private-d63868fef84ee0826c4ad9bf803048cc/basic.ics"
@@ -36,13 +41,22 @@ data CalendarRecord = CalendarRecord
 
 getCalendarEvents :: Day -> Day -> IO [Event.Event]
 getCalendarEvents startDay endDay = do
-	icalData <- withSocketsDo $ simpleHttp icalAddress
-	let icalText = TE.decodeUtf8 $ BL.toStrict icalData
+	hasCached <- hasCachedVersionForDay endDay
+	icalText <- if hasCached
+		then readFromCache
+		else readFromWWW
 	let parseResult = parseEventsParsec $ filterUnknownEvents icalText
 	--let parseResult = parseEventsParsec $ filterUnknownEvents $ T.pack eventsTxt
 	case parseResult of
 		Left _ -> do putStrLn "parse error"; return []
 		Right x -> return $ filterDate startDay endDay x
+
+readFromWWW :: IO T.Text
+readFromWWW = do
+	icalData <- withSocketsDo $ simpleHttp icalAddress
+	let icalText = TE.decodeUtf8 $ BL.toStrict icalData
+	putInCache icalText
+	return icalText
 
 filterDate :: Day -> Day -> [Event.Event] -> [Event.Event]
 filterDate startDay endDay events = filter (eventInDateRange startDay endDay) events
@@ -57,6 +71,7 @@ filterUnknownEvents input = T.unlines $ filter isKnownCommand (T.lines input)
 	where
 		isKnownCommand line = any ((flip T.isPrefixOf) line) knownCommands
 
+parseEventsParsec :: T.Text -> Either ParseError [Event.Event]
 parseEventsParsec t = parse parseEvents "" t
 
 parseEvents = do
@@ -126,3 +141,37 @@ parsedToInteger = fromIntegral . parsedToInt
 parseEnd = do
 	string "END:VEVENT"
 	optional eol -- at the end of the file there may not be a carriage return.
+
+hasCachedVersionForDay :: Day -> IO Bool
+hasCachedVersionForDay day = do
+	cachedDateMaybe <- cachedVersionDate
+	case cachedDateMaybe of
+		Nothing -> return False
+		Just cachedDate -> return $ day < cachedDate
+
+cacheFilename :: IO String
+cacheFilename = do
+	settingsFolder <- Settings.getSettingsFolder
+	return $ settingsFolder ++ "cached-calendar.ical"
+
+cachedVersionDate :: IO (Maybe Day)
+cachedVersionDate = do
+	fname <- cacheFilename
+	modifTime <- IOEx.tryIOError $ Dir.getModificationTime fname
+	case modifTime of
+		Left _ -> return Nothing
+		Right modif -> return $ Just $ utctDay modif
+
+readFromCache :: IO T.Text
+readFromCache = do
+	putStrLn "reading calendar from cache!"
+	fname <- cacheFilename
+	fmap T.pack (readFile fname)
+
+
+putInCache :: T.Text -> IO ()
+putInCache text = do
+	fname <- cacheFilename
+	fileH <- openFile fname WriteMode
+	T.hPutStr fileH text
+	hClose fileH

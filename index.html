@@ -16,14 +16,20 @@
 				   text will be vertically centered. */
 				line-height: 50px;
 			}
+
+			/* http://stackoverflow.com/a/2855726/516188 */
+			.ui-widget { font-size: 0.6em !important; }
 		</style>
+		<script type='text/javascript' src='/static/jquery-1.8.3.min.js'></script>
+		<script type='text/javascript' src='/static/jquery-ui-1.9.2/js/jquery-ui-1.9.2.custom.min.js'></script>
+		<link href="/static/jquery-ui-1.9.2/css/smoothness/jquery-ui-1.9.2.custom.css" rel="stylesheet">
 	</head>
 	<body>
-		<script type='text/javascript' src='/static/jquery-1.8.3.min.js'></script>
 		<!--	<script type='text/javascript' src='/static/knockout-2.2.0.js'></script> -->
 	</body>
 
 	<script>
+
 		function eventTypeStr(eventType) {
 			result = {}
 			$.each(eventType, function(k,v) { result = k})
@@ -33,6 +39,7 @@
 		displayDate = new Date();
 
 		function getDateStr() {
+			var displayDate = $('#datepicker').datepicker("getDate");
 			return displayDate.getFullYear() + "-" + (displayDate.getMonth()+1) + "-" + displayDate.getDate();
 		}
 
@@ -49,49 +56,31 @@
 			return getDateStr() + " (" + dayDesc + ")";
 		}
 
-		function showPrevNext(val) {
-			if (val) {
-				$('#nextDay').show();
-				$('#previousDay').show();
-				$('#pleasehold').hide();
-			} else {
-				$('#nextDay').hide();
-				$('#previousDay').hide();
-				$('#pleasehold').show();
-			}
-		}
-
 		function updateDisplay() {
+			$('#pleasehold').show();
 			$('table#eventsTable').empty();
 			$.getJSON('/timesheet/' + getDateStr(), function(data) {
 				$.each(data, function(index, value) {
 					$('table#eventsTable').append("<tr><td>" + value.project + "</td><td>" + value.eventDate + "</td><td>" + eventTypeStr(value.eventType) + "</td><td>" + value.extraInfo +"</td></tr>")
 				})
-				showPrevNext(true);
+				$('#pleasehold').hide();
 			});
 			$('span#date').html(getDateDescStr());
 		}
 
 		$(document).ready(function() {
+			$( "#datepicker" ).datepicker({
+				inline: true,
+				onSelect: function(dateText) {
+					updateDisplay();
+				},
+				firstDay: 1
+			});
 			updateDisplay();
-
-			$('#nextDay').click(function() {
-				showPrevNext(false);
-				displayDate.setDate(displayDate.getDate() + 1);
-				updateDisplay();
-			})
-			$('#previousDay').click(function() {
-				showPrevNext(false);
-				displayDate.setDate(displayDate.getDate() - 1);
-				updateDisplay();
-			})
 		});
 	</script>
 
-	Displaying date <span id="date"></span>.<br/>
-
-	<span id="previousDay">[Previous day]</span>
-	<span id="nextDay">[Next day]</span>
+	<div id="datepicker"></div>
 
 	<table id="eventsTable"></table>
 

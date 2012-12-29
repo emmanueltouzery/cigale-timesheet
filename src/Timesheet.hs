@@ -13,6 +13,8 @@ import qualified Data.Map as Map
 import Data.Maybe
 import Data.List
 
+import Control.Concurrent.Async
+
 import qualified Util
 import qualified Event
 import qualified Ical
@@ -41,7 +43,7 @@ getSvnEvents firstDayOfMonth lastDayOfMonth = do
 	let projRepos = [(projectName, svnRepo)
 			| projectName <- Map.keys svnByProjects,
 			  svnRepo <- fromJust $ Map.lookup projectName svnByProjects ]
-	commits <- sequence $ fmap (uncurry fetchCommits) projRepos
+	commits <- mapConcurrently (uncurry fetchCommits) projRepos
 	return $ foldr (++) [] commits
 	where fetchCommits = Svn.getRepoCommits svnUser firstDayOfMonth lastDayOfMonth
 

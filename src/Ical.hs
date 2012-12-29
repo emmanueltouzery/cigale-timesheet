@@ -106,12 +106,13 @@ parseDateTime = do
 
 descriptionParser = do
 	string "DESCRIPTION:"
-	text <- many $ noneOf "\r\n"
-	eol
-	return text
+	textOnThisLineParser
 
 summaryParser = do
 	string "SUMMARY:"
+	textOnThisLineParser
+
+textOnThisLineParser = do
 	text <- many $ noneOf "\r\n"
 	eol
 	return text

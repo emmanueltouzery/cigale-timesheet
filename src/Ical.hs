@@ -11,16 +11,17 @@ import qualified Data.Text.Encoding as TE
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Text.ParserCombinators.Parsec
+import Text.ParserCombinators.Parsec.Error
 import Text.Parsec.Text
 import Text.Parsec.Perm
 import qualified Text.Parsec as T
-import Data.Char (digitToInt)
 import System.IO
 import qualified System.Directory as Dir
 import qualified System.IO.Error as IOEx
 
 import qualified Event
 import qualified Settings
+import qualified Util
 
 icalAddress :: String
 icalAddress = "https://www.google.com/calendar/ical/etouzery%40gmail.com/private-d63868fef84ee0826c4ad9bf803048cc/basic.ics"
@@ -45,11 +46,17 @@ getCalendarEvents startDay endDay = do
 	icalText <- if hasCached
 		then readFromCache
 		else readFromWWW
+	--putStrLn $ T.unpack $ filterUnknownEvents icalText
 	let parseResult = parseEventsParsec $ filterUnknownEvents icalText
 	--let parseResult = parseEventsParsec $ filterUnknownEvents $ T.pack eventsTxt
 	case parseResult of
-		Left _ -> do putStrLn "parse error"; return []
+		Left pe -> do
+			putStrLn $ "iCal: parse error: " ++ displayErrors pe
+			putStrLn $ "line:col: " ++ (show $ sourceLine $ errorPos pe) ++ ":" ++ (show $ sourceColumn $ errorPos pe)
+			return []
 		Right x -> return $ filterDate startDay endDay x
+	where
+		displayErrors pe = concat $ fmap messageString (errorMessages pe)
 
 readFromWWW :: IO T.Text
 readFromWWW = do
@@ -77,8 +84,6 @@ parseEventsParsec t = parse parseEvents "" t
 parseEvents = do
 	T.manyTill T.anyChar (T.try $ T.lookAhead parseBegin)
 	many parseEvent
-
-eol = many1 $ oneOf "\r\n"
 
 parseEvent = do
 	parseBegin
@@ -116,8 +121,8 @@ parseDateTime = do
 	many1 $ noneOf "\r\n"
 	eol
 	return $ UTCTime
-		(fromGregorian (parsedToInteger year) (parsedToInt month) (parsedToInt day))
-		(secondsToDiffTime $ (parsedToInteger hour)*3600 + (parsedToInteger mins)*60 + (parsedToInteger sec))
+		(fromGregorian (Util.parsedToInteger year) (Util.parsedToInt month) (Util.parsedToInt day))
+		(secondsToDiffTime $ (Util.parsedToInteger hour)*3600 + (Util.parsedToInteger mins)*60 + (Util.parsedToInteger sec))
 
 descriptionParser = do
 	string "DESCRIPTION:"
@@ -126,17 +131,6 @@ descriptionParser = do
 summaryParser = do
 	string "SUMMARY:"
 	textOnThisLineParser
-
-textOnThisLineParser = do
-	text <- many $ noneOf "\r\n"
-	eol
-	return text
-
-parsedToInt :: [Char] -> Int
-parsedToInt digits = foldl ((+).(*10)) 0 (map digitToInt digits)
-
-parsedToInteger :: [Char] -> Integer
-parsedToInteger = fromIntegral . parsedToInt
 
 parseEnd = do
 	string "END:VEVENT"
@@ -175,3 +169,12 @@ putInCache text = do
 	fileH <- openFile fname WriteMode
 	T.hPutStr fileH text
 	hClose fileH
+
+-- TODO copy-pasted with Hg.hs
+textOnThisLineParser = do
+	text <- many $ noneOf "\r\n"
+	eol
+	return text
+
+-- TODO copy-pasted with Hg.hs
+eol = many1 $ oneOf "\r\n"

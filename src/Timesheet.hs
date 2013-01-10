@@ -95,10 +95,15 @@ process monthStr = do
 	-- a string by the right format!
 	let ymd = map (Util.safePromise . decimal) (T.splitOn "-" monthStr)
 	let date = fromGregorian (toInteger $ head ymd) (ymd !! 1) (ymd !! 2)
+	putStrLn "fetching from SVN"
 	svnEvents <- getSvnEvents date date
+	putStrLn "fetching from HG"
 	hgEvents <- getHgEvents date date
+	putStrLn "fetching from email"
 	emailEvents <- getEmailEvents date date
+	putStrLn "fetching from ical"
 	icalEvents <- Ical.getCalendarEvents date date
+	putStrLn "done!"
 	let allEvents = svnEvents ++ hgEvents ++ emailEvents ++ icalEvents
 	let sortedEvents = sortWith Event.eventDate allEvents
 	return $ JSON.encode sortedEvents 

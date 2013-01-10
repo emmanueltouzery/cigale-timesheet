@@ -40,7 +40,9 @@ getCalendarEvents startDay endDay = do
 	case parseResult of
 		Left pe -> do
 			putStrLn $ "iCal: parse error: " ++ displayErrors pe
-			putStrLn $ "line:col: " ++ (show $ sourceLine $ errorPos pe) ++ ":" ++ (show $ sourceColumn $ errorPos pe)
+			putStrLn $ "line:col: " 
+				++ (show $ sourceLine $ errorPos pe) 
+				++ ":" ++ (show $ sourceColumn $ errorPos pe)
 			return []
 		Right x -> return $ convertToEvents startDay endDay x
 	where
@@ -75,13 +77,16 @@ parseEvents = do
 
 parseEvent = do
 	parseBegin
-	keyValues <- manyTill ((T.try parseSubLevel) <|> (T.try parseKeyValue)) (T.try $ parseEnd)
+	keyValues <- manyTill
+		((T.try parseSubLevel) <|> (T.try parseKeyValue))
+		(T.try parseEnd)
 	return $ fromList keyValues
 
 keyValuesToEvent :: Map String String -> Event.Event
 keyValuesToEvent records = Event.Event startDate Event.Calendar Nothing desc
 	where
-		desc = T.concat [T.pack $ records ! "DESCRIPTION", T.pack $ records ! "SUMMARY"]
+		desc = T.concat [T.pack $ records ! "DESCRIPTION",
+				 T.pack $ records ! "SUMMARY"]
 		startDate = parseDate $ records ! "DTSTART"
 
 parseBegin = do

@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, TemplateHaskell, QuasiQuotes, ViewPatterns #-}
 
 module Ical where
 
@@ -18,6 +18,10 @@ import qualified Text.Parsec as T
 import System.IO
 import qualified System.Directory as Dir
 import qualified System.IO.Error as IOEx
+import Data.Map hiding (filter)
+import Data.Maybe
+
+import Text.Regex.PCRE.Rex
 
 import qualified Event
 import qualified Settings
@@ -25,18 +29,6 @@ import qualified Util
 
 icalAddress :: String
 icalAddress = "https://www.google.com/calendar/ical/etouzery%40gmail.com/private-d63868fef84ee0826c4ad9bf803048cc/basic.ics"
-
-knownCommands :: [T.Text]
-knownCommands = ["BEGIN:VEVENT", "DTSTART:", "DTEND:", "DESCRIPTION:", "SUMMARY:", "END:VEVENT"]
-
-data CalendarRecord = CalendarRecord
-			{
-				startDate :: UTCTime,
-				endDate :: UTCTime,
-				description :: String,
-				summary :: String
-			}
-			deriving (Eq, Show)
 
 --eventsTxt = "crap\r\nBEGIN:VEVENT\r\nDTSTART:20121220T113000Z\r\nDTEND:20121220T123000Z\r\nDTSTAMP:20121222T202323Z\r\nUID:libdtse87aoci8tar144sctm7g@google.com\r\nCREATED:20121221T102110Z\r\nDESCRIPTION:test\r\nLAST-MODIFIED:20121221T102116Z\r\nLOCATION:\r\nSEQUENCE:2\r\nSTATUS:CONFIRMED\r\nSUMMARY:sestanek Matej\r\nTRANSP:OPAQUE\r\nEND:VEVENT"
 
@@ -47,7 +39,8 @@ getCalendarEvents startDay endDay = do
 		then readFromCache
 		else readFromWWW
 	--putStrLn $ T.unpack $ filterUnknownEvents icalText
-	let parseResult = parseEventsParsec $ filterUnknownEvents icalText
+	--let parseResult = parseEventsParsec $ filterUnknownEvents icalText
+	let parseResult = parseEventsParsec icalText
 	--let parseResult = parseEventsParsec $ filterUnknownEvents $ T.pack eventsTxt
 	case parseResult of
 		Left pe -> do
@@ -73,11 +66,6 @@ eventInDateRange startDay endDay event =  eventDay >= startDay && eventDay <= en
 	where
 		eventDay = utctDay $ Event.eventDate event
 
-filterUnknownEvents :: T.Text -> T.Text
-filterUnknownEvents input = T.unlines $ filter isKnownCommand (T.lines input)
-	where
-		isKnownCommand line = any ((flip T.isPrefixOf) line) knownCommands
-
 parseEventsParsec :: T.Text -> Either ParseError [Event.Event]
 parseEventsParsec t = parse parseEvents "" t
 
@@ -87,20 +75,33 @@ parseEvents = do
 
 parseEvent = do
 	parseBegin
-	contents <- permute (CalendarRecord <$$> (T.try startDateParser)
-			<||> (T.try endDateParser)
-			<||> (T.try descriptionParser)
-			<||> (T.try summaryParser))
-	parseEnd
-	return $ calendarRecordToEvent contents
+	keyValues <- manyTill parseKeyValue (T.try $ parseEnd)
+	let kvMap = fromList keyValues
+	keyValuesToEvent kvMap
 
-calendarRecordToEvent :: CalendarRecord -> Event.Event
-calendarRecordToEvent record = Event.Event (startDate record)
-		Event.Calendar Nothing (T.pack (description record ++ " - " ++ summary record))
+keyValuesToEvent records = do
+	return $ Event.Event startDate Event.Calendar Nothing desc
+	where
+		desc = T.concat [T.pack $ records ! "DESCRIPTION", T.pack $ records ! "SUMMARY"]
+		startDate = parseDate $ records ! "DTSTART"
 
 parseBegin = do
 	string "BEGIN:VEVENT"
 	eol
+
+parseKeyValue = do
+	key <- many $ noneOf ":"
+	string ":"
+	value <- many $ noneOf "\r\n"
+	eol
+	return (key, value)
+
+parseDate :: String -> UTCTime
+parseDate [rex|(?{read -> year}\d{4})(?{read -> month}\d\d)(?{read -> day}\d\d)T
+		(?{read -> hour}\d\d)(?{read -> mins}\d\d)(?{read -> sec}\d\d)|] =
+	UTCTime (fromGregorian year month day) (secondsToDiffTime secOfDay)
+	where
+		secOfDay = hour*3600 + mins*60 + sec
 
 startDateParser = do
 	string "DTSTART:"

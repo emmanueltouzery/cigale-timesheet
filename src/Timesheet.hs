@@ -29,8 +29,10 @@ svnByProjects = Map.fromList [ ("ADRIA", ["https://svn2.redgale.com/ak"]),
 				("METREL", ["https://svn2.redgale.com/met"]),
 				("BUS", ["https://svn2.redgale.com/android"])]
 
+hgUser :: String
 hgUser = "Emmanuel Touzery"
 
+hgFoldersByProjects :: Map.Map String [FilePath]
 hgFoldersByProjects = Map.fromList [ ("BUS", ["C:/projects/bus/smrt/src/ecodriving"]) ]
 
 emailsByProjects :: [(Event.Project, [T.Text])]

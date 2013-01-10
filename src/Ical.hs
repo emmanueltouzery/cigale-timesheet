@@ -13,7 +13,6 @@ import qualified Data.Text.IO as T
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Error
 import Text.Parsec.Text
-import Text.Parsec.Perm
 import qualified Text.Parsec as T
 import System.IO
 import qualified System.Directory as Dir
@@ -103,36 +102,6 @@ parseDate [rex|(?{read -> year}\d{4})(?{read -> month}\d\d)(?{read -> day}\d\d)T
 	where
 		secOfDay = hour*3600 + mins*60 + sec
 
-startDateParser = do
-	string "DTSTART:"
-	parseDateTime
-
-endDateParser = do
-	string "DTEND:"
-	parseDateTime
-
-parseDateTime = do
-	year <- count 4 digit
-	month <- count 2 digit
-	day <- count 2 digit
-	T.char 'T'
-	hour <- count 2 digit
-	mins <- count 2 digit
-	sec <- count 2 digit
-	many1 $ noneOf "\r\n"
-	eol
-	return $ UTCTime
-		(fromGregorian (Util.parsedToInteger year) (Util.parsedToInt month) (Util.parsedToInt day))
-		(secondsToDiffTime $ (Util.parsedToInteger hour)*3600 + (Util.parsedToInteger mins)*60 + (Util.parsedToInteger sec))
-
-descriptionParser = do
-	string "DESCRIPTION:"
-	textOnThisLineParser
-
-summaryParser = do
-	string "SUMMARY:"
-	textOnThisLineParser
-
 parseEnd = do
 	string "END:VEVENT"
 	optional eol -- at the end of the file there may not be a carriage return.
@@ -170,12 +139,6 @@ putInCache text = do
 	fileH <- openFile fname WriteMode
 	T.hPutStr fileH text
 	hClose fileH
-
--- TODO copy-pasted with Hg.hs
-textOnThisLineParser = do
-	text <- many $ noneOf "\r\n"
-	eol
-	return text
 
 -- TODO copy-pasted with Hg.hs
 eol = many1 $ oneOf "\r\n"

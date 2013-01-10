@@ -159,6 +159,5 @@ putInCache text = do
 	T.hPutStr fileH text
 	hClose fileH
 
--- TODO copy-pasted with Hg.hs
 eol :: T.GenParser st String
 eol = many1 $ oneOf "\r\n"

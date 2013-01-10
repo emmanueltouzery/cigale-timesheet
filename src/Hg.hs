@@ -7,7 +7,7 @@ import Data.Time.Clock
 import Data.Time.Calendar
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Error
-import Text.Parsec.Text
+import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
 import qualified Data.Text as T
 import qualified Data.Text.IO as IO
@@ -59,17 +59,18 @@ formatDate day =
 parseCommitsParsec :: T.Text -> Either ParseError [(UTCTime, T.Text)]
 parseCommitsParsec commits = parse parseCommits "" commits
 
+parseCommits :: T.GenParser st [(UTCTime, T.Text)]
 parseCommits = do
 	many $ parseCommit
 
+parseCommit :: T.GenParser st (UTCTime, T.Text)
 parseCommit = do
 	date <- parseDateTime
 	summary <- parseSummary
 	eol
-
-
 	return (date, T.pack summary)
 
+parseDateTime :: T.GenParser st UTCTime
 parseDateTime = do
 	year <- count 4 digit
 	T.char '-'
@@ -88,7 +89,8 @@ parseDateTime = do
 		(fromGregorian (Util.parsedToInteger year) (Util.parsedToInt month) (Util.parsedToInt day))
 		(secondsToDiffTime $ (Util.parsedToInteger hour)*3600 + (Util.parsedToInteger mins)*60)
 
+parseSummary :: T.GenParser st String
 parseSummary = manyTill anyChar (T.try $ string "--->>>")
 
--- TODO copy-pasted with Svn.hs
+eol :: T.GenParser st String
 eol = T.many $ T.oneOf "\r\n"

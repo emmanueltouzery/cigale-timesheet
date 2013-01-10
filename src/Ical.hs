@@ -17,7 +17,7 @@ import qualified Text.Parsec as T
 import System.IO
 import qualified System.Directory as Dir
 import qualified System.IO.Error as IOEx
-import Data.Map hiding (filter)
+import Data.Map hiding (filter, map)
 
 import Text.Regex.PCRE.Rex
 
@@ -35,18 +35,21 @@ getCalendarEvents startDay endDay = do
 	icalText <- if hasCached
 		then readFromCache
 		else readFromWWW
-	--putStrLn $ T.unpack $ filterUnknownEvents icalText
-	--let parseResult = parseEventsParsec $ filterUnknownEvents icalText
 	let parseResult = parseEventsParsec icalText
-	--let parseResult = parseEventsParsec $ filterUnknownEvents $ T.pack eventsTxt
+	--print parseResult
 	case parseResult of
 		Left pe -> do
 			putStrLn $ "iCal: parse error: " ++ displayErrors pe
 			putStrLn $ "line:col: " ++ (show $ sourceLine $ errorPos pe) ++ ":" ++ (show $ sourceColumn $ errorPos pe)
 			return []
-		Right x -> return $ filterDate startDay endDay x
+		Right x -> return $ convertToEvents startDay endDay x
 	where
 		displayErrors pe = concat $ fmap messageString (errorMessages pe)
+
+convertToEvents :: Day -> Day -> [Map String String] -> [Event.Event]
+convertToEvents startDay endDay keyValues = filterDate startDay endDay events
+	where
+		events = map keyValuesToEvent keyValues
 
 readFromWWW :: IO T.Text
 readFromWWW = do
@@ -63,7 +66,7 @@ eventInDateRange startDay endDay event =  eventDay >= startDay && eventDay <= en
 	where
 		eventDay = utctDay $ Event.eventDate event
 
-parseEventsParsec :: T.Text -> Either ParseError [Event.Event]
+parseEventsParsec :: T.Text -> Either ParseError [Map String String]
 parseEventsParsec t = parse parseEvents "" t
 
 parseEvents = do
@@ -72,12 +75,11 @@ parseEvents = do
 
 parseEvent = do
 	parseBegin
-	keyValues <- manyTill parseKeyValue (T.try $ parseEnd)
-	let kvMap = fromList keyValues
-	keyValuesToEvent kvMap
+	keyValues <- manyTill ((T.try parseSubLevel) <|> (T.try parseKeyValue)) (T.try $ parseEnd)
+	return $ fromList keyValues
 
-keyValuesToEvent records = do
-	return $ Event.Event startDate Event.Calendar Nothing desc
+keyValuesToEvent :: Map String String -> Event.Event
+keyValuesToEvent records = Event.Event startDate Event.Calendar Nothing desc
 	where
 		desc = T.concat [T.pack $ records ! "DESCRIPTION", T.pack $ records ! "SUMMARY"]
 		startDate = parseDate $ records ! "DTSTART"
@@ -92,6 +94,13 @@ parseKeyValue = do
 	value <- many $ noneOf "\r\n"
 	eol
 	return (key, value)
+
+parseSubLevel = do
+	string "BEGIN:"
+	value <- many $ noneOf "\r\n"
+	eol
+	subcontents <- manyTill parseKeyValue (T.try (do string $ "END:" ++ value; eol))
+	return (value, "subcontents - not included because type is String->String")
 
 parseDate :: String -> UTCTime
 parseDate [rex|(?{read -> year}\d{4})(?{read -> month}\d\d)(?{read -> day}\d\d)T

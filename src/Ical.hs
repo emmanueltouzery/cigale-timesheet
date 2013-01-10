@@ -18,13 +18,11 @@ import System.IO
 import qualified System.Directory as Dir
 import qualified System.IO.Error as IOEx
 import Data.Map hiding (filter)
-import Data.Maybe
 
 import Text.Regex.PCRE.Rex
 
 import qualified Event
 import qualified Settings
-import qualified Util
 
 icalAddress :: String
 icalAddress = "https://www.google.com/calendar/ical/etouzery%40gmail.com/private-d63868fef84ee0826c4ad9bf803048cc/basic.ics"

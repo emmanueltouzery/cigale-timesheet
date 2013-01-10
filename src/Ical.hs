@@ -12,7 +12,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Error
-import Text.Parsec.Text
+import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
 import System.IO
 import qualified System.Directory as Dir
@@ -71,10 +71,12 @@ eventInDateRange startDay endDay event =  eventDay >= startDay && eventDay <= en
 parseEventsParsec :: T.Text -> Either ParseError [Map String String]
 parseEventsParsec t = parse parseEvents "" t
 
+parseEvents :: T.GenParser st [Map String String]
 parseEvents = do
 	T.manyTill T.anyChar (T.try $ T.lookAhead parseBegin)
 	many parseEvent
 
+parseEvent :: T.GenParser st (Map String String)
 parseEvent = do
 	parseBegin
 	keyValues <- manyTill
@@ -89,10 +91,12 @@ keyValuesToEvent records = Event.Event startDate Event.Calendar Nothing desc
 				 T.pack $ records ! "SUMMARY"]
 		startDate = parseDate $ records ! "DTSTART"
 
+parseBegin :: T.GenParser st String
 parseBegin = do
 	string "BEGIN:VEVENT"
 	eol
 
+parseKeyValue :: T.GenParser st (String, String)
 parseKeyValue = do
 	key <- many $ noneOf ":"
 	string ":"
@@ -100,6 +104,7 @@ parseKeyValue = do
 	eol
 	return (key, value)
 
+parseSubLevel :: T.GenParser st (String, String)
 parseSubLevel = do
 	string "BEGIN:"
 	value <- many $ noneOf "\r\n"
@@ -113,7 +118,9 @@ parseDate [rex|(?{read -> year}\d{4})(?{read -> month}\d\d)(?{read -> day}\d\d)T
 	UTCTime (fromGregorian year month day) (secondsToDiffTime secOfDay)
 	where
 		secOfDay = hour*3600 + mins*60 + sec
+parseDate date@_ = error $ "unrecognized iCal date: " ++ date
 
+parseEnd :: T.GenParser st ()
 parseEnd = do
 	string "END:VEVENT"
 	optional eol -- at the end of the file there may not be a carriage return.
@@ -153,4 +160,5 @@ putInCache text = do
 	hClose fileH
 
 -- TODO copy-pasted with Hg.hs
+eol :: T.GenParser st String
 eol = many1 $ oneOf "\r\n"

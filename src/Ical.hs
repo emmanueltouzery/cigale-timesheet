@@ -17,7 +17,7 @@ import qualified Text.Parsec as T
 import System.IO
 import qualified System.Directory as Dir
 import qualified System.IO.Error as IOEx
-import Data.Map hiding (filter, map)
+import Data.Map as Map hiding (filter, map)
 
 import Text.Regex.PCRE.Rex
 
@@ -28,6 +28,12 @@ icalAddress :: String
 icalAddress = "https://www.google.com/calendar/ical/etouzery%40gmail.com/private-d63868fef84ee0826c4ad9bf803048cc/basic.ics"
 
 --eventsTxt = "crap\r\nBEGIN:VEVENT\r\nDTSTART:20121220T113000Z\r\nDTEND:20121220T123000Z\r\nDTSTAMP:20121222T202323Z\r\nUID:libdtse87aoci8tar144sctm7g@google.com\r\nCREATED:20121221T102110Z\r\nDESCRIPTION:test\r\nLAST-MODIFIED:20121221T102116Z\r\nLOCATION:\r\nSEQUENCE:2\r\nSTATUS:CONFIRMED\r\nSUMMARY:sestanek Matej\r\nTRANSP:OPAQUE\r\nEND:VEVENT"
+
+data CalendarValue = Leaf String | SubLevel (Map String CalendarValue) deriving (Show, Eq)
+
+fromLeaf :: CalendarValue -> String
+fromLeaf (Leaf a) = a
+fromLeaf _ = "Error: expected a leaf!"
 
 getCalendarEvents :: Day -> Day -> IO [Event.Event]
 getCalendarEvents startDay endDay = do
@@ -48,7 +54,7 @@ getCalendarEvents startDay endDay = do
 	where
 		displayErrors pe = concat $ fmap messageString (errorMessages pe)
 
-convertToEvents :: Day -> Day -> [Map String String] -> [Event.Event]
+convertToEvents :: Day -> Day -> [Map String CalendarValue] -> [Event.Event]
 convertToEvents startDay endDay keyValues = filterDate startDay endDay events
 	where
 		events = map keyValuesToEvent keyValues
@@ -68,49 +74,49 @@ eventInDateRange startDay endDay event =  eventDay >= startDay && eventDay <= en
 	where
 		eventDay = utctDay $ Event.eventDate event
 
-parseEventsParsec :: T.Text -> Either ParseError [Map String String]
+parseEventsParsec :: T.Text -> Either ParseError [Map String CalendarValue]
 parseEventsParsec t = parse parseEvents "" t
 
-parseEvents :: T.GenParser st [Map String String]
+parseEvents :: T.GenParser st [Map String CalendarValue]
 parseEvents = do
 	T.manyTill T.anyChar (T.try $ T.lookAhead parseBegin)
 	many parseEvent
 
-parseEvent :: T.GenParser st (Map String String)
+parseEvent :: T.GenParser st (Map String CalendarValue)
 parseEvent = do
 	parseBegin
 	keyValues <- manyTill
 		((T.try parseSubLevel) <|> (T.try parseKeyValue))
 		(T.try parseEnd)
-	return $ fromList keyValues
+	return $ Map.fromList keyValues
 
-keyValuesToEvent :: Map String String -> Event.Event
+keyValuesToEvent :: Map String CalendarValue -> Event.Event
 keyValuesToEvent records = Event.Event startDate Event.Calendar Nothing desc
 	where
-		desc = T.concat [T.pack $ records ! "DESCRIPTION",
-				 T.pack $ records ! "SUMMARY"]
-		startDate = parseDate $ records ! "DTSTART"
+		desc = T.concat [T.pack $ fromLeaf $ records ! "DESCRIPTION",
+				 T.pack $ fromLeaf $ records ! "SUMMARY"]
+		startDate = parseDate $ fromLeaf $ records ! "DTSTART"
 
 parseBegin :: T.GenParser st String
 parseBegin = do
 	string "BEGIN:VEVENT"
 	eol
 
-parseKeyValue :: T.GenParser st (String, String)
+parseKeyValue :: T.GenParser st (String, CalendarValue)
 parseKeyValue = do
 	key <- many $ noneOf ":"
 	string ":"
 	value <- many $ noneOf "\r\n"
 	eol
-	return (key, value)
+	return (key, Leaf value)
 
-parseSubLevel :: T.GenParser st (String, String)
+parseSubLevel :: T.GenParser st (String, CalendarValue)
 parseSubLevel = do
 	string "BEGIN:"
 	value <- many $ noneOf "\r\n"
 	eol
 	subcontents <- manyTill parseKeyValue (T.try (do string $ "END:" ++ value; eol))
-	return (value, "subcontents - not included because type is String->String")
+	return (value, SubLevel $ Map.fromList subcontents)
 
 parseDate :: String -> UTCTime
 parseDate [rex|(?{read -> year}\d{4})(?{read -> month}\d\d)(?{read -> day}\d\d)T

@@ -14,8 +14,9 @@ import qualified Event
 
 import Text.Regex.PCRE.Rex
 
-getRepoCommits :: T.Text -> Day -> Day -> String -> String -> IO [Event.Event]
-getRepoCommits username startDate endDate projectName url = do
+getRepoCommits :: Day -> Day -> T.Text -> T.Text -> T.Text -> IO [Event.Event]
+getRepoCommits startDate endDate username projectName _url = do
+	let url = T.unpack _url
 	let dateRange = formatDateRange startDate (addDays 1 endDate)
 	(inh, Just outh, errh, pid) <- Process.createProcess
 		(Process.proc "svn" ["log", url, "-r", dateRange])
@@ -29,7 +30,7 @@ getRepoCommits username startDate endDate projectName url = do
 	-- requested, but not necessarily WITHIN the dates I
 	-- requested...
 	let myCommitsInInterval = filter ((\d -> d >= startDate && d <= endDate) . utctDay . date) myCommits
-	return $ map (toEvent projectName) myCommitsInInterval
+	return $ map (toEvent $ T.unpack projectName) myCommitsInInterval
 
 data Commit = Commit
 	{

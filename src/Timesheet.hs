@@ -6,8 +6,6 @@ import Data.Time.Calendar
 import qualified Data.Aeson as JSON
 import qualified Data.ByteString.Lazy.Char8 as BL
 import Data.Text.Read
-import qualified Data.Map as Map
-import Data.Maybe
 import Data.List
 
 import GHC.Exts
@@ -20,24 +18,25 @@ import qualified Ical
 import qualified Svn
 import qualified Email
 import qualified Hg
+import qualified Config
 
-svnUser :: T.Text
-svnUser = "emmanuelt"
-
-svnByProjects :: Map.Map String [String]
-svnByProjects = Map.fromList [ ("ADRIA", ["https://svn2.redgale.com/ak"]),
-				("METREL", ["https://svn2.redgale.com/met"]),
-				("BUS", ["https://svn2.redgale.com/android"])]
-
-hgUser :: String
-hgUser = "Emmanuel Touzery"
-
-hgFoldersByProjects :: Map.Map String [FilePath]
-hgFoldersByProjects = Map.fromList [ ("BUS", ["C:/projects/bus/smrt/src/ecodriving"]) ]
-
-emailsByProjects :: [(Event.Project, [T.Text])]
-emailsByProjects = [ ("ADRIA", ["@adriakombi.si"]), ("METREL", ["@metrel.si"])]
-
+--svnUser :: T.Text
+--svnUser = "emmanuelt"
+--
+--svnByProjects :: Map.Map String [String]
+--svnByProjects = Map.fromList [ ("ADRIA", ["https://svn2.redgale.com/ak"]),
+--				("METREL", ["https://svn2.redgale.com/met"]),
+--				("BUS", ["https://svn2.redgale.com/android"])]
+--
+--hgUser :: String
+--hgUser = "Emmanuel Touzery"
+--
+--hgFoldersByProjects :: Map.Map String [FilePath]
+--hgFoldersByProjects = Map.fromList [ ("BUS", ["C:/projects/bus/smrt/src/ecodriving"]) ]
+--
+--emailsByProjects :: [(Event.Project, [T.Text])]
+--emailsByProjects = [ ("ADRIA", ["@adriakombi.si"]), ("METREL", ["@metrel.si"])]
+--
 -- main :: IO ()
 -- main = do
 -- 	args <- getArgs
@@ -47,43 +46,50 @@ emailsByProjects = [ ("ADRIA", ["@adriakombi.si"]), ("METREL", ["@metrel.si"])]
 -- 			putStrLn "Parameters: <month to get the data - 2012-12 for instance>"
 -- 			exitFailure
 
-getSvnEvents :: Day -> Day -> IO [Event.Event]
-getSvnEvents firstDayOfMonth lastDayOfMonth = do
-	let projRepos = [(projectName, svnRepo)
-			| projectName <- Map.keys svnByProjects,
-			  svnRepo <- fromJust $ Map.lookup projectName svnByProjects ]
-	commits <- mapConcurrently (uncurry fetchCommits) projRepos
+uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
+uncurry3 f = \(a, b, c) -> f a b c
+
+getSvnEvents :: [Config.SvnRecord] -> Day -> Day -> IO [Event.Event]
+getSvnEvents svnRecords firstDayOfMonth lastDayOfMonth = do
+	commits <- mapConcurrently (uncurry3 fetchCommits) (fmap svnToTuple svnRecords)
 	return $ foldr (++) [] commits
-	where fetchCommits = Svn.getRepoCommits svnUser firstDayOfMonth lastDayOfMonth
+	where
+		fetchCommits = Svn.getRepoCommits firstDayOfMonth lastDayOfMonth
+		svnToTuple (Config.SvnRecord p u r) = (u, p, r)
 
-getHgEvents :: Day -> Day -> IO [Event.Event]
-getHgEvents firstDayOfMonth lastDayOfMonth = do
-	let projFolders = [(projectName, hgFolder)
-			| projectName <- Map.keys hgFoldersByProjects,
-			  hgFolder <- fromJust $ Map.lookup projectName hgFoldersByProjects ]
-	commits <- mapConcurrently (uncurry fetchCommits) projFolders
+getHgEvents :: [Config.HgRecord] -> Day -> Day -> IO [Event.Event]
+getHgEvents hgRecords firstDayOfMonth lastDayOfMonth = do
+	commits <- mapConcurrently (uncurry3 fetchCommits) (fmap hgToTuple hgRecords)
 	return $ foldr (++) [] commits
-	where fetchCommits = Hg.getRepoCommits hgUser firstDayOfMonth lastDayOfMonth
+	where
+		fetchCommits = Hg.getRepoCommits firstDayOfMonth lastDayOfMonth
+		hgToTuple (Config.HgRecord p u r) = (u, p, r)
 
-getEmailEvents :: Day -> Day -> IO [Event.Event]
-getEmailEvents firstDayOfMonth lastDayOfMonth = do
-	emails <- Email.getEmails firstDayOfMonth lastDayOfMonth
-	return $ map toEvent emails
+getEmailEvents :: Config.EmailConfig -> Day -> Day -> IO [Event.Event]
+getEmailEvents emailConfig firstDayOfMonth lastDayOfMonth = do
+	let mboxLocations = fmap T.unpack (Config.emailPaths emailConfig)
+	emailsAr <- sequence $ map (\mbox -> Email.getEmails mbox firstDayOfMonth lastDayOfMonth) mboxLocations
+	let emails = foldr (++) [] emailsAr
+	let emailRecords = Config.emailRecords emailConfig
+	return $ map (toEvent emailRecords) emails
 
-toEvent :: Email.Email -> Event.Event
-toEvent email = Event.Event
+toEvent :: [Config.EmailRecord] -> Email.Email -> Event.Event
+toEvent emailRecords email = Event.Event
 			{
 				Event.eventDate = Email.date email,
 				Event.eventType = Event.Email,
-				Event.project  = getEmailProject email,
+				Event.project  = getEmailProject email emailRecords,
 				Event.extraInfo = Email.subject email
 			}
 
-getEmailProject :: Email.Email -> Maybe Event.Project
-getEmailProject email = fmap fst $ find ((isEmailInProject email) . snd) emailsByProjects
+getEmailProject :: Email.Email -> [Config.EmailRecord] -> Maybe Event.Project
+getEmailProject email emailRecords = fmap (T.unpack . Config.emailProj) maybeRecordForEmail
+	where
+		maybeRecordForEmail = find isEmailInRecord emailRecords
+		isEmailInRecord = (emailMatchesPatterns email) . Config.emailPatterns
 
-isEmailInProject :: Email.Email -> [T.Text] -> Bool
-isEmailInProject email addressList = not . null $ filter emailMatches addressList
+emailMatchesPatterns :: Email.Email -> [T.Text] -> Bool
+emailMatchesPatterns email addressList = not . null $ filter emailMatches addressList
 	where
 		emailMatches address = address `T.isInfixOf` emailToCc
 		emailToCc = T.concat [Email.to email, maybe "" id (Email.cc email)]
@@ -91,18 +97,30 @@ isEmailInProject email addressList = not . null $ filter emailMatches addressLis
 
 process :: T.Text -> IO BL.ByteString
 process monthStr = do
+	mayConfig <- Config.readConfig
+	case mayConfig of
+		Nothing -> return "Configuration problem, check config.json"
+		Just config -> processConfig monthStr config
+
+processConfig :: T.Text -> Config.ActivityConfig -> IO BL.ByteString
+processConfig monthStr config = do
+	print config
 	-- TODO this will fail with cryptic error messages if not given
 	-- a string by the right format!
 	let ymd = map (Util.safePromise . decimal) (T.splitOn "-" monthStr)
 	let date = fromGregorian (toInteger $ head ymd) (ymd !! 1) (ymd !! 2)
 	putStrLn "fetching from SVN"
-	svnEvents <- getSvnEvents date date
+	svnEvents <- getSvnEvents (Config.svn config) date date
+	putStrLn $ "found " ++ (show $ length svnEvents) ++ " SVN events."
 	putStrLn "fetching from HG"
-	hgEvents <- getHgEvents date date
+	hgEvents <- getHgEvents (Config.hg config) date date
+	putStrLn $ "found " ++ (show $ length hgEvents) ++ " HG events."
 	putStrLn "fetching from email"
-	emailEvents <- getEmailEvents date date
+	emailEvents <- getEmailEvents (Config.email config) date date
+	putStrLn $ "found " ++ (show $ length emailEvents) ++ " email events."
 	putStrLn "fetching from ical"
 	icalEvents <- Ical.getCalendarEvents date date
+	putStrLn $ "found " ++ (show $ length icalEvents) ++ " calendar events."
 	putStrLn "done!"
 	let allEvents = svnEvents ++ hgEvents ++ emailEvents ++ icalEvents
 	let sortedEvents = sortWith Event.eventDate allEvents

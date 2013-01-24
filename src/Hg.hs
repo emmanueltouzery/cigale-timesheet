@@ -15,8 +15,10 @@ import qualified Data.Text.IO as IO
 import qualified Event
 import qualified Util
 
-getRepoCommits :: String -> Day -> Day -> String -> FilePath -> IO [Event.Event]
-getRepoCommits username startDate endDate project projectPath = do
+getRepoCommits :: Day -> Day -> T.Text -> T.Text -> T.Text -> IO [Event.Event]
+getRepoCommits startDate endDate _username project _projectPath = do
+	let username = T.unpack _username
+	let projectPath = T.unpack _projectPath
 	let dateRange = formatDateRange startDate (addDays 1 endDate)
 	(inh, Just outh, errh, pid) <- Process.createProcess
 		(Process.proc "hg" [
@@ -37,8 +39,8 @@ getRepoCommits username startDate endDate project projectPath = do
 	where
 		displayErrors pe = concat $ fmap messageString (errorMessages pe)
 	
-toEvent :: String -> UTCTime -> T.Text -> Event.Event
-toEvent project time summary = Event.Event time Event.Svn (Just project) summary
+toEvent :: T.Text -> UTCTime -> T.Text -> Event.Event
+toEvent project time summary = Event.Event time Event.Svn (Just $ T.unpack project) summary
 
 formatDateRange :: Day -> Day -> String
 formatDateRange startDate endDate =

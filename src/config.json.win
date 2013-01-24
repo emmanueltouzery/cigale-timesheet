@@ -1,0 +1,20 @@
+{
+	"svn": [
+		{ "svnProj": "ADRIA", "svnUser": "emmanuelt", "svnRepo": "https://svn2.redgale.com/ak"},
+		{ "svnProj": "METREL", "svnUser": "emmanuelt", "svnRepo": "https://svn2.redgale.com/met"},
+		{ "svnProj": "BUS", "svnUser": "emmanuelt", "svnRepo": "https://svn2.redgale.com/android"}
+	],
+	"hg": [
+		{ "hgProj": "BUS", "hgUser": "Emmanuel Touzery", "hgRepo": "C:/projects/bus/smrt/src/ecodriving"}
+	],
+	"email": {
+		"emailPath": "C:\\Users\\emmanuelto\\AppData\\Roaming\\Thunderbird\\Profiles\\k5eh13s1.newprofile_windows7\\Mail\\mail.regulussoft.com\\Sent",
+		"emailRecords": [
+			{ "emailProj": "ADRIA", "emailPatterns": ["@adriakombi.si"]},
+			{ "emailProj": "METREL", "emailPatterns": ["@metrel.si"]}
+		]
+	},
+	"ical": [
+		{ "icalUrl": "https://www.google.com/calendar/ical/etouzery%40gmail.com/private-d63868fef84ee0826c4ad9bf803048cc/basic.ics" }
+	]
+}

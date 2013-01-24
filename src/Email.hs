@@ -16,9 +16,6 @@ import Text.Regex.PCRE.Rex
 
 import Util
 
-sent_mbox :: FilePath
-sent_mbox = "C:\\Users\\emmanuelto\\AppData\\Roaming\\Thunderbird\\Profiles\\k5eh13s1.newprofile_windows7\\Mail\\mail.regulussoft.com\\Sent"
-
 data Email = Email
 	{
 		date :: UTCTime,
@@ -28,8 +25,8 @@ data Email = Email
 	}
 	deriving (Eq)
 
-getEmails :: Day -> Day -> IO [Email]
-getEmails fromDate toDate = do
+getEmails :: FilePath -> Day -> Day -> IO [Email]
+getEmails sent_mbox fromDate toDate = do
 	mbox <- parseMboxFile Backward sent_mbox
 	--print $ head $ (map _mboxMsgTime (mboxMessages mbox))
 	--print $ head $ (map parseMessage (mboxMessages mbox))

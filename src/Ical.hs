@@ -18,11 +18,14 @@ import System.IO
 import qualified System.Directory as Dir
 import qualified System.IO.Error as IOEx
 import Data.Map as Map hiding (filter, map)
+import Data.Time.Clock.POSIX
+import System.Time.Utils
 
 import Text.Regex.PCRE.Rex
 
 import qualified Event
 import qualified Settings
+import qualified Util
 
 icalAddress :: String
 icalAddress = "https://www.google.com/calendar/ical/etouzery%40gmail.com/private-d63868fef84ee0826c4ad9bf803048cc/basic.ics"
@@ -62,7 +65,7 @@ convertToEvents startDay endDay keyValues = filterDate startDay endDay events
 readFromWWW :: IO T.Text
 readFromWWW = do
 	icalData <- withSocketsDo $ simpleHttp icalAddress
-	let icalText = TE.decodeUtf8 $ BL.toStrict icalData
+	let icalText = TE.decodeUtf8 $ Util.toStrict1 icalData
 	putInCache icalText
 	return icalText
 
@@ -149,7 +152,8 @@ cachedVersionDate = do
 	modifTime <- IOEx.tryIOError $ Dir.getModificationTime fname
 	case modifTime of
 		Left _ -> return Nothing
-		Right modif -> return $ Just $ utctDay modif
+		Right modif -> return $ Just $ utctDay $ posixSecondsToUTCTime $ clockTimeToEpoch modif
+		--Right modif -> return $ Just $ utctDay modif
 
 readFromCache :: IO T.Text
 readFromCache = do

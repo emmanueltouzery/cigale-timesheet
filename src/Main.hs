@@ -15,7 +15,7 @@ main = quickHttpServe site
 
 site :: Snap ()
 site =
-    ifTop (writeBS "enter in the URL timesheet/ the month for which to display data, for instance timesheet/2012-11") <|>
+    ifTop (serveFile "index.html") <|>
     route [ ("timesheet/:tsparam", timesheet)
           ] <|>
     dir "static" (serveDirectory ".")

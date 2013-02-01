@@ -13,8 +13,9 @@
 			"/home/emmanuel/.thunderbird/92ynhr2s.default/Mail/mail.lecip-its.com/Sent"
 			],
 		"emailRecords": [
-			{ "emailProj": "ADRIA", "emailPatterns": ["@adriakombi.si"]},
-			{ "emailProj": "METREL", "emailPatterns": ["@metrel.si"]}
+			{ "emailProj": "ADRIA", "emailPatterns": ["@adriakombi.si", "gantar@tris.si"]},
+			{ "emailProj": "METREL", "emailPatterns": ["@metrel.si"]},
+			{ "emailProj": "BUS", "emailPatterns": ["@e-soft.si"]}
 		]
 	},
 	"ical": [

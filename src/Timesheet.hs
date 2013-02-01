@@ -65,7 +65,7 @@ toEvent emailRecords timezone email = Event.Event
 				Event.eventDate = localTimeToUTC timezone (Email.date email),
 				Event.eventType = Event.Email,
 				Event.project  = getEmailProject email emailRecords,
-				Event.extraInfo = Email.subject email
+				Event.extraInfo = T.concat [Email.subject email, " =>", Email.to email]
 			}
 
 getEmailProject :: Email.Email -> [Config.EmailRecord] -> Maybe Event.Project

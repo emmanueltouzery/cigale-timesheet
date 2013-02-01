@@ -3,8 +3,8 @@
 module Hg where
 
 import qualified System.Process as Process
-import Data.Time.Clock
 import Data.Time.Calendar
+import Data.Time.LocalTime
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Error
 import qualified Text.Parsec.Text as T
@@ -15,8 +15,8 @@ import qualified Data.Text.IO as IO
 import qualified Event
 import qualified Util
 
-getRepoCommits :: Day -> Day -> T.Text -> T.Text -> T.Text -> IO [Event.Event]
-getRepoCommits startDate endDate _username project _projectPath = do
+getRepoCommits :: Day -> T.Text -> T.Text -> T.Text -> IO [Event.Event]
+getRepoCommits startDate _username project _projectPath = do
 	let username = T.unpack _username
 	let projectPath = T.unpack _projectPath
 	let dateRange = formatDate startDate
@@ -30,17 +30,18 @@ getRepoCommits startDate endDate _username project _projectPath = do
 		}
 	ex <- Process.waitForProcess pid
 	output <- IO.hGetContents outh
+	timezone <- getCurrentTimeZone
 	let parseResult = parseCommitsParsec output
 	case parseResult of
 		Left pe -> do
 			putStrLn $ "HG: parse error: " ++ displayErrors pe
 			return []
-		Right x -> return $ map (uncurry $ toEvent project) x
+		Right x -> return $ map (uncurry $ toEvent project timezone) x
 	where
 		displayErrors pe = concat $ fmap messageString (errorMessages pe)
 	
-toEvent :: T.Text -> UTCTime -> T.Text -> Event.Event
-toEvent project time summary = Event.Event time Event.Svn (Just $ T.unpack project) summary
+toEvent :: T.Text -> TimeZone -> LocalTime -> T.Text -> Event.Event
+toEvent project timezone time summary = Event.Event (localTimeToUTC timezone time) Event.Svn (Just $ T.unpack project) summary
 
 formatDate :: Day -> String
 formatDate day =
@@ -54,21 +55,21 @@ formatDate day =
 -- i return an array of functions taking that
 -- parameter project.
 -- TODO one day ask in haskell-beginners about this one.
-parseCommitsParsec :: T.Text -> Either ParseError [(UTCTime, T.Text)]
+parseCommitsParsec :: T.Text -> Either ParseError [(LocalTime, T.Text)]
 parseCommitsParsec commits = parse parseCommits "" commits
 
-parseCommits :: T.GenParser st [(UTCTime, T.Text)]
+parseCommits :: T.GenParser st [(LocalTime, T.Text)]
 parseCommits = do
 	many $ parseCommit
 
-parseCommit :: T.GenParser st (UTCTime, T.Text)
+parseCommit :: T.GenParser st (LocalTime, T.Text)
 parseCommit = do
 	date <- parseDateTime
 	summary <- parseSummary
 	eol
 	return (date, T.pack summary)
 
-parseDateTime :: T.GenParser st UTCTime
+parseDateTime :: T.GenParser st LocalTime
 parseDateTime = do
 	year <- count 4 digit
 	T.char '-'
@@ -83,9 +84,9 @@ parseDateTime = do
 	oneOf "-+"
 	count 4 digit
 	eol
-	return $ UTCTime
+	return $ LocalTime
 		(fromGregorian (Util.parsedToInteger year) (Util.parsedToInt month) (Util.parsedToInt day))
-		(secondsToDiffTime $ (Util.parsedToInteger hour)*3600 + (Util.parsedToInteger mins)*60)
+		(TimeOfDay (Util.parsedToInt hour) (Util.parsedToInt mins) 0)
 
 parseSummary :: T.GenParser st String
 parseSummary = manyTill anyChar (T.try $ string "--->>>")

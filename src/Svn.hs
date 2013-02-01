@@ -4,10 +4,10 @@ module Svn where
 
 import qualified System.Process as Process
 import qualified Data.Text.IO as IO
-import Data.Time.Clock
 import Data.Time.Calendar
 import qualified Data.Text as T
 import Data.Text.Read
+import Data.Time.LocalTime
 
 import qualified Util
 import qualified Event
@@ -29,21 +29,23 @@ getRepoCommits startDate endDate username projectName _url = do
 	-- returns me commits which are CLOSE to the dates I
 	-- requested, but not necessarily WITHIN the dates I
 	-- requested...
-	let myCommitsInInterval = filter ((\d -> d >= startDate && d <= endDate) . utctDay . date) myCommits
-	return $ map (toEvent $ T.unpack projectName) myCommitsInInterval
+	let myCommitsInInterval = filter ((\d -> d >= startDate && d <= endDate) . localDay . date) myCommits
+	timezone <- getCurrentTimeZone
+	return $ map (toEvent (T.unpack projectName) timezone) myCommitsInInterval
 
 data Commit = Commit
 	{
 		revision :: T.Text,
-		date :: UTCTime,
+		date :: LocalTime,
 		user :: T.Text,
 		linesCount :: Int,
 		comment :: T.Text
 	}
 	deriving (Eq, Show)
 
-toEvent :: String -> Commit -> Event.Event
-toEvent projectName (Commit _ dateVal _ _ commentVal) = Event.Event dateVal Event.Svn (Just projectName) commentVal
+toEvent :: String -> TimeZone -> Commit -> Event.Event
+toEvent projectName timezone (Commit _ dateVal _ _ commentVal) =
+	Event.Event (localTimeToUTC timezone dateVal) Event.Svn (Just projectName) commentVal
 
 parseCommits :: [T.Text] -> [Commit]
 parseCommits [] = []
@@ -68,8 +70,9 @@ formatDate day =
 		(year, month, dayOfMonth) = toGregorian day
 
 
-parseSvnDate :: String -> UTCTime
+parseSvnDate :: String -> LocalTime
 parseSvnDate [rex|(?{read -> year}\d+)-(?{read -> month}\d+)-
 		(?{read -> day}\d+)\s(?{read -> hour}\d+):(?{read -> mins}\d+):
 		(?{read -> sec}\d+)|] =
-	UTCTime (fromGregorian year month day) (secondsToDiffTime (hour*3600+mins*60+sec))
+	LocalTime (fromGregorian year month day) (TimeOfDay hour mins sec)
+parseSvnDate v@_ = error $ "invalid date " ++ v

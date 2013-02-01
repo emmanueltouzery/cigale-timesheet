@@ -8,6 +8,7 @@ import qualified Data.ByteString.Lazy.Char8 as BL
 import Data.Text.Read
 import Data.List
 import Data.Time.Clock
+import Data.Time
 
 import GHC.Exts
 
@@ -41,12 +42,12 @@ getSvnEvents svnRecords firstDayOfMonth lastDayOfMonth = do
 		fetchCommits = Svn.getRepoCommits firstDayOfMonth lastDayOfMonth
 		svnToTuple (Config.SvnRecord p u r) = (u, p, r)
 
-getHgEvents :: [Config.HgRecord] -> Day -> Day -> IO [Event.Event]
-getHgEvents hgRecords firstDayOfMonth lastDayOfMonth = do
+getHgEvents :: [Config.HgRecord] -> Day -> IO [Event.Event]
+getHgEvents hgRecords day = do
 	commits <- mapConcurrently (uncurry3 fetchCommits) (fmap hgToTuple hgRecords)
 	return $ foldr (++) [] commits
 	where
-		fetchCommits = Hg.getRepoCommits firstDayOfMonth lastDayOfMonth
+		fetchCommits = Hg.getRepoCommits day
 		hgToTuple (Config.HgRecord p u r) = (u, p, r)
 
 getEmailEvents :: Config.EmailConfig -> Day -> Day -> IO [Event.Event]
@@ -55,12 +56,13 @@ getEmailEvents emailConfig firstDayOfMonth lastDayOfMonth = do
 	emailsAr <- sequence $ map (\mbox -> Email.getEmails mbox firstDayOfMonth lastDayOfMonth) mboxLocations
 	let emails = foldr (++) [] emailsAr
 	let emailRecords = Config.emailRecords emailConfig
-	return $ map (toEvent emailRecords) emails
+	timezone <- getCurrentTimeZone
+	return $ map (toEvent emailRecords timezone) emails
 
-toEvent :: [Config.EmailRecord] -> Email.Email -> Event.Event
-toEvent emailRecords email = Event.Event
+toEvent :: [Config.EmailRecord] -> TimeZone -> Email.Email -> Event.Event
+toEvent emailRecords timezone email = Event.Event
 			{
-				Event.eventDate = Email.date email,
+				Event.eventDate = localTimeToUTC timezone (Email.date email),
 				Event.eventType = Event.Email,
 				Event.project  = getEmailProject email emailRecords,
 				Event.extraInfo = Email.subject email
@@ -97,7 +99,7 @@ processConfig monthStr config = do
 	svnEvents <- getSvnEvents (Config.svn config) date date
 	putStrLn $ "found " ++ (show $ length svnEvents) ++ " SVN events."
 	putStrLn "fetching from HG"
-	hgEvents <- getHgEvents (Config.hg config) date date
+	hgEvents <- getHgEvents (Config.hg config) date
 	putStrLn $ "found " ++ (show $ length hgEvents) ++ " HG events."
 	putStrLn "fetching from email"
 	emailEvents <- getEmailEvents (Config.email config) date date

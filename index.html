@@ -61,7 +61,11 @@
 			$('table#eventsTable').empty();
 			$.getJSON('/timesheet/' + getDateStr(), function(data) {
 				$.each(data, function(index, value) {
-					$('table#eventsTable').append("<tr><td>" + value.project + "</td><td>" + value.eventDate + "</td><td>" + eventTypeStr(value.eventType) + "</td><td>" + value.extraInfo +"</td></tr>")
+					$('table#eventsTable').append("<tr><td>"
+							+ value.project
+							+ "</td><td>" +
+							(new
+							Date(value.eventDate)).toLocaleTimeString() + "</td><td>" + eventTypeStr(value.eventType) + "</td><td>" + value.extraInfo +"</td></tr>")
 				})
 				$('#pleasehold').hide();
 			});

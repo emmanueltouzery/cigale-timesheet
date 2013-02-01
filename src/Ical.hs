@@ -6,7 +6,6 @@ import Data.Time.Clock
 import Data.Time.Calendar
 import Network.Socket
 import Network.HTTP.Conduit
-import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Encoding as TE
 import qualified Data.Text as T
 import qualified Data.Text.IO as T

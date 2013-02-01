@@ -85,7 +85,7 @@ process :: T.Text -> IO BL.ByteString
 process monthStr = do
 	mayConfig <- Config.readConfig
 	case mayConfig of
-		Nothing -> return "Configuration problem, check config.json"
+		Nothing -> do putStrLn "Configuration problem, check config.json"; return "Configuration problem, check config.json"
 		Just config -> processConfig monthStr config
 
 processConfig :: T.Text -> Config.ActivityConfig -> IO BL.ByteString

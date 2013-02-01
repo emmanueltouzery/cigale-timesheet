@@ -56,6 +56,12 @@
 			return getDateStr() + " (" + dayDesc + ")";
 		}
 
+		function formatTime(dateString) {
+			var dateObj = new Date(dateString);
+			var mins = dateObj.getMinutes()
+			return dateObj.getHours() + ":" + ((mins <= 9) ?  ("0" + mins) : mins);
+		}
+
 		function updateDisplay() {
 			$('#pleasehold').show();
 			$('table#eventsTable').empty();
@@ -64,8 +70,7 @@
 					$('table#eventsTable').append("<tr><td>"
 							+ value.project
 							+ "</td><td>" +
-							(new
-							Date(value.eventDate)).toLocaleTimeString() + "</td><td>" + eventTypeStr(value.eventType) + "</td><td>" + value.extraInfo +"</td></tr>")
+							formatTime(value.eventDate) + "</td><td>" + eventTypeStr(value.eventType) + "</td><td>" + value.extraInfo +"</td></tr>")
 				})
 				$('#pleasehold').hide();
 			});

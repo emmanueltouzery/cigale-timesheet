@@ -7,6 +7,7 @@ import qualified Data.Aeson as JSON
 import qualified Data.ByteString.Lazy.Char8 as BL
 import Data.Text.Read
 import Data.List
+import Data.Time.Clock
 
 import GHC.Exts
 
@@ -107,4 +108,12 @@ processConfig monthStr config = do
 	putStrLn "done!"
 	let allEvents = svnEvents ++ hgEvents ++ emailEvents ++ icalEvents
 	let sortedEvents = sortWith Event.eventDate allEvents
-	return $ JSON.encode sortedEvents 
+	let eventDates = fmap Event.eventDate sortedEvents
+	-- well would be faster to just check the first and last
+	-- element... but it's actually shorter to code like this..
+	let ok = null $ filter (outOfRange date (addDays 1 date)) eventDates
+	if ok
+		then return $ JSON.encode sortedEvents 
+		else do putStrLn "*** SOME EVENTS ARE NOT IN TIME RANGE"; return BL.empty
+	where
+		outOfRange start end time = time < (UTCTime start 0) || time > (UTCTime end 0)

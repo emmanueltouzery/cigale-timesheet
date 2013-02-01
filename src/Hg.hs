@@ -19,7 +19,7 @@ getRepoCommits :: Day -> Day -> T.Text -> T.Text -> T.Text -> IO [Event.Event]
 getRepoCommits startDate endDate _username project _projectPath = do
 	let username = T.unpack _username
 	let projectPath = T.unpack _projectPath
-	let dateRange = formatDateRange startDate (addDays 1 endDate)
+	let dateRange = formatDate startDate
 	(inh, Just outh, errh, pid) <- Process.createProcess
 		(Process.proc "hg" [
 			"log", "-k", username, "-d", dateRange,
@@ -41,10 +41,6 @@ getRepoCommits startDate endDate _username project _projectPath = do
 	
 toEvent :: T.Text -> UTCTime -> T.Text -> Event.Event
 toEvent project time summary = Event.Event time Event.Svn (Just $ T.unpack project) summary
-
-formatDateRange :: Day -> Day -> String
-formatDateRange startDate endDate =
-	formatDate startDate ++ " to " ++ formatDate endDate
 
 formatDate :: Day -> String
 formatDate day =

@@ -99,7 +99,7 @@ keyValuesToEvent records = Event.Event startDate Event.Calendar Nothing desc ext
 		startDate = parseDate $ fromLeaf $ records ! "DTSTART"
 		endDate = parseDate $ fromLeaf $ records ! "DTEND"
 		extraInfo = T.concat["End: ", utctDayTimeStr endDate,
-			" Duration: ", formatDurationSec $ diffUTCTime endDate startDate]
+			"; duration: ", formatDurationSec $ diffUTCTime endDate startDate]
 
 formatDurationSec :: NominalDiffTime -> T.Text
 formatDurationSec seconds = T.concat [T.pack hours, ":", T.pack minutes]

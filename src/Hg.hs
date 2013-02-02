@@ -6,7 +6,6 @@ import qualified System.Process as Process
 import Data.Time.Calendar
 import Data.Time.LocalTime
 import Text.ParserCombinators.Parsec
-import Text.ParserCombinators.Parsec.Error
 import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
 import qualified Data.Text as T
@@ -34,11 +33,9 @@ getRepoCommits startDate _username project _projectPath = do
 	let parseResult = parseCommitsParsec output
 	case parseResult of
 		Left pe -> do
-			putStrLn $ "HG: parse error: " ++ displayErrors pe
+			putStrLn $ "HG: parse error: " ++ Util.displayErrors pe
 			return []
 		Right x -> return $ map (toEvent project timezone) x
-	where
-		displayErrors pe = concat $ fmap messageString (errorMessages pe)
 	
 toEvent :: T.Text -> TimeZone -> Commit -> Event.Event
 toEvent project timezone commit =

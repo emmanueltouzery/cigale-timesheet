@@ -6,6 +6,8 @@ import qualified Data.ByteString.Lazy          as BL
 import qualified Data.ByteString.Lazy.Internal as BLI
 import Data.Char (digitToInt)
 import Data.List (transpose)
+import Text.ParserCombinators.Parsec.Error
+import Text.ParserCombinators.Parsec.Pos
 
 safePromise :: Either a (b,c) -> b
 safePromise (Right (v,_)) = v
@@ -37,3 +39,10 @@ allEqual list = all (== head list) list
 -- http://stackoverflow.com/a/2468379/516188
 zipLists :: [[a]] -> [[a]]
 zipLists = transpose
+
+
+displayErrors :: ParseError -> String
+displayErrors pe = concat $ fmap messageString (errorMessages pe) ++
+		["position: ", displayErrorPos $ errorPos pe]
+	where
+		displayErrorPos pos = (show $ sourceLine pos) ++ ":" ++ (show $ sourceColumn pos)

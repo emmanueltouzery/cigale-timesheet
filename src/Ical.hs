@@ -10,7 +10,6 @@ import qualified Data.Text.Encoding as TE
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Text.ParserCombinators.Parsec
-import Text.ParserCombinators.Parsec.Error
 import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
 import System.IO
@@ -49,14 +48,12 @@ getCalendarEvents startDay endDay = do
 	--print parseResult
 	case parseResult of
 		Left pe -> do
-			putStrLn $ "iCal: parse error: " ++ displayErrors pe
+			putStrLn $ "iCal: parse error: " ++ Util.displayErrors pe
 			putStrLn $ "line:col: " 
 				++ (show $ sourceLine $ errorPos pe) 
 				++ ":" ++ (show $ sourceColumn $ errorPos pe)
 			return []
 		Right x -> return $ convertToEvents startDay endDay x
-	where
-		displayErrors pe = concat $ fmap messageString (errorMessages pe)
 
 convertToEvents :: Day -> Day -> [Map String CalendarValue] -> [Event.Event]
 convertToEvents startDay endDay keyValues = filterDate startDay endDay events

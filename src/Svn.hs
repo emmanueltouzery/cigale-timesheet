@@ -8,7 +8,6 @@ import Data.Time.Calendar
 import qualified Data.Text as T
 import Data.Time.LocalTime
 import Text.ParserCombinators.Parsec
-import Text.ParserCombinators.Parsec.Error
 import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
 
@@ -29,15 +28,12 @@ getRepoCommits startDate endDate username projectName _url = do
 	let parseResult = parseCommitsParsec output
 	case parseResult of
 		Left pe -> do
-			putStrLn $ "SVN: parse error: " ++ displayErrors pe
+			putStrLn $ "SVN: parse error: " ++ Util.displayErrors pe
 			return []
 		Right x -> finishGetRepoCommits x startDate endDate username projectName
 	where
 		-- TODO this is my best parsec parse error display yet.
 		-- share it with hg and ical
-		displayErrors pe = concat $ fmap messageString (errorMessages pe) ++
-				["position: ", displayErrorPos $ errorPos pe]
-		displayErrorPos pos = (show $ sourceLine pos) ++ ":" ++ (show $ sourceColumn pos)
 
 finishGetRepoCommits :: [Commit] -> Day -> Day -> T.Text -> T.Text -> IO [Event.Event]
 finishGetRepoCommits commits startDate endDate username projectName = do

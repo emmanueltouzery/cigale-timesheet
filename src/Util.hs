@@ -37,8 +37,10 @@ allEqual :: Eq a => [a] -> Bool
 allEqual list = all (== head list) list
 
 -- http://stackoverflow.com/a/2468379/516188
+-- I added the takeWhile in case the lengths
+-- of the lists don't match.
 zipLists :: [[a]] -> [[a]]
-zipLists = transpose
+zipLists list = takeWhile (\x -> length x == length list) $ transpose list
 
 
 displayErrors :: ParseError -> String

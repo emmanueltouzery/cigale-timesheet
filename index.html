@@ -23,6 +23,14 @@
 			table#eventsTable {
 				border-spacing: 0px;
 			}
+			table#eventsTable td {
+				padding: 5px;
+			}
+
+			table#eventsTable th {
+				text-align: left;
+				padding: 5px;
+			}
 
 			table#eventsTable tr:nth-child(even) {
 				background: aliceblue;
@@ -73,6 +81,7 @@
 		function updateDisplay() {
 			$('#pleasehold').show();
 			$('table#eventsTable').empty();
+			$('table#eventsTable').append("<tr><th>Project</th><th>Time</th><th>Event type</th><th>Description</th></tr>")
 			$.getJSON('/timesheet/' + getDateStr(), function(data) {
 				$.each(data, function(index, value) {
 					$('table#eventsTable').append("<tr><td>"

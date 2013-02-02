@@ -4,10 +4,8 @@ module Event where
 
 import Data.Time.Clock
 import qualified Data.Text as T
-import Data.Maybe
 import qualified Data.Aeson as JSON
 import GHC.Generics
-import Data.Text.Read
 
 data EventType = Svn
 	| Email
@@ -23,6 +21,7 @@ data Event = Event
 		eventDate :: UTCTime,
 		eventType :: EventType,
 		project :: Maybe Project,
+		desc :: T.Text,
 		extraInfo :: T.Text
 	}
 	deriving (Eq, Show, Generic)

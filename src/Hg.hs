@@ -23,7 +23,7 @@ getRepoCommits startDate _username project _projectPath = do
 	(inh, Just outh, errh, pid) <- Process.createProcess
 		(Process.proc "hg" [
 			"log", "-k", username, "-d", dateRange,
-			"--template", "{date|isodate}\n{desc}\n--->>>\n"])
+			"--template", "{date|isodate}\n{desc}\n--->>>\n{files}\n--->>>\n"])
 		{
 			Process.std_out = Process.CreatePipe,
 			Process.cwd = Just projectPath
@@ -36,12 +36,14 @@ getRepoCommits startDate _username project _projectPath = do
 		Left pe -> do
 			putStrLn $ "HG: parse error: " ++ displayErrors pe
 			return []
-		Right x -> return $ map (uncurry $ toEvent project timezone) x
+		Right x -> return $ map (toEvent project timezone) x
 	where
 		displayErrors pe = concat $ fmap messageString (errorMessages pe)
 	
-toEvent :: T.Text -> TimeZone -> LocalTime -> T.Text -> Event.Event
-toEvent project timezone time summary = Event.Event (localTimeToUTC timezone time) Event.Svn (Just $ T.unpack project) summary
+toEvent :: T.Text -> TimeZone -> Commit -> Event.Event
+toEvent project timezone commit =
+	Event.Event (localTimeToUTC timezone (commitDate commit)) 
+		Event.Svn (Just $ T.unpack project) (commitDesc commit) (T.pack $ Util.getFilesRoot $ commitFiles commit)
 
 formatDate :: Day -> String
 formatDate day =
@@ -49,25 +51,36 @@ formatDate day =
 	where
 		(year, month, dayOfMonth) = toGregorian day
 
--- i am lame here.. i don't know how to make a
--- parsec function taking parameters.
--- so instead of taking a parameter "project",
--- i return an array of functions taking that
--- parameter project.
--- TODO one day ask in haskell-beginners about this one.
-parseCommitsParsec :: T.Text -> Either ParseError [(LocalTime, T.Text)]
+parseCommitsParsec :: T.Text -> Either ParseError [Commit]
 parseCommitsParsec commits = parse parseCommits "" commits
 
-parseCommits :: T.GenParser st [(LocalTime, T.Text)]
-parseCommits = do
-	many $ parseCommit
+data Commit = Commit
+	{
+		commitDate :: LocalTime,
+		commitDesc :: T.Text,
+		commitFiles :: [String]
+	}
+	deriving (Eq, Show)
 
-parseCommit :: T.GenParser st (LocalTime, T.Text)
+parseCommits :: T.GenParser st [Commit]
+parseCommits = many $ parseCommit
+
+parseCommit :: T.GenParser st Commit
 parseCommit = do
 	date <- parseDateTime
 	summary <- parseSummary
 	eol
-	return (date, T.pack summary)
+	cFiles <- parseFiles
+	return $ Commit date (T.pack summary) cFiles
+
+parseFiles :: T.GenParser st [String]
+parseFiles = manyTill parseFile (T.try $ string "--->>>\n")
+
+parseFile :: T.GenParser st String
+parseFile = do
+	result <- T.many $ T.noneOf " \n"
+	T.oneOf " \n"
+	return result
 
 parseDateTime :: T.GenParser st LocalTime
 parseDateTime = do

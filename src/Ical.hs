@@ -19,6 +19,8 @@ import qualified System.IO.Error as IOEx
 import Data.Map as Map hiding (filter, map)
 import Data.Time.Clock.POSIX
 import System.Time.Utils
+import Data.Time.Format
+import System.Locale
 
 import Text.Regex.PCRE.Rex
 
@@ -93,11 +95,24 @@ parseEvent = do
 	return $ Map.fromList keyValues
 
 keyValuesToEvent :: Map String CalendarValue -> Event.Event
-keyValuesToEvent records = Event.Event startDate Event.Calendar Nothing desc
+keyValuesToEvent records = Event.Event startDate Event.Calendar Nothing desc extraInfo
 	where
 		desc = T.concat [T.pack $ fromLeaf $ records ! "DESCRIPTION",
 				 T.pack $ fromLeaf $ records ! "SUMMARY"]
 		startDate = parseDate $ fromLeaf $ records ! "DTSTART"
+		endDate = parseDate $ fromLeaf $ records ! "DTEND"
+		extraInfo = T.concat["End: ", utctDayTimeStr endDate,
+			" Duration: ", formatDurationSec $ diffUTCTime endDate startDate]
+
+formatDurationSec :: NominalDiffTime -> T.Text
+formatDurationSec seconds = T.concat [T.pack hours, ":", T.pack minutes]
+	where
+		secondsI = round seconds :: Int
+		hours = show $ secondsI `div` 3600
+		minutes = show $ (secondsI `mod` 3600) `div` 60
+
+utctDayTimeStr :: UTCTime -> T.Text
+utctDayTimeStr time = T.pack $ formatTime defaultTimeLocale "%R" time
 
 parseBegin :: T.GenParser st String
 parseBegin = do

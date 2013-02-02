@@ -81,13 +81,16 @@
 		function updateDisplay() {
 			$('#pleasehold').show();
 			$('table#eventsTable').empty();
-			$('table#eventsTable').append("<tr><th>Project</th><th>Time</th><th>Event type</th><th>Description</th></tr>")
+			$('table#eventsTable').append("<tr><th>Project</th><th>Time</th>"
+				+ "<th>Event type</th><th>Description</th><th>Extra info</th></tr>")
 			$.getJSON('/timesheet/' + getDateStr(), function(data) {
 				$.each(data, function(index, value) {
-					$('table#eventsTable').append("<tr><td>"
-							+ value.project
-							+ "</td><td>" +
-							formatTime(value.eventDate) + "</td><td>" + eventTypeStr(value.eventType) + "</td><td>" + value.extraInfo +"</td></tr>")
+					$('table#eventsTable').append("<tr><td>" + value.project
+							+ "</td><td>" + formatTime(value.eventDate)
+							+ "</td><td>" + eventTypeStr(value.eventType)
+							+ "</td><td>" + value.desc 
+							+ "</td><td>" + value.extraInfo 
+							+ "</td></tr>");
 				})
 				$('#pleasehold').hide();
 			});

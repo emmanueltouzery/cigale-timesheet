@@ -91,7 +91,6 @@ process monthStr = do
 
 processConfig :: T.Text -> Config.ActivityConfig -> IO BL.ByteString
 processConfig monthStr config = do
-	print config
 	-- TODO this will fail with cryptic error messages if not given
 	-- a string by the right format!
 	let ymd = map (Util.safePromise . decimal) (T.splitOn "-" monthStr)

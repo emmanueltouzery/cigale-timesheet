@@ -16,6 +16,7 @@ import qualified Data.Text.ICU.Convert as ICU
 import Text.ParserCombinators.Parsec
 import Data.Text.Read
 import GHC.Word
+import qualified Data.ByteString.Base64 as Base64
 
 import Text.Regex.PCRE.Rex
 
@@ -86,6 +87,13 @@ decUtf8IgnErrors :: B.ByteString -> T.Text
 decUtf8IgnErrors = decodeUtf8With (\str input -> Just ' ')
 
 decodeMime :: B.ByteString -> IO T.Text
+-- base64
+decodeMime [brex|=\?(?{T.unpack . decUtf8IgnErrors -> encoding}[\w\d-]+)
+		\?B\?(?{contentsB64}.*)\?=|] = do
+		conv <- ICU.open encoding Nothing
+		let contentsBinary = Base64.decodeLenient contentsB64
+		return $ ICU.toUnicode conv contentsBinary
+-- quoted printable
 decodeMime [brex|=\?(?{T.unpack . decUtf8IgnErrors -> encoding}[\w\d-]+)
 		\?Q\?(?{decUtf8IgnErrors -> contents}.*)\?=|] = do
 		conv <- ICU.open encoding Nothing

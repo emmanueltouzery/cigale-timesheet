@@ -38,7 +38,8 @@ Executable timesheet
     ghc-prim                  >= 0.2   && < 0.3,
     attoparsec                >= 0.10  && < 0.11,
     old-locale                >= 1.0   && < 1.1,
-    text-icu                  >= 0.6   && < 0.7
+    text-icu                  >= 0.6   && < 0.7,
+    base64-bytestring         >= 1.0   && < 1.1
 
   if impl(ghc >= 6.12.0)
     ghc-options: -threaded -Wall -funbox-strict-fields -O2

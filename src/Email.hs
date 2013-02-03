@@ -80,15 +80,18 @@ parseEmailDate [brex|(?{month}\w+)\s+(?{readT -> day}\d+)\s+
 			"Nov" -> 11
 			"Dec" -> 12
 			_ -> error $ "Unknown month " ++ (B.unpack month)
-parseEmailDate v@_  = error $ "Invalid date format " ++ (T.unpack $ decodeUtf8 v)
+parseEmailDate v@_  = error $ "Invalid date format " ++ (T.unpack $ decUtf8IgnErrors v)
+
+decUtf8IgnErrors :: B.ByteString -> T.Text
+decUtf8IgnErrors = decodeUtf8With (\str input -> Just ' ')
 
 decodeMime :: B.ByteString -> IO T.Text
-decodeMime [brex|=\?(?{T.unpack . decodeUtf8 -> encoding}[\w\d-]+)
-		\?Q\?(?{decodeUtf8 -> contents}.*)\?=|] = do
+decodeMime [brex|=\?(?{T.unpack . decUtf8IgnErrors -> encoding}[\w\d-]+)
+		\?Q\?(?{decUtf8IgnErrors -> contents}.*)\?=|] = do
 		conv <- ICU.open encoding Nothing
 		let result = decodeMimeContents conv (T.unpack contents)
 		return $ T.pack result
-decodeMime s@_ = return $ decodeUtf8 s
+decodeMime s@_ = return $ decUtf8IgnErrors s
 
 decodeMimeContents :: ICU.Converter -> String -> String
 decodeMimeContents conv contents = 

@@ -44,7 +44,14 @@ zipLists list = takeWhile (\x -> length x == length list) $ transpose list
 
 
 displayErrors :: ParseError -> String
-displayErrors pe = concat $ fmap messageString (errorMessages pe) ++
+displayErrors pe = concat $ fmap messageString' (errorMessages pe) ++
 		["position: ", displayErrorPos $ errorPos pe]
 	where
 		displayErrorPos pos = (show $ sourceLine pos) ++ ":" ++ (show $ sourceColumn pos)
+
+messageString' :: Message -> String
+messageString' msg
+    = case msg of SysUnExpect s -> "sys unexpect " ++ s
+                  UnExpect s    -> "unexpect " ++ s
+                  Expect s      -> "expect " ++ s
+                  Message s     -> "message" ++ s  

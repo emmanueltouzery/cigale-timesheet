@@ -21,6 +21,13 @@ data HgRecord = HgRecord
 		hgRepo :: T.Text
 	} deriving Show
 
+data GitRecord = GitRecord
+	{
+		gitProj :: T.Text,
+		gitUser :: T.Text,
+		gitRepo :: T.Text
+	} deriving Show
+
 data EmailRecord = EmailRecord
 	{
 		emailProj :: T.Text,
@@ -43,6 +50,7 @@ data ActivityConfig = ActivityConfig
 	{
 		svn :: [SvnRecord],
 		hg :: [HgRecord],
+		git :: [GitRecord],
 		email :: EmailConfig,
 		ical :: [IcalRecord]
 	}
@@ -50,6 +58,7 @@ data ActivityConfig = ActivityConfig
 
 deriveJSON id ''SvnRecord
 deriveJSON id ''HgRecord
+deriveJSON id ''GitRecord
 deriveJSON id ''EmailConfig
 deriveJSON id ''EmailRecord
 deriveJSON id ''IcalRecord

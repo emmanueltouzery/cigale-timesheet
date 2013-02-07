@@ -20,6 +20,7 @@ import qualified Ical
 import qualified Svn
 import qualified Email
 import qualified Hg
+import qualified Git
 import qualified Config
 
 -- main :: IO ()
@@ -49,6 +50,14 @@ getHgEvents hgRecords day = do
 	where
 		fetchCommits = Hg.getRepoCommits day
 		hgToTuple (Config.HgRecord p u r) = (u, p, r)
+
+getGitEvents :: [Config.GitRecord] -> Day -> IO [Event.Event]
+getGitEvents gitRecords day = do
+	commits <- mapConcurrently (uncurry3 fetchCommits) (fmap gitToTuple gitRecords)
+	return $ foldr (++) [] commits
+	where
+		fetchCommits = Git.getRepoCommits day
+		gitToTuple (Config.GitRecord p u r) = (u, p, r)
 
 getEmailEvents :: Config.EmailConfig -> Day -> Day -> IO [Event.Event]
 getEmailEvents emailConfig firstDayOfMonth lastDayOfMonth = do
@@ -101,6 +110,9 @@ processConfig monthStr config = do
 	putStrLn "fetching from HG"
 	hgEvents <- getHgEvents (Config.hg config) date
 	putStrLn $ "found " ++ (show $ length hgEvents) ++ " HG events."
+	putStrLn "fetching from GIT"
+	gitEvents <- getGitEvents (Config.git config) date
+	putStrLn $ "found " ++ (show $ length gitEvents) ++ " GIT events."
 	putStrLn "fetching from email"
 	emailEvents <- getEmailEvents (Config.email config) date date
 	putStrLn $ "found " ++ (show $ length emailEvents) ++ " email events."
@@ -108,14 +120,18 @@ processConfig monthStr config = do
 	icalEvents <- Ical.getCalendarEvents date date
 	putStrLn $ "found " ++ (show $ length icalEvents) ++ " calendar events."
 	putStrLn "done!"
-	let allEvents = svnEvents ++ hgEvents ++ emailEvents ++ icalEvents
+	let allEvents = svnEvents ++ hgEvents ++ gitEvents ++ emailEvents ++ icalEvents
 	let sortedEvents = sortWith Event.eventDate allEvents
 	let eventDates = fmap Event.eventDate sortedEvents
 	-- well would be faster to just check the first and last
 	-- element... but it's actually shorter to code like this..
-	let ok = null $ filter (outOfRange date (addDays 1 date)) eventDates
+	let outOfRangeData = filter (outOfRange date (addDays 1 date)) eventDates
+	let ok = null outOfRangeData
 	if ok
 		then return $ JSON.encode sortedEvents 
-		else do putStrLn "*** SOME EVENTS ARE NOT IN TIME RANGE"; return BL.empty
+		else do
+			putStrLn "*** SOME EVENTS ARE NOT IN TIME RANGE"
+			print outOfRangeData
+			return BL.empty
 	where
 		outOfRange start end time = time < (UTCTime start 0) || time > (UTCTime end 0)

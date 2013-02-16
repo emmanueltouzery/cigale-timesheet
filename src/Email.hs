@@ -27,7 +27,8 @@ data Email = Email
 		date :: LocalTime,
 		to :: T.Text,
 		cc :: Maybe T.Text,
-		subject :: T.Text
+		subject :: T.Text,
+		contents :: T.Text
 	}
 	deriving (Eq)
 
@@ -53,7 +54,9 @@ parseMessage msg = do
 	ccVal <- headerVal "CC: " msg
 	subjectVal <- headerValSafe "Subject: " msg
 	let emailDate = parseEmailDate $ Util.toStrict1 $ _mboxMsgTime msg
-	return $ Email emailDate toVal ccVal subjectVal
+	emailContents <- decodeMime $ Util.toStrict1 $ _mboxMsgBody msg
+	let emailBody = snd $ T.breakOn "\n\n" $ T.replace "\r" "" emailContents
+	return $ Email emailDate toVal ccVal subjectVal emailBody
 
 readT :: B.ByteString -> Int
 readT = fst . fromJust . B.readInt

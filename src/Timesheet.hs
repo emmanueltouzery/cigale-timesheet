@@ -77,7 +77,7 @@ toEvent emailRecords timezone email = Event.Event
 				Event.project  = getEmailProject email emailRecords,
 				Event.desc = Email.subject email,
 				Event.extraInfo = T.concat["to: ", Email.to email],
-				Event.fullContents = Nothing
+				Event.fullContents = Just $ Email.contents email
 			}
 
 getEmailProject :: Email.Email -> [Config.EmailRecord] -> Maybe Event.Project

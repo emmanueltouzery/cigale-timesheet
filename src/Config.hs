@@ -46,13 +46,19 @@ data IcalRecord = IcalRecord
 		icalUrl :: T.Text
 	} deriving Show
 
+data SkypeConfig = SkypeConfig
+	{
+		skypeUsername :: String
+	} deriving Show
+
 data ActivityConfig = ActivityConfig
 	{
 		svn :: [SvnRecord],
 		hg :: [HgRecord],
 		git :: [GitRecord],
 		email :: EmailConfig,
-		ical :: [IcalRecord]
+		ical :: [IcalRecord],
+		skype :: SkypeConfig
 	}
 	deriving Show
 
@@ -62,6 +68,7 @@ deriveJSON id ''GitRecord
 deriveJSON id ''EmailConfig
 deriveJSON id ''EmailRecord
 deriveJSON id ''IcalRecord
+deriveJSON id ''SkypeConfig
 deriveJSON id ''ActivityConfig
 
 readConfig :: IO (Maybe ActivityConfig)

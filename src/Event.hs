@@ -10,6 +10,7 @@ import GHC.Generics
 data EventType = Svn
 	| Email
 	| Calendar
+	| Chat
 	deriving (Eq, Show, Generic)
 
 instance JSON.ToJSON EventType

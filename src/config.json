@@ -23,5 +23,6 @@
 	},
 	"ical": [
 		{ "icalUrl": "https://www.google.com/calendar/ical/etouzery%40gmail.com/private-d63868fef84ee0826c4ad9bf803048cc/basic.ics" }
-	]
+	],
+	"skype": { "skypeUsername" : "emmanuel.touzery" }
 }

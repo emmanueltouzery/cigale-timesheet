@@ -21,6 +21,7 @@ import qualified Svn
 import qualified Email
 import qualified Hg
 import qualified Git
+import Skype
 import qualified Config
 
 -- main :: IO ()
@@ -119,8 +120,11 @@ processConfig monthStr config = do
 	putStrLn "fetching from ical"
 	icalEvents <- Ical.getCalendarEvents date date
 	putStrLn $ "found " ++ (show $ length icalEvents) ++ " calendar events."
+	putStrLn "fetching from Skype"
+	skypeEvents <- getSkypeEvents date (Config.skypeUsername $ Config.skype config)
+	putStrLn $ "found " ++ (show $ length skypeEvents) ++ " skype events."
 	putStrLn "done!"
-	let allEvents = svnEvents ++ hgEvents ++ gitEvents ++ emailEvents ++ icalEvents
+	let allEvents = svnEvents ++ hgEvents ++ gitEvents ++ emailEvents ++ icalEvents ++ skypeEvents
 	let sortedEvents = sortWith Event.eventDate allEvents
 	let eventDates = fmap Event.eventDate sortedEvents
 	-- well would be faster to just check the first and last

@@ -1,13 +1,15 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Util where
 
 import qualified Data.ByteString               as B
-import qualified Data.ByteString.Internal      as BI
 import qualified Data.ByteString.Lazy          as BL
-import qualified Data.ByteString.Lazy.Internal as BLI
 import Data.Char (digitToInt)
 import Data.List (transpose)
 import Text.ParserCombinators.Parsec.Error
 import Text.ParserCombinators.Parsec.Pos
+import qualified Data.Text as T
+import Data.Time.Clock
 
 safePromise :: Either a (b,c) -> b
 safePromise (Right (v,_)) = v
@@ -55,3 +57,10 @@ messageString' msg
                   UnExpect s    -> "unexpect " ++ s
                   Expect s      -> "expect " ++ s
                   Message s     -> "message" ++ s  
+
+formatDurationSec :: NominalDiffTime -> T.Text
+formatDurationSec seconds = T.concat [T.pack hours, ":", T.pack minutes]
+	where
+		secondsI = round seconds :: Int
+		hours = show $ secondsI `div` 3600
+		minutes = show $ (secondsI `mod` 3600) `div` 60

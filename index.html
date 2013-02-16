@@ -1,6 +1,12 @@
 <html>
 	<head>
 		<style>
+			#sidebar {
+				width: 300px;
+				background: aliceblue;
+				display: inline-block;
+			}
+
 			#pleasehold {
 				width: 200px;
 				height: 50px;
@@ -20,8 +26,15 @@
 			/* http://stackoverflow.com/a/2855726/516188 */
 			.ui-widget { font-size: 0.6em !important; }
 
+			div#eventsDiv {
+				display: inline-block;
+				float: left;
+				width: 800px;
+			}
+
 			table#eventsTable {
 				border-spacing: 0px;
+				width: 95%;
 			}
 			table#eventsTable td {
 				padding: 5px;
@@ -42,7 +55,6 @@
 	</head>
 	<body>
 		<!--	<script type='text/javascript' src='/static/knockout-2.2.0.js'></script> -->
-	</body>
 
 	<script>
 
@@ -78,6 +90,10 @@
 			return dateObj.getHours() + ":" + ((mins <= 9) ?  ("0" + mins) : mins);
 		}
 
+		function setSidebarVal(value) {
+			$('#sidebar').html(value);
+		}
+
 		function updateDisplay() {
 			$('#pleasehold').show();
 			$('table#eventsTable').empty();
@@ -85,12 +101,16 @@
 				+ "<th>Event type</th><th>Description</th><th>Extra info</th></tr>")
 			$.getJSON('/timesheet/' + getDateStr(), function(data) {
 				$.each(data, function(index, value) {
-					$('table#eventsTable').append("<tr><td>" + value.project
+					$('table#eventsTable').append("<tr>"
+							+ "<td>" + value.project
 							+ "</td><td>" + formatTime(value.eventDate)
 							+ "</td><td>" + eventTypeStr(value.eventType)
 							+ "</td><td>" + value.desc 
 							+ "</td><td>" + value.extraInfo 
 							+ "</td></tr>");
+					$('table#eventsTable tr:last').click(function() {
+						setSidebarVal(value.fullContents);
+					});
 				})
 				$('#pleasehold').hide();
 			});
@@ -111,7 +131,14 @@
 
 	<div id="datepicker"></div>
 
-	<table id="eventsTable"></table>
-
 	<div id="pleasehold">Please hold...</div>
+
+	<div id="eventsDiv">
+		<table id="eventsTable"></table>
+	</div>
+
+	<div id="sidebar"></div>
+
+
+	</body>
 </html>

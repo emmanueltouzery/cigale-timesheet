@@ -58,7 +58,7 @@ data Commit = Commit
 toEvent :: String -> TimeZone -> Commit -> Event.Event
 toEvent projectName timezone (Commit dateVal _ commentVal cFiles) =
 	Event.Event (localTimeToUTC timezone dateVal) Event.Svn (Just projectName)
-		commentVal (T.pack $ Util.getFilesRoot cFilesStr)
+		commentVal (T.pack $ Util.getFilesRoot cFilesStr) Nothing
 	where
 		cFilesStr = map T.unpack cFiles
 

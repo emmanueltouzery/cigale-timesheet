@@ -23,7 +23,8 @@ data Event = Event
 		eventType :: EventType,
 		project :: Maybe Project,
 		desc :: T.Text,
-		extraInfo :: T.Text
+		extraInfo :: T.Text,
+		fullContents :: Maybe T.Text
 	}
 	deriving (Eq, Show, Generic)
 

@@ -64,8 +64,8 @@ toEvent chat = Event
 			eventType = Event.Chat,
 			project = Nothing,
 			desc = participantsStr,
-			extraInfo = extraInfoVal
-			-- full log
+			extraInfo = extraInfoVal,
+			fullContents = Just fullLogEscaped
 		}
 	where
 		chatRecords = snd chat
@@ -75,3 +75,6 @@ toEvent chat = Event
 		durationStr = T.unpack $ Util.formatDurationSec $ diffUTCTime firstTime lastTime
 		lastTime = messageTime (last $ chatRecords)
 		firstTime = messageTime (head $ chatRecords)
+		fullLogEscaped = T.replace "\"" "&quot;" fullLog
+		fullLog = T.intercalate "<br/>" (map formatMessage chatRecords)
+		formatMessage chatRecord = T.concat ["<b>", messageAuthor chatRecord, ":</b> ", messageText chatRecord]

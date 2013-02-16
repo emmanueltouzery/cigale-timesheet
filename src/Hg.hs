@@ -40,7 +40,7 @@ getRepoCommits startDate _username project _projectPath = do
 toEvent :: T.Text -> TimeZone -> Commit -> Event.Event
 toEvent project timezone commit =
 	Event.Event (localTimeToUTC timezone (commitDate commit)) 
-		Event.Svn (Just $ T.unpack project) (commitDesc commit) (T.pack $ Util.getFilesRoot $ commitFiles commit)
+		Event.Svn (Just $ T.unpack project) (commitDesc commit) (T.pack $ Util.getFilesRoot $ commitFiles commit) Nothing
 
 formatDate :: Day -> String
 formatDate day =

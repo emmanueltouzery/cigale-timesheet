@@ -59,7 +59,8 @@ messageString' msg
                   Message s     -> "message" ++ s  
 
 formatDurationSec :: NominalDiffTime -> T.Text
-formatDurationSec seconds = T.concat [T.pack hours, ":", T.pack minutes]
+formatDurationSec seconds = T.concat [T.pack hours, ":", 
+				T.justifyRight 2 '0' $ T.pack minutes]
 	where
 		secondsI = round seconds :: Int
 		hours = show $ secondsI `div` 3600

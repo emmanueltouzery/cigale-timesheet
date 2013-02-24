@@ -49,7 +49,7 @@ formatDate day =
 		(year, month, dayOfMonth) = toGregorian day
 
 parseCommitsParsec :: T.Text -> Either ParseError [Commit]
-parseCommitsParsec commits = parse parseCommits "" commits
+parseCommitsParsec = parse parseCommits ""
 
 data Commit = Commit
 	{
@@ -60,7 +60,7 @@ data Commit = Commit
 	deriving (Eq, Show)
 
 parseCommits :: T.GenParser st [Commit]
-parseCommits = many $ parseCommit
+parseCommits = many parseCommit
 
 parseCommit :: T.GenParser st Commit
 parseCommit = do

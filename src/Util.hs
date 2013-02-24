@@ -10,6 +10,9 @@ import Text.ParserCombinators.Parsec.Error
 import Text.ParserCombinators.Parsec.Pos
 import qualified Data.Text as T
 import Data.Time.Clock
+import Text.ParserCombinators.Parsec
+import qualified Text.Parsec.Text as T
+import qualified Text.Parsec as T
 
 safePromise :: Either a (b,c) -> b
 safePromise (Right (v,_)) = v
@@ -24,10 +27,10 @@ maybeHead :: [a] -> Maybe a
 maybeHead [] = Nothing
 maybeHead (x:_) = Just x
 
-parsedToInt :: [Char] -> Int
+parsedToInt :: String -> Int
 parsedToInt digits = foldl ((+).(*10)) 0 (map digitToInt digits)
 
-parsedToInteger :: [Char] -> Integer
+parsedToInteger :: String -> Integer
 parsedToInteger = fromIntegral . parsedToInt
 
 -- return the common prefix to all the files.
@@ -44,6 +47,13 @@ allEqual list = all (== head list) list
 zipLists :: [[a]] -> [[a]]
 zipLists list = takeWhile (\x -> length x == length list) $ transpose list
 
+-- parsecParse :: T.Text -> (T.GenParser st T.Text) -> IO T.Text
+parsecParse parser input = do
+	case parse parser "" input of
+		Left pe -> do
+			putStrLn $ "parse error: " ++ Util.displayErrors pe
+			return input
+		Right result -> return result
 
 displayErrors :: ParseError -> String
 displayErrors pe = concat $ fmap messageString' (errorMessages pe) ++

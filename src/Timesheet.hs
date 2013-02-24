@@ -7,8 +7,8 @@ import qualified Data.Aeson as JSON
 import qualified Data.ByteString.Lazy.Char8 as BL
 import Data.Text.Read
 import Data.List
-import Data.Time.Clock
 import Data.Time
+import Data.Maybe
 
 import GHC.Exts
 
@@ -39,7 +39,7 @@ uncurry3 f = \(a, b, c) -> f a b c
 getSvnEvents :: [Config.SvnRecord] -> Day -> Day -> IO [Event.Event]
 getSvnEvents svnRecords firstDayOfMonth lastDayOfMonth = do
 	commits <- mapConcurrently (uncurry3 fetchCommits) (fmap svnToTuple svnRecords)
-	return $ foldr (++) [] commits
+	return $ concat commits
 	where
 		fetchCommits = Svn.getRepoCommits firstDayOfMonth lastDayOfMonth
 		svnToTuple (Config.SvnRecord p u r) = (u, p, r)
@@ -47,7 +47,7 @@ getSvnEvents svnRecords firstDayOfMonth lastDayOfMonth = do
 getHgEvents :: [Config.HgRecord] -> Day -> IO [Event.Event]
 getHgEvents hgRecords day = do
 	commits <- mapConcurrently (uncurry3 fetchCommits) (fmap hgToTuple hgRecords)
-	return $ foldr (++) [] commits
+	return $ concat commits
 	where
 		fetchCommits = Hg.getRepoCommits day
 		hgToTuple (Config.HgRecord p u r) = (u, p, r)
@@ -55,7 +55,7 @@ getHgEvents hgRecords day = do
 getGitEvents :: [Config.GitRecord] -> Day -> IO [Event.Event]
 getGitEvents gitRecords day = do
 	commits <- mapConcurrently (uncurry3 fetchCommits) (fmap gitToTuple gitRecords)
-	return $ foldr (++) [] commits
+	return $ concat commits
 	where
 		fetchCommits = Git.getRepoCommits day
 		gitToTuple (Config.GitRecord p u r) = (u, p, r)
@@ -63,8 +63,8 @@ getGitEvents gitRecords day = do
 getEmailEvents :: Config.EmailConfig -> Day -> Day -> IO [Event.Event]
 getEmailEvents emailConfig firstDayOfMonth lastDayOfMonth = do
 	let mboxLocations = fmap T.unpack (Config.emailPaths emailConfig)
-	emailsAr <- sequence $ map (\mbox -> Email.getEmails mbox firstDayOfMonth lastDayOfMonth) mboxLocations
-	let emails = foldr (++) [] emailsAr
+	emailsAr <- mapM (\mbox -> Email.getEmails mbox firstDayOfMonth lastDayOfMonth) mboxLocations
+	let emails = concat emailsAr
 	let emailRecords = Config.emailRecords emailConfig
 	timezone <- getCurrentTimeZone
 	return $ map (toEvent emailRecords timezone) emails
@@ -90,7 +90,7 @@ emailMatchesPatterns :: Email.Email -> [T.Text] -> Bool
 emailMatchesPatterns email addressList = not . null $ filter emailMatches addressList
 	where
 		emailMatches address = address `T.isInfixOf` emailToCc
-		emailToCc = T.concat [Email.to email, maybe "" id (Email.cc email)]
+		emailToCc = T.concat [Email.to email, fromMaybe "" (Email.cc email)]
 
 
 process :: T.Text -> IO BL.ByteString
@@ -104,6 +104,7 @@ processConfig :: T.Text -> Config.ActivityConfig -> IO BL.ByteString
 processConfig monthStr config = do
 	-- TODO this will fail with cryptic error messages if not given
 	-- a string by the right format!
+	myTz <- getCurrentTimeZone
 	let ymd = map (Util.safePromise . decimal) (T.splitOn "-" monthStr)
 	let date = fromGregorian (toInteger $ head ymd) (ymd !! 1) (ymd !! 2)
 	putStrLn "fetching from SVN"
@@ -128,15 +129,18 @@ processConfig monthStr config = do
 	let allEvents = svnEvents ++ hgEvents ++ gitEvents ++ emailEvents ++ icalEvents ++ skypeEvents
 	let sortedEvents = sortWith Event.eventDate allEvents
 	let eventDates = fmap Event.eventDate sortedEvents
+	let eventDatesLocal = fmap (utcToLocalTime myTz) eventDates
 	-- well would be faster to just check the first and last
 	-- element... but it's actually shorter to code like this..
-	let outOfRangeData = filter (outOfRange date (addDays 1 date)) eventDates
+	let outOfRangeData = filter (outOfRange date (addDays 1 date)) eventDatesLocal
 	let ok = null outOfRangeData
 	if ok
 		then return $ JSON.encode sortedEvents 
 		else do
 			putStrLn "*** SOME EVENTS ARE NOT IN TIME RANGE"
 			print outOfRangeData
+			print $ head sortedEvents
+			print $ last sortedEvents
 			return BL.empty
 	where
-		outOfRange start end time = time < (UTCTime start 0) || time > (UTCTime end 0)
+		outOfRange start end time = time < (LocalTime start midnight) || time > (LocalTime end midnight)

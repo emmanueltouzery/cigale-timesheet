@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, TemplateHaskell, QuasiQuotes, ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings, QuasiQuotes, ViewPatterns #-}
 
 module Ical where
 
@@ -68,7 +68,7 @@ readFromWWW = do
 	return icalText
 
 filterDate :: Day -> Day -> [Event.Event] -> [Event.Event]
-filterDate startDay endDay events = filter (eventInDateRange startDay endDay) events
+filterDate startDay endDay = filter (eventInDateRange startDay endDay)
 
 eventInDateRange :: Day -> Day -> Event.Event -> Bool
 eventInDateRange startDay endDay event =  eventDay >= startDay && eventDay <= endDay
@@ -76,7 +76,7 @@ eventInDateRange startDay endDay event =  eventDay >= startDay && eventDay <= en
 		eventDay = utctDay $ Event.eventDate event
 
 parseEventsParsec :: T.Text -> Either ParseError [Map String CalendarValue]
-parseEventsParsec t = parse parseEvents "" t
+parseEventsParsec = parse parseEvents ""
 
 parseEvents :: T.GenParser st [Map String CalendarValue]
 parseEvents = do

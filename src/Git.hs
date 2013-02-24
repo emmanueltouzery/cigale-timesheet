@@ -55,7 +55,7 @@ formatDate day =
 		(year, month, dayOfMonth) = toGregorian day
 
 parseCommitsParsec :: T.Text -> Either ParseError [Commit]
-parseCommitsParsec commits = parse parseCommits "" commits
+parseCommitsParsec = parse parseCommits ""
 
 data Commit = Commit
 	{
@@ -67,7 +67,7 @@ data Commit = Commit
 	deriving (Eq, Show)
 
 parseCommits :: T.GenParser st [Commit]
-parseCommits = many $ parseCommit
+parseCommits = many parseCommit
 
 parseCommit :: T.GenParser st Commit
 parseCommit = do
@@ -80,7 +80,7 @@ parseCommit = do
 	summary <- parseSummary
 	count 2 eol
 	cFiles <- parseFiles
-	optional $ eol
+	optional eol
 	return $ Commit date (T.strip $ T.pack summary) cFiles (T.unpack $ T.strip $ T.pack author)
 
 readLine :: T.GenParser st String
@@ -90,7 +90,7 @@ readLine = do
 	return result
 
 parseFiles :: T.GenParser st [String]
-parseFiles = manyTill parseFile (T.try $ parseFilesSummary)
+parseFiles = manyTill parseFile (T.try parseFilesSummary)
 
 parseFile :: T.GenParser st String
 parseFile = do

@@ -1,4 +1,4 @@
-{-# LANGUAGE QuasiQuotes, OverloadedStrings, ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings, QuasiQuotes, ViewPatterns #-}
 
 module Svn where
 
@@ -63,13 +63,12 @@ toEvent projectName timezone (Commit dateVal _ commentVal cFiles) =
 		cFilesStr = map T.unpack cFiles
 
 parseCommitsParsec :: T.Text -> Either ParseError [Commit]
-parseCommitsParsec commits = parse parseCommits "" commits
+parseCommitsParsec = parse parseCommits ""
 
 parseCommits :: T.GenParser st [Commit]
 parseCommits = do
 	parseCommitHeader
-	result <- many $ parseCommit
-	return result
+	many parseCommit
 
 parseCommit :: T.GenParser st Commit
 parseCommit = do
@@ -78,7 +77,7 @@ parseCommit = do
 	dateval <- parseDateTime
 	many $ T.noneOf "\r\n"; eol -- finish line
 	many $ T.noneOf "\r\n"; eol -- "Changed paths:"
-	commitFileInfos <- T.many $ parseCommitFileInfo
+	commitFileInfos <- T.many parseCommitFileInfo
 	eol
 	summary <- parseSummary
 	parseCommitHeader

@@ -50,7 +50,7 @@ data ChatRecord = ChatRecord
 -- it's made like that to easier later call 
 -- Map.fromListWith
 messageByChatInfo :: [SqlValue] -> (String, [ChatRecord])
-messageByChatInfo dbRow = (fromSql $ dbRow !! 0,
+messageByChatInfo dbRow = (fromSql $ head dbRow,
 		[ChatRecord {
 			messageAuthor = fromSql $ dbRow !! 1,
 			messageTime = posixSecondsToUTCTime $ fromSql $ dbRow !! 2,
@@ -73,8 +73,8 @@ toEvent chat = Event
 		participants = nub $ map messageAuthor chatRecords
 		extraInfoVal = T.pack $ (show $ length chatRecords) ++ " messages, lasted " ++ durationStr
 		durationStr = T.unpack $ Util.formatDurationSec $ diffUTCTime firstTime lastTime
-		lastTime = messageTime (last $ chatRecords)
-		firstTime = messageTime (head $ chatRecords)
+		lastTime = messageTime (last chatRecords)
+		firstTime = messageTime (head chatRecords)
 		fullLogEscaped = T.replace "\"" "&quot;" fullLog
 		fullLog = T.intercalate "<br/>" (map formatMessage chatRecords)
 		formatMessage chatRecord = T.concat ["<b>", messageAuthor chatRecord, ":</b> ", messageText chatRecord]

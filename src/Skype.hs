@@ -34,7 +34,7 @@ getSkypeEvents day skypeUsername = do
 
 	-- get the events grouped by chat
 	let eventsAr = fmap messageByChatInfo r
-	let eventsMap = Map.fromListWith (++) eventsAr
+	let eventsMap = Map.fromListWith (flip (++)) eventsAr
 
 	return $ map toEvent $ Map.toList eventsMap
 
@@ -72,7 +72,7 @@ toEvent chat = Event
 		participantsStr = T.intercalate ", " $ sort participants
 		participants = nub $ map messageAuthor chatRecords
 		extraInfoVal = T.pack $ (show $ length chatRecords) ++ " messages, lasted " ++ durationStr
-		durationStr = T.unpack $ Util.formatDurationSec $ diffUTCTime firstTime lastTime
+		durationStr = T.unpack $ Util.formatDurationSec $ diffUTCTime lastTime firstTime
 		lastTime = messageTime (last chatRecords)
 		firstTime = messageTime (head chatRecords)
 		fullLogEscaped = T.replace "\"" "&quot;" fullLog

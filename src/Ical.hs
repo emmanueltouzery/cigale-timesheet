@@ -27,9 +27,6 @@ import qualified Event
 import qualified Settings
 import qualified Util
 
-icalAddress :: String
-icalAddress = "https://www.google.com/calendar/ical/etouzery%40gmail.com/private-d63868fef84ee0826c4ad9bf803048cc/basic.ics"
-
 --eventsTxt = "crap\r\nBEGIN:VEVENT\r\nDTSTART:20121220T113000Z\r\nDTEND:20121220T123000Z\r\nDTSTAMP:20121222T202323Z\r\nUID:libdtse87aoci8tar144sctm7g@google.com\r\nCREATED:20121221T102110Z\r\nDESCRIPTION:test\r\nLAST-MODIFIED:20121221T102116Z\r\nLOCATION:\r\nSEQUENCE:2\r\nSTATUS:CONFIRMED\r\nSUMMARY:sestanek Matej\r\nTRANSP:OPAQUE\r\nEND:VEVENT"
 
 data CalendarValue = Leaf String | SubLevel (Map String CalendarValue) deriving (Show, Eq)
@@ -38,12 +35,12 @@ fromLeaf :: CalendarValue -> String
 fromLeaf (Leaf a) = a
 fromLeaf _ = "Error: expected a leaf!"
 
-getCalendarEvents :: Day -> Day -> IO [Event.Event]
-getCalendarEvents startDay endDay = do
+getCalendarEvents :: String -> Day -> Day -> IO [Event.Event]
+getCalendarEvents icalAddress startDay endDay = do
 	hasCached <- hasCachedVersionForDay endDay
 	icalText <- if hasCached
 		then readFromCache
-		else readFromWWW
+		else readFromWWW icalAddress
 	let parseResult = parseEventsParsec icalText
 	--print parseResult
 	case parseResult of
@@ -60,8 +57,8 @@ convertToEvents startDay endDay keyValues = filterDate startDay endDay events
 	where
 		events = map keyValuesToEvent keyValues
 
-readFromWWW :: IO T.Text
-readFromWWW = do
+readFromWWW :: String -> IO T.Text
+readFromWWW icalAddress = do
 	icalData <- withSocketsDo $ simpleHttp icalAddress
 	let icalText = TE.decodeUtf8 $ Util.toStrict1 icalData
 	putInCache icalText

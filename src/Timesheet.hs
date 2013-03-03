@@ -36,12 +36,12 @@ import qualified Config
 uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
 uncurry3 f = \(a, b, c) -> f a b c
 
-getSvnEvents :: [Config.SvnRecord] -> Day -> Day -> IO [Event.Event]
-getSvnEvents svnRecords firstDayOfMonth lastDayOfMonth = do
+getSvnEvents :: [Config.SvnRecord] -> Day -> IO [Event.Event]
+getSvnEvents svnRecords day = do
 	commits <- mapConcurrently (uncurry3 fetchCommits) (fmap svnToTuple svnRecords)
 	return $ concat commits
 	where
-		fetchCommits = Svn.getRepoCommits firstDayOfMonth lastDayOfMonth
+		fetchCommits = Svn.getRepoCommits day day
 		svnToTuple (Config.SvnRecord p u r) = (u, p, r)
 
 getHgEvents :: [Config.HgRecord] -> Day -> IO [Event.Event]
@@ -60,10 +60,10 @@ getGitEvents gitRecords day = do
 		fetchCommits = Git.getRepoCommits day
 		gitToTuple (Config.GitRecord p u r) = (u, p, r)
 
-getEmailEvents :: Config.EmailConfig -> Day -> Day -> IO [Event.Event]
-getEmailEvents emailConfig firstDayOfMonth lastDayOfMonth = do
+getEmailEvents :: Config.EmailConfig -> Day -> IO [Event.Event]
+getEmailEvents emailConfig day = do
 	let mboxLocations = fmap T.unpack (Config.emailPaths emailConfig)
-	emailsAr <- mapM (\mbox -> Email.getEmails mbox firstDayOfMonth lastDayOfMonth) mboxLocations
+	emailsAr <- mapM (\mbox -> Email.getEmails mbox day day) mboxLocations
 	let emails = concat emailsAr
 	let emailRecords = Config.emailRecords emailConfig
 	timezone <- getCurrentTimeZone
@@ -108,7 +108,7 @@ processConfig monthStr config = do
 	let ymd = map (Util.safePromise . decimal) (T.splitOn "-" monthStr)
 	let date = fromGregorian (toInteger $ head ymd) (ymd !! 1) (ymd !! 2)
 	putStrLn "fetching from SVN"
-	svnEvents <- getSvnEvents (Config.svn config) date date
+	svnEvents <- getSvnEvents (Config.svn config) date
 	putStrLn $ "found " ++ (show $ length svnEvents) ++ " SVN events."
 	putStrLn "fetching from HG"
 	hgEvents <- getHgEvents (Config.hg config) date
@@ -117,10 +117,10 @@ processConfig monthStr config = do
 	gitEvents <- getGitEvents (Config.git config) date
 	putStrLn $ "found " ++ (show $ length gitEvents) ++ " GIT events."
 	putStrLn "fetching from email"
-	emailEvents <- getEmailEvents (Config.email config) date date
+	emailEvents <- getEmailEvents (Config.email config) date
 	putStrLn $ "found " ++ (show $ length emailEvents) ++ " email events."
 	putStrLn "fetching from ical"
-	icalEvents <- Ical.getCalendarEvents date date
+	icalEvents <- Ical.getCalendarEvents (T.unpack $ Config.icalUrl $ head $ Config.ical config) date date
 	putStrLn $ "found " ++ (show $ length icalEvents) ++ " calendar events."
 	putStrLn "fetching from Skype"
 	skypeEvents <- getSkypeEvents date (Config.skypeUsername $ Config.skype config)

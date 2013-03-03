@@ -47,7 +47,7 @@ getEmails sent_mbox fromDate toDate = do
 	-- now we remove the messages that are newer than end date
 	-- need to reverse messages because i'm reading from the end.
 	let messages1 = takeWhile isBefore (reverse messages)
-	print $ map getEmailDate messages1
+	--print $ map getEmailDate messages1
 	mapM parseMessage messages1
 	where
 		isAfter email = (localDay $ getEmailDate email) >= fromDate
@@ -63,14 +63,18 @@ parseMessage msg = do
 	let isMultipart = case contentType of
 		Nothing -> False
 		Just x -> "multipart/alternative" `T.isInfixOf` x
-	putStrLn $ "is multipart? " ++ show isMultipart
 	let emailDate = getEmailDate msg
-	body <- decodeMime $ Util.toStrict1 $ _mboxMsgBody msg
-	let bodyContents = textAfterHeaders body
-	print bodyContents
+	print emailDate
+	putStrLn $ "is multipartX? " ++ show isMultipart
+	let msgBody = Util.toStrict1 $ _mboxMsgBody msg
 	emailContents <- if isMultipart
-			then Util.parsecParse parseMultipartBody bodyContents
-			else Util.parsecParse parseAsciiBody bodyContents
+			then do
+				body <- decodeMime msgBody
+				let bodyContents = textAfterHeaders body
+				Util.parsecParse parseMultipartBody bodyContents
+			else do
+				let bodyContents = textAfterHeaders $ decUtf8IgnErrors msgBody
+				Util.parsecParse parseAsciiBody bodyContents
 	return $ Email emailDate toVal ccVal subjectVal emailContents
 
 textAfterHeaders :: T.Text -> T.Text

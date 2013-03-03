@@ -67,14 +67,12 @@ parseMessage msg = do
 	print emailDate
 	putStrLn $ "is multipartX? " ++ show isMultipart
 	let msgBody = Util.toStrict1 $ _mboxMsgBody msg
+	-- TODO i may hit a base64 body. decodeMime would be a
+	-- starting base then. Must check the content-typel
+	let bodyContents = textAfterHeaders $ decUtf8IgnErrors msgBody
 	emailContents <- if isMultipart
-			then do
-				body <- decodeMime msgBody
-				let bodyContents = textAfterHeaders body
-				Util.parsecParse parseMultipartBody bodyContents
-			else do
-				let bodyContents = textAfterHeaders $ decUtf8IgnErrors msgBody
-				Util.parsecParse parseAsciiBody bodyContents
+			then Util.parsecParse parseMultipartBody bodyContents
+			else Util.parsecParse parseAsciiBody bodyContents
 	return $ Email emailDate toVal ccVal subjectVal emailContents
 
 textAfterHeaders :: T.Text -> T.Text

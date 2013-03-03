@@ -93,7 +93,8 @@ parseMultipartBody = do
 parseAsciiBody :: T.GenParser st T.Text
 parseAsciiBody = do
 	many eol
-	fmap T.pack (many anyToken)
+	lines <- many readLine
+	return $ T.intercalate "<br/>" lines
 
 readLine :: T.GenParser st T.Text
 readLine = do

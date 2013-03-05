@@ -1,0 +1,18 @@
+extract the config->plugin parameters patterns, uniformize the plugins
+calling (list the plugins and have a loop, not individual calls to each
+plugin, or maybe tie up plugins and their configuration.
+
+for source version control, in the details show the diffstat and even
+the diff.
+
+for emails, nice display if there is an attachment instead of dumping
+the base64. a download button would be groovy (or inline preview for
+images).
+
+for emails check for a library, if there is none extract one from this
+app.
+
+make a bootstrap-based GUI. at first allow the settings to be set in the
+GUI.
+
+HTML formatting in emails can spread to my pages: use an iframe

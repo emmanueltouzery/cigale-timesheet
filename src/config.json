@@ -8,7 +8,10 @@
 		{ "hgProj": "BUS", "hgUser": "Emmanuel Touzery", "hgRepo": "/home/emmanuel/projects/bus/smrt/ecodriving"}
 	],
 	"git": [
-		{ "gitProj": "BUS", "gitUser": "Emmanuel Touzery", "gitRepo": "/home/emmanuel/projects/bus/datalogger-git/edrd-datalogger"}
+		{ "gitProj": "BUS", "gitUser": "Emmanuel Touzery", "gitRepo": "/home/emmanuel/projects/bus/datalogger-git/edrd-datalogger"},
+		{ "gitProj": "BUS", "gitUser": "Emmanuel Touzery", "gitRepo": "/home/emmanuel/projects/bus/tms"},
+		{ "gitProj": "BUS", "gitUser": "Emmanuel Touzery", "gitRepo": "/home/emmanuel/projects/bus/lppimport"},
+		{ "gitProj": "BUS", "gitUser": "Emmanuel Touzery", "gitRepo": "/home/emmanuel/projects/bus/backendpoc"}
 	],
 	"email": {
 		"emailPaths": [

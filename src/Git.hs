@@ -15,8 +15,6 @@ import Data.List (isInfixOf)
 import qualified Event
 import qualified Util
 
--- TODO must filter by author by hand!!!
-
 getRepoCommits :: Day -> T.Text -> T.Text -> T.Text -> IO [Event.Event]
 getRepoCommits startDate _username project _projectPath = do
 	let username = T.unpack _username
@@ -40,8 +38,11 @@ getRepoCommits startDate _username project _projectPath = do
 			putStrLn $ "GIT: parse error: " ++ Util.displayErrors pe
 			return []
 		Right x -> do
-			let userCommits = filter ((isInfixOf username) . commitAuthor) x
-			return $ map (toEvent project timezone) userCommits
+			let myCommits = filter ((isInfixOf username) . commitAuthor) x
+			let myCommitsInInterval = filter (inRange . localDay . commitDate) myCommits
+			return $ map (toEvent project timezone) myCommitsInInterval
+	where
+		inRange date = (date >= startDate && date < (addDays 1 startDate))
 	
 toEvent :: T.Text -> TimeZone -> Commit -> Event.Event
 toEvent project timezone commit =

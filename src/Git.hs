@@ -10,7 +10,7 @@ import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
 import qualified Data.Text as T
 import qualified Data.Text.IO as IO
-import Data.List (isInfixOf)
+import Data.List (isInfixOf, intercalate)
 
 import qualified Event
 import qualified Util
@@ -53,7 +53,7 @@ toEvent project timezone commit =
 			Event.project = (Just $ T.unpack project),
 			Event.desc = commitDesc commit,
 			Event.extraInfo = (T.pack $ Util.getFilesRoot $ commitFiles commit),
-			Event.fullContents = Just $ commitContents commit
+			Event.fullContents = Just $ T.pack $ commitContents commit
 		}
 
 formatDate :: Day -> String
@@ -89,8 +89,8 @@ parseCommit = do
 	summary <- parseSummary
 	count 2 eol
 	cFiles <- parseFiles
-	let cFileNames = fmap fst cFiles
-	let cFilesDesc = fmap snd cFiles
+	let cFileNames = fmap snd cFiles
+	let cFilesDesc = fmap fst cFiles
 	optional eol
 	return $ Commit
 		{
@@ -98,7 +98,7 @@ parseCommit = do
 			commitDesc = T.strip $ T.pack summary,
 			commitFiles = cFileNames,
 			commitAuthor = T.unpack $ T.strip $ T.pack author,
-			commitContents = cFilesDesc
+			commitContents = "<pre>" ++ intercalate "<br/>\n" cFilesDesc ++ "</pre>"
 		}
 
 readLine :: T.GenParser st String
@@ -110,7 +110,7 @@ readLine = do
 parseFiles :: T.GenParser st [(String, String)]
 parseFiles = manyTill parseFile (T.try parseFilesSummary)
 
-parseFile :: T.GenParser st String
+parseFile :: T.GenParser st (String, String)
 parseFile = do
 	char ' '
 	result <- T.many $ T.noneOf "|"

@@ -3,7 +3,8 @@ calling (list the plugins and have a loop, not individual calls to each
 plugin, or maybe tie up plugins and their configuration.
 
 for source version control, in the details show the diffstat and even
-the diff.
+the diff. For the diffstat, should be easy with git, in fact I even
+already parse the git diffstat..
 
 for emails, nice display if there is an attachment instead of dumping
 the base64. a download button would be groovy (or inline preview for
@@ -16,3 +17,9 @@ make a bootstrap-based GUI. at first allow the settings to be set in the
 GUI.
 
 HTML formatting in emails can spread to my pages: use an iframe
+
+when clicking on an event, highlight the html table row with the same
+color as the preview pane background so it's clear to which row the
+preview pane refers.
+
+clear the preview pane when changing day.

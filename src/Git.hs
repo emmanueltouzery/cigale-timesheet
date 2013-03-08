@@ -46,8 +46,15 @@ getRepoCommits startDate _username project _projectPath = do
 	
 toEvent :: T.Text -> TimeZone -> Commit -> Event.Event
 toEvent project timezone commit =
-	Event.Event (localTimeToUTC timezone (commitDate commit)) 
-		Event.Svn (Just $ T.unpack project) (commitDesc commit) (T.pack $ Util.getFilesRoot $ commitFiles commit) Nothing
+	Event.Event
+		{
+			Event.eventDate = (localTimeToUTC timezone (commitDate commit)),
+			Event.eventType = Event.Svn,
+			Event.project = (Just $ T.unpack project),
+			Event.desc = commitDesc commit,
+			Event.extraInfo = (T.pack $ Util.getFilesRoot $ commitFiles commit),
+			Event.fullContents = Just $ commitContents commit
+		}
 
 formatDate :: Day -> String
 formatDate day =
@@ -63,7 +70,8 @@ data Commit = Commit
 		commitDate :: LocalTime,
 		commitDesc :: T.Text,
 		commitFiles :: [String],
-		commitAuthor :: String
+		commitAuthor :: String,
+		commitContents :: String
 	}
 	deriving (Eq, Show)
 
@@ -81,8 +89,17 @@ parseCommit = do
 	summary <- parseSummary
 	count 2 eol
 	cFiles <- parseFiles
+	let cFileNames = fmap fst cFiles
+	let cFilesDesc = fmap snd cFiles
 	optional eol
-	return $ Commit date (T.strip $ T.pack summary) cFiles (T.unpack $ T.strip $ T.pack author)
+	return $ Commit
+		{
+			commitDate = date,
+			commitDesc = T.strip $ T.pack summary,
+			commitFiles = cFileNames,
+			commitAuthor = T.unpack $ T.strip $ T.pack author,
+			commitContents = cFilesDesc
+		}
 
 readLine :: T.GenParser st String
 readLine = do
@@ -90,16 +107,16 @@ readLine = do
 	T.oneOf "\r\n"
 	return result
 
-parseFiles :: T.GenParser st [String]
+parseFiles :: T.GenParser st [(String, String)]
 parseFiles = manyTill parseFile (T.try parseFilesSummary)
 
 parseFile :: T.GenParser st String
 parseFile = do
 	char ' '
 	result <- T.many $ T.noneOf "|"
-	T.many $ T.noneOf "\n"
+	rest <- T.many $ T.noneOf "\n"
 	eol
-	return $ T.unpack $ T.strip $ T.pack result
+	return (result ++ rest, T.unpack $ T.strip $ T.pack result)
 
 parseFilesSummary :: T.GenParser st String
 parseFilesSummary = do

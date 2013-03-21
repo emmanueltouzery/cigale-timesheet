@@ -1,6 +1,4 @@
-extract the config->plugin parameters patterns, uniformize the plugins
-calling (list the plugins and have a loop, not individual calls to each
-plugin, or maybe tie up plugins and their configuration.
+import redmine info
 
 for source version control, in the details show the diffstat; done for
 GIT, could still be done for SVN and HG.

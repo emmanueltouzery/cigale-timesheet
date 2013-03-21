@@ -1,6 +1,6 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, DeriveGeneric, TemplateHaskell #-}
 
-module Git where
+module Git (getGitProvider) where
 
 import qualified System.Process as Process
 import Data.Time.Calendar
@@ -11,12 +11,29 @@ import qualified Text.Parsec as T
 import qualified Data.Text as T
 import qualified Data.Text.IO as IO
 import Data.List (isInfixOf, intercalate)
+import Data.Aeson.TH (deriveJSON)
 
 import qualified Event
 import qualified Util
+import EventProvider
 
-getRepoCommits :: Day -> T.Text -> T.Text -> T.Text -> IO [Event.Event]
-getRepoCommits startDate _username project _projectPath = do
+data GitRecord = GitRecord
+	{
+		gitProj :: T.Text,
+		gitUser :: T.Text,
+		gitRepo :: T.Text
+	} deriving Show
+deriveJSON id ''GitRecord
+
+getGitProvider :: EventProvider GitRecord
+getGitProvider = EventProvider
+	{
+		getModuleName = "Git",
+		getEvents = getRepoCommits
+	}
+
+getRepoCommits :: GitRecord -> Day -> Day -> IO [Event.Event]
+getRepoCommits (GitRecord project _username _projectPath) startDate _ = do
 	let username = T.unpack _username
 	let projectPath = T.unpack _projectPath
 	(inh, Just outh, errh, pid) <- Process.createProcess

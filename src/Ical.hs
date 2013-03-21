@@ -1,6 +1,6 @@
-{-# LANGUAGE OverloadedStrings, QuasiQuotes, ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings, QuasiQuotes, ViewPatterns, DeriveGeneric, TemplateHaskell #-}
 
-module Ical where
+module Ical (getIcalProvider) where
 
 import Data.Time.Clock
 import Data.Time.Calendar
@@ -15,17 +15,33 @@ import qualified Text.Parsec as T
 import System.IO
 import qualified System.Directory as Dir
 import qualified System.IO.Error as IOEx
-import Data.Map as Map hiding (filter, map)
+import Data.Map as Map hiding (filter, map, foldl)
 import Data.Time.Clock.POSIX
 import System.Time.Utils
 import Data.Time.Format
 import System.Locale
+import Data.Aeson.TH
 
 import Text.Regex.PCRE.Rex
 
 import qualified Event
 import qualified Settings
 import qualified Util
+import EventProvider
+
+
+data IcalRecord = IcalRecord
+	{
+		icalUrl :: String
+	} deriving Show
+deriveJSON id ''IcalRecord
+
+getIcalProvider :: EventProvider IcalRecord
+getIcalProvider = EventProvider
+	{
+		getModuleName = "Ical",
+		getEvents = getCalendarEvents
+	}
 
 --eventsTxt = "crap\r\nBEGIN:VEVENT\r\nDTSTART:20121220T113000Z\r\nDTEND:20121220T123000Z\r\nDTSTAMP:20121222T202323Z\r\nUID:libdtse87aoci8tar144sctm7g@google.com\r\nCREATED:20121221T102110Z\r\nDESCRIPTION:test\r\nLAST-MODIFIED:20121221T102116Z\r\nLOCATION:\r\nSEQUENCE:2\r\nSTATUS:CONFIRMED\r\nSUMMARY:sestanek Matej\r\nTRANSP:OPAQUE\r\nEND:VEVENT"
 
@@ -35,8 +51,8 @@ fromLeaf :: CalendarValue -> String
 fromLeaf (Leaf a) = a
 fromLeaf _ = "Error: expected a leaf!"
 
-getCalendarEvents :: String -> Day -> Day -> IO [Event.Event]
-getCalendarEvents icalAddress startDay endDay = do
+getCalendarEvents :: IcalRecord -> Day -> Day -> IO [Event.Event]
+getCalendarEvents (IcalRecord icalAddress) startDay endDay = do
 	hasCached <- hasCachedVersionForDay endDay
 	icalText <- if hasCached
 		then readFromCache

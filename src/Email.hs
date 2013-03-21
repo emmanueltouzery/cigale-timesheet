@@ -1,6 +1,6 @@
-{-# LANGUAGE OverloadedStrings, QuasiQuotes, ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings, QuasiQuotes, ViewPatterns, DeriveGeneric, TemplateHaskell #-}
 
-module Email where
+module Email (getEmailProvider) where
 
 import Codec.Mbox
 import Data.Time.Calendar
@@ -19,10 +19,38 @@ import GHC.Word
 import qualified Data.ByteString.Base64 as Base64
 import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
+import Data.Aeson.TH (deriveJSON)
 
 import Text.Regex.PCRE.Rex
 
+import qualified Event
+import EventProvider
 import Util
+
+data EmailConfigRecord = EmailRecord
+	{
+		emailProj :: T.Text,
+		emailPatterns :: [T.Text]
+	} deriving Show
+
+data EmailConfig = EmailConfig
+	{
+		emailPaths :: [String],
+		emailRecords :: [EmailConfigRecord]
+		
+	} deriving Show
+deriveJSON id ''EmailConfigRecord
+deriveJSON id ''EmailConfig
+
+getEmailProvider :: EventProvider EmailConfig
+getEmailProvider = EventProvider
+	{
+		getModuleName = "Email",
+		getEvents = getEmailEvents
+		--getConfigRequirements = SubElementArraySpec [
+		--	SubElementArraySpec [StringFieldSpec "emailPath"],
+		--	SubElementArraySpec [StringFieldSpec "project", SubElementArraySpec [StringFieldSpec "emailPatterns"]]]
+	}
 
 data Email = Email
 	{
@@ -34,7 +62,39 @@ data Email = Email
 	}
 	deriving (Eq, Show)
 
-getEmails :: FilePath -> Day -> Day -> IO [Email]
+-- #### TODO we ignore the second day we are given..
+getEmailEvents :: EmailConfig -> Day -> Day -> IO [Event.Event]
+getEmailEvents (EmailConfig mboxLocations emailRecordsVal) day day1 = do
+	emailsAr <- mapM (\mbox -> getEmails mbox day day) mboxLocations
+	let emails = concat emailsAr
+	timezone <- getCurrentTimeZone
+	return $ map (toEvent emailRecordsVal timezone) emails
+
+toEvent :: [EmailConfigRecord] -> TimeZone -> Email.Email -> Event.Event
+toEvent emailRecordsVal timezone email = Event.Event
+			{
+				Event.eventDate = localTimeToUTC timezone (Email.date email),
+				Event.eventType = Event.Email,
+				Event.project  = getEmailProject email emailRecordsVal,
+				Event.desc = Email.subject email,
+				Event.extraInfo = T.concat["to: ", Email.to email],
+				Event.fullContents = Just $ Email.contents email
+			}
+
+getEmailProject :: Email.Email -> [EmailConfigRecord] -> Maybe Event.Project
+getEmailProject email emailRecordsVal = fmap (T.unpack . emailProj) maybeRecordForEmail
+	where
+		maybeRecordForEmail = find isEmailInRecord emailRecordsVal
+		isEmailInRecord = (emailMatchesPatterns email) . emailPatterns
+
+emailMatchesPatterns :: Email.Email -> [T.Text] -> Bool
+emailMatchesPatterns email addressList = not . null $ filter emailMatches addressList
+	where
+		emailMatches address = address `T.isInfixOf` emailToCc
+		emailToCc = T.concat [Email.to email, fromMaybe "" (Email.cc email)]
+
+
+getEmails :: String -> Day -> Day -> IO [Email]
 getEmails sent_mbox fromDate toDate = do
 	mbox <- parseMboxFile Backward sent_mbox
 	--print $ head $ (map _mboxMsgTime (mboxMessages mbox))
@@ -93,8 +153,8 @@ parseMultipartBody = do
 parseAsciiBody :: T.GenParser st T.Text
 parseAsciiBody = do
 	many eol
-	lines <- many readLine
-	return $ T.intercalate "<br/>" lines
+	textLines <- many readLine
+	return $ T.intercalate "<br/>" textLines
 
 readLine :: T.GenParser st T.Text
 readLine = do

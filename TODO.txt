@@ -10,7 +10,7 @@ the base64. a download button would be groovy (or inline preview for
 images).
 
 for emails check for a library, if there is none extract one from this
-app.
+app, make regression tests and so on.
 
 make a bootstrap-based GUI. at first allow the settings to be set in the
 GUI.

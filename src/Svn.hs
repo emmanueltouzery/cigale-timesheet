@@ -1,6 +1,6 @@
-{-# LANGUAGE OverloadedStrings, QuasiQuotes, ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings, QuasiQuotes, ViewPatterns, DeriveGeneric, TemplateHaskell #-}
 
-module Svn where
+module Svn (getSvnProvider) where
 
 import qualified System.Process as Process
 import qualified Data.Text.IO as IO
@@ -10,18 +10,35 @@ import Data.Time.LocalTime
 import Text.ParserCombinators.Parsec
 import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
+import Data.Aeson.TH
 
 import qualified Util
 import qualified Event
+import EventProvider
 
 import Text.Regex.PCRE.Rex
 
-getRepoCommits :: Day -> Day -> T.Text -> T.Text -> T.Text -> IO [Event.Event]
-getRepoCommits startDate endDate username projectName _url = do
-	let url = T.unpack _url
+data SvnConfigRecord = SvnConfigRecord
+	{
+		svnProj :: String,
+		svnUser :: String,
+		svnRepo :: String
+	} deriving Show
+deriveJSON id ''SvnConfigRecord
+
+getSvnProvider :: EventProvider SvnConfigRecord
+getSvnProvider = EventProvider
+	{
+		getModuleName = "Svn",
+		getEvents = getRepoCommits
+	}
+
+getRepoCommits :: SvnConfigRecord -> Day -> Day -> IO [Event.Event]
+getRepoCommits config startDate endDate = do
 	let dateRange = formatDateRange startDate (addDays 1 endDate)
 	(inh, Just outh, errh, pid) <- Process.createProcess
-		(Process.proc "svn" ["log", url, "-r", dateRange, "--verbose"])
+		(Process.proc "svn" ["log", svnRepo config, 
+				"-r", dateRange, "--verbose"])
 		{Process.std_out = Process.CreatePipe}
 	ex <- Process.waitForProcess pid
 	output <- IO.hGetContents outh
@@ -30,7 +47,8 @@ getRepoCommits startDate endDate username projectName _url = do
 		Left pe -> do
 			putStrLn $ "SVN: parse error: " ++ Util.displayErrors pe
 			return []
-		Right x -> finishGetRepoCommits x startDate endDate username projectName
+		Right x -> finishGetRepoCommits x startDate endDate
+			(T.pack $ svnUser config) (T.pack $ svnProj config)
 	where
 		-- TODO this is my best parsec parse error display yet.
 		-- share it with hg and ical

@@ -1,6 +1,6 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, DeriveGeneric, TemplateHaskell #-}
 
-module Hg where
+module Hg (getHgProvider) where
 
 import qualified System.Process as Process
 import Data.Time.Calendar
@@ -10,12 +10,29 @@ import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
 import qualified Data.Text as T
 import qualified Data.Text.IO as IO
+import Data.Aeson.TH
 
 import qualified Event
 import qualified Util
+import EventProvider
 
-getRepoCommits :: Day -> T.Text -> T.Text -> T.Text -> IO [Event.Event]
-getRepoCommits startDate _username project _projectPath = do
+data HgRecord = HgRecord
+	{
+		hgProj :: T.Text,
+		hgUser :: T.Text,
+		hgRepo :: T.Text
+	} deriving Show
+deriveJSON id ''HgRecord
+
+getHgProvider :: EventProvider HgRecord
+getHgProvider = EventProvider
+	{
+		getModuleName = "Hg",
+		getEvents = getRepoCommits
+	}
+
+getRepoCommits :: HgRecord -> Day -> Day -> IO [Event.Event]
+getRepoCommits (HgRecord project _username _projectPath) startDate _ = do
 	let username = T.unpack _username
 	let projectPath = T.unpack _projectPath
 	let dateRange = formatDate startDate

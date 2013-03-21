@@ -1,19 +1,18 @@
-{
-	"svn": [
-		{ "svnProj": "ADRIA", "svnUser": "emmanuelt", "svnRepo": "https://svn2.redgale.com/ak"},
-		{ "svnProj": "METREL", "svnUser": "emmanuelt", "svnRepo": "https://svn2.redgale.com/met"},
-		{ "svnProj": "BUS", "svnUser": "emmanuelt", "svnRepo": "https://svn2.redgale.com/android"}
-	],
-	"hg": [
-		{ "hgProj": "BUS", "hgUser": "Emmanuel Touzery", "hgRepo": "/home/emmanuel/projects/bus/smrt/ecodriving"}
-	],
-	"git": [
-		{ "gitProj": "BUS", "gitUser": "Emmanuel Touzery", "gitRepo": "/home/emmanuel/projects/bus/datalogger-git/edrd-datalogger"},
-		{ "gitProj": "BUS", "gitUser": "Emmanuel Touzery", "gitRepo": "/home/emmanuel/projects/bus/tms"},
-		{ "gitProj": "BUS", "gitUser": "Emmanuel Touzery", "gitRepo": "/home/emmanuel/projects/bus/lppimport"},
-		{ "gitProj": "BUS", "gitUser": "Emmanuel Touzery", "gitRepo": "/home/emmanuel/projects/bus/backendpoc"}
-	],
-	"email": {
+[
+	{"Svn": { "svnProj": "ADRIA", "svnUser": "emmanuelt", "svnRepo": "https://svn2.redgale.com/ak"}},
+	{"Svn": { "svnProj": "METREL", "svnUser": "emmanuelt", "svnRepo": "https://svn2.redgale.com/met"}},
+	{"Svn": { "svnProj": "BUS", "svnUser": "emmanuelt", "svnRepo": "https://svn2.redgale.com/android"}},
+	{"Hg": { "hgProj": "BUS", "hgUser": "Emmanuel Touzery",
+		 "hgRepo": "/home/emmanuel/projects/bus/smrt/ecodriving"}},
+	{"Git": { "gitProj": "BUS", "gitUser": "Emmanuel Touzery",
+	          "gitRepo": "/home/emmanuel/projects/bus/datalogger-git/edrd-datalogger"}},
+	{"Git": { "gitProj": "BUS", "gitUser": "Emmanuel Touzery",
+		  "gitRepo": "/home/emmanuel/projects/bus/tms"}},
+	{"Git": { "gitProj": "BUS", "gitUser": "Emmanuel Touzery",
+		  "gitRepo": "/home/emmanuel/projects/bus/lppimport"}},
+	{"Git": { "gitProj": "BUS", "gitUser": "Emmanuel Touzery",
+		  "gitRepo": "/home/emmanuel/projects/bus/backendpoc"}},
+	{"Email": {
 		"emailPaths": [
 			"/home/emmanuel/.thunderbird/92ynhr2s.default/Mail/mail.regulussoft.com/Sent",
 			"/home/emmanuel/.thunderbird/92ynhr2s.default/Mail/mail.lecip-its.com/Sent"
@@ -23,9 +22,9 @@
 			{ "emailProj": "METREL", "emailPatterns": ["@metrel.si"]},
 			{ "emailProj": "BUS", "emailPatterns": ["@e-soft.si"]}
 		]
-	},
-	"ical": [
-		{ "icalUrl": "https://www.google.com/calendar/ical/etouzery%40gmail.com/private-d63868fef84ee0826c4ad9bf803048cc/basic.ics" }
-	],
-	"skype": { "skypeUsername" : "emmanuel.touzery" }
-}
+	}},
+	{"Ical": { "icalUrl":
+	"https://www.google.com/calendar/ical/etouzery%40gmail.com/private-d63868fef84ee0826c4ad9bf803048cc/basic.ics"
+	}},
+	{"Skype": { "skypeUsername" : "emmanuel.touzery" }}
+]

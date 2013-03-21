@@ -1,5 +1,5 @@
-{-# LANGUAGE OverloadedStrings #-}
-module Skype (getSkypeEvents) where
+{-# LANGUAGE OverloadedStrings, DeriveGeneric, TemplateHaskell #-}
+module Skype (getSkypeProvider) where
 
 import Data.Time.Calendar
 import Data.Time.Clock
@@ -9,22 +9,39 @@ import qualified Data.Text as T
 import qualified Data.Map as Map
 import Data.List
 import System.Directory
+import Data.Aeson.TH (deriveJSON)
 
 import Database.HDBC
 import Database.HDBC.Sqlite3
 
 import Event
 import qualified Util
+import EventProvider
 
-getSkypeEvents :: Day -> String -> IO [Event]
-getSkypeEvents day skypeUsername = do
+data SkypeConfig = SkypeConfig
+	{
+		skypeUsername :: String
+	} deriving Show
+deriveJSON id ''SkypeConfig
+
+getSkypeProvider :: EventProvider SkypeConfig
+getSkypeProvider = EventProvider
+	{
+		getModuleName = "Skype",
+		getEvents = getSkypeEvents
+	}
+
+-- ### warning day1 is ignored.
+getSkypeEvents :: SkypeConfig -> Day -> Day -> IO [Event]
+getSkypeEvents (SkypeConfig skypeUsernameVal) day day1 = do
 	let todayMidnight = LocalTime day (TimeOfDay 0 0 0)
 	timezone <- getCurrentTimeZone
 	let todayMidnightUTC = localTimeToUTC timezone todayMidnight
 	let minTimestamp = utcTimeToPOSIXSeconds todayMidnightUTC
 	let maxTimestamp = minTimestamp + 24*3600
 	homeDir <- getHomeDirectory
-	conn <- connectSqlite3 $ homeDir ++ "/.Skype/" ++ skypeUsername ++ "/main.db"
+	conn <- connectSqlite3 $ homeDir ++ "/.Skype/" 
+		++ skypeUsernameVal ++ "/main.db"
 	r <- quickQuery' conn "select chatname, from_dispname, timestamp, body_xml \
 				 \from messages where timestamp >= ? and timestamp <= ? \
 				 \and chatname is not null and from_dispname is not null \

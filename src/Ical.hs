@@ -51,9 +51,9 @@ fromLeaf :: CalendarValue -> String
 fromLeaf (Leaf a) = a
 fromLeaf _ = "Error: expected a leaf!"
 
-getCalendarEvents :: IcalRecord -> Day -> Day -> IO [Event.Event]
-getCalendarEvents (IcalRecord icalAddress) startDay endDay = do
-	hasCached <- hasCachedVersionForDay endDay
+getCalendarEvents :: IcalRecord -> Day -> IO [Event.Event]
+getCalendarEvents (IcalRecord icalAddress) day = do
+	hasCached <- hasCachedVersionForDay day
 	icalText <- if hasCached
 		then readFromCache
 		else readFromWWW icalAddress
@@ -66,10 +66,10 @@ getCalendarEvents (IcalRecord icalAddress) startDay endDay = do
 				++ (show $ sourceLine $ errorPos pe) 
 				++ ":" ++ (show $ sourceColumn $ errorPos pe)
 			return []
-		Right x -> return $ convertToEvents startDay endDay x
+		Right x -> return $ convertToEvents day x
 
-convertToEvents :: Day -> Day -> [Map String CalendarValue] -> [Event.Event]
-convertToEvents startDay endDay keyValues = filterDate startDay endDay events
+convertToEvents :: Day -> [Map String CalendarValue] -> [Event.Event]
+convertToEvents day keyValues = filterDate day events
 	where
 		events = map keyValuesToEvent keyValues
 
@@ -80,11 +80,11 @@ readFromWWW icalAddress = do
 	putInCache icalText
 	return icalText
 
-filterDate :: Day -> Day -> [Event.Event] -> [Event.Event]
-filterDate startDay endDay = filter (eventInDateRange startDay endDay)
+filterDate :: Day -> [Event.Event] -> [Event.Event]
+filterDate day = filter (eventInDateRange day)
 
-eventInDateRange :: Day -> Day -> Event.Event -> Bool
-eventInDateRange startDay endDay event =  eventDay >= startDay && eventDay <= endDay
+eventInDateRange :: Day -> Event.Event -> Bool
+eventInDateRange day event =  eventDay >= day && eventDay <= day
 	where
 		eventDay = utctDay $ Event.eventDate event
 

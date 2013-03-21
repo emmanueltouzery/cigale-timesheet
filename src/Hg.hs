@@ -31,11 +31,11 @@ getHgProvider = EventProvider
 		getEvents = getRepoCommits
 	}
 
-getRepoCommits :: HgRecord -> Day -> Day -> IO [Event.Event]
-getRepoCommits (HgRecord project _username _projectPath) startDate _ = do
+getRepoCommits :: HgRecord -> Day -> IO [Event.Event]
+getRepoCommits (HgRecord project _username _projectPath) day = do
 	let username = T.unpack _username
 	let projectPath = T.unpack _projectPath
-	let dateRange = formatDate startDate
+	let dateRange = formatDate day
 	(inh, Just outh, errh, pid) <- Process.createProcess
 		(Process.proc "hg" [
 			"log", "-k", username, "-d", dateRange,

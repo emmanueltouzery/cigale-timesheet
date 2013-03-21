@@ -76,7 +76,7 @@ fetchProvider :: Day -> EventProvider Value -> Value -> IO [Event]
 fetchProvider day provider config = do
 	putStrLn $ "fetching from " ++ (getModuleName provider)
 	print config
-	events <- getEvents provider config day day
+	events <- getEvents provider config day
 	putStrLn $ "found " ++ (show $ length events) ++ " events."
 	putStrLn "done!"
 	return events

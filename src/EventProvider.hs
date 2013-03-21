@@ -17,7 +17,7 @@ import Event
 
 data EventProvider a = EventProvider {
 	getModuleName :: String,
-	getEvents :: a -> Day -> Day -> IO [Event]
+	getEvents :: a -> Day -> IO [Event]
 	
 	-- i could derive the ConfigSpec from the data using
 	-- template haskell or maybe sth like that:

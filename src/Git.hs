@@ -32,14 +32,14 @@ getGitProvider = EventProvider
 		getEvents = getRepoCommits
 	}
 
-getRepoCommits :: GitRecord -> Day -> Day -> IO [Event.Event]
-getRepoCommits (GitRecord project _username _projectPath) startDate _ = do
+getRepoCommits :: GitRecord -> Day -> IO [Event.Event]
+getRepoCommits (GitRecord project _username _projectPath) date = do
 	let username = T.unpack _username
 	let projectPath = T.unpack _projectPath
 	(inh, Just outh, errh, pid) <- Process.createProcess
 		(Process.proc "git" [
-			"log", "--since", formatDate $ addDays (-1) startDate,
-			"--until", formatDate $ addDays 1 startDate,
+			"log", "--since", formatDate $ addDays (-1) date,
+			"--until", formatDate $ addDays 1 date,
 	--		"--author=\"" ++ username ++ "\"",
 			"--stat"])
 		{
@@ -59,7 +59,7 @@ getRepoCommits (GitRecord project _username _projectPath) startDate _ = do
 			let myCommitsInInterval = filter (inRange . localDay . commitDate) myCommits
 			return $ map (toEvent project timezone) myCommitsInInterval
 	where
-		inRange date = (date >= startDate && date < (addDays 1 startDate))
+		inRange date = (date >= date && date < (addDays 1 date))
 	
 toEvent :: T.Text -> TimeZone -> Commit -> Event.Event
 toEvent project timezone commit =

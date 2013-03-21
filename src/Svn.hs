@@ -33,9 +33,9 @@ getSvnProvider = EventProvider
 		getEvents = getRepoCommits
 	}
 
-getRepoCommits :: SvnConfigRecord -> Day -> Day -> IO [Event.Event]
-getRepoCommits config startDate endDate = do
-	let dateRange = formatDateRange startDate (addDays 1 endDate)
+getRepoCommits :: SvnConfigRecord -> Day -> IO [Event.Event]
+getRepoCommits config date = do
+	let dateRange = formatDateRange date (addDays 1 date)
 	(inh, Just outh, errh, pid) <- Process.createProcess
 		(Process.proc "svn" ["log", svnRepo config, 
 				"-r", dateRange, "--verbose"])
@@ -47,7 +47,7 @@ getRepoCommits config startDate endDate = do
 		Left pe -> do
 			putStrLn $ "SVN: parse error: " ++ Util.displayErrors pe
 			return []
-		Right x -> finishGetRepoCommits x startDate endDate
+		Right x -> finishGetRepoCommits x date date
 			(T.pack $ svnUser config) (T.pack $ svnProj config)
 	where
 		-- TODO this is my best parsec parse error display yet.

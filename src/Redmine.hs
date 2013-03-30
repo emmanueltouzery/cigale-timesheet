@@ -52,10 +52,7 @@ login username password = do
 	postForm
 		(BS.concat [redmineUrl, "login"])
 		[("username", redmineUsername), ("password", redminePassword)]
-		getCookies
-
-getCookies :: Response -> InputStream ByteString -> IO (Maybe ByteString)
-getCookies r i = return $ getHeader r "Set-Cookie"
+		(\r i -> return $ getHeader r "Set-Cookie")
 
 -- will return Nothing if the date you want is not covered in the
 -- page.

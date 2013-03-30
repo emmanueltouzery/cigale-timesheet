@@ -31,6 +31,7 @@ redminePassword = "itak2030"
 
 data BugActionInfo = BugActionInfo
 	{
+		bug :: T.Text,
 		dateTime :: LocalTime,
 		comment :: T.Text
 	} deriving Show
@@ -88,12 +89,13 @@ parseBugNodes :: Day -> [Cursor] -> [BugActionInfo]
 parseBugNodes day (bugInfo:changeInfo:rest@_) = if authorName == redmineUserDisplay
 		then BugActionInfo
 			{
+				bug = bugTitle,
 				comment =  bugComment,
 				dateTime = localTime
-			} 
-			: (parseBugNodes day rest)
+			} : (parseBugNodes day rest)
 		else parseBugNodes day rest
 	where
+		bugTitle = firstNodeInnerText $ queryT [jq|a|] bugInfo
 		localTime = LocalTime day (TimeOfDay hour mins 0)
 		(hour, mins) = parseTimeOfDay timeOfDayStr
 		timeOfDayStr = firstNodeInnerText $ queryT [jq|span.time|] bugInfo

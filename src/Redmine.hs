@@ -6,10 +6,12 @@ import Data.ByteString.Lazy (fromChunks)
 import System.IO.Streams (write)
 import Network.Http.Client
 import Data.Maybe
-import Data.Text as T (Text(..), splitOn, pack)
+import Data.Text as T (Text(..), splitOn, pack, span, take, drop)
+import Data.Text.Read (decimal)
 import Data.Text.Encoding as TE
 import Text.Printf
 import Data.Time.Calendar
+import Data.Time.LocalTime
 import Data.List (find)
 
 import Text.XML (Node(..))
@@ -29,6 +31,7 @@ redminePassword = "itak2030"
 
 data BugActionInfo = BugActionInfo
 	{
+		dateTime :: LocalTime,
 		comment :: T.Text
 	} deriving Show
 
@@ -63,7 +66,7 @@ login username password = do
 -- TODO: that may mean we need to do paging, or simply that there
 -- was no activity on that day.. For instance it was week-end..
 getIssues :: ByteString -> Day -> Maybe [BugActionInfo]
-getIssues html day = fmap getIssuesForDayNode dayNode
+getIssues html day = fmap (getIssuesForDayNode day) dayNode
 	where
 		doc = fromDocument $ parseLBS $ fromChunks [html]
 		dayNodes = queryT [jq| div#content div#activity h3 |] doc
@@ -75,21 +78,38 @@ isDayTitle day nod = dayTitle == innerTextN (node nod)
 		(y, m, d) = toGregorian day
 		dayTitle = T.pack $ printf "%02d/%02d/%4d" m d y
 
-getIssuesForDayNode :: Cursor -> [BugActionInfo]
-getIssuesForDayNode dayNode = parseBugNodes bugNodes
+getIssuesForDayNode :: Day -> Cursor -> [BugActionInfo]
+getIssuesForDayNode day dayNode = parseBugNodes day bugNodes
 	where
 		bugNodes = filter (isElement . node) (child dlNode)
 		(Just dlNode) = find (isElement . node) (following dayNode)
 
-parseBugNodes :: [Cursor] -> [BugActionInfo]
-parseBugNodes (bugInfo:changeInfo:rest@_) = if authorName == redmineUserDisplay
-		then BugActionInfo { comment =  bugComment } : (parseBugNodes rest)
-		else parseBugNodes rest
+parseBugNodes :: Day -> [Cursor] -> [BugActionInfo]
+parseBugNodes day (bugInfo:changeInfo:rest@_) = if authorName == redmineUserDisplay
+		then BugActionInfo
+			{
+				comment =  bugComment,
+				dateTime = localTime
+			} 
+			: (parseBugNodes day rest)
+		else parseBugNodes day rest
 	where
+		localTime = LocalTime day (TimeOfDay hour mins 0)
+		(hour, mins) = parseTimeOfDay timeOfDayStr
+		timeOfDayStr = firstNodeInnerText $ queryT [jq|span.time|] bugInfo
 		bugComment = firstNodeInnerText $ queryT [jq|span.description|] changeInfo
 		authorName = firstNodeInnerText $ queryT [jq|span.author a|] changeInfo
 		firstNodeInnerText = innerTextN . node . head
-parseBugNodes [] = []
+parseBugNodes _ [] = []
+
+parseTimeOfDay :: T.Text -> (Int, Int)
+parseTimeOfDay timeOfDayStr = (hours, mins)
+	where
+		(_hoursStr:minsStr:[]) = T.splitOn ":" (T.take 5 timeOfDayStr)
+		(_hours:mins:[]) = fmap (Util.safePromise . decimal) [_hoursStr, minsStr]
+		hours = if T.drop 6 timeOfDayStr == "pm"
+			then _hours + 12
+			else _hours
 
 isElement :: Node -> Bool
 isElement (NodeElement _) = True

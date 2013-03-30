@@ -26,5 +26,9 @@
 	{"Ical": { "icalUrl":
 	"http://www.google.com/calendar/ical/etouzery%40gmail.com/private-d63868fef84ee0826c4ad9bf803048cc/basic.ics"
 	}},
-	{"Skype": { "skypeUsername" : "emmanuel.touzery" }}
+	{"Skype": { "skypeUsername" : "emmanuel.touzery" }},
+	{"Redmine": {"xredmineUrl": "http://redmine",
+"xredmineUsername": "emmanuel.touzery@lecip-its.com",
+		"xredmineUserDisplay": "Emmanuel Touzery",
+"xredminePassword": "itak2030"}}
 ]

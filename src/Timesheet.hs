@@ -23,6 +23,7 @@ import Email
 import Hg
 import Git
 import Skype
+import Redmine
 import qualified Config
 import EventProvider
 
@@ -32,7 +33,8 @@ plugins = [eventProviderWrap getEmailProvider,
 	   eventProviderWrap getSvnProvider,
 	   eventProviderWrap getHgProvider,
 	   eventProviderWrap getIcalProvider,
-	   eventProviderWrap getSkypeProvider]
+	   eventProviderWrap getSkypeProvider,
+	   eventProviderWrap getRedmineProvider]
 
 process :: T.Text -> IO BL.ByteString
 process monthStr = do

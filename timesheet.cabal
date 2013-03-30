@@ -46,7 +46,9 @@ Executable timesheet
     http-streams              >= 0.4   && < 0.5,
     dom-selector              >= 0.1   && < 0.2,
     blaze-builder             >= 0.3.1 && < 0.4,
-    io-streams                >= 1.0.1 && < 1.1
+    io-streams                >= 1.0.1 && < 1.1,
+    html-conduit              >= 1.1   && < 1.2,
+    xml-conduit               >= 1.1.0.3 && < 1.2
 
   if impl(ghc >= 6.12.0)
     ghc-options: -threaded -Wall -funbox-strict-fields -O2

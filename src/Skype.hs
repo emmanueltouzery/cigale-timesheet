@@ -31,7 +31,6 @@ getSkypeProvider = EventProvider
 		getEvents = getSkypeEvents
 	}
 
--- ### warning day1 is ignored.
 getSkypeEvents :: SkypeConfig -> Day -> IO [Event]
 getSkypeEvents (SkypeConfig skypeUsernameVal) day = do
 	let todayMidnight = LocalTime day (TimeOfDay 0 0 0)

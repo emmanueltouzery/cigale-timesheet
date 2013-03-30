@@ -1,4 +1,6 @@
-{-# LANGUAGE OverloadedStrings, QuasiQuotes #-}
+{-# LANGUAGE OverloadedStrings, QuasiQuotes, TemplateHaskell #-}
+
+module Redmine (getRedmineProvider) where
 
 import Data.ByteString as BS (ByteString(..), concat)
 import Data.ByteString.Char8 as Char8 (split, pack)
@@ -13,6 +15,8 @@ import Text.Printf
 import Data.Time.Calendar
 import Data.Time.LocalTime
 import Data.List (find)
+import Data.Aeson.TH (deriveJSON)
+import Data.Maybe
 
 import Text.XML (Node(..))
 import Text.XML.Cursor
@@ -31,8 +35,24 @@ redmineUsername = "emmanuel.touzery@lecip-its.com"
 redmineUserDisplay = "Emmanuel Touzery"
 redminePassword = "itak2030"
 
-main = do
-	let day = fromGregorian 2013 3 28
+data RedmineConfig = RedmineConfig
+	{
+		xredmineUrl :: ByteString,
+		xredmineUsername :: ByteString,
+		xredminUserDisplay :: ByteString,
+		xredminePassword :: ByteString
+	} deriving Show
+deriveJSON id ''RedmineConfig
+
+getRedmineProvider :: EventProvider RedmineConfig
+getRedmineProvider = EventProvider
+	{
+		getModuleName = "Redmine",
+		getEvents = getRedmineEvents
+	}
+
+getRedmineEvents :: RedmineConfig -> Day -> IO [Event]
+getRedmineEvents config day = do
 	maybeCookie <- login redmineUsername redminePassword
 	let cookieRows = split '\n' $ fromJust maybeCookie
 	let cookieValues = fmap (head . (split ';')) cookieRows
@@ -41,7 +61,7 @@ main = do
 		http GET "/activity"
 		setHeader "Cookie" (cookieValues !! 1)
 	timezone <- getCurrentTimeZone
-	print $ getIssues response day timezone
+	return $ getIssues response day timezone
 
 prepareActivityUrl :: Day -> ByteString
 prepareActivityUrl day = BS.concat ["http://redmine/activity?from=", dayBeforeStr]
@@ -58,16 +78,12 @@ login username password = do
 		[("username", redmineUsername), ("password", redminePassword)]
 		(\r i -> return $ getHeader r "Set-Cookie")
 
--- will return Nothing if the date you want is not covered in the
--- page.
--- TODO: that may mean we need to do paging, or simply that there
--- was no activity on that day.. For instance it was week-end..
-getIssues :: ByteString -> Day -> TimeZone -> Maybe [Event]
-getIssues html day timezone = fmap (getIssuesForDayNode day timezone) dayNode
+getIssues :: ByteString -> Day -> TimeZone -> [Event]
+getIssues html day timezone = getIssuesForDayNode day timezone dayNode
 	where
 		doc = fromDocument $ parseLBS $ fromChunks [html]
 		dayNodes = queryT [jq| div#content div#activity h3 |] doc
-		dayNode = find (isDayTitle day) dayNodes
+		dayNode = fromJust $ find (isDayTitle day) dayNodes
 
 isDayTitle :: Day -> Cursor -> Bool
 isDayTitle day nod = dayTitle == innerTextN (node nod)

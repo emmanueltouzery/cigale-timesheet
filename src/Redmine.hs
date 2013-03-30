@@ -30,17 +30,12 @@ import EventProvider
 
 import Debug.Trace
 
-redmineUrl = "http://redmine/"
-redmineUsername = "emmanuel.touzery@lecip-its.com"
-redmineUserDisplay = "Emmanuel Touzery"
-redminePassword = "itak2030"
-
 data RedmineConfig = RedmineConfig
 	{
-		xredmineUrl :: ByteString,
-		xredmineUsername :: ByteString,
-		xredminUserDisplay :: ByteString,
-		xredminePassword :: ByteString
+		redmineUrl :: ByteString,
+		redmineUsername :: ByteString,
+		redmineUserDisplay :: T.Text,
+		redminePassword :: ByteString
 	} deriving Show
 deriveJSON id ''RedmineConfig
 
@@ -53,7 +48,7 @@ getRedmineProvider = EventProvider
 
 getRedmineEvents :: RedmineConfig -> Day -> IO [Event]
 getRedmineEvents config day = do
-	maybeCookie <- login redmineUsername redminePassword
+	maybeCookie <- login config (redmineUsername config) (redminePassword config)
 	let cookieRows = split '\n' $ fromJust maybeCookie
 	let cookieValues = fmap (head . (split ';')) cookieRows
 	let activityUrl = prepareActivityUrl day
@@ -61,7 +56,7 @@ getRedmineEvents config day = do
 		http GET "/activity"
 		setHeader "Cookie" (cookieValues !! 1)
 	timezone <- getCurrentTimeZone
-	return $ getIssues response day timezone
+	return $ getIssues config response day timezone
 
 prepareActivityUrl :: Day -> ByteString
 prepareActivityUrl day = BS.concat ["http://redmine/activity?from=", dayBeforeStr]
@@ -71,15 +66,15 @@ prepareActivityUrl day = BS.concat ["http://redmine/activity?from=", dayBeforeSt
 		dayBeforeStr = Char8.pack $ printf "%d-%02d-%02d" y m d
 
 -- returns the cookie
-login :: ByteString -> ByteString -> IO (Maybe ByteString)
-login username password = do
+login :: RedmineConfig -> ByteString -> ByteString -> IO (Maybe ByteString)
+login config username password = do
 	postForm
-		(BS.concat [redmineUrl, "login"])
-		[("username", redmineUsername), ("password", redminePassword)]
+		(BS.concat [redmineUrl config, "login"])
+		[("username", redmineUsername config), ("password", redminePassword config)]
 		(\r i -> return $ getHeader r "Set-Cookie")
 
-getIssues :: ByteString -> Day -> TimeZone -> [Event]
-getIssues html day timezone = getIssuesForDayNode day timezone dayNode
+getIssues :: RedmineConfig -> ByteString -> Day -> TimeZone -> [Event]
+getIssues config html day timezone = getIssuesForDayNode config day timezone dayNode
 	where
 		doc = fromDocument $ parseLBS $ fromChunks [html]
 		dayNodes = queryT [jq| div#content div#activity h3 |] doc
@@ -91,14 +86,14 @@ isDayTitle day nod = dayTitle == innerTextN (node nod)
 		(y, m, d) = toGregorian day
 		dayTitle = T.pack $ printf "%02d/%02d/%4d" m d y
 
-getIssuesForDayNode :: Day -> TimeZone -> Cursor -> [Event]
-getIssuesForDayNode day timezone dayNode = parseBugNodes day timezone bugNodes
+getIssuesForDayNode :: RedmineConfig -> Day -> TimeZone -> Cursor -> [Event]
+getIssuesForDayNode config day timezone dayNode = parseBugNodes config day timezone bugNodes
 	where
 		bugNodes = filter (isElement . node) (child dlNode)
 		(Just dlNode) = find (isElement . node) (following dayNode)
 
-parseBugNodes :: Day -> TimeZone -> [Cursor] -> [Event]
-parseBugNodes day timezone (bugInfo:changeInfo:rest@_) = if authorName == redmineUserDisplay
+parseBugNodes :: RedmineConfig -> Day -> TimeZone -> [Cursor] -> [Event]
+parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) = if authorName == redmineUserDisplay config
 		then Event
 			{
 				project = Nothing, -- TODO
@@ -106,8 +101,8 @@ parseBugNodes day timezone (bugInfo:changeInfo:rest@_) = if authorName == redmin
 				extraInfo =  bugComment,
 				fullContents = Nothing,
 				eventDate = localTimeToUTC timezone localTime
-			} : (parseBugNodes day timezone rest)
-		else parseBugNodes day timezone rest
+			} : (parseBugNodes config day timezone rest)
+		else parseBugNodes config day timezone rest
 	where
 		bugTitle = firstNodeInnerText $ queryT [jq|a|] bugInfo
 		localTime = LocalTime day (TimeOfDay hour mins 0)
@@ -116,7 +111,7 @@ parseBugNodes day timezone (bugInfo:changeInfo:rest@_) = if authorName == redmin
 		bugComment = firstNodeInnerText $ queryT [jq|span.description|] changeInfo
 		authorName = firstNodeInnerText $ queryT [jq|span.author a|] changeInfo
 		firstNodeInnerText = innerTextN . node . head
-parseBugNodes _ _ [] = []
+parseBugNodes _ _ _ [] = []
 
 parseTimeOfDay :: T.Text -> (Int, Int)
 parseTimeOfDay timeOfDayStr = (hours, mins)

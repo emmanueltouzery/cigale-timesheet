@@ -21,6 +21,8 @@ import Text.XML.Scraping
 import Text.HTML.DOM (parseLBS)
 
 import qualified Util
+import Event
+import EventProvider
 
 import Debug.Trace
 
@@ -28,13 +30,6 @@ redmineUrl = "http://redmine/"
 redmineUsername = "emmanuel.touzery@lecip-its.com"
 redmineUserDisplay = "Emmanuel Touzery"
 redminePassword = "itak2030"
-
-data BugActionInfo = BugActionInfo
-	{
-		bug :: T.Text,
-		dateTime :: LocalTime,
-		comment :: T.Text
-	} deriving Show
 
 main = do
 	let day = fromGregorian 2013 3 28
@@ -45,7 +40,8 @@ main = do
 	response <- Util.http activityUrl "" concatHandler $ do
 		http GET "/activity"
 		setHeader "Cookie" (cookieValues !! 1)
-	print $ getIssues response day
+	timezone <- getCurrentTimeZone
+	print $ getIssues response day timezone
 
 prepareActivityUrl :: Day -> ByteString
 prepareActivityUrl day = BS.concat ["http://redmine/activity?from=", dayBeforeStr]
@@ -66,8 +62,8 @@ login username password = do
 -- page.
 -- TODO: that may mean we need to do paging, or simply that there
 -- was no activity on that day.. For instance it was week-end..
-getIssues :: ByteString -> Day -> Maybe [BugActionInfo]
-getIssues html day = fmap (getIssuesForDayNode day) dayNode
+getIssues :: ByteString -> Day -> TimeZone -> Maybe [Event]
+getIssues html day timezone = fmap (getIssuesForDayNode day timezone) dayNode
 	where
 		doc = fromDocument $ parseLBS $ fromChunks [html]
 		dayNodes = queryT [jq| div#content div#activity h3 |] doc
@@ -79,21 +75,23 @@ isDayTitle day nod = dayTitle == innerTextN (node nod)
 		(y, m, d) = toGregorian day
 		dayTitle = T.pack $ printf "%02d/%02d/%4d" m d y
 
-getIssuesForDayNode :: Day -> Cursor -> [BugActionInfo]
-getIssuesForDayNode day dayNode = parseBugNodes day bugNodes
+getIssuesForDayNode :: Day -> TimeZone -> Cursor -> [Event]
+getIssuesForDayNode day timezone dayNode = parseBugNodes day timezone bugNodes
 	where
 		bugNodes = filter (isElement . node) (child dlNode)
 		(Just dlNode) = find (isElement . node) (following dayNode)
 
-parseBugNodes :: Day -> [Cursor] -> [BugActionInfo]
-parseBugNodes day (bugInfo:changeInfo:rest@_) = if authorName == redmineUserDisplay
-		then BugActionInfo
+parseBugNodes :: Day -> TimeZone -> [Cursor] -> [Event]
+parseBugNodes day timezone (bugInfo:changeInfo:rest@_) = if authorName == redmineUserDisplay
+		then Event
 			{
-				bug = bugTitle,
-				comment =  bugComment,
-				dateTime = localTime
-			} : (parseBugNodes day rest)
-		else parseBugNodes day rest
+				project = Nothing, -- TODO
+				desc = bugTitle,
+				extraInfo =  bugComment,
+				fullContents = Nothing,
+				eventDate = localTimeToUTC timezone localTime
+			} : (parseBugNodes day timezone rest)
+		else parseBugNodes day timezone rest
 	where
 		bugTitle = firstNodeInnerText $ queryT [jq|a|] bugInfo
 		localTime = LocalTime day (TimeOfDay hour mins 0)
@@ -102,7 +100,7 @@ parseBugNodes day (bugInfo:changeInfo:rest@_) = if authorName == redmineUserDisp
 		bugComment = firstNodeInnerText $ queryT [jq|span.description|] changeInfo
 		authorName = firstNodeInnerText $ queryT [jq|span.author a|] changeInfo
 		firstNodeInnerText = innerTextN . node . head
-parseBugNodes _ [] = []
+parseBugNodes _ _ [] = []
 
 parseTimeOfDay :: T.Text -> (Int, Int)
 parseTimeOfDay timeOfDayStr = (hours, mins)

@@ -13,6 +13,11 @@ import Data.Time.Clock
 import Text.ParserCombinators.Parsec
 import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
+import Network.Http.Client
+import System.IO.Streams (InputStream(..))
+import Network.URI
+import qualified System.IO.Streams as Streams
+import qualified Blaze.ByteString.Builder as Builder
 
 safePromise :: Either a (b,c) -> b
 safePromise (Right (v,_)) = v
@@ -75,3 +80,14 @@ formatDurationSec seconds = T.concat [T.pack hours, ":",
 		secondsI = round seconds :: Int
 		hours = show $ secondsI `div` 3600
 		minutes = show $ (secondsI `mod` 3600) `div` 60
+
+http :: B.ByteString -> B.ByteString 
+		-> (Response -> InputStream B.ByteString -> IO B.ByteString) 
+		-> RequestBuilder a ->  IO B.ByteString
+http url contents responseProcessor requestSpec = do
+	c <- establishConnection url
+	q <- buildRequest requestSpec
+	sendRequest c q $ Streams.write (Just $ Builder.fromByteString contents)
+	result <- receiveResponse c responseProcessor
+	closeConnection c
+	return result

@@ -18,6 +18,8 @@ import Text.XML.Selector.TH
 import Text.XML.Scraping
 import Text.HTML.DOM (parseLBS)
 
+import qualified Util
+
 import Debug.Trace
 
 redmineUrl = "http://redmine/"
@@ -39,16 +41,10 @@ main = do
 	maybeCookie <- login redmineUsername redminePassword
 	let cookieRows = split '\n' $ fromJust maybeCookie
 	let cookieValues = fmap (head . (split ';')) cookieRows
-	response <- withConnection (openConnection "redmine" 80) (getActivity cookieValues)
-	print $ getIssues response day
-
-getActivity :: [ByteString] -> Connection -> IO ByteString
-getActivity cookieValues c = do
-	q <- buildRequest $ do
+	response <- Util.http "http://redmine/activity" "" concatHandler $ do
 		http GET "/activity"
 		setHeader "Cookie" (cookieValues !! 1)
-	sendRequest c q emptyBody
-	receiveResponse c concatHandler
+	print $ getIssues response day
 
 -- returns the cookie
 login :: ByteString -> ByteString -> IO (Maybe ByteString)

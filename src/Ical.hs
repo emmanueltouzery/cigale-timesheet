@@ -5,13 +5,14 @@ module Ical (getIcalProvider) where
 import Data.Time.Clock
 import Data.Time.Calendar
 import Network.Socket
-import Network.HTTP.Conduit
+import Network.Http.Client
 import qualified Data.Text.Encoding as TE
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Text.ParserCombinators.Parsec
 import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
+import qualified Data.ByteString.Char8 as B
 import System.IO
 import qualified System.Directory as Dir
 import qualified System.IO.Error as IOEx
@@ -75,8 +76,8 @@ convertToEvents day keyValues = filterDate day events
 
 readFromWWW :: String -> IO T.Text
 readFromWWW icalAddress = do
-	icalData <- withSocketsDo $ simpleHttp icalAddress
-	let icalText = TE.decodeUtf8 $ Util.toStrict1 icalData
+	icalData <- withSocketsDo $ get (B.pack icalAddress) concatHandler
+	let icalText = TE.decodeUtf8 icalData
 	putInCache icalText
 	return icalText
 

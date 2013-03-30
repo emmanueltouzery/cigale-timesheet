@@ -66,7 +66,6 @@ toEvent project timezone commit =
 	Event.Event
 		{
 			Event.eventDate = (localTimeToUTC timezone (commitDate commit)),
-			Event.eventType = Event.Svn,
 			Event.project = (Just $ T.unpack project),
 			Event.desc = commitDesc commit,
 			Event.extraInfo = (T.pack $ Util.getFilesRoot $ commitFiles commit),

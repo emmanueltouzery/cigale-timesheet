@@ -1,4 +1,10 @@
-import redmine info
+import redmine info -- paging in redmine if the basic import was done!
+
+bug in git, parse error, see gmail
+
+13.3.2013 events not in timerange
+
+try to re-enable HTTPS for ical, segfault since http-streams..
 
 for source version control, in the details show the diffstat; done for
 GIT, could still be done for SVN and HG.

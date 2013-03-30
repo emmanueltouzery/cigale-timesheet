@@ -57,7 +57,7 @@ getRepoCommits (HgRecord project _username _projectPath) day = do
 toEvent :: T.Text -> TimeZone -> Commit -> Event.Event
 toEvent project timezone commit =
 	Event.Event (localTimeToUTC timezone (commitDate commit)) 
-		Event.Svn (Just $ T.unpack project) (commitDesc commit) (T.pack $ Util.getFilesRoot $ commitFiles commit) Nothing
+		(Just $ T.unpack project) (commitDesc commit) (T.pack $ Util.getFilesRoot $ commitFiles commit) Nothing
 
 formatDate :: Day -> String
 formatDate day =

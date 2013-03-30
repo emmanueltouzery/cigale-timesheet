@@ -76,7 +76,9 @@ convertToEvents day keyValues = filterDate day events
 
 readFromWWW :: String -> IO T.Text
 readFromWWW icalAddress = do
+	putStrLn "reading from WWW"
 	icalData <- withSocketsDo $ get (B.pack icalAddress) concatHandler
+	putStrLn "read from WWW"
 	let icalText = TE.decodeUtf8 icalData
 	putInCache icalText
 	return icalText
@@ -106,7 +108,7 @@ parseEvent = do
 	return $ Map.fromList keyValues
 
 keyValuesToEvent :: Map String CalendarValue -> Event.Event
-keyValuesToEvent records = Event.Event startDate Event.Calendar Nothing desc extraInfo Nothing
+keyValuesToEvent records = Event.Event startDate Nothing desc extraInfo Nothing
 	where
 		desc = T.concat [T.pack $ fromLeaf $ records ! "DESCRIPTION",
 				 T.pack $ fromLeaf $ records ! "SUMMARY"]

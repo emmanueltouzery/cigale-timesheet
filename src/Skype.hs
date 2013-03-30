@@ -78,7 +78,6 @@ toEvent :: (String, [ChatRecord]) -> Event
 toEvent chat = Event
 		{
 			eventDate = messageTime (head chatRecords),
-			eventType = Event.Chat,
 			project = Nothing,
 			desc = participantsStr,
 			extraInfo = extraInfoVal,

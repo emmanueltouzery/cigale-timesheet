@@ -112,6 +112,7 @@ parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) = if authorName ==
 		authorName = firstNodeInnerText $ queryT [jq|span.author a|] changeInfo
 		firstNodeInnerText = innerTextN . node . head
 parseBugNodes _ _ _ [] = []
+parseBugNodes _ _ _ [_] = error "parseBugNodes: invalid pattern!?"
 
 parseTimeOfDay :: T.Text -> (Int, Int)
 parseTimeOfDay timeOfDayStr = (hours, mins)

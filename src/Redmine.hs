@@ -32,10 +32,6 @@ data BugBasicInfo = BugBasicInfo
 --		bugBasicUpdated :: LocalTime
 	} deriving Show
 
--- which HTTP api did i use? check ical...
--- otherwise this one is available:
---http://blogs.operationaldynamics.com/andrew/software/haskell/http-streams-introduction
-
 main = do
 	let day = fromGregorian 2013 3 28
 	maybeCookie <- login redmineUsername redminePassword

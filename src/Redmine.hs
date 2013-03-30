@@ -3,7 +3,7 @@
 import Data.ByteString as BS (ByteString(..), concat)
 import Data.ByteString.Char8 as Char8 (split, pack)
 import Data.ByteString.Lazy (fromChunks)
-import System.IO.Streams
+import System.IO.Streams (write)
 import Network.Http.Client
 import Data.Maybe
 import Data.Text as T (Text(..), splitOn, pack)
@@ -24,12 +24,12 @@ import Debug.Trace
 
 redmineUrl = "http://redmine/"
 redmineUsername = "emmanuel.touzery@lecip-its.com"
+redmineUserDisplay = "Emmanuel Touzery"
 redminePassword = "itak2030"
 
-data BugBasicInfo = BugBasicInfo
+data BugActionInfo = BugActionInfo
 	{
-		bugBasicId :: Int
---		bugBasicUpdated :: LocalTime
+		comment :: T.Text
 	} deriving Show
 
 main = do
@@ -62,7 +62,7 @@ login username password = do
 -- page.
 -- TODO: that may mean we need to do paging, or simply that there
 -- was no activity on that day.. For instance it was week-end..
-getIssues :: ByteString -> Day -> Maybe [BugBasicInfo]
+getIssues :: ByteString -> Day -> Maybe [BugActionInfo]
 getIssues html day = fmap getIssuesForDayNode dayNode
 	where
 		doc = fromDocument $ parseLBS $ fromChunks [html]
@@ -75,9 +75,21 @@ isDayTitle day nod = dayTitle == innerTextN (node nod)
 		(y, m, d) = toGregorian day
 		dayTitle = T.pack $ printf "%02d/%02d/%4d" m d y
 
-getIssuesForDayNode :: Cursor -> [BugBasicInfo]
-getIssuesForDayNode dayNode = traceShow (dlNode) []
-	where dlNode = find (isElement . node) (following dayNode)
+getIssuesForDayNode :: Cursor -> [BugActionInfo]
+getIssuesForDayNode dayNode = parseBugNodes bugNodes
+	where
+		bugNodes = filter (isElement . node) (child dlNode)
+		(Just dlNode) = find (isElement . node) (following dayNode)
+
+parseBugNodes :: [Cursor] -> [BugActionInfo]
+parseBugNodes (bugInfo:changeInfo:rest@_) = if authorName == redmineUserDisplay
+		then BugActionInfo { comment =  bugComment } : (parseBugNodes rest)
+		else parseBugNodes rest
+	where
+		bugComment = firstNodeInnerText $ queryT [jq|span.description|] changeInfo
+		authorName = firstNodeInnerText $ queryT [jq|span.author a|] changeInfo
+		firstNodeInnerText = innerTextN . node . head
+parseBugNodes [] = []
 
 isElement :: Node -> Bool
 isElement (NodeElement _) = True

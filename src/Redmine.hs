@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings, QuasiQuotes #-}
 
 import Data.ByteString as BS (ByteString(..), concat)
-import Data.ByteString.Char8 (split)
+import Data.ByteString.Char8 as Char8 (split, pack)
 import Data.ByteString.Lazy (fromChunks)
 import System.IO.Streams
 import Network.Http.Client
@@ -41,10 +41,18 @@ main = do
 	maybeCookie <- login redmineUsername redminePassword
 	let cookieRows = split '\n' $ fromJust maybeCookie
 	let cookieValues = fmap (head . (split ';')) cookieRows
-	response <- Util.http "http://redmine/activity" "" concatHandler $ do
+	let activityUrl = prepareActivityUrl day
+	response <- Util.http activityUrl "" concatHandler $ do
 		http GET "/activity"
 		setHeader "Cookie" (cookieValues !! 1)
 	print $ getIssues response day
+
+prepareActivityUrl :: Day -> ByteString
+prepareActivityUrl day = BS.concat ["http://redmine/activity?from=", dayBeforeStr]
+	where
+		dayBefore = addDays (-1) day
+		(y, m, d) = toGregorian dayBefore
+		dayBeforeStr = Char8.pack $ printf "%d-%02d-%02d" y m d
 
 -- returns the cookie
 login :: ByteString -> ByteString -> IO (Maybe ByteString)

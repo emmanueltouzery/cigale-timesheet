@@ -48,7 +48,7 @@ getRedmineProvider = EventProvider
 
 getRedmineEvents :: RedmineConfig -> Day -> IO [Event]
 getRedmineEvents config day = do
-	maybeCookie <- login config (redmineUsername config) (redminePassword config)
+	maybeCookie <- login config
 	let cookieRows = split '\n' $ fromJust maybeCookie
 	let cookieValues = fmap (head . (split ';')) cookieRows
 	let activityUrl = prepareActivityUrl day
@@ -66,19 +66,21 @@ prepareActivityUrl day = BS.concat ["http://redmine/activity?from=", dayBeforeSt
 		dayBeforeStr = Char8.pack $ printf "%d-%02d-%02d" y m d
 
 -- returns the cookie
-login :: RedmineConfig -> ByteString -> ByteString -> IO (Maybe ByteString)
-login config username password = do
+login :: RedmineConfig -> IO (Maybe ByteString)
+login config = do
 	postForm
 		(BS.concat [redmineUrl config, "login"])
 		[("username", redmineUsername config), ("password", redminePassword config)]
-		(\r i -> return $ getHeader r "Set-Cookie")
+		(\r _ -> return $ getHeader r "Set-Cookie")
 
 getIssues :: RedmineConfig -> ByteString -> Day -> TimeZone -> [Event]
-getIssues config html day timezone = getIssuesForDayNode config day timezone dayNode
+getIssues config html day timezone = case maybeDayNode of
+		Nothing -> [] -- no events at all that day.
+		Just dayNode -> getIssuesForDayNode config day timezone dayNode
 	where
 		doc = fromDocument $ parseLBS $ fromChunks [html]
 		dayNodes = queryT [jq| div#content div#activity h3 |] doc
-		dayNode = fromJust $ find (isDayTitle day) dayNodes
+		maybeDayNode = find (isDayTitle day) dayNodes
 
 isDayTitle :: Day -> Cursor -> Bool
 isDayTitle day nod = dayTitle == innerTextN (node nod)

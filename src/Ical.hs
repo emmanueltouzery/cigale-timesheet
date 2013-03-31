@@ -66,7 +66,8 @@ getCalendarEvents (IcalRecord icalAddress) day = do
 			putStrLn $ "line:col: " 
 				++ (show $ sourceLine $ errorPos pe) 
 				++ ":" ++ (show $ sourceColumn $ errorPos pe)
-			return []
+			error "Ical parse error, aborting"
+			--return []
 		Right x -> return $ convertToEvents day x
 
 convertToEvents :: Day -> [Map String CalendarValue] -> [Event.Event]

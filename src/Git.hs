@@ -53,7 +53,8 @@ getRepoCommits (GitRecord project _username _projectPath) date = do
 	case parseResult of
 		Left pe -> do
 			putStrLn $ "GIT: parse error: " ++ Util.displayErrors pe
-			return []
+			error "GIT parse error, aborting"
+			--return []
 		Right x -> do
 			let myCommits = filter ((isInfixOf username) . commitAuthor) x
 			let myCommitsInInterval = filter (inRange . localDay . commitDate) myCommits
@@ -94,17 +95,26 @@ data Commit = Commit
 parseCommits :: T.GenParser st [Commit]
 parseCommits = many parseCommit
 
+parseMerge :: T.GenParser st String
+parseMerge = do
+	string "Merge: "
+	readLine
+
 parseCommit :: T.GenParser st Commit
 parseCommit = do
 	string "commit "
 	readLine
+	mergeInfo <- optionMaybe parseMerge
 	string "Author: "
 	author <- readLine
 	date <- parseDateTime
 	eol
 	summary <- parseSummary
 	count 2 eol
-	cFiles <- parseFiles
+	-- in case of merge there are no files.
+	cFiles <- case mergeInfo of
+		Just _ -> return [([],[])]
+		Nothing -> parseFiles
 	let cFileNames = fmap snd cFiles
 	let cFilesDesc = fmap fst cFiles
 	optional eol

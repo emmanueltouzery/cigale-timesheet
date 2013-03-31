@@ -51,7 +51,8 @@ getRepoCommits (HgRecord project _username _projectPath) day = do
 	case parseResult of
 		Left pe -> do
 			putStrLn $ "HG: parse error: " ++ Util.displayErrors pe
-			return []
+			error "Hg parse error, aborting"
+			--return []
 		Right x -> return $ map (toEvent project timezone) x
 	
 toEvent :: T.Text -> TimeZone -> Commit -> Event.Event

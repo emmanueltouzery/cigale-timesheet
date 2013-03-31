@@ -46,7 +46,8 @@ getRepoCommits config date = do
 	case parseResult of
 		Left pe -> do
 			putStrLn $ "SVN: parse error: " ++ Util.displayErrors pe
-			return []
+			error "Svn parse error, aborting"
+			--return []
 		Right x -> finishGetRepoCommits x date date
 			(T.pack $ svnUser config) (T.pack $ svnProj config)
 	where

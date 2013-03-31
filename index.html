@@ -92,12 +92,15 @@
 			$('#pleasehold').show();
 			$('table#eventsTable').empty();
 			$('table#eventsTable').append("<tr><th>Project</th><th>Time</th>"
-				+ "<th>Description</th><th>Extra info</th></tr>")
+				+ "<th>Event type</th><th>Description</th><th>Extra info</th></tr>")
 			$.getJSON('/timesheet/' + getDateStr(), function(data) {
-				$.each(data, function(index, value) {
+				$.each(data, function(index, valueAr) {
+					var eventType = valueAr[0];
+					var value = valueAr[1];
 					$('table#eventsTable').append("<tr>"
 							+ "<td>" + value.project
 							+ "</td><td>" + formatTime(value.eventDate)
+							+ "</td><td>" + eventType
 							+ "</td><td>" + value.desc 
 							+ "</td><td>" + value.extraInfo 
 							+ "</td></tr>");

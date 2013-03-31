@@ -55,8 +55,8 @@ processConfig monthStr config = do
 	putStrLn "after printing"
 	allEventsSeq <- sequence $ map (uncurry $ fetchProvider date) config
 	let allEvents = foldl (++) [] allEventsSeq
-	let sortedEvents = sortWith Event.eventDate allEvents
-	let eventDates = fmap Event.eventDate sortedEvents
+	let sortedEvents = sortWith (Event.eventDate . snd) allEvents
+	let eventDates = fmap (Event.eventDate . snd) sortedEvents
 	let eventDatesLocal = fmap (utcToLocalTime myTz) eventDates
 	putStrLn "after the fetching!"
 	-- well would be faster to just check the first and last
@@ -74,11 +74,11 @@ processConfig monthStr config = do
 	where
 		outOfRange start end time = time < (LocalTime start midnight) || time > (LocalTime end midnight)
 
-fetchProvider :: Day -> EventProvider Value -> Value -> IO [Event]
+fetchProvider :: Day -> EventProvider Value -> Value -> IO ([(String, Event)])
 fetchProvider day provider config = do
 	putStrLn $ "fetching from " ++ (getModuleName provider)
 	print config
 	events <- getEvents provider config day
 	putStrLn $ "found " ++ (show $ length events) ++ " events."
 	putStrLn "done!"
-	return events
+	return $ fmap (\a -> (getModuleName provider, a)) events

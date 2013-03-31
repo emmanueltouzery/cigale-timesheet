@@ -59,7 +59,7 @@ getRepoCommits (GitRecord project _username _projectPath) date = do
 			let myCommitsInInterval = filter (inRange . localDay . commitDate) myCommits
 			return $ map (toEvent project timezone) myCommitsInInterval
 	where
-		inRange date = (date >= date && date < (addDays 1 date))
+		inRange tdate = (tdate >= date && tdate < (addDays 1 date))
 	
 toEvent :: T.Text -> TimeZone -> Commit -> Event.Event
 toEvent project timezone commit =

@@ -1,5 +1,3 @@
-import redmine info -- paging in redmine if the basic import was done!
-
 bug in git, parse error, see gmail
 
 13.3.2013 events not in timerange

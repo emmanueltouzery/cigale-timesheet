@@ -52,6 +52,7 @@ getRepoCommits (GitRecord project _username _projectPath) date = do
 	let parseResult = parseCommitsParsec output
 	case parseResult of
 		Left pe -> do
+			putStrLn $ T.unpack output
 			putStrLn $ "GIT: parse error: " ++ Util.displayErrors pe
 			error "GIT parse error, aborting"
 			--return []
@@ -193,7 +194,7 @@ strToMonth month = case month of
 	_ -> error $ "Unknown month " ++ month
 
 parseSummary :: T.GenParser st String
-parseSummary = manyTill anyChar (T.try $ string "\n\n" <|> string "\r\n\r\n")
+parseSummary = manyTill anyChar (T.try $ string "\n\n" <|> string "\r\n\r\n" <|> (do eof; return ""))
 
 eol :: T.GenParser st String
 eol = T.many $ T.oneOf "\r\n"

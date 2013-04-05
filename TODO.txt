@@ -1,8 +1,7 @@
-bug in git, parse error, see gmail
-
-13.3.2013 events not in timerange
-
+add withOpenSSL and go back to SSL for ICAL
 try to re-enable HTTPS for ical, segfault since http-streams..
+
+redmine: make me a link to the bug, because I don't get the full info.
 
 for source version control, in the details show the diffstat; done for
 GIT, could still be done for SVN and HG.

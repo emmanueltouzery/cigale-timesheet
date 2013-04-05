@@ -28,8 +28,6 @@ import qualified Util
 import Event
 import EventProvider
 
-import Debug.Trace
-
 data RedmineConfig = RedmineConfig
 	{
 		redmineUrl :: ByteString,
@@ -121,7 +119,7 @@ parseTimeOfDay timeOfDayStr = (hours, mins)
 	where
 		(_hoursStr:minsStr:[]) = T.splitOn ":" (T.take 5 timeOfDayStr)
 		(_hours:mins:[]) = fmap (Util.safePromise . decimal) [_hoursStr, minsStr]
-		hours = if T.drop 6 timeOfDayStr == "pm"
+		hours = if (T.drop 6 timeOfDayStr == "pm") && (_hours < 12)
 			then _hours + 12
 			else _hours
 

@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings, DeriveGeneric, TemplateHaskell #-}
+
 module Skype (getSkypeProvider) where
 
 import Data.Time.Calendar

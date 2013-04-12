@@ -24,7 +24,7 @@
 		]
 	}},
 	{"Ical": { "icalUrl":
-	"http://www.google.com/calendar/ical/etouzery%40gmail.com/private-d63868fef84ee0826c4ad9bf803048cc/basic.ics"
+	"https://www.google.com/calendar/ical/etouzery%40gmail.com/private-d63868fef84ee0826c4ad9bf803048cc/basic.ics"
 	}},
 	{"Skype": { "skypeUsername" : "emmanuel.touzery" }},
 	{"Redmine": {"redmineUrl": "http://redmine/",

@@ -26,7 +26,7 @@ import Data.Aeson.TH
 import Text.Regex.PCRE.Rex
 
 import qualified Event
-import qualified Settings
+--import qualified Settings
 import qualified Util
 import EventProvider
 
@@ -57,7 +57,7 @@ getCalendarEvents (IcalRecord icalAddress) day = do
 	hasCached <- hasCachedVersionForDay day
 	icalText <- if hasCached
 		then readFromCache
-		else readFromWWW icalAddress
+		else readFromWWW $ B.pack icalAddress
 	let parseResult = parseEventsParsec icalText
 	--print parseResult
 	case parseResult of
@@ -75,10 +75,12 @@ convertToEvents day keyValues = filterDate day events
 	where
 		events = map keyValuesToEvent keyValues
 
-readFromWWW :: String -> IO T.Text
+readFromWWW :: B.ByteString -> IO T.Text
 readFromWWW icalAddress = do
 	putStrLn "reading from WWW"
-	icalData <- withSocketsDo $ get (B.pack icalAddress) concatHandler
+	--icalData <- withSocketsDo $ Util.http icalAddress "" concatHandler $ do
+	icalData <- Util.http icalAddress "" concatHandler $ do
+		http GET icalAddress
 	putStrLn "read from WWW"
 	let icalText = TE.decodeUtf8 icalData
 	putInCache icalText
@@ -164,8 +166,10 @@ hasCachedVersionForDay day = do
 
 cacheFilename :: IO String
 cacheFilename = do
-	settingsFolder <- Settings.getSettingsFolder
-	return $ settingsFolder ++ "cached-calendar.ical"
+	-- TODO!!!
+	--settingsFolder <- Settings.getSettingsFolder
+	--return $ settingsFolder ++ "cached-calendar.ical"
+	return "cached-calendar.ical"
 
 cachedVersionDate :: IO (Maybe Day)
 cachedVersionDate = do

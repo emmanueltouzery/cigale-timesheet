@@ -12,7 +12,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as IO
 import Data.Aeson.TH
 
-import qualified Event
+import qualified Event as Event
 import qualified Util
 import EventProvider
 

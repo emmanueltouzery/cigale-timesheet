@@ -19,6 +19,8 @@ import Network.URI
 import qualified System.IO.Streams as Streams
 import qualified Blaze.ByteString.Builder as Builder
 
+import OpenSSL (withOpenSSL)
+
 safePromise :: Either a (b,c) -> b
 safePromise (Right (v,_)) = v
 safePromise _ = error "safePromise got Left"
@@ -56,7 +58,7 @@ zipLists list = takeWhile (\x -> length x == length list) $ transpose list
 parsecParse parser input = do
 	case parse parser "" input of
 		Left pe -> do
-			putStrLn $ "parse error: " ++ Util.displayErrors pe
+			putStrLn $ "parse error: " ++ displayErrors pe
 			return input
 		Right result -> return result
 
@@ -84,7 +86,7 @@ formatDurationSec seconds = T.concat [T.pack hours, ":",
 http :: B.ByteString -> B.ByteString 
 		-> (Response -> InputStream B.ByteString -> IO B.ByteString) 
 		-> RequestBuilder a ->  IO B.ByteString
-http url contents responseProcessor requestSpec = do
+http url contents responseProcessor requestSpec = withOpenSSL $ do
 	c <- establishConnection url
 	q <- buildRequest requestSpec
 	sendRequest c q $ Streams.write (Just $ Builder.fromByteString contents)

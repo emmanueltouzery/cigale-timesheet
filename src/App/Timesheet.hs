@@ -16,25 +16,10 @@ import GHC.Exts
 import Control.Concurrent.Async
 
 import qualified Util
-import Event
-import Ical
-import Svn
-import Email
-import Hg
-import Git
-import Skype
-import Redmine
 import qualified Config
+import EventProviders
 import EventProvider
-
-plugins :: [EventProvider Value]
-plugins = [eventProviderWrap getEmailProvider,
-	   eventProviderWrap getGitProvider,
-	   eventProviderWrap getSvnProvider,
-	   eventProviderWrap getHgProvider,
-	   eventProviderWrap getIcalProvider,
-	   eventProviderWrap getSkypeProvider,
-	   eventProviderWrap getRedmineProvider]
+import Event
 
 process :: T.Text -> IO BL.ByteString
 process monthStr = do

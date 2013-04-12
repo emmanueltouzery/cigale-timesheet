@@ -13,7 +13,7 @@ import qualified Data.Text.IO as IO
 import Data.List (isInfixOf, intercalate)
 import Data.Aeson.TH (deriveJSON)
 
-import qualified Event
+import qualified Event as Event
 import qualified Util
 import EventProvider
 

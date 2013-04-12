@@ -4,3 +4,4 @@
 *.exe
 dist
 log
+cached-calendar.ical

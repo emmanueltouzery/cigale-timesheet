@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, QuasiQuotes, TemplateHaskell #-}
 
-module Redmine (getRedmineProvider) where
+module Redmine where
 
 import Data.ByteString as BS (ByteString(..), concat)
 import Data.ByteString.Char8 as Char8 (split, pack)
@@ -12,6 +12,7 @@ import Data.Text as T (Text(..), splitOn, pack, span, take, drop)
 import Data.Text.Read (decimal)
 import Data.Text.Encoding as TE
 import Text.Printf
+import Data.Time.Clock
 import Data.Time.Calendar
 import Data.Time.LocalTime
 import Data.List (find)
@@ -24,7 +25,7 @@ import Text.XML.Selector.TH
 import Text.XML.Scraping
 import Text.HTML.DOM (parseLBS)
 
-import qualified Util
+import qualified Util as Util
 import Event
 import EventProvider
 
@@ -51,10 +52,18 @@ getRedmineEvents config day = do
 	let cookieValues = fmap (head . (split ';')) cookieRows
 	let activityUrl = prepareActivityUrl day
 	response <- Util.http activityUrl "" concatHandler $ do
-		http GET "/activity"
+		http GET "/activity?show_wiki_edits=1"
 		setHeader "Cookie" (cookieValues !! 1)
 	timezone <- getCurrentTimeZone
-	return $ getIssues config response day timezone
+	today <- date
+	return $ mergeSuccessiveEvents $ getIssues config response day today timezone
+
+mergeSuccessiveEvents :: [Event] -> [Event]
+mergeSuccessiveEvents (x:y:xs) = if firstPart x == firstPart y
+		then x : mergeSuccessiveEvents xs
+		else x : (mergeSuccessiveEvents $ y :xs)
+	where firstPart = head . (T.splitOn "(") . desc
+mergeSuccessiveEvents whatever@_ = whatever
 
 prepareActivityUrl :: Day -> ByteString
 prepareActivityUrl day = BS.concat ["http://redmine/activity?from=", dayBeforeStr]
@@ -71,20 +80,25 @@ login config = do
 		[("username", redmineUsername config), ("password", redminePassword config)]
 		(\r _ -> return $ getHeader r "Set-Cookie")
 
-getIssues :: RedmineConfig -> ByteString -> Day -> TimeZone -> [Event]
-getIssues config html day timezone = case maybeDayNode of
+getIssues :: RedmineConfig -> ByteString -> Day -> Day -> TimeZone -> [Event]
+getIssues config html day today timezone = case maybeDayNode of
 		Nothing -> [] -- no events at all that day.
 		Just dayNode -> getIssuesForDayNode config day timezone dayNode
 	where
 		doc = fromDocument $ parseLBS $ fromChunks [html]
 		dayNodes = queryT [jq| div#content div#activity h3 |] doc
-		maybeDayNode = find (isDayTitle day) dayNodes
+		maybeDayNode = find (isDayTitle day today) dayNodes
 
-isDayTitle :: Day -> Cursor -> Bool
-isDayTitle day nod = dayTitle == innerTextN (node nod)
+date :: IO Day
+date = getCurrentTime >>= return . utctDay
+
+isDayTitle :: Day -> Day -> Cursor -> Bool
+isDayTitle day today nod = dayTitle == innerTextN (node nod)
 	where
 		(y, m, d) = toGregorian day
-		dayTitle = T.pack $ printf "%02d/%02d/%4d" m d y
+		dayTitle = T.pack $ if day == today
+				then "Today"
+				else printf "%02d/%02d/%4d" m d y
 
 getIssuesForDayNode :: RedmineConfig -> Day -> TimeZone -> Cursor -> [Event]
 getIssuesForDayNode config day timezone dayNode = parseBugNodes config day timezone bugNodes

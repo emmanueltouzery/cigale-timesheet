@@ -69,27 +69,27 @@ getEmailEvents (EmailConfig mboxLocations emailRecordsVal) day = do
 	timezone <- getCurrentTimeZone
 	return $ map (toEvent emailRecordsVal timezone) emails
 
-toEvent :: [EmailConfigRecord] -> TimeZone -> Email.Email -> Event.Event
+toEvent :: [EmailConfigRecord] -> TimeZone -> Email -> Event.Event
 toEvent emailRecordsVal timezone email = Event.Event
 			{
-				Event.eventDate = localTimeToUTC timezone (Email.date email),
+				Event.eventDate = localTimeToUTC timezone (date email),
 				Event.project  = getEmailProject email emailRecordsVal,
-				Event.desc = Email.subject email,
-				Event.extraInfo = T.concat["to: ", Email.to email],
-				Event.fullContents = Just $ Email.contents email
+				Event.desc = subject email,
+				Event.extraInfo = T.concat["to: ", to email],
+				Event.fullContents = Just $ contents email
 			}
 
-getEmailProject :: Email.Email -> [EmailConfigRecord] -> Maybe Event.Project
+getEmailProject :: Email -> [EmailConfigRecord] -> Maybe Event.Project
 getEmailProject email emailRecordsVal = fmap (T.unpack . emailProj) maybeRecordForEmail
 	where
 		maybeRecordForEmail = find isEmailInRecord emailRecordsVal
 		isEmailInRecord = (emailMatchesPatterns email) . emailPatterns
 
-emailMatchesPatterns :: Email.Email -> [T.Text] -> Bool
+emailMatchesPatterns :: Email -> [T.Text] -> Bool
 emailMatchesPatterns email addressList = not . null $ filter emailMatches addressList
 	where
 		emailMatches address = address `T.isInfixOf` emailToCc
-		emailToCc = T.concat [Email.to email, fromMaybe "" (Email.cc email)]
+		emailToCc = T.concat [to email, fromMaybe "" (cc email)]
 
 
 getEmails :: String -> Day -> Day -> IO [Email]

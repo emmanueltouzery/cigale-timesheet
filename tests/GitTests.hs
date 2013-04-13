@@ -14,13 +14,14 @@ import Util
 
 runGitTests :: Spec
 runGitTests = do
+	testUsualCommit
 	testMerge
 	testCommitWithoutMessage
 
 testGitParseExpect :: T.Text -> Commit -> Assertion
 testGitParseExpect source expected = do
 	case parseCommitsParsec source of
-		(Right (x:[])) -> assertEqual "Parse succeeded, value match" expected x
+		(Right (x:[])) -> assertEqual "Parse succeeded, value doesn't match" expected x
 		Left pe -> assertBool ("Parse failed" ++ displayErrors pe) False
 		_ -> assertBool "Parse succeeded, wrong results count" False
 
@@ -40,6 +41,27 @@ testMerge = it "parses merge commits" $ do
 				commitFiles = [""],
 				commitAuthor = "David <t@a>",
 				commitContents = "<pre></pre>"
+			}
+		testGitParseExpect source expected
+
+testUsualCommit :: Spec
+testUsualCommit = it "parses usual commits" $ do
+		let source = "commit b1eec0f4d734432e434385ea83ee5852eaff1d7f\n\
+\Author: David <t@a>\n\
+\Date:   Mon Apr 8 18:50:43 2013 +0200\n\
+\\n\
+\ Did commit.\n\
+\\n\
+\ test/src/main/users.js | 2 ++\n\
+\ 1 file changed, 2 insertions(+)\n\
+\\n"
+		let expected = Commit
+			{
+				commitDate = LocalTime (fromGregorian 2013 4 8) (TimeOfDay 18 50 43),
+				commitDesc = "Did commit.",
+				commitFiles = ["test/src/main/users.js"],
+				commitAuthor = "David <t@a>",
+				commitContents = "<pre>test/src/main/users.js | 2 ++</pre>"
 			}
 		testGitParseExpect source expected
 

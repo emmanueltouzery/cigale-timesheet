@@ -9,19 +9,19 @@ import Git
 
 runGitTests :: Spec
 runGitTests = it "parses advanced case" $ do
-			let source = "commit b1eec0f4d78dd42e95df85ea83ee5852eaff1d7f\
-\Author: David <David@Emelianenko>\
+			let source = "commit b1eec0f4d734432e434385ea83ee5852eaff1d7f\
+\Author: David <t@a>\
 \Date:   Mon Apr 8 18:50:43 2013 +0200\
 \\
-\ tms/src/main/webapp/js/lib/app/data-admin/users.js | 2 ++\
+\ test/src/main/users.js | 2 ++\
 \ 1 file changed, 2 insertions(+)\
 \\
-\commit 82bba38439d472380e258275e529da2ca25e2016\
-\Merge: f67c552 3fe4331\
-\Author: doblak <darjan@gmail.com>\
+\commit 82bba3843784348384258275e529d43434334016\
+\Merge: f545552 3232331\
+\Author: john <john@x.com>\
 \Date:   Mon Apr 8 18:44:14 2013 +0200\
 \\
-\    Merge branch 'master' of gitlab:tms"
+\    Merge branch 'master' of git:test"
 			parseCommitsParsec source `shouldSatisfy` isRight
 	where
 		isRight = null . lefts . return

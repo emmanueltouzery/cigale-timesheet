@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings, DeriveGeneric, TemplateHaskell #-}
 
-module Git (getGitProvider) where
+-- exporting parseCommitsParsec for the tests
+module Git (getGitProvider, parseCommitsParsec) where
 
 import qualified System.Process as Process
 import Data.Time.Calendar

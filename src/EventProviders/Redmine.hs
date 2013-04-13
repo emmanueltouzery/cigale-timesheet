@@ -59,11 +59,19 @@ getRedmineEvents config day = do
 	return $ mergeSuccessiveEvents $ getIssues config response day today timezone
 
 mergeSuccessiveEvents :: [Event] -> [Event]
-mergeSuccessiveEvents (x:y:xs) = if firstPart x == firstPart y
-		then x : mergeSuccessiveEvents xs
-		else x : (mergeSuccessiveEvents $ y :xs)
-	where firstPart = head . (T.splitOn "(") . desc
-mergeSuccessiveEvents whatever@_ = whatever
+mergeSuccessiveEvents (x:xs) = x : (mergeSuccessiveEvents $ dropWhile firstPartMatches xs)
+	where
+		firstPartMatches y = firstPart y == firstPartX
+		firstPartX = firstPart x
+		firstPart = head . (T.splitOn "(") . desc
+mergeSuccessiveEvents [] = []
+
+-- mergeSuccessiveEvents :: [Event] -> [Event]
+-- mergeSuccessiveEvents (x:y:xs) = if firstPart x == firstPart y
+-- 		then x : mergeSuccessiveEvents xs
+-- 		else x : (mergeSuccessiveEvents $ y :xs)
+-- 	where firstPart = head . (T.splitOn "(") . desc
+-- mergeSuccessiveEvents whatever@_ = whatever
 
 prepareActivityUrl :: Day -> ByteString
 prepareActivityUrl day = BS.concat ["http://redmine/activity?from=", dayBeforeStr]

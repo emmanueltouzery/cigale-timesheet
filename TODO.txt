@@ -1,9 +1,17 @@
+better here doc: using quasiquoting: http://www.haskell.org/haskellwiki/Poor_man%27s_here_document
+http://haskell.1045720.n5.nabble.com/Multi-line-string-literals-are-both-easy-and-elegant-in-Haskell-td3119232.html
+especially for GIT tests
+
 settings.getSettingsFolder commented in Ical.hs
 
 git parse error on monday 8+tuesday 9 april
 
 add withOpenSSL and go back to SSL for ICAL
 try to re-enable HTTPS for ical, segfault since http-streams..
+
+port to http-conduit with the new nice API i made.
+
+make relocatable so i can start it from any folder.
 
 redmine: make me a link to the bug, because I don't get the full info.
 
@@ -30,3 +38,4 @@ clear the preview pane when changing day.
 
 firefox google searches, maybe stackoverflow upvotes, dropbox subfolder
 activity, google docs?
+for firefox google searches: https://developer.mozilla.org/en-US/docs/The_Places_database

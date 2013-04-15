@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, QuasiQuotes #-}
 
 module GitTests where
 
@@ -9,6 +9,7 @@ import Data.Time.LocalTime
 import Data.Time.Calendar
 import qualified Data.Text as T
 
+import Str
 import Git
 import Util
 
@@ -27,13 +28,14 @@ testGitParseExpect source expected = do
 
 testMerge :: Spec
 testMerge = it "parses merge commits" $ do
-		let source = "commit b1eec0f4d734432e434385ea83ee5852eaff1d7f\n\
-\Merge: xxxx\n\
-\Author: David <t@a>\n\
-\Date:   Mon Apr 8 18:50:43 2013 +0200\n\
-\\n\
-\ Did merge.\n\
-\\n"
+		let source = [str|commit b1eec0f4d734432e434385ea83ee5852eaff1d7f
+Merge: xxxx
+Author: David <t@a>
+Date:   Mon Apr 8 18:50:43 2013 +0200
+
+ Did merge.
+
+|]
 		let expected = Commit
 			{
 				commitDate = LocalTime (fromGregorian 2013 4 8) (TimeOfDay 18 50 43),
@@ -46,15 +48,16 @@ testMerge = it "parses merge commits" $ do
 
 testUsualCommit :: Spec
 testUsualCommit = it "parses usual commits" $ do
-		let source = "commit b1eec0f4d734432e434385ea83ee5852eaff1d7f\n\
-\Author: David <t@a>\n\
-\Date:   Mon Apr 8 18:50:43 2013 +0200\n\
-\\n\
-\ Did commit.\n\
-\\n\
-\ test/src/main/users.js | 2 ++\n\
-\ 1 file changed, 2 insertions(+)\n\
-\\n"
+		let source = [str|commit b1eec0f4d734432e434385ea83ee5852eaff1d7f\n\
+Author: David <t@a>
+Date:   Mon Apr 8 18:50:43 2013 +0200
+
+ Did commit.
+
+ test/src/main/users.js | 2 ++
+ 1 file changed, 2 insertions(+)
+
+|]
 		let expected = Commit
 			{
 				commitDate = LocalTime (fromGregorian 2013 4 8) (TimeOfDay 18 50 43),
@@ -67,13 +70,14 @@ testUsualCommit = it "parses usual commits" $ do
 
 testCommitWithoutMessage :: Spec
 testCommitWithoutMessage = it "parses commits without message" $ do
-		let source = "commit b1eec0f4d734432e434385ea83ee5852eaff1d7f\n\
-\Author: David <t@a>\n\
-\Date:   Mon Apr 8 18:50:43 2013 +0200\n\
-\\n\
-\ test/src/main/users.js | 2 ++\n\
-\ 1 file changed, 2 insertions(+)\n\
-\\n"
+		let source = [str|commit b1eec0f4d734432e434385ea83ee5852eaff1d7f
+Author: David <t@a>
+Date:   Mon Apr 8 18:50:43 2013 +0200
+
+ test/src/main/users.js | 2 ++
+ 1 file changed, 2 insertions(+)
+
+|]
 		let expected = Commit
 			{
 				commitDate = LocalTime (fromGregorian 2013 4 8) (TimeOfDay 18 50 43),

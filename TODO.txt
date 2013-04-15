@@ -1,7 +1,3 @@
-better here doc: using quasiquoting: http://www.haskell.org/haskellwiki/Poor_man%27s_here_document
-http://haskell.1045720.n5.nabble.com/Multi-line-string-literals-are-both-easy-and-elegant-in-Haskell-td3119232.html
-especially for GIT tests
-
 settings.getSettingsFolder commented in Ical.hs
 
 git parse error on monday 8+tuesday 9 april

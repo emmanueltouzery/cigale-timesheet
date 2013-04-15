@@ -28,14 +28,15 @@ testGitParseExpect source expected = do
 
 testMerge :: Spec
 testMerge = it "parses merge commits" $ do
-		let source = [str|commit b1eec0f4d734432e434385ea83ee5852eaff1d7f
-Merge: xxxx
-Author: David <t@a>
-Date:   Mon Apr 8 18:50:43 2013 +0200
-
- Did merge.
-
-|]
+		let source = [strT|
+				commit b1eec0f4d734432e434385ea83ee5852eaff1d7f
+				Merge: xxxx
+				Author: David <t@a>
+				Date:   Mon Apr 8 18:50:43 2013 +0200
+				
+				 Did merge.
+				
+				|]
 		let expected = Commit
 			{
 				commitDate = LocalTime (fromGregorian 2013 4 8) (TimeOfDay 18 50 43),
@@ -48,16 +49,17 @@ Date:   Mon Apr 8 18:50:43 2013 +0200
 
 testUsualCommit :: Spec
 testUsualCommit = it "parses usual commits" $ do
-		let source = [str|commit b1eec0f4d734432e434385ea83ee5852eaff1d7f\n\
-Author: David <t@a>
-Date:   Mon Apr 8 18:50:43 2013 +0200
-
- Did commit.
-
- test/src/main/users.js | 2 ++
- 1 file changed, 2 insertions(+)
-
-|]
+		let source = [strT|
+				commit b1eec0f4d734432e434385ea83ee5852eaff1d7f
+				Author: David <t@a>
+				Date:   Mon Apr 8 18:50:43 2013 +0200
+				
+				 Did commit.
+				
+				 test/src/main/users.js | 2 ++
+				 1 file changed, 2 insertions(+)
+				
+				|]
 		let expected = Commit
 			{
 				commitDate = LocalTime (fromGregorian 2013 4 8) (TimeOfDay 18 50 43),
@@ -70,14 +72,15 @@ Date:   Mon Apr 8 18:50:43 2013 +0200
 
 testCommitWithoutMessage :: Spec
 testCommitWithoutMessage = it "parses commits without message" $ do
-		let source = [str|commit b1eec0f4d734432e434385ea83ee5852eaff1d7f
-Author: David <t@a>
-Date:   Mon Apr 8 18:50:43 2013 +0200
-
- test/src/main/users.js | 2 ++
- 1 file changed, 2 insertions(+)
-
-|]
+		let source = [strT|
+				commit b1eec0f4d734432e434385ea83ee5852eaff1d7f
+				Author: David <t@a>
+				Date:   Mon Apr 8 18:50:43 2013 +0200
+				
+				 test/src/main/users.js | 2 ++
+				 1 file changed, 2 insertions(+)
+				
+				|]
 		let expected = Commit
 			{
 				commitDate = LocalTime (fromGregorian 2013 4 8) (TimeOfDay 18 50 43),

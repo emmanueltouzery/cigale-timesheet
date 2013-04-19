@@ -12,6 +12,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as IO
 import Data.List (isInfixOf, intercalate)
 import Data.Aeson.TH (deriveJSON)
+import Data.Maybe
 
 import qualified Event as Event
 import qualified Util
@@ -49,10 +50,10 @@ getRepoCommits (GitRecord project _username _projectPath) date = do
 	ex <- Process.waitForProcess pid
 	output <- IO.hGetContents outh
 	timezone <- getCurrentTimeZone
-	let parseResult = parseCommitsParsec output
+	let parseResult = parseCommitsParsec $ T.concat [output, "\n"]
 	case parseResult of
 		Left pe -> do
-			putStrLn $ T.unpack output
+			print $ T.unpack output
 			putStrLn $ "GIT: parse error: " ++ Util.displayErrors pe
 			error "GIT parse error, aborting"
 			--return []
@@ -69,7 +70,9 @@ toEvent project timezone commit =
 		{
 			Event.eventDate = (localTimeToUTC timezone (commitDate commit)),
 			Event.project = (Just $ T.unpack project),
-			Event.desc = commitDesc commit,
+			Event.desc = case commitDesc commit of
+					Nothing -> "no commit message"
+					Just x -> x,
 			Event.extraInfo = (T.pack $ Util.getFilesRoot $ commitFiles commit),
 			Event.fullContents = Just $ T.pack $ commitContents commit
 		}
@@ -86,7 +89,7 @@ parseCommitsParsec = parse parseCommits ""
 data Commit = Commit
 	{
 		commitDate :: LocalTime,
-		commitDesc :: T.Text,
+		commitDesc :: Maybe T.Text,
 		commitFiles :: [String],
 		commitAuthor :: String,
 		commitContents :: String
@@ -94,7 +97,7 @@ data Commit = Commit
 	deriving (Eq, Show)
 
 parseCommits :: T.GenParser st [Commit]
-parseCommits = many parseCommit
+parseCommits = many parseCommit --manyTill parseCommit (T.try eof)
 
 parseMerge :: T.GenParser st String
 parseMerge = do
@@ -110,23 +113,53 @@ parseCommit = do
 	author <- readLine
 	date <- parseDateTime
 	eol
-	summary <- parseSummary
-	count 2 eol
-	-- in case of merge there are no files.
-	cFiles <- case mergeInfo of
-		Just _ -> return [([],[])]
-		Nothing -> parseFiles
-	let cFileNames = fmap snd cFiles
-	let cFilesDesc = fmap fst cFiles
+
+	--sections <- many parseSection
+	_sections0 <- optionMaybe parseSection
+	_sections1 <- optionMaybe parseSection
+
+	-- TODO this filter not null is ugly.. the parseSection
+	-- should just return Nothing :-(
+	let sections = fmap fromJust $ filter isJust [_sections0, _sections1]
+
+	--traceShow sections (optional eol)
+
+	-- these sections can be either comment or
+	-- list of files that were changed by the commit.
+	-- if this is a merge, there will not be files
+	-- and i expect only one section to exist
+	let (summary, filesText) = if isJust mergeInfo
+			then (Util.maybeHead sections, Nothing)
+			else case length sections of
+				2 -> (Just $ head sections, Just $ sections !! 1)
+				1 ->	-- is that section comment or files??
+					if isFiles $ head sections
+						then (Nothing, Just $ head sections)
+						else (Just $ head sections, Nothing)
+				0 -> (Nothing, Nothing)
+			     -- if there is one in sections need to find
+			     -- out, is that files or comment
+			     -- no sections then no summary
+
+	--traceShow (summary, filesText) (optional eol)
+
+	(cFileNames, cFilesDesc) <- case filesText of
+		Just filesContents -> do
+			let (Right cFiles) = parse parseFiles "" (T.pack $ fromJust filesText)
+			return (fmap snd cFiles, fmap fst cFiles)
+		Nothing -> return ([], [])
+	optional eol
 	optional eol
 	return $ Commit
 		{
 			commitDate = date,
-			commitDesc = T.strip $ T.pack summary,
+			commitDesc = fmap (T.strip . T.pack) summary,
 			commitFiles = cFileNames,
 			commitAuthor = T.unpack $ T.strip $ T.pack author,
 			commitContents = "<pre>" ++ intercalate "<br/>\n" cFilesDesc ++ "</pre>"
 		}
+	where
+		isFiles = not . null . filter (== '\n')
 
 readLine :: T.GenParser st String
 readLine = do
@@ -193,8 +226,12 @@ strToMonth month = case month of
 	"Dec" -> 12
 	_ -> error $ "Unknown month " ++ month
 
-parseSummary :: T.GenParser st String
-parseSummary = manyTill anyChar (T.try $ string "\n\n" <|> string "\r\n\r\n" <|> (do eof; return ""))
+parseSection :: T.GenParser st String
+parseSection = do
+	--summary <- manyTill anyChar (T.try $ string "\n\n" <|> string "\r\n\r\n" <|> do eof; return "")
+	summary <- manyTill anyChar (T.try $ string "\n\n" <|> string "\r\n\r\n")
+	count 2 eol
+	return summary
 
 eol :: T.GenParser st String
 eol = T.many $ T.oneOf "\r\n"

@@ -1,4 +1,5 @@
-settings.getSettingsFolder commented in Ical.hs
+settings.getSettingsFolder commented in Ical.hs. I need to change plugin
+API to pass them as parameters that common folder and such info.
 
 git parse error on monday 8+tuesday 9 april
 

@@ -40,8 +40,8 @@ testMerge = it "parses merge commits" $ do
 		let expected = Commit
 			{
 				commitDate = LocalTime (fromGregorian 2013 4 8) (TimeOfDay 18 50 43),
-				commitDesc = "Did merge.",
-				commitFiles = [""],
+				commitDesc = Just "Did merge.",
+				commitFiles = [],
 				commitAuthor = "David <t@a>",
 				commitContents = "<pre></pre>"
 			}
@@ -63,7 +63,7 @@ testUsualCommit = it "parses usual commits" $ do
 		let expected = Commit
 			{
 				commitDate = LocalTime (fromGregorian 2013 4 8) (TimeOfDay 18 50 43),
-				commitDesc = "Did commit.",
+				commitDesc = Just "Did commit.",
 				commitFiles = ["test/src/main/users.js"],
 				commitAuthor = "David <t@a>",
 				commitContents = "<pre>test/src/main/users.js | 2 ++</pre>"
@@ -84,10 +84,9 @@ testCommitWithoutMessage = it "parses commits without message" $ do
 		let expected = Commit
 			{
 				commitDate = LocalTime (fromGregorian 2013 4 8) (TimeOfDay 18 50 43),
-				commitDesc = "",
+				commitDesc = Nothing,
 				commitFiles = ["test/src/main/users.js"],
 				commitAuthor = "David <t@a>",
-				commitContents = " test/src/main/users.js | 2 ++\
-\ 1 file changed, 2 insertions(+)"
+				commitContents = "<pre>test/src/main/users.js | 2 ++</pre>"
 			}
 		testGitParseExpect source expected

@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, QuasiQuotes, ViewPatterns, DeriveGeneric, TemplateHaskell #-}
 
-module Svn (getSvnProvider) where
+module Svn where
 
 import qualified System.Process as Process
 import qualified Data.Text.IO as IO

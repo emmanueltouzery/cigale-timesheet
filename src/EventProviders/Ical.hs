@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, QuasiQuotes, ViewPatterns, DeriveGeneric, TemplateHaskell #-}
 
-module Ical (getIcalProvider) where
+module Ical where
 
 import Data.Time.Clock
 import Data.Time.Calendar

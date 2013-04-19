@@ -12,19 +12,13 @@ import qualified Data.Text as T
 import Str
 import Git
 import Util
+import TestUtil
 
 runGitTests :: Spec
 runGitTests = do
 	testUsualCommit
 	testMerge
 	testCommitWithoutMessage
-
-testGitParseExpect :: T.Text -> Commit -> Assertion
-testGitParseExpect source expected = do
-	case parseCommitsParsec source of
-		(Right (x:[])) -> assertEqual "Parse succeeded, value doesn't match" expected x
-		Left pe -> assertBool ("Parse failed" ++ displayErrors pe) False
-		_ -> assertBool "Parse succeeded, wrong results count" False
 
 testMerge :: Spec
 testMerge = it "parses merge commits" $ do
@@ -45,7 +39,7 @@ testMerge = it "parses merge commits" $ do
 				commitAuthor = "David <t@a>",
 				commitContents = "<pre></pre>"
 			}
-		testGitParseExpect source expected
+		testParsecExpect source parseCommitsParsec expected
 
 testUsualCommit :: Spec
 testUsualCommit = it "parses usual commits" $ do
@@ -68,7 +62,7 @@ testUsualCommit = it "parses usual commits" $ do
 				commitAuthor = "David <t@a>",
 				commitContents = "<pre>test/src/main/users.js | 2 ++</pre>"
 			}
-		testGitParseExpect source expected
+		testParsecExpect source parseCommitsParsec expected
 
 testCommitWithoutMessage :: Spec
 testCommitWithoutMessage = it "parses commits without message" $ do
@@ -89,4 +83,4 @@ testCommitWithoutMessage = it "parses commits without message" $ do
 				commitAuthor = "David <t@a>",
 				commitContents = "<pre>test/src/main/users.js | 2 ++</pre>"
 			}
-		testGitParseExpect source expected
+		testParsecExpect source parseCommitsParsec expected

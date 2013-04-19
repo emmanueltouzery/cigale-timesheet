@@ -10,18 +10,12 @@ import qualified Data.Text as T
 
 import Str
 import Svn
+import TestUtil
 import Util
 
 runSvnTests :: Spec
 runSvnTests = do
 	testBasicCommit
-
-testSvnParseExpect :: T.Text -> Commit -> Assertion
-testSvnParseExpect source expected = do
-	case parseCommitsParsec source of
-		(Right (x:[])) -> assertEqual "Parse succeeded, value doesn't match" expected x
-		Left pe -> assertBool ("Parse failed" ++ displayErrors pe) False
-		_ -> assertBool "Parse succeeded, wrong results count" False
 
 testBasicCommit :: Spec
 testBasicCommit = it "parses a basic SVN commit" $ do
@@ -47,4 +41,4 @@ testBasicCommit = it "parses a basic SVN commit" $ do
 					"/EAndroid/trunk/res/drawable-mdpi/ic_launcher.png",
 					"/EAndroid/trunk/res/drawable-xhdpi/ic_launcher.png"]
 			}
-		testSvnParseExpect source expected 
+		testParsecExpect source parseCommitsParsec expected

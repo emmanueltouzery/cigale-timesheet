@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, QuasiQuotes #-}
 
-module HgTests where
+module HgTests (runHgTests) where
 
 import Test.Hspec
 import Test.HUnit

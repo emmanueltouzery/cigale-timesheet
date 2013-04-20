@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, QuasiQuotes #-}
 
-module SvnTests where
+module SvnTests (runSvnTests) where
 
 import Test.Hspec
 import Test.HUnit

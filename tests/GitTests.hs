@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, QuasiQuotes #-}
 
-module GitTests where
+module GitTests (runGitTests) where
 
 import Test.Hspec
 import Test.HUnit

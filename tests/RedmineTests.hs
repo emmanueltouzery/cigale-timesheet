@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module RedmineTests where
+module RedmineTests (runRedmineTests) where
 
 import Test.Hspec
 

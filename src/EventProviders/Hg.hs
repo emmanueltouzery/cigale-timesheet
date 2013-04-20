@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, DeriveGeneric, TemplateHaskell #-}
 
-module Hg (getHgProvider) where
+module Hg where
 
 import qualified System.Process as Process
 import Data.Time.Calendar

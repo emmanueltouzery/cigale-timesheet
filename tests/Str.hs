@@ -1,6 +1,6 @@
-{-# LANGUAGE TemplateHaskell, QuasiQuotes #-}
+{-# LANGUAGE TemplateHaskell, QuasiQuotes, OverloadedStrings #-}
 
-module Str (strT) where
+module Str (strT, strCrT) where
  
 import Text.ParserCombinators.Parsec
 import Language.Haskell.TH
@@ -11,6 +11,9 @@ import qualified Data.Text as T
 
 quotedStr :: String -> Q Exp
 quotedStr str = [| T.pack $ manageWhitespace str |]
+
+quotedStrCr :: String -> Q Exp
+quotedStrCr str = [| T.concat [T.pack $ manageWhitespace str, "\n"] |]
 
 {-
   I first expect a carriage return, then on the next line I'll skip
@@ -48,3 +51,7 @@ lineSkipSpaces spaces = do
 
 strT :: QuasiQuoter
 strT = QuasiQuoter quotedStr undefined undefined undefined
+
+-- extra carriage return at the end
+strCrT :: QuasiQuoter
+strCrT = QuasiQuoter quotedStrCr undefined undefined undefined

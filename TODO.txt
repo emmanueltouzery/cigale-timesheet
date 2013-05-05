@@ -24,8 +24,6 @@ GUI.
 
 HTML formatting in emails can spread to my pages: use an iframe
 
-clear the preview pane when changing day.
-
 firefox google searches, maybe stackoverflow upvotes, dropbox subfolder
 activity, google docs?
 for firefox google searches: https://developer.mozilla.org/en-US/docs/The_Places_database

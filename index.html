@@ -10,14 +10,15 @@
 			}
 
 			#sidebar {
-				width: 400px;
+				width: 28%; /* 100% - #sidebar.left, and
+				some margins */
 				background: aliceblue;
 				display: inline-block;
 				overflow: auto;
 				top: 15px;
 				bottom: 15px;
 				position: absolute;
-				left: 800px; /* same as #eventsDiv.width */
+				left: 70%; /* same as #eventsDiv.width */
 			}
 
 			#pleasehold {
@@ -42,7 +43,7 @@
 			div#eventsDiv {
 				display: inline-block;
 				float: left;
-				width: 800px; /* same as #sidebar.left*/
+				width: 70%; /* same as #sidebar.left*/
 				position: relative; /* eventsTable is
 				absolute, see  http://stackoverflow.com/a/2015081/516188 */
 				height: 100%; /* this will be

@@ -24,10 +24,6 @@ GUI.
 
 HTML formatting in emails can spread to my pages: use an iframe
 
-when clicking on an event, highlight the html table row with the same
-color as the preview pane background so it's clear to which row the
-preview pane refers.
-
 clear the preview pane when changing day.
 
 firefox google searches, maybe stackoverflow upvotes, dropbox subfolder

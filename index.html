@@ -1,6 +1,14 @@
 <html>
 	<head>
 		<style>
+			body {
+				height: 100%;
+				/* at 100% i get a scrollbar for the
+				browser window... also reducing to 97%
+				fixes it but this seems more robust..*/
+				overflow-y: hidden;
+			}
+
 			#sidebar {
 				width: 400px;
 				background: aliceblue;
@@ -9,6 +17,7 @@
 				top: 15px;
 				bottom: 15px;
 				position: absolute;
+				left: 800px; /* same as #eventsDiv.width */
 			}
 
 			#pleasehold {
@@ -33,12 +42,22 @@
 			div#eventsDiv {
 				display: inline-block;
 				float: left;
-				width: 800px;
+				width: 800px; /* same as #sidebar.left*/
+				position: relative; /* eventsTable is
+				absolute, see  http://stackoverflow.com/a/2015081/516188 */
+				height: 100%; /* this will be
+				overwritten by javascript!! */
 			}
 
 			table#eventsTable {
 				border-spacing: 0px;
 				width: 95%;
+				overflow: auto;
+				display: block; /* needed for overflow
+				to work, http://stackoverflow.com/a/4457290/516188 */
+				bottom: 0px;
+				top: 0px;
+				position: absolute;
 			}
 			table#eventsTable td {
 				padding: 5px;
@@ -137,6 +156,19 @@
 			$('span#date').html(getDateDescStr());
 		}
 
+		function overwriteCss() {
+			// http://stackoverflow.com/questions/730048/how-to-change-remove-css-classes-definitions-at-runtime
+			var rules = document.styleSheets[0].cssRules;
+			var calendarHeight = $('#datepicker').height();
+			for (var i=0;i<rules.length;i++) {
+				if (rules[i].cssText.startsWith('div#eventsDiv'))
+				{
+					// add 15 for margins
+					rules[i].style.height = "calc(100% - " + (calendarHeight+15) + "px)";
+				}
+			}
+		}
+
 		$(document).ready(function() {
 			$( "#datepicker" ).datepicker({
 				inline: true,
@@ -145,6 +177,7 @@
 				},
 				firstDay: 1
 			});
+			overwriteCss();
 			updateDisplay();
 		});
 	</script>

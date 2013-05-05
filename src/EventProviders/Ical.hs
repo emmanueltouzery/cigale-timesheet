@@ -52,12 +52,12 @@ fromLeaf :: CalendarValue -> String
 fromLeaf (Leaf a) = a
 fromLeaf _ = "Error: expected a leaf!"
 
-getCalendarEvents :: IcalRecord -> Day -> IO [Event.Event]
-getCalendarEvents (IcalRecord icalAddress) day = do
-	hasCached <- hasCachedVersionForDay day
+getCalendarEvents :: IcalRecord -> GlobalSettings -> Day -> IO [Event.Event]
+getCalendarEvents (IcalRecord icalAddress) settings day = do
+	hasCached <- hasCachedVersionForDay settingsFolder day
 	icalText <- if hasCached
-		then readFromCache
-		else readFromWWW $ B.pack icalAddress
+		then readFromCache settingsFolder
+		else readFromWWW (B.pack icalAddress) settingsFolder
 	let parseResult = parseEventsParsec icalText
 	--print parseResult
 	case parseResult of
@@ -69,21 +69,23 @@ getCalendarEvents (IcalRecord icalAddress) day = do
 			error "Ical parse error, aborting"
 			--return []
 		Right x -> return $ convertToEvents day x
+	where
+		settingsFolder = getSettingsFolder settings
 
 convertToEvents :: Day -> [Map String CalendarValue] -> [Event.Event]
 convertToEvents day keyValues = filterDate day events
 	where
 		events = map keyValuesToEvent keyValues
 
-readFromWWW :: B.ByteString -> IO T.Text
-readFromWWW icalAddress = do
+readFromWWW :: B.ByteString -> String -> IO T.Text
+readFromWWW icalAddress settingsFolder = do
 	putStrLn "reading from WWW"
 	--icalData <- withSocketsDo $ Util.http icalAddress "" concatHandler $ do
 	icalData <- Util.http icalAddress "" concatHandler $ do
 		http GET icalAddress
 	putStrLn "read from WWW"
 	let icalText = TE.decodeUtf8 icalData
-	putInCache icalText
+	putInCache settingsFolder icalText
 	return icalText
 
 filterDate :: Day -> [Event.Event] -> [Event.Event]
@@ -157,39 +159,38 @@ parseEnd = do
 	string "END:VEVENT"
 	optional eol -- at the end of the file there may not be a carriage return.
 
-hasCachedVersionForDay :: Day -> IO Bool
-hasCachedVersionForDay day = do
-	cachedDateMaybe <- cachedVersionDate
+hasCachedVersionForDay :: String -> Day -> IO Bool
+hasCachedVersionForDay settingsFolder day = do
+	cachedDateMaybe <- cachedVersionDate settingsFolder
 	case cachedDateMaybe of
 		Nothing -> return False
 		Just cachedDate -> return $ day < cachedDate
 
-cacheFilename :: IO String
-cacheFilename = do
-	-- TODO!!!
+cacheFilename :: String -> IO String
+cacheFilename settingsFolder = do
 	--settingsFolder <- Settings.getSettingsFolder
-	--return $ settingsFolder ++ "cached-calendar.ical"
-	return "cached-calendar.ical"
+	return $ settingsFolder ++ "cached-calendar.ical"
+	--return "cached-calendar.ical"
 
-cachedVersionDate :: IO (Maybe Day)
-cachedVersionDate = do
-	fname <- cacheFilename
+cachedVersionDate :: String -> IO (Maybe Day)
+cachedVersionDate settingsFolder = do
+	fname <- cacheFilename settingsFolder
 	modifTime <- IOEx.tryIOError $ Dir.getModificationTime fname
 	case modifTime of
 		Left _ -> return Nothing
 		Right modif -> return $ Just $ utctDay $ posixSecondsToUTCTime $ clockTimeToEpoch modif
 		--Right modif -> return $ Just $ utctDay modif
 
-readFromCache :: IO T.Text
-readFromCache = do
+readFromCache :: String -> IO T.Text
+readFromCache settingsFolder = do
 	putStrLn "reading calendar from cache!"
-	fname <- cacheFilename
+	fname <- cacheFilename settingsFolder
 	fmap T.pack (readFile fname)
 
 
-putInCache :: T.Text -> IO ()
-putInCache text = do
-	fname <- cacheFilename
+putInCache :: String -> T.Text -> IO ()
+putInCache settingsFolder text = do
+	fname <- cacheFilename settingsFolder
 	fileH <- openFile fname WriteMode
 	T.hPutStr fileH text
 	hClose fileH

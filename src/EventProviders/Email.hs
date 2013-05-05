@@ -62,8 +62,8 @@ data Email = Email
 	}
 	deriving (Eq, Show)
 
-getEmailEvents :: EmailConfig -> Day -> IO [Event.Event]
-getEmailEvents (EmailConfig mboxLocations emailRecordsVal) day = do
+getEmailEvents :: EmailConfig -> GlobalSettings -> Day -> IO [Event.Event]
+getEmailEvents (EmailConfig mboxLocations emailRecordsVal) _ day = do
 	emailsAr <- mapM (\mbox -> getEmails mbox day day) mboxLocations
 	let emails = concat emailsAr
 	timezone <- getCurrentTimeZone

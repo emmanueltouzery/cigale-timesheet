@@ -20,6 +20,7 @@ import qualified Config
 import EventProviders
 import EventProvider
 import Event
+import qualified Settings
 
 process :: T.Text -> IO BL.ByteString
 process monthStr = do
@@ -38,7 +39,8 @@ processConfig monthStr config = do
 	putStrLn "before the fetching..."
 	print config
 	putStrLn "after printing"
-	allEventsSeq <- sequence $ map (uncurry $ fetchProvider date) config
+	settings <- getGlobalSettings 
+	allEventsSeq <- sequence $ map (uncurry $ fetchProvider settings date) config
 	let allEvents = foldl (++) [] allEventsSeq
 	let sortedEvents = sortWith (Event.eventDate . snd) allEvents
 	let eventDates = fmap (Event.eventDate . snd) sortedEvents
@@ -59,11 +61,16 @@ processConfig monthStr config = do
 	where
 		outOfRange start end time = time < (LocalTime start midnight) || time > (LocalTime end midnight)
 
-fetchProvider :: Day -> EventProvider Value -> Value -> IO ([(String, Event)])
-fetchProvider day provider config = do
+getGlobalSettings :: IO GlobalSettings
+getGlobalSettings = do
+	settingsFolder <- Settings.getSettingsFolder
+	return $ GlobalSettings { getSettingsFolder = settingsFolder }
+
+fetchProvider :: GlobalSettings -> Day -> EventProvider Value -> Value -> IO ([(String, Event)])
+fetchProvider settings day provider config = do
 	putStrLn $ "fetching from " ++ (getModuleName provider)
 	print config
-	events <- getEvents provider config day
+	events <- getEvents provider config settings day
 	putStrLn $ "found " ++ (show $ length events) ++ " events."
 	putStrLn "done!"
 	return $ fmap (\a -> (getModuleName provider, a)) events

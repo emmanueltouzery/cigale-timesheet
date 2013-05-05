@@ -33,8 +33,8 @@ getGitProvider = EventProvider
 		getEvents = getRepoCommits
 	}
 
-getRepoCommits :: GitRecord -> Day -> IO [Event.Event]
-getRepoCommits (GitRecord project _username _projectPath) date = do
+getRepoCommits :: GitRecord -> GlobalSettings -> Day -> IO [Event.Event]
+getRepoCommits (GitRecord project _username _projectPath) _ date = do
 	let username = T.unpack _username
 	let projectPath = T.unpack _projectPath
 	(inh, Just outh, errh, pid) <- Process.createProcess

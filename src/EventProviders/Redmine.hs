@@ -45,8 +45,8 @@ getRedmineProvider = EventProvider
 		getEvents = getRedmineEvents
 	}
 
-getRedmineEvents :: RedmineConfig -> Day -> IO [Event]
-getRedmineEvents config day = do
+getRedmineEvents :: RedmineConfig -> GlobalSettings -> Day -> IO [Event]
+getRedmineEvents config _ day = do
 	maybeCookie <- login config
 	let cookieRows = split '\n' $ fromJust maybeCookie
 	let cookieValues = fmap (head . (split ';')) cookieRows

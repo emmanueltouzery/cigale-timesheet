@@ -15,9 +15,13 @@ import Event
 -- 			| SubElementArray [Config]
 -- 			deriving (Show)
 
+data GlobalSettings = GlobalSettings {
+	getSettingsFolder :: String
+}
+
 data EventProvider a = EventProvider {
 	getModuleName :: String,
-	getEvents :: a -> Day -> IO [Event]
+	getEvents :: a -> GlobalSettings -> Day -> IO [Event]
 	
 	-- i could derive the ConfigSpec from the data using
 	-- template haskell or maybe sth like that:

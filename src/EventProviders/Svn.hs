@@ -33,8 +33,8 @@ getSvnProvider = EventProvider
 		getEvents = getRepoCommits
 	}
 
-getRepoCommits :: SvnConfigRecord -> Day -> IO [Event.Event]
-getRepoCommits config date = do
+getRepoCommits :: SvnConfigRecord -> GlobalSettings -> Day -> IO [Event.Event]
+getRepoCommits config _ date = do
 	let dateRange = formatDateRange date (addDays 1 date)
 	(inh, Just outh, errh, pid) <- Process.createProcess
 		(Process.proc "svn" ["log", svnRepo config, 

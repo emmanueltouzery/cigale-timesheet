@@ -146,7 +146,8 @@
 							+ "</td><td>" + formatTime(value.eventDate)
 							+ "</td><td>" + eventType
 							+ "</td><td>" + value.desc 
-							+ "</td><td>" + value.extraInfo 
+							/* without the nbsp, the dashed border around the last cell doesn't work */
+							+ "</td><td>" + ((value.extraInfo === "") ?  '&nbsp;' : value.extraInfo)
 							+ "</td></tr>");
 					$('table#eventsTable tr:last').click(function() {
 						setCurrentRow($(this));

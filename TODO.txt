@@ -1,3 +1,9 @@
+migrate to the upstream http-streams (minor change on the cookies -- for
+redmine IIRC)
+
+make cabal install needed files on cabal install so that it'll run from
+any folder.
+
 migrate to scotty instead of snap? https://github.com/xich/scotty
 
 add withOpenSSL and go back to SSL for ICAL

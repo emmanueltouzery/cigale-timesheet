@@ -116,7 +116,9 @@ parseCommit = do
 
 	--sections <- many parseSection
 	_sections0 <- optionMaybe parseSection
-	_sections1 <- optionMaybe parseSection
+	_sections1 <- if isNothing mergeInfo
+		then optionMaybe parseSection
+		else return Nothing
 
 	-- TODO this filter not null is ugly.. the parseSection
 	-- should just return Nothing :-(

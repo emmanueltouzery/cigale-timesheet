@@ -48,4 +48,4 @@ testBasicEvent = it "parses basic ICAL event" $ do
 			extraInfo = "End: 09:00; duration: 1:30",
 			fullContents = Nothing
 		}
-	testParsecExpectTransform keyValuesToEvent source parseEventsParsec expected
+	testParsecExpectTransform (keyValuesToEvent . head) source parseEventsParsec expected

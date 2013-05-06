@@ -1,8 +1,11 @@
+split skype logs in sections when there is more than 1h between parts of
+the chat. very hard to read currently.
+
 migrate to the upstream http-streams (minor change on the cookies -- for
 redmine IIRC)
 
 make cabal install needed files on cabal install so that it'll run from
-any folder.
+any folder. Also read config.json from ~/.timesheet
 
 migrate to scotty instead of snap? https://github.com/xich/scotty
 

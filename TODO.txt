@@ -1,5 +1,3 @@
-also reset the scrollbar of the main table when changing days
-
 migrate to the upstream http-streams (minor change on the cookies -- for
 redmine IIRC)
 

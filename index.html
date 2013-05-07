@@ -134,6 +134,7 @@
 		function updateDisplay() {
 			setSidebarVal('');
 			$('#pleasehold').show();
+			$('table#eventsTable').scrollTop(0);
 			$('table#eventsTable').empty();
 			$('table#eventsTable').append("<tr><th>Project</th><th>Time</th>"
 				+ "<th>Event type</th><th>Description</th><th>Extra info</th></tr>")

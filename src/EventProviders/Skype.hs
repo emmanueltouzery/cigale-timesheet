@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, DeriveGeneric, TemplateHaskell #-}
 
-module Skype (getSkypeProvider) where
+module Skype where
 
 import Data.Time.Calendar
 import Data.Time.Clock
@@ -18,6 +18,9 @@ import Database.HDBC.Sqlite3
 import Event
 import qualified Util
 import EventProvider
+
+skypeMinIntervalToSplitChatsSeconds :: NominalDiffTime
+skypeMinIntervalToSplitChatsSeconds = 3600
 
 data SkypeConfig = SkypeConfig
 	{
@@ -53,7 +56,11 @@ getSkypeEvents (SkypeConfig skypeUsernameVal) _ day = do
 	let eventsAr = fmap messageByChatInfo r
 	let eventsMap = Map.fromListWith (flip (++)) eventsAr
 
-	return $ map toEvent $ Map.toList eventsMap
+	let chatInfos = map snd (Map.toList eventsMap)
+
+	let splitChatInfos = splitFarawayChats chatInfos
+
+	return $ map toEvent splitChatInfos
 
 data ChatRecord = ChatRecord
 	{
@@ -61,6 +68,17 @@ data ChatRecord = ChatRecord
 		messageTime :: UTCTime,
 		messageText :: T.Text
 	} deriving (Eq, Show)
+
+splitFarawayChats :: [[ChatRecord]] -> [[ChatRecord]]
+splitFarawayChats = concatMap splitChat
+
+splitChat :: [ChatRecord] -> [[ChatRecord]]
+splitChat [] = []
+splitChat records = ((head records : firstSeries) : splitChat remains)
+	where
+		notTooFar (a,b) = diffUTCTime (messageTime b) (messageTime a) < skypeMinIntervalToSplitChatsSeconds
+		(firstSeries, remains) = sndOnly $ span notTooFar $ zip records (tail records)
+		sndOnly (a,b) = (fmap snd a, fmap snd b)
 
 -- in reality the list in the second position
 -- of the pair will always have one element.
@@ -74,8 +92,8 @@ messageByChatInfo dbRow = (fromSql $ head dbRow,
 			messageText = fromSql $ dbRow !! 3
 		}])
 
-toEvent :: (String, [ChatRecord]) -> Event
-toEvent chat = Event
+toEvent :: [ChatRecord] -> Event
+toEvent chatRecords = Event
 		{
 			eventDate = messageTime (head chatRecords),
 			project = Nothing,
@@ -84,7 +102,6 @@ toEvent chat = Event
 			fullContents = Just fullLogEscaped
 		}
 	where
-		chatRecords = snd chat
 		participantsStr = T.intercalate ", " $ sort participants
 		participants = nub $ map messageAuthor chatRecords
 		extraInfoVal = T.pack $ (show $ length chatRecords) ++ " messages, lasted " ++ durationStr

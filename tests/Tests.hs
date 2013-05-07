@@ -5,6 +5,7 @@ import RedmineTests
 import SvnTests
 import IcalTests
 import StrTests
+import SkypeTests
 
 main :: IO ()
 main = do
@@ -14,3 +15,4 @@ main = do
 	describe "redmine mergeSuccessiveEvents" runRedmineTests
 	describe "SVN tests" runSvnTests
 	describe "Ical tests" runIcalTests
+	describe "Skype tests" runSkypeTests

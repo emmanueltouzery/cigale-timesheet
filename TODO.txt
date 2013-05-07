@@ -1,5 +1,4 @@
-split skype logs in sections when there is more than 1h between parts of
-the chat. very hard to read currently.
+also reset the scrollbar of the main table when changing days
 
 migrate to the upstream http-streams (minor change on the cookies -- for
 redmine IIRC)

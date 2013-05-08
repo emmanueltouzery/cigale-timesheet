@@ -60,7 +60,8 @@ getRepoCommits (GitRecord project _username _projectPath) _ date = do
 		Right x -> do
 			let myCommits = filter ((isInfixOf username) . commitAuthor) x
 			let myCommitsInInterval = filter (inRange . localDay . commitDate) myCommits
-			return $ map (toEvent project timezone) myCommitsInInterval
+			let myNonMergeCommitsInInterval = filter (not . commitIsMerge) myCommitsInInterval
+			return $ map (toEvent project timezone) myNonMergeCommitsInInterval
 	where
 		inRange tdate = (tdate >= date && tdate < (addDays 1 date))
 	
@@ -92,7 +93,8 @@ data Commit = Commit
 		commitDesc :: Maybe T.Text,
 		commitFiles :: [String],
 		commitAuthor :: String,
-		commitContents :: String
+		commitContents :: String,
+		commitIsMerge :: Bool
 	}
 	deriving (Eq, Show)
 
@@ -158,7 +160,8 @@ parseCommit = do
 			commitDesc = fmap (T.strip . T.pack) summary,
 			commitFiles = cFileNames,
 			commitAuthor = T.unpack $ T.strip $ T.pack author,
-			commitContents = "<pre>" ++ intercalate "<br/>\n" cFilesDesc ++ "</pre>"
+			commitContents = "<pre>" ++ intercalate "<br/>\n" cFilesDesc ++ "</pre>",
+			commitIsMerge = isJust mergeInfo
 		}
 	where
 		isFiles = not . null . filter (== '\n')

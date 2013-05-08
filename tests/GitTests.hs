@@ -39,7 +39,8 @@ testMerge = it "parses merge commits" $ do
 				commitDesc = Just "Did merge.",
 				commitFiles = [],
 				commitAuthor = "David <t@a>",
-				commitContents = "<pre></pre>"
+				commitContents = "<pre></pre>",
+				commitIsMerge = True
 			}
 		testParsecExpect source parseCommitsParsec expected
 
@@ -62,7 +63,8 @@ testUsualCommit = it "parses usual commits" $ do
 				commitDesc = Just "Did commit.",
 				commitFiles = ["test/src/main/users.js"],
 				commitAuthor = "David <t@a>",
-				commitContents = "<pre>test/src/main/users.js | 2 ++</pre>"
+				commitContents = "<pre>test/src/main/users.js | 2 ++</pre>",
+				commitIsMerge = False
 			}
 		testParsecExpect source parseCommitsParsec expected
 
@@ -96,7 +98,8 @@ testMultipleCommits = it "parses multiple commits" $ do
 					commitDesc = Just "Did commit.",
 					commitFiles = ["test/src/main/users.js"],
 					commitAuthor = "David <t@a>",
-					commitContents = "<pre>test/src/main/users.js | 2 ++</pre>"
+					commitContents = "<pre>test/src/main/users.js | 2 ++</pre>",
+					commitIsMerge = False
 				},
 				Commit
 				{
@@ -104,7 +107,8 @@ testMultipleCommits = it "parses multiple commits" $ do
 					commitDesc = Just "Did commit.",
 					commitFiles = ["test/src/main/users.js"],
 					commitAuthor = "Emm <t@a>",
-					commitContents = "<pre>test/src/main/users.js | 2 ++</pre>"
+					commitContents = "<pre>test/src/main/users.js | 2 ++</pre>",
+					commitIsMerge = False
 				}
 			]
 		testParsecExpectList source parseCommitsParsec expected
@@ -126,7 +130,8 @@ testCommitWithoutMessage = it "parses commits without message" $ do
 				commitDesc = Nothing,
 				commitFiles = ["test/src/main/users.js"],
 				commitAuthor = "David <t@a>",
-				commitContents = "<pre>test/src/main/users.js | 2 ++</pre>"
+				commitContents = "<pre>test/src/main/users.js | 2 ++</pre>",
+				commitIsMerge = False
 			}
 		testParsecExpect source parseCommitsParsec expected
 
@@ -158,7 +163,8 @@ testMultipleCommitsFirstIsMerge = it "parses multiple commits first is merge" $ 
 				commitDesc = Just "Merge branch 'master'",
 				commitFiles = [],
 				commitAuthor = "David B <david@b>",
-				commitContents = "<pre></pre>"
+				commitContents = "<pre></pre>",
+				commitIsMerge = True
 			},
 			Commit
 			{
@@ -166,6 +172,7 @@ testMultipleCommitsFirstIsMerge = it "parses multiple commits first is merge" $ 
 				commitDesc = Just "blabla",
 				commitFiles = ["t/README.md"],
 				commitAuthor = "Emmanuel Touzery <etouzery@gmail.com>",
-				commitContents = "<pre>t/README.md | 2 +-</pre>"
+				commitContents = "<pre>t/README.md | 2 +-</pre>",
+				commitIsMerge = False
 			}
 			]

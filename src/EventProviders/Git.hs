@@ -109,11 +109,12 @@ parseMerge = do
 parseCommit :: T.GenParser st Commit
 parseCommit = do
 	string "commit "
-	readLine
+	commit <- readLine
 	mergeInfo <- optionMaybe parseMerge
 	string "Author: "
 	author <- readLine
 	date <- parseDateTime
+	eol
 	eol
 
 	--sections <- many parseSection
@@ -149,8 +150,12 @@ parseCommit = do
 
 	(cFileNames, cFilesDesc) <- case filesText of
 		Just filesContents -> do
-			let (Right cFiles) = parse parseFiles "" (T.pack $ fromJust filesText)
-			return (fmap snd cFiles, fmap fst cFiles)
+			case parse parseFiles "" (T.pack $ fromJust filesText) of
+				Right cFiles -> return (fmap snd cFiles, fmap fst cFiles)
+				Left pe -> do
+					error $ "GIT file list parse error, aborting; commit is " ++ commit ++ " " ++ Util.displayErrors pe
+					return ([],[])
+				
 		Nothing -> return ([], [])
 	optional eol
 	optional eol
@@ -177,7 +182,10 @@ parseFiles = manyTill parseFile (T.try parseFilesSummary)
 
 parseFile :: T.GenParser st (String, String)
 parseFile = do
-	char ' '
+	optional $ char ' ' -- optional because it won't occur on the first line.
+			    -- that's because we eat it to make sure
+			    -- it's not already the next commit. On
+			    -- subsequent lines we don't eat it.
 	result <- T.many $ T.noneOf "|"
 	rest <- T.many $ T.noneOf "\n"
 	eol
@@ -233,7 +241,9 @@ strToMonth month = case month of
 
 parseSection :: T.GenParser st String
 parseSection = do
-	--summary <- manyTill anyChar (T.try $ string "\n\n" <|> string "\r\n\r\n" <|> do eof; return "")
+	string " " -- the sections are indented by one character.
+		   -- I need this so i don't think the beginning of the next
+		   -- commit is a section of the current commit.
 	summary <- manyTill anyChar (T.try $ string "\n\n" <|> string "\r\n\r\n")
 	count 2 eol
 	return summary

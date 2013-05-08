@@ -21,6 +21,7 @@ runGitTests = do
 	testCommitWithoutMessage
 	testMultipleCommits
 	testMultipleCommitsFirstIsMerge
+	testNoMessageUsualCommitWithCommitAfter
 
 testMerge :: Spec
 testMerge = it "parses merge commits" $ do
@@ -174,5 +175,44 @@ testMultipleCommitsFirstIsMerge = it "parses multiple commits first is merge" $ 
 				commitAuthor = "Emmanuel Touzery <etouzery@gmail.com>",
 				commitContents = "<pre>t/README.md | 2 +-</pre>",
 				commitIsMerge = False
+			}
+			]
+
+testNoMessageUsualCommitWithCommitAfter :: Spec
+testNoMessageUsualCommitWithCommitAfter = it "parses no message usual commit with another commit after" $ do
+		let source = [strT|
+				commit b1eec434343dd42e95df8534233223121aff1d7f
+				Author: David <D@E>
+				Date:   Mon Apr 8 18:50:43 2013 +0200
+				
+				 src/main/webapp/users.js | 2 ++
+				 1 file changed, 2 insertions(+)
+				
+				commit 8234434339d47233422582743434321ca25e2021
+				Merge: f67c212 3fe1231
+				Author: da <da@gmail.com>
+				Date:   Mon Apr 8 18:44:14 2013 +0200
+				
+				    Merge branch 'master'
+				
+				|]
+		testParsecExpectList source parseCommitsParsec [
+			Commit
+			{
+				commitDate = LocalTime (fromGregorian 2013 4 8) (TimeOfDay 18 50 43),
+				commitDesc = Nothing,
+				commitFiles = ["src/main/webapp/users.js"],
+				commitAuthor = "David <D@E>",
+				commitContents = "<pre>src/main/webapp/users.js | 2 ++</pre>",
+				commitIsMerge = False
+			},
+			Commit
+			{
+				commitDate = LocalTime (fromGregorian 2013 4 8) (TimeOfDay 18 44 14),
+				commitDesc = Just "Merge branch 'master'",
+				commitFiles = [],
+				commitAuthor = "da <da@gmail.com>",
+				commitContents = "<pre></pre>",
+				commitIsMerge = True
 			}
 			]

@@ -47,7 +47,6 @@ getRepoCommits (GitRecord project _username _projectPath) _ date = do
 			Process.std_out = Process.CreatePipe,
 			Process.cwd = Just projectPath
 		}
-	ex <- Process.waitForProcess pid
 	output <- IO.hGetContents outh
 	timezone <- getCurrentTimeZone
 	let parseResult = parseCommitsParsec $ T.concat [output, "\n"]

@@ -40,7 +40,6 @@ getRepoCommits config _ date = do
 		(Process.proc "svn" ["log", svnRepo config, 
 				"-r", dateRange, "--verbose"])
 		{Process.std_out = Process.CreatePipe}
-	ex <- Process.waitForProcess pid
 	output <- IO.hGetContents outh
 	let parseResult = parseCommitsParsec output
 	case parseResult of

@@ -44,7 +44,6 @@ getRepoCommits (HgRecord project _username _projectPath) _ day = do
 			Process.std_out = Process.CreatePipe,
 			Process.cwd = Just projectPath
 		}
-	ex <- Process.waitForProcess pid
 	output <- IO.hGetContents outh
 	timezone <- getCurrentTimeZone
 	let parseResult = parseCommitsParsec output

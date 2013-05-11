@@ -1,3 +1,7 @@
+redmine: link to wiki diff
+
+Skype: try to rewrite splitChat with unfoldr: http://stackoverflow.com/a/4978733/516188
+
 migrate to the upstream http-streams (minor change on the cookies -- for
 redmine IIRC)
 

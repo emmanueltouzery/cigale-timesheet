@@ -77,6 +77,7 @@ splitChat = splitByCompare notTooFar
 	where
 		notTooFar (a,b) = diffUTCTime (messageTime b) (messageTime a) < skypeMinIntervalToSplitChatsSeconds
 
+-- TODO maybe unfoldr would make sense here...
 splitByCompare :: ((a,a)->Bool) -> [a] -> [[a]]
 splitByCompare _ [] = []
 splitByCompare notTooFar records = ((head records : firstSeries) : splitByCompare notTooFar remains)

@@ -73,10 +73,14 @@ splitFarawayChats :: [[ChatRecord]] -> [[ChatRecord]]
 splitFarawayChats = concatMap splitChat
 
 splitChat :: [ChatRecord] -> [[ChatRecord]]
-splitChat [] = []
-splitChat records = ((head records : firstSeries) : splitChat remains)
+splitChat = splitByCompare notTooFar
 	where
 		notTooFar (a,b) = diffUTCTime (messageTime b) (messageTime a) < skypeMinIntervalToSplitChatsSeconds
+
+splitByCompare :: ((a,a)->Bool) -> [a] -> [[a]]
+splitByCompare _ [] = []
+splitByCompare notTooFar records = ((head records : firstSeries) : splitByCompare notTooFar remains)
+	where
 		(firstSeries, remains) = sndOnly $ span notTooFar $ zip records (tail records)
 		sndOnly (a,b) = (fmap snd a, fmap snd b)
 

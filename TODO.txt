@@ -1,9 +1,5 @@
 redmine: link to wiki diff
-
-Skype: try to rewrite splitChat with unfoldr: http://stackoverflow.com/a/4978733/516188
-
-migrate to the upstream http-streams (minor change on the cookies -- for
-redmine IIRC)
+redmine: make me a link to the bug, because I don't get the full info.
 
 make cabal install needed files on cabal install so that it'll run from
 any folder. Also read config.json from ~/.timesheet
@@ -13,8 +9,6 @@ migrate to scotty instead of snap? https://github.com/xich/scotty
 port to http-conduit with the new nice API i made.
 
 make relocatable so i can start it from any folder.
-
-redmine: make me a link to the bug, because I don't get the full info.
 
 for source version control, in the details show the diffstat; done for
 GIT, could still be done for SVN and HG.

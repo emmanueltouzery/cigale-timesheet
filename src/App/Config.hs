@@ -7,10 +7,12 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 
 import EventProvider
+import qualified Settings (getSettingsFolder)
 
 readConfig :: FromJSON a => [EventProvider a] -> IO [(EventProvider a, a)]
 readConfig plugins = do
-	input <- BL.readFile "src/config.json"
+	settingsFolder <- Settings.getSettingsFolder
+	input <- BL.readFile $ settingsFolder ++ "config.json"
 	let parsed = decode input :: Maybe Value
 	case parsed of
 		Nothing -> do

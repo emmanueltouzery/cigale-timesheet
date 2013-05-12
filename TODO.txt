@@ -2,7 +2,7 @@ redmine: link to wiki diff
 redmine: make me a link to the bug, because I don't get the full info.
 
 make cabal install needed files on cabal install so that it'll run from
-any folder. Also read config.json from ~/.timesheet
+any folder.
 
 migrate to scotty instead of snap? https://github.com/xich/scotty
 

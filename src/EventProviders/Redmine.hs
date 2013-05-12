@@ -48,12 +48,11 @@ getRedmineProvider = EventProvider
 getRedmineEvents :: RedmineConfig -> GlobalSettings -> Day -> IO [Event]
 getRedmineEvents config _ day = do
 	maybeCookie <- login config
-	let cookieRows = split '\n' $ fromJust maybeCookie
-	let cookieValues = fmap (head . (split ';')) cookieRows
+	let cookieValues = head $ (split ';') $ fromJust maybeCookie
 	let activityUrl = prepareActivityUrl day
 	response <- Util.http activityUrl "" concatHandler $ do
-		http GET "/activity?show_wiki_edits=1"
-		setHeader "Cookie" (cookieValues !! 1)
+		http GET "/activity?show_wiki_edits=1&show_issues=1"
+		setHeader "Cookie" cookieValues
 	timezone <- getCurrentTimeZone
 	today <- date
 	return $ mergeSuccessiveEvents $ getIssues config response day today timezone

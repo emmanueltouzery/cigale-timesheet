@@ -10,9 +10,6 @@ any folder. Also read config.json from ~/.timesheet
 
 migrate to scotty instead of snap? https://github.com/xich/scotty
 
-add withOpenSSL and go back to SSL for ICAL
-try to re-enable HTTPS for ical, segfault since http-streams..
-
 port to http-conduit with the new nice API i made.
 
 make relocatable so i can start it from any folder.

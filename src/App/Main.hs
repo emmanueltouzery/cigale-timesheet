@@ -16,7 +16,8 @@ main = quickHttpServe site
 site :: Snap ()
 site =
     ifTop (serveFile "index.html") <|>
-    route [ ("timesheet/:tsparam", timesheet)
+    route [ ("timesheet/:tsparam", timesheet),
+            ("configdesc", configdesc)
           ] <|>
     dir "static" (serveDirectory ".")
 
@@ -31,3 +32,5 @@ handleTimesheet param = do
 	jsonData <- liftIO $ Timesheet.process $ TE.decodeUtf8 param
 	writeLBS jsonData
 
+configdesc :: Snap ()
+configdesc = writeLBS Timesheet.getEventProvidersConfig

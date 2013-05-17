@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, ExistentialQuantification #-}
+{-# LANGUAGE OverloadedStrings, ExistentialQuantification, TemplateHaskell #-}
 module Timesheet where
 
 import qualified Data.Text as T
@@ -10,6 +10,7 @@ import Data.List
 import Data.Time
 import Data.Maybe
 import Data.Aeson
+import Data.Aeson.TH (deriveJSON)
 
 import GHC.Exts
 
@@ -74,3 +75,14 @@ fetchProvider settings day provider config = do
 	putStrLn $ "found " ++ (show $ length events) ++ " events."
 	putStrLn "done!"
 	return $ fmap (\a -> (getModuleName provider, a)) events
+
+data PluginConfig = PluginConfig
+	{
+		pluginName :: String,
+		pluginConfig :: [ConfigDataType]
+	}
+deriveJSON id ''PluginConfig
+
+getEventProvidersConfig :: BL.ByteString
+getEventProvidersConfig = JSON.encode $ fmap (\p -> PluginConfig {
+			pluginName = getModuleName p, pluginConfig = getConfigType p}) plugins

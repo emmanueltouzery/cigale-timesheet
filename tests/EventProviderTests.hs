@@ -21,7 +21,8 @@ data TestData = TestData
 
 testThGetTypeDesc :: Spec
 testThGetTypeDesc = it "parses a simple type" $ do
-	$(thGetTypeDesc ''TestData) `shouldBe` ["TestData", "field :: String", "field1 :: Int"]
+	$(thGetTypeDesc ''TestData) `shouldBe` ConfigDataType"TestData"
+		[ConfigDataInfo "field" "String", ConfigDataInfo "field1" "Int"]
 
 data EmailConfigRecord = EmailRecord
 	{
@@ -38,8 +39,12 @@ data EmailConfig = EmailConfig
 
 testThGetTypeDescComplex :: Spec
 testThGetTypeDescComplex = it "parses a complex type" $ do
-	$(thGetTypeDesc ''EmailConfig) `shouldBe` ["EmailConfig", "emailPaths :: [String]", "emailRecords :: [EmailConfigRecord]"]
+	$(thGetTypeDesc ''EmailConfig) `shouldBe` (ConfigDataType "EmailConfig" 
+		[ConfigDataInfo "emailPaths" "[String]",
+		ConfigDataInfo "emailRecords" "[EmailConfigRecord]"])
 
 testThGetTypeDescComplexT :: Spec
 testThGetTypeDescComplexT = it "parses a complex type text" $ do
-	$(thGetTypeDesc ''EmailConfigRecord) `shouldBe` ["EmailConfigRecord", "emailProj :: Text", "emailPatterns :: [Text]"]
+	$(thGetTypeDesc ''EmailConfigRecord) `shouldBe` (ConfigDataType "EmailConfigRecord"
+		[ConfigDataInfo "emailProj" "Text",
+		ConfigDataInfo "emailPatterns" "[Text]"])

@@ -45,7 +45,8 @@ Library
     xml-conduit,
     HsOpenSSL,
     transformers,
-    template-haskell
+    template-haskell,
+    th-lift
   exposed-modules:
     EventProviders,
     Event,
@@ -125,4 +126,5 @@ test-suite        tests
     hspec,
     HUnit,
     template-haskell,
-    transformers
+    transformers,
+    th-lift

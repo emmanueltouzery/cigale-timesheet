@@ -2,40 +2,51 @@
 module EventProvider (thGetTypeDesc,
 	GlobalSettings(GlobalSettings), EventProvider(EventProvider),
 	eventProviderWrap, getSettingsFolder,
-	getEvents, getModuleName, getConfigType) where
+	getEvents, getModuleName, getConfigType,
+	ConfigDataType(..), ConfigDataInfo(..)) where
 
 import qualified Data.Text as T
 --import Data.Map
 import Data.Time.Calendar
 import Data.Aeson
 import Language.Haskell.TH
+import Language.Haskell.TH.Lift
 import Language.Haskell.TH.Syntax
+import Data.Aeson.TH (deriveJSON)
 
 import Event
 
--- data ConfigSpec = StringFieldSpec String
--- 			| SubElementArraySpec [ConfigSpec]
--- 			deriving (Show)
--- 
--- data Config = StringField String
--- 			| SubElementArray [Config]
--- 			deriving (Show)
+data ConfigDataInfo = ConfigDataInfo
+	{
+		memberName :: String,
+		memberType :: String
+	} deriving (Eq, Show)
+$(deriveLift ''ConfigDataInfo)
+deriveJSON id ''ConfigDataInfo
+
+data ConfigDataType = ConfigDataType
+	{
+		dataName :: String,
+		members :: [ConfigDataInfo]
+	} deriving (Eq, Show)
+deriveJSON id ''ConfigDataType
 
 formatTypeName :: Type -> String
 formatTypeName (ConT x) = nameBase x
 formatTypeName (AppT ListT x) = "[" ++ (formatTypeName x) ++ "]"
 formatTypeName x@_ = "fallback " ++ show x
 
-showField :: (Name,Type) -> Q Exp
-showField nameType = [|s ++ " :: " ++ typS |] where
-	s = nameBase $ fst nameType
-	typS = formatTypeName $ snd nameType
+showField :: (Name,Type) -> ConfigDataInfo
+showField nameType = ConfigDataInfo s typS 
+	where
+		s = nameBase $ fst nameType
+		typS = formatTypeName $ snd nameType
 
 showFields :: Name -> [(Name, Type)] -> Q Exp
 showFields name names = do
-	exps <- sequence $ fmap showField names
-	nameExp <- stringE $ nameBase name
-	return $ ListE (nameExp:exps)
+	let exps = fmap showField names
+	let nameExp = nameBase name
+	[| ConfigDataType nameExp exps |]
 
 thGetTypeDesc :: Name -> Q Exp
 thGetTypeDesc name = do
@@ -50,7 +61,7 @@ data GlobalSettings = GlobalSettings {
 data EventProvider a = EventProvider {
 	getModuleName :: String,
 	getEvents :: a -> GlobalSettings -> Day -> IO [Event],
-	getConfigType :: [[String]]
+	getConfigType :: [ConfigDataType]
 	
 	-- i could derive the ConfigSpec from the data using
 	-- template haskell or maybe sth like that:

@@ -30,7 +30,8 @@ getGitProvider :: EventProvider GitRecord
 getGitProvider = EventProvider
 	{
 		getModuleName = "Git",
-		getEvents = getRepoCommits
+		getEvents = getRepoCommits,
+		getConfigType = [$(thGetTypeDesc ''GitRecord)]
 	}
 
 getRepoCommits :: GitRecord -> GlobalSettings -> Day -> IO [Event.Event]

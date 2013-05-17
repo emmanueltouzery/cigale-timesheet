@@ -32,7 +32,8 @@ getSkypeProvider :: EventProvider SkypeConfig
 getSkypeProvider = EventProvider
 	{
 		getModuleName = "Skype",
-		getEvents = getSkypeEvents
+		getEvents = getSkypeEvents,
+		getConfigType = [$(thGetTypeDesc ''SkypeConfig)]
 	}
 
 getSkypeEvents :: SkypeConfig -> GlobalSettings -> Day -> IO [Event]

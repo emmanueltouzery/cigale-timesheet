@@ -44,7 +44,8 @@ Library
     html-conduit,
     xml-conduit,
     HsOpenSSL,
-    transformers
+    transformers,
+    template-haskell
   exposed-modules:
     EventProviders,
     Event,

@@ -1,0 +1,117 @@
+<html>
+<head>
+	<title>
+		Config
+	</title>
+	<script type='text/javascript' src='/static/jquery-1.8.3.min.js'></script>
+</head>
+<body>
+	<script>
+		function loadPluginAndConfigOpts() {
+			$.getJSON('/configdesc', function(data) {
+				$.each(data, function(index, pluginInfo) {
+					handleConfigPluginInfo(pluginInfo);
+				});
+				$('#pluginAddCombo').change(function(e) {
+					var pluginName = $(this).val();
+					$.each(data, function(index, pluginInfo) {
+						if (pluginInfo.pluginName === pluginName) {
+							prepareAddPluginForm(pluginInfo);
+						}
+					});
+				});
+			});
+		}
+
+		function prepareAddPluginForm(pluginConfig) {
+			$('div#optionValues').append("<h3>" +
+				pluginConfig.pluginName + "</h3>");
+			var datatypes = pluginConfig.pluginConfig;
+			$.each(datatypes[0].members, function(index, configDataInfo) {
+				addConfigDataInfoForm(configDataInfo, datatypes);
+				$('div#optionValues').append('<br/>');
+			});
+		}
+
+		function handleProvidedType(providedTypes, typename) {
+			var handled = false;
+			$.each(providedTypes, function(idx, val) {
+				if (val.dataName === typename) {
+					addProvidedTypeForm(val, providedTypes);
+					handled = true;
+					return false;
+				}
+				if ('[' + val.dataName + ']' === typename) {
+					// array of that type..
+					addProvidedTypeForm(val, providedTypes);
+					handled = true;
+					return false;
+				}
+			});
+			return handled;
+		}
+
+		function addProvidedTypeForm(configDataType, datatypes) {
+			$.each(configDataType.members, function(idx, configDataInfo) {
+				addConfigDataInfoForm(configDataInfo, datatypes);
+				$('div#optionValues').append('<br/>');
+			});
+		}
+
+		function addConfigDataInfoForm(configDataInfo, datatypes) {
+			if (configDataInfo.memberType.indexOf('[') == 0) {
+				// array...
+				wrapInArray(configDataInfo.memberType.substring(1, configDataInfo.memberType.length-1),
+					configDataInfo.memberName, datatypes);
+			} else {
+				switch (configDataInfo.memberType) {
+				case "String":
+				case "Text":
+				case "ByteString":
+					addTextOption(configDataInfo.memberName);
+					break;
+				default:
+					// ok we don't know the type,
+					// but maybe it's described in
+					// the config:
+					if (!handleProvidedType(datatypes, configDataInfo.memberType)) {
+						alert("unknown data type: " + configDataInfo.memberType);
+					}
+					break;
+				}
+			}
+		}
+
+		function addTextOption(memberTitle) {
+			// TODO use the label tag for the description
+			// but then i must generate a unique ID.
+			$('div#optionValues').append(memberTitle)
+			.append('<input>', {
+				type: 'text'
+			});
+		}
+
+		function wrapInArray(memberTypeInArray, memberTitle, datatypes) {
+			addConfigDataInfoForm({'memberType': memberTypeInArray, 
+				'memberName': memberTitle}, datatypes);
+			$('div#optionValues').append('<+><br/>');
+		}
+
+		function handleConfigPluginInfo(pluginConfig) {
+			$('#pluginAddCombo').append($('<option>', {
+				value: pluginConfig.pluginName,
+				text : pluginConfig.pluginName})
+			);
+
+		}
+
+		$(document).ready(function() {
+			loadPluginAndConfigOpts();
+		});
+	</script>
+	Pick the plugin to add:
+	<select id="pluginAddCombo"></select>
+	<div id="optionValues"></div>
+</body>
+</html>
+

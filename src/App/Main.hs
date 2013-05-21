@@ -17,7 +17,8 @@ site :: Snap ()
 site =
     ifTop (serveFile "index.html") <|>
     route [ ("timesheet/:tsparam", timesheet),
-            ("configdesc", configdesc)
+            ("configdesc", configdesc),
+            ("config", serveFile "config.html")
           ] <|>
     dir "static" (serveDirectory ".")
 

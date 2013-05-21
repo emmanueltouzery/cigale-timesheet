@@ -4,6 +4,11 @@
 		Config
 	</title>
 	<script type='text/javascript' src='/static/jquery-1.8.3.min.js'></script>
+	<style>
+		div.arrayWrap {
+			border: 1px solid;
+		}
+	</style>
 </head>
 <body>
 	<script>
@@ -28,56 +33,55 @@
 				pluginConfig.pluginName + "</h3>");
 			var datatypes = pluginConfig.pluginConfig;
 			$.each(datatypes[0].members, function(index, configDataInfo) {
-				addConfigDataInfoForm(configDataInfo, datatypes);
-				$('div#optionValues').append('<br/>');
+				var divtxt = getHtmlConfigDataInfoForm(configDataInfo, datatypes);
+				$('div#optionValues').append(divtxt + '<br/>');
 			});
 		}
 
-		function handleProvidedType(providedTypes, typename) {
-			var handled = false;
+		function getHtmlProvidedType(providedTypes, typename) {
+			var result = null;
 			$.each(providedTypes, function(idx, val) {
 				if (val.dataName === typename) {
-					addProvidedTypeForm(val, providedTypes);
-					handled = true;
+					result = getHtmlProvidedTypeForm(val, providedTypes);
 					return false;
 				}
 				if ('[' + val.dataName + ']' === typename) {
 					// array of that type..
-					addProvidedTypeForm(val, providedTypes);
-					handled = true;
+					result = getHtmlProvidedTypeForm(val, providedTypes);
 					return false;
 				}
 			});
-			return handled;
+			if (result == null) {
+				alert("failed to handle type " + typename);
+			}
+			return result;
 		}
 
-		function addProvidedTypeForm(configDataType, datatypes) {
+		function getHtmlProvidedTypeForm(configDataType, datatypes) {
+			var result = "";
 			$.each(configDataType.members, function(idx, configDataInfo) {
-				addConfigDataInfoForm(configDataInfo, datatypes);
-				$('div#optionValues').append('<br/>');
+				var divtxt = getHtmlConfigDataInfoForm(configDataInfo, datatypes);
+				result += divtxt + '<br/>';
 			});
+			return result;
 		}
 
-		function addConfigDataInfoForm(configDataInfo, datatypes) {
+		function getHtmlConfigDataInfoForm(configDataInfo, datatypes) {
 			if (configDataInfo.memberType.indexOf('[') == 0) {
 				// array...
-				wrapInArray(configDataInfo.memberType.substring(1, configDataInfo.memberType.length-1),
+				return wrapInArray(configDataInfo.memberType.substring(1, configDataInfo.memberType.length-1),
 					configDataInfo.memberName, datatypes);
 			} else {
 				switch (configDataInfo.memberType) {
 				case "String":
 				case "Text":
 				case "ByteString":
-					addTextOption(configDataInfo.memberName);
-					break;
+					return addTextOption(configDataInfo.memberName);
 				default:
 					// ok we don't know the type,
 					// but maybe it's described in
 					// the config:
-					if (!handleProvidedType(datatypes, configDataInfo.memberType)) {
-						alert("unknown data type: " + configDataInfo.memberType);
-					}
-					break;
+					return getHtmlProvidedType(datatypes, configDataInfo.memberType);
 				}
 			}
 		}
@@ -85,16 +89,13 @@
 		function addTextOption(memberTitle) {
 			// TODO use the label tag for the description
 			// but then i must generate a unique ID.
-			$('div#optionValues').append(memberTitle)
-			.append('<input>', {
-				type: 'text'
-			});
+			return memberTitle + '<input type="text"/>';
 		}
 
 		function wrapInArray(memberTypeInArray, memberTitle, datatypes) {
-			addConfigDataInfoForm({'memberType': memberTypeInArray, 
+			var divContents = getHtmlConfigDataInfoForm({'memberType': memberTypeInArray, 
 				'memberName': memberTitle}, datatypes);
-			$('div#optionValues').append('<+><br/>');
+			return "<div class='arrayWrap'>" + divContents + '<+><br/></div>';
 		}
 
 		function handleConfigPluginInfo(pluginConfig) {

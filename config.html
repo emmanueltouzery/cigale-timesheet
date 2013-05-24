@@ -97,7 +97,7 @@
 
 		function addHtml(elt, pluginName, memberType, memberName) {
 			var datatypes = window.pluginInfos[pluginName].pluginConfig;
-			$(elt).append(getHtmlConfigDataInfoForm(pluginName, {'memberType':memberType,
+			$(elt).before(getHtmlConfigDataInfoForm(pluginName, {'memberType':memberType,
 				'memberName':memberName}, datatypes));
 		}
 

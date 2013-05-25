@@ -12,6 +12,9 @@
 </head>
 <body>
 	<script>
+		// i need to read configVal besides the format
+		// definition, see this to do both queries:
+		// http://stackoverflow.com/questions/8612894/how-to-chain-ajax-calls-using-jquery
 		function loadPluginAndConfigOpts() {
 			$.getJSON('/configdesc', function(data) {
 				window.pluginInfos = {};

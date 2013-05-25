@@ -9,6 +9,7 @@ import Control.Monad.IO.Class
 import qualified Data.Text.Encoding as TE
 
 import qualified Timesheet
+import qualified Settings
 
 main :: IO ()
 main = quickHttpServe site
@@ -18,7 +19,8 @@ site =
     ifTop (serveFile "index.html") <|>
     route [ ("timesheet/:tsparam", timesheet),
             ("configdesc", configdesc),
-            ("config", serveFile "config.html")
+            ("config", serveFile "config.html"),
+            ("configVal", configVal)
           ] <|>
     dir "static" (serveDirectory ".")
 
@@ -35,3 +37,8 @@ handleTimesheet param = do
 
 configdesc :: Snap ()
 configdesc = writeLBS Timesheet.getEventProvidersConfig
+
+configVal :: Snap ()
+configVal = do
+	settingsFolder <- liftIO Settings.getSettingsFolder
+	serveFile $ settingsFolder ++ "config.json"

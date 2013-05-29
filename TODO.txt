@@ -1,6 +1,11 @@
 "config.json" string duplicated in two files
 
+config: display the current config (read-only with edit buttons that
+make the popups appear)
+
 config: in popups, probably use jquery ui Dialog
+
+config: differenciate String and FilePath, browse button for FilePath
 
 redmine: link to wiki diff
 redmine: make me a link to the bug, because I don't get the full info.

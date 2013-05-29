@@ -20,7 +20,6 @@ import EventProvider
 
 data GitRecord = GitRecord
 	{
-		gitProj :: T.Text,
 		gitUser :: T.Text,
 		gitRepo :: T.Text
 	} deriving Show
@@ -35,7 +34,7 @@ getGitProvider = EventProvider
 	}
 
 getRepoCommits :: GitRecord -> GlobalSettings -> Day -> IO [Event.Event]
-getRepoCommits (GitRecord project _username _projectPath) _ date = do
+getRepoCommits (GitRecord _username _projectPath) _ date = do
 	let username = T.unpack _username
 	let projectPath = T.unpack _projectPath
 	(inh, Just outh, errh, pid) <- Process.createProcess
@@ -61,16 +60,15 @@ getRepoCommits (GitRecord project _username _projectPath) _ date = do
 			let myCommits = filter ((isInfixOf username) . commitAuthor) x
 			let myCommitsInInterval = filter (inRange . localDay . commitDate) myCommits
 			let myNonMergeCommitsInInterval = filter (not . commitIsMerge) myCommitsInInterval
-			return $ map (toEvent project _projectPath timezone) myNonMergeCommitsInInterval
+			return $ map (toEvent _projectPath timezone) myNonMergeCommitsInInterval
 	where
 		inRange tdate = (tdate >= date && tdate < (addDays 1 date))
 	
-toEvent :: T.Text -> T.Text -> TimeZone -> Commit -> Event.Event
-toEvent project gitFolderPath timezone commit =
+toEvent :: T.Text -> TimeZone -> Commit -> Event.Event
+toEvent gitFolderPath timezone commit =
 	Event.Event
 		{
 			Event.eventDate = (localTimeToUTC timezone (commitDate commit)),
-			Event.project = (Just $ T.unpack project),
 			Event.desc = case commitDesc commit of
 					Nothing -> "no commit message"
 					Just x -> x,
@@ -83,7 +81,7 @@ getCommitExtraInfo commit gitFolderPath = if atRoot filesRoot then gitRepoName e
 	where
 		filesRoot = T.pack $ Util.getFilesRoot $ commitFiles commit
 		gitRepoName = last $ T.splitOn "/" gitFolderPath
-		atRoot = T.null . T.dropWhile (`elem` "./")
+		atRoot = T.all (`elem` "./")
 
 formatDate :: Day -> String
 formatDate day =

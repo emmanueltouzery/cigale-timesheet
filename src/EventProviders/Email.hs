@@ -27,19 +27,11 @@ import qualified Event
 import EventProvider
 import Util
 
-data EmailConfigRecord = EmailRecord
-	{
-		emailProj :: T.Text,
-		emailPatterns :: [T.Text]
-	} deriving Show
-
 data EmailConfig = EmailConfig
 	{
-		emailPaths :: [String],
-		emailRecords :: [EmailConfigRecord]
+		emailPath :: String
 		
 	} deriving Show
-deriveJSON id ''EmailConfigRecord
 deriveJSON id ''EmailConfig
 
 getEmailProvider :: EventProvider EmailConfig
@@ -47,7 +39,7 @@ getEmailProvider = EventProvider
 	{
 		getModuleName = "Email",
 		getEvents = getEmailEvents,
-		getConfigType = [$(thGetTypeDesc ''EmailConfig), $(thGetTypeDesc ''EmailConfigRecord)]
+		getConfigType = [$(thGetTypeDesc ''EmailConfig)]
 		--getConfigRequirements = SubElementArraySpec [
 		--	SubElementArraySpec [StringFieldSpec "emailPath"],
 		--	SubElementArraySpec [StringFieldSpec "project", SubElementArraySpec [StringFieldSpec "emailPatterns"]]]
@@ -64,33 +56,19 @@ data Email = Email
 	deriving (Eq, Show)
 
 getEmailEvents :: EmailConfig -> GlobalSettings -> Day -> IO [Event.Event]
-getEmailEvents (EmailConfig mboxLocations emailRecordsVal) _ day = do
-	emailsAr <- mapM (\mbox -> getEmails mbox day day) mboxLocations
-	let emails = concat emailsAr
+getEmailEvents (EmailConfig mboxLocation) _ day = do
+	emails <- getEmails mboxLocation day day 
 	timezone <- getCurrentTimeZone
-	return $ map (toEvent emailRecordsVal timezone) emails
+	return $ map (toEvent timezone) emails
 
-toEvent :: [EmailConfigRecord] -> TimeZone -> Email -> Event.Event
-toEvent emailRecordsVal timezone email = Event.Event
+toEvent :: TimeZone -> Email -> Event.Event
+toEvent timezone email = Event.Event
 			{
 				Event.eventDate = localTimeToUTC timezone (date email),
-				Event.project  = getEmailProject email emailRecordsVal,
 				Event.desc = subject email,
 				Event.extraInfo = T.concat["to: ", to email],
 				Event.fullContents = Just $ contents email
 			}
-
-getEmailProject :: Email -> [EmailConfigRecord] -> Maybe Event.Project
-getEmailProject email emailRecordsVal = fmap (T.unpack . emailProj) maybeRecordForEmail
-	where
-		maybeRecordForEmail = find isEmailInRecord emailRecordsVal
-		isEmailInRecord = (emailMatchesPatterns email) . emailPatterns
-
-emailMatchesPatterns :: Email -> [T.Text] -> Bool
-emailMatchesPatterns email addressList = not . null $ filter emailMatches addressList
-	where
-		emailMatches address = address `T.isInfixOf` emailToCc
-		emailToCc = T.concat [to email, fromMaybe "" (cc email)]
 
 
 getEmails :: String -> Day -> Day -> IO [Email]

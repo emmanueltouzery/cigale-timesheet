@@ -18,7 +18,6 @@ import EventProvider
 
 data HgRecord = HgRecord
 	{
-		hgProj :: T.Text,
 		hgUser :: T.Text,
 		hgRepo :: T.Text
 	} deriving Show
@@ -33,7 +32,7 @@ getHgProvider = EventProvider
 	}
 
 getRepoCommits :: HgRecord -> GlobalSettings -> Day -> IO [Event.Event]
-getRepoCommits (HgRecord project _username _projectPath) _ day = do
+getRepoCommits (HgRecord _username _projectPath) _ day = do
 	let username = T.unpack _username
 	let projectPath = T.unpack _projectPath
 	let dateRange = formatDate day
@@ -53,12 +52,12 @@ getRepoCommits (HgRecord project _username _projectPath) _ day = do
 			putStrLn $ "HG: parse error: " ++ Util.displayErrors pe
 			error "Hg parse error, aborting"
 			--return []
-		Right x -> return $ map (toEvent project timezone) x
+		Right x -> return $ map (toEvent timezone) x
 	
-toEvent :: T.Text -> TimeZone -> Commit -> Event.Event
-toEvent project timezone commit =
+toEvent :: TimeZone -> Commit -> Event.Event
+toEvent timezone commit =
 	Event.Event (localTimeToUTC timezone (commitDate commit)) 
-		(Just $ T.unpack project) (commitDesc commit) (T.pack $ Util.getFilesRoot $ commitFiles commit) Nothing
+		(commitDesc commit) (T.pack $ Util.getFilesRoot $ commitFiles commit) Nothing
 
 formatDate :: Day -> String
 formatDate day =

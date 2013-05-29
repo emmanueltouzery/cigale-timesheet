@@ -102,7 +102,6 @@ toEvent :: [ChatRecord] -> Event
 toEvent chatRecords = Event
 		{
 			eventDate = messageTime (head chatRecords),
-			project = Nothing,
 			desc = participantsStr,
 			extraInfo = extraInfoVal,
 			fullContents = Just fullLogEscaped

@@ -36,7 +36,6 @@ eventWithDesc :: T.Text -> Event
 eventWithDesc descVal = Event
 	{
 		eventDate = UTCTime (fromGregorian 2012 4 23) 0,
-		project = Nothing,
 		desc = descVal,
 		extraInfo = "",
 		fullContents = Nothing

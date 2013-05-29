@@ -43,7 +43,6 @@ testBasicEvent = it "parses basic ICAL event" $ do
 		{
 			eventDate = UTCTime (fromGregorian 2013 4 17)
 				(secondsToDiffTime $ 7*3600+30*60),
-			project = Nothing,
 			desc = "spent a lot of time researching bus tables for position records",
 			extraInfo = "End: 09:00; duration: 1:30",
 			fullContents = Nothing

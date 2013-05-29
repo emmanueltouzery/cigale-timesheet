@@ -20,7 +20,6 @@ import Text.Regex.PCRE.Rex
 
 data SvnConfigRecord = SvnConfigRecord
 	{
-		svnProj :: String,
 		svnUser :: String,
 		svnRepo :: String
 	} deriving Show
@@ -49,13 +48,13 @@ getRepoCommits config _ date = do
 			error "Svn parse error, aborting"
 			--return []
 		Right x -> finishGetRepoCommits x date date
-			(T.pack $ svnUser config) (T.pack $ svnProj config)
+			(T.pack $ svnUser config)
 	where
 		-- TODO this is my best parsec parse error display yet.
 		-- share it with hg and ical
 
-finishGetRepoCommits :: [Commit] -> Day -> Day -> T.Text -> T.Text -> IO [Event.Event]
-finishGetRepoCommits commits startDate endDate username projectName = do
+finishGetRepoCommits :: [Commit] -> Day -> Day -> T.Text -> IO [Event.Event]
+finishGetRepoCommits commits startDate endDate username = do
 	let myCommits = filter ((==username) . user) commits
 	-- need to filter again by date, because SVN obviously
 	-- returns me commits which are CLOSE to the dates I
@@ -63,7 +62,7 @@ finishGetRepoCommits commits startDate endDate username projectName = do
 	-- requested...
 	let myCommitsInInterval = filter ((\d -> d >= startDate && d <= endDate) . localDay . date) myCommits
 	timezone <- getCurrentTimeZone
-	return $ map (toEvent (T.unpack projectName) timezone) myCommitsInInterval
+	return $ map (toEvent timezone) myCommitsInInterval
 
 data Commit = Commit
 	{
@@ -74,9 +73,9 @@ data Commit = Commit
 	}
 	deriving (Eq, Show)
 
-toEvent :: String -> TimeZone -> Commit -> Event.Event
-toEvent projectName timezone (Commit dateVal _ commentVal cFiles) =
-	Event.Event (localTimeToUTC timezone dateVal) (Just projectName)
+toEvent :: TimeZone -> Commit -> Event.Event
+toEvent timezone (Commit dateVal _ commentVal cFiles) =
+	Event.Event (localTimeToUTC timezone dateVal)
 		commentVal (T.pack $ Util.getFilesRoot cFilesStr) Nothing
 	where
 		cFilesStr = map T.unpack cFiles

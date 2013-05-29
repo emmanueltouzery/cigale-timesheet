@@ -118,7 +118,6 @@ parseBugNodes :: RedmineConfig -> Day -> TimeZone -> [Cursor] -> [Event]
 parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) = if authorName == redmineUserDisplay config
 		then Event
 			{
-				project = Nothing, -- TODO
 				desc = bugTitle,
 				extraInfo =  bugComment,
 				fullContents = Nothing,

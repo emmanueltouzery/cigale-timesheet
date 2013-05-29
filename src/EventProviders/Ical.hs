@@ -114,7 +114,7 @@ parseEvent = do
 	return $ Map.fromList keyValues
 
 keyValuesToEvent :: Map String CalendarValue -> Event.Event
-keyValuesToEvent records = Event.Event startDate Nothing desc extraInfo Nothing
+keyValuesToEvent records = Event.Event startDate desc extraInfo Nothing
 	where
 		desc = T.concat [T.pack $ fromLeaf $ records ! "DESCRIPTION",
 				 T.pack $ fromLeaf $ records ! "SUMMARY"]

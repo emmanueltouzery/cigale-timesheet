@@ -136,15 +136,14 @@
 			$('#pleasehold').show();
 			$('table#eventsTable').scrollTop(0);
 			$('table#eventsTable').empty();
-			$('table#eventsTable').append("<tr><th>Project</th><th>Time</th>"
+			$('table#eventsTable').append("<tr><th>Time</th>"
 				+ "<th>Event type</th><th>Description</th><th>Extra info</th></tr>")
 			$.getJSON('/timesheet/' + getDateStr(), function(data) {
 				$.each(data, function(index, valueAr) {
 					var eventType = valueAr[0];
 					var value = valueAr[1];
 					$('table#eventsTable').append("<tr>"
-							+ "<td>" + value.project
-							+ "</td><td>" + formatTime(value.eventDate)
+							+ "<td>" + formatTime(value.eventDate)
 							+ "</td><td>" + eventType
 							+ "</td><td>" + value.desc 
 							/* without the nbsp, the dashed border around the last cell doesn't work */

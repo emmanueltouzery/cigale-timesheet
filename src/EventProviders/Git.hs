@@ -61,12 +61,12 @@ getRepoCommits (GitRecord project _username _projectPath) _ date = do
 			let myCommits = filter ((isInfixOf username) . commitAuthor) x
 			let myCommitsInInterval = filter (inRange . localDay . commitDate) myCommits
 			let myNonMergeCommitsInInterval = filter (not . commitIsMerge) myCommitsInInterval
-			return $ map (toEvent project timezone) myNonMergeCommitsInInterval
+			return $ map (toEvent project _projectPath timezone) myNonMergeCommitsInInterval
 	where
 		inRange tdate = (tdate >= date && tdate < (addDays 1 date))
 	
-toEvent :: T.Text -> TimeZone -> Commit -> Event.Event
-toEvent project timezone commit =
+toEvent :: T.Text -> T.Text -> TimeZone -> Commit -> Event.Event
+toEvent project gitFolderPath timezone commit =
 	Event.Event
 		{
 			Event.eventDate = (localTimeToUTC timezone (commitDate commit)),
@@ -74,9 +74,16 @@ toEvent project timezone commit =
 			Event.desc = case commitDesc commit of
 					Nothing -> "no commit message"
 					Just x -> x,
-			Event.extraInfo = (T.pack $ Util.getFilesRoot $ commitFiles commit),
+			Event.extraInfo = getCommitExtraInfo commit gitFolderPath,
 			Event.fullContents = Just $ T.pack $ commitContents commit
 		}
+
+getCommitExtraInfo :: Commit -> T.Text -> T.Text
+getCommitExtraInfo commit gitFolderPath = if atRoot filesRoot then gitRepoName else filesRoot
+	where
+		filesRoot = T.pack $ Util.getFilesRoot $ commitFiles commit
+		gitRepoName = last $ T.splitOn "/" gitFolderPath
+		atRoot = T.null . T.dropWhile (\c -> c == '.' || c == '/')
 
 formatDate :: Day -> String
 formatDate day =

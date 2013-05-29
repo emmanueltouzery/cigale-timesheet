@@ -1,8 +1,5 @@
 "config.json" string duplicated in two files
 
-in git if the only common path is the root (currently displaying .../)
-then display the repo name
-
 get rid of the "project" column I think. will simplify email, too.
 
 email is abnormal, because it takes an array of folders. the reason is

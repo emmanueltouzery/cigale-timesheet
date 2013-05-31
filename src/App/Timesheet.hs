@@ -11,6 +11,7 @@ import Data.Time
 import Data.Maybe
 import Data.Aeson
 import Data.Aeson.TH (deriveJSON)
+import Data.HashMap.Strict (fromList)
 
 import GHC.Exts
 
@@ -84,5 +85,4 @@ data PluginConfig = PluginConfig
 deriveJSON id ''PluginConfig
 
 getEventProvidersConfig :: BL.ByteString
-getEventProvidersConfig = JSON.encode $ fmap (\p -> PluginConfig {
-			pluginName = getModuleName p, pluginConfig = getConfigType p}) plugins
+getEventProvidersConfig = JSON.encode $ fromList $ fmap (\p -> (getModuleName p, getConfigType p)) plugins

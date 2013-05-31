@@ -16,18 +16,16 @@
 		// definition, see this to do both queries:
 		// http://stackoverflow.com/questions/8612894/how-to-chain-ajax-calls-using-jquery
 		function loadPluginAndConfigOpts() {
-			$.getJSON('/configdesc', function(data) {
-				window.pluginInfos = {};
+			window.pluginInfos = {};
+			$.each(window.configSpec, function(index, pluginInfo) {
+				handleConfigPluginInfo(pluginInfo);
+			});
+			$('#pluginAddCombo').change(function(e) {
+				var pluginName = $(this).val();
 				$.each(data, function(index, pluginInfo) {
-					handleConfigPluginInfo(pluginInfo);
-				});
-				$('#pluginAddCombo').change(function(e) {
-					var pluginName = $(this).val();
-					$.each(data, function(index, pluginInfo) {
-						if (pluginInfo.pluginName === pluginName) {
-							prepareAddPluginForm(pluginInfo);
-						}
-					});
+					if (pluginInfo.pluginName === pluginName) {
+						prepareAddPluginForm(pluginInfo);
+					}
 				});
 			});
 		}
@@ -127,13 +125,38 @@
 
 		}
 
+		function loadCurConfig() {
+			var byPlugin = {};
+			for (var pluginName in configByPlugin) {
+				$.each(configByPlugin[pluginName], function(idx, config) {
+					addPluginConfig(pluginName, config);
+				});
+			}
+		}
+
+		function addPluginConfig(pluginName, config) {
+		}
+
 		$(document).ready(function() {
-			loadPluginAndConfigOpts();
+			$.getJSON('/configVal', function(configByPlugin) {
+				window.configByPlugin = configByPlugin;
+				if (window.configSpec != null) {
+					loadCurConfig();
+				}
+			});
+			$.getJSON('/configdesc', function(data) {
+				window.configSpec = data;
+				if (window.configByPlugin != null) {
+					loadCurConfig();
+				}
+			});
+			//loadPluginAndConfigOpts();
 		});
 	</script>
 	Pick the plugin to add:
 	<select id="pluginAddCombo"></select>
 	<div id="optionValues"></div>
+	<div id="curConfig"><div>
 </body>
 </html>
 

@@ -19,6 +19,8 @@ any folder.
 
 migrate to scotty instead of snap? https://github.com/xich/scotty
 
+rewrite client-side in elm?
+
 port to http-conduit with the new nice API i made.
 
 make relocatable so i can start it from any folder.

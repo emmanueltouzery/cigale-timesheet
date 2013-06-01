@@ -20,6 +20,7 @@
 	<script>
 		function loadPluginAndConfigOpts() {
 			window.pluginInfos = {};
+			$("#pluginAddCombo").append('<option></option>');
 			for (var pluginName in window.configSpec) {
 				$('#pluginAddCombo').append($('<option>', {
 					value: pluginName,
@@ -29,7 +30,11 @@
 			}
 			$('#pluginAddCombo').change(function(e) {
 				var pluginName = $(this).val();
-				prepareAddPluginForm(pluginName, window.pluginInfos[pluginName]);
+				if (pluginName == "") {
+					$('div#optionValues').empty();
+				} else {
+					prepareAddPluginForm(pluginName, window.pluginInfos[pluginName]);
+				}
 			});
 		}
 
@@ -183,6 +188,8 @@
 			$('a#addEventButton')
 				.button()
 				.click(function(event) {
+					$('#pluginAddCombo').val($("#pluginAddCombo option:first").val());
+					$('div#optionValues').empty();
 					$('#addPopup').dialog('open');
 				});
 		});

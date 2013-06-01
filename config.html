@@ -42,6 +42,11 @@
 					configDataInfo, datatypes);
 				$('div#optionValues').append(divtxt + '<br/>');
 			});
+			$('div#optionValues').append("<a href='#' id='addBtn'>Add</a>");
+			$('a#addBtn').button().click(function(event) {
+				// TODO actually add plugin
+				$('div#addPopup').dialog('close');
+			});
 		}
 
 		function getHtmlProvidedType(pluginName, providedTypes, typename) {
@@ -146,7 +151,7 @@
 				title: 'Add event provider',
 				modal: true,
 				width: dialogWidth,
-				position: [($(window).width() / 2) - (dialogWidth / 2), 150]
+				position: [($(window).width() / 2) - (dialogWidth / 2), 100]
 			});
 			$.when($.getJSON('/configVal'),
 				$.getJSON('/configdesc'))
@@ -156,9 +161,14 @@
 				loadCurConfig();
 				loadPluginAndConfigOpts();
 			});
+			$('a#addEventButton')
+				.button()
+				.click(function(event) {
+					$('#addPopup').dialog('open');
+				});
 		});
 	</script>
-	<a href="#" onclick="$('#addPopup').dialog('open')">Add event provider...</a>
+	<a href="#" id="addEventButton">Add event provider...</a>
 	<div id="addPopup">
 		Pick the plugin to add:
 		<select id="pluginAddCombo"></select>

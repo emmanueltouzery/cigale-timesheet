@@ -8,6 +8,10 @@
 		div.arrayWrap {
 			border: 1px solid;
 		}
+		div.configblock {
+			background: aliceblue;
+			margin: 5px;
+		}
 	</style>
 </head>
 <body>
@@ -115,13 +119,21 @@
 		function loadCurConfig() {
 			var byPlugin = {};
 			for (var pluginName in window.configByPlugin) {
+				$('div#curConfig').append("<h3>" +
+					pluginName + "</h3>");
 				$.each(configByPlugin[pluginName], function(idx, config) {
-					addPluginConfig(pluginName, config);
+					addPluginConfig(config);
 				});
 			}
 		}
 
-		function addPluginConfig(pluginName, config) {
+		function addPluginConfig(config) {
+			var contents = "<table>";
+			for (var member in config) {
+				contents += "<tr><td>" + member + "</td><td>" + config[member] + "</td></tr>";
+			}
+			contents += "</table>";
+			$('div#curConfig').append("<div class='configblock'>" + contents + "</div>");
 		}
 
 		$(document).ready(function() {

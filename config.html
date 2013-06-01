@@ -12,30 +12,26 @@
 </head>
 <body>
 	<script>
-		// i need to read configVal besides the format
-		// definition, see this to do both queries:
-		// http://stackoverflow.com/questions/8612894/how-to-chain-ajax-calls-using-jquery
 		function loadPluginAndConfigOpts() {
 			window.pluginInfos = {};
-			$.each(window.configSpec, function(index, pluginInfo) {
-				handleConfigPluginInfo(pluginInfo);
-			});
+			for (var pluginName in window.configSpec) {
+				$('#pluginAddCombo').append($('<option>', {
+					value: pluginName,
+					text : pluginName})
+				);
+				window.pluginInfos[pluginName] = window.configSpec[pluginName];
+			}
 			$('#pluginAddCombo').change(function(e) {
 				var pluginName = $(this).val();
-				$.each(data, function(index, pluginInfo) {
-					if (pluginInfo.pluginName === pluginName) {
-						prepareAddPluginForm(pluginInfo);
-					}
-				});
+				prepareAddPluginForm(pluginName, window.pluginInfos[pluginName]);
 			});
 		}
 
-		function prepareAddPluginForm(pluginConfig) {
+		function prepareAddPluginForm(pluginName, datatypes) {
 			$('div#optionValues').append("<h3>" +
-				pluginConfig.pluginName + "</h3>");
-			var datatypes = pluginConfig.pluginConfig;
+				pluginName + "</h3>");
 			$.each(datatypes[0].members, function(index, configDataInfo) {
-				var divtxt = getHtmlConfigDataInfoForm(pluginConfig.pluginName,
+				var divtxt = getHtmlConfigDataInfoForm(pluginName,
 					configDataInfo, datatypes);
 				$('div#optionValues').append(divtxt + '<br/>');
 			});
@@ -116,18 +112,9 @@
 			return result;
 		}
 
-		function handleConfigPluginInfo(pluginConfig) {
-			$('#pluginAddCombo').append($('<option>', {
-				value: pluginConfig.pluginName,
-				text : pluginConfig.pluginName})
-			);
-			window.pluginInfos[pluginConfig.pluginName] = pluginConfig;
-
-		}
-
 		function loadCurConfig() {
 			var byPlugin = {};
-			for (var pluginName in configByPlugin) {
+			for (var pluginName in window.configByPlugin) {
 				$.each(configByPlugin[pluginName], function(idx, config) {
 					addPluginConfig(pluginName, config);
 				});
@@ -138,19 +125,14 @@
 		}
 
 		$(document).ready(function() {
-			$.getJSON('/configVal', function(configByPlugin) {
-				window.configByPlugin = configByPlugin;
-				if (window.configSpec != null) {
-					loadCurConfig();
-				}
+			$.when($.getJSON('/configVal'),
+				$.getJSON('/configdesc'))
+			.then(function(configByPluginResponse, configSpecResponse) {
+				window.configSpec = configSpecResponse[0];
+				window.configByPlugin = configByPluginResponse[0];
+				loadCurConfig();
+				loadPluginAndConfigOpts();
 			});
-			$.getJSON('/configdesc', function(data) {
-				window.configSpec = data;
-				if (window.configByPlugin != null) {
-					loadCurConfig();
-				}
-			});
-			//loadPluginAndConfigOpts();
 		});
 	</script>
 	Pick the plugin to add:

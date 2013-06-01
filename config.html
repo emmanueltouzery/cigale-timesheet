@@ -44,11 +44,13 @@
 			});
 			$('div#optionValues').append("<a href='#' id='addBtn'>Add</a>");
 			$('a#addBtn').button().click(function(event) {
+				var newPluginSettings = {};
 				$.each(datatypes[0].members, function(index, configDataInfo) {
-					alert(getOptionValue(pluginName,
-						configDataInfo, datatypes, index));
+					newPluginSettings[configDataInfo['memberName']] = 
+						getOptionValue(pluginName, configDataInfo, datatypes, index);
 				});
-				//addPlugin(pluginName, );
+				window.configByPlugin[pluginName].push(newPluginSettings);
+				loadCurConfig();
 				$('div#addPopup').dialog('close');
 			});
 		}
@@ -141,6 +143,7 @@
 		//}
 
 		function loadCurConfig() {
+			$('div#curConfig').empty();
 			var byPlugin = {};
 			for (var pluginName in window.configByPlugin) {
 				$('div#curConfig').append("<h3>" +

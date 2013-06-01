@@ -4,6 +4,8 @@
 		Config
 	</title>
 	<script type='text/javascript' src='/static/jquery-1.8.3.min.js'></script>
+	<script type='text/javascript' src='/static/jquery-ui-1.9.2/js/jquery-ui-1.9.2.custom.min.js'></script>
+	<link href="/static/jquery-ui-1.9.2/css/smoothness/jquery-ui-1.9.2.custom.css" rel="stylesheet">
 	<style>
 		div.arrayWrap {
 			border: 1px solid;
@@ -32,6 +34,7 @@
 		}
 
 		function prepareAddPluginForm(pluginName, datatypes) {
+			$('div#optionValues').empty();
 			$('div#optionValues').append("<h3>" +
 				pluginName + "</h3>");
 			$.each(datatypes[0].members, function(index, configDataInfo) {
@@ -137,6 +140,14 @@
 		}
 
 		$(document).ready(function() {
+			var dialogWidth=360;
+			$('#addPopup').dialog({
+				autoOpen: false,
+				title: 'Add event provider',
+				modal: true,
+				width: dialogWidth,
+				position: [($(window).width() / 2) - (dialogWidth / 2), 150]
+			});
 			$.when($.getJSON('/configVal'),
 				$.getJSON('/configdesc'))
 			.then(function(configByPluginResponse, configSpecResponse) {
@@ -147,9 +158,12 @@
 			});
 		});
 	</script>
-	Pick the plugin to add:
-	<select id="pluginAddCombo"></select>
-	<div id="optionValues"></div>
+	<a href="#" onclick="$('#addPopup').dialog('open')">Add event provider...</a>
+	<div id="addPopup">
+		Pick the plugin to add:
+		<select id="pluginAddCombo"></select>
+		<div id="optionValues"></div>
+	</div>
 	<div id="curConfig"><div>
 </body>
 </html>

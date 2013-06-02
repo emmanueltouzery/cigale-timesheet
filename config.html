@@ -41,11 +41,11 @@
 		function prepareAddPluginForm(pluginName, datatypes) {
 			$('div#optionValues').empty();
 			$('div#optionValues').append("<h3>" +
-				pluginName + "</h3>");
+				pluginName + "</h3><table>");
 			$.each(datatypes[0].members, function(index, configDataInfo) {
 				var divtxt = getHtmlConfigDataInfoForm(pluginName,
 					configDataInfo, datatypes, index);
-				$('div#optionValues').append(divtxt + '<br/>');
+				$('div#optionValues').append(divtxt + '</table>');
 			});
 			$('div#optionValues').append("<a href='#' id='addBtn'>Add</a>");
 			$('a#addBtn').button().click(function(event) {
@@ -61,34 +61,6 @@
 				$('div#addPopup').dialog('close');
 			});
 		}
-
-		// function getHtmlProvidedType(pluginName, providedTypes, typename) {
-		// 	var result = null;
-		// 	$.each(providedTypes, function(idx, val) {
-		// 		if (val.dataName === typename) {
-		// 			result = getHtmlProvidedTypeForm(pluginName, val, providedTypes);
-		// 			return false;
-		// 		}
-		// 		if ('[' + val.dataName + ']' === typename) {
-		// 			// array of that type..
-		// 			result = getHtmlProvidedTypeForm(pluginName, val, providedTypes);
-		// 			return false;
-		// 		}
-		// 	});
-		// 	if (result == null) {
-		// 		alert("failed to handle type " + typename);
-		// 	}
-		// 	return result;
-		// }
-
-		// function getHtmlProvidedTypeForm(pluginName, configDataType, datatypes) {
-		// 	var result = "";
-		// 	$.each(configDataType.members, function(idx, configDataInfo) {
-		// 		var divtxt = getHtmlConfigDataInfoForm(pluginName, configDataInfo, datatypes);
-		// 		result += divtxt + '<br/>';
-		// 	});
-		// 	return result;
-		// }
 
 		function getHtmlConfigDataInfoForm(pluginName, configDataInfo, datatypes, index) {
 			if (configDataInfo.memberType.indexOf('[') == 0) {
@@ -124,7 +96,7 @@
 		function addTextOption(memberTitle, index) {
 			// TODO use the label tag for the description
 			// but then i must generate a unique ID.
-			return memberTitle + '<input type="text" id="text' + index + '"/>';
+			return '<tr><td>' + memberTitle + '</td><td><input type="text" id="text' + index + '"/></td></tr>';
 		}
 
 		function loadCurConfig() {
@@ -149,7 +121,7 @@
 		}
 
 		$(document).ready(function() {
-			var dialogWidth=360;
+			var dialogWidth=450;
 			$('#addPopup').dialog({
 				autoOpen: false,
 				title: 'Add event provider',

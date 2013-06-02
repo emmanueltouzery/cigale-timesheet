@@ -55,6 +55,8 @@
 						getOptionValue(pluginName, configDataInfo, datatypes, index);
 				});
 				window.configByPlugin[pluginName].push(newPluginSettings);
+				// TODO!
+				sendConfigToServer(window.configByPlugin);
 				loadCurConfig();
 				$('div#addPopup').dialog('close');
 			});
@@ -89,12 +91,10 @@
 		// }
 
 		function getHtmlConfigDataInfoForm(pluginName, configDataInfo, datatypes, index) {
-			// if (configDataInfo.memberType.indexOf('[') == 0) {
-			// 	// array...
-			// 	return wrapInArray(pluginName,
-			// 		configDataInfo.memberType.substring(1, configDataInfo.memberType.length-1),
-			// 		configDataInfo.memberName, datatypes);
-			// } else {
+			if (configDataInfo.memberType.indexOf('[') == 0) {
+				// array...
+				alert("arrays not implemented yet! An old version was wiped from GIT on 2013-06-2");
+			} else {
 				switch (configDataInfo.memberType) {
 				case "String":
 				case "Text":
@@ -106,7 +106,7 @@
 					// the config:
 					return getHtmlProvidedType(pluginName, datatypes, configDataInfo.memberType);
 				}
-			// }
+			}
 		}
 
 		function getOptionValue(pluginName, configDataInfo, datatypes, index) {
@@ -126,26 +126,6 @@
 			// but then i must generate a unique ID.
 			return memberTitle + '<input type="text" id="text' + index + '"/>';
 		}
-
-		// function addHtml(elt, pluginName, memberType, memberName) {
-		// 	var datatypes = window.pluginInfos[pluginName].pluginConfig;
-		// 	$(elt).before(getHtmlConfigDataInfoForm(pluginName, {'memberType':memberType,
-		// 		'memberName':memberName}, datatypes));
-		// }
-
-		//function wrapInArray(pluginName, memberTypeInArray, memberTitle, datatypes) {
-		//	var divContents = getHtmlConfigDataInfoForm(pluginName,
-		//		{'memberType': memberTypeInArray, 'memberName': memberTitle}, datatypes);
-		//	var result = "<div class='arrayWrap'>" + divContents +
-		//		'<span onclick="addHtml(this, \'' +
-		//			pluginName +'\',\''+
-		//			memberTypeInArray+'\',\''+
-		//			memberTitle +
-		//			'\');">&lt;+&gt;</span>' +
-		//		'<br/></div>';
-		//	//alert(result);
-		//	return result;
-		//}
 
 		function loadCurConfig() {
 			$('div#curConfig').empty();

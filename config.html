@@ -55,10 +55,18 @@
 						getOptionValue(pluginName, configDataInfo, datatypes, index);
 				});
 				window.configByPlugin[pluginName].push(newPluginSettings);
-				// TODO!
 				sendConfigToServer(window.configByPlugin);
 				loadCurConfig();
 				$('div#addPopup').dialog('close');
+			});
+		}
+
+		function sendConfigToServer(jsonObj) {
+			$.ajax({
+				url: '/configUpdate',
+				data: JSON.stringify(jsonObj),
+				contentType: 'application/json',
+				type: 'post'
 			});
 		}
 

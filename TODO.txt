@@ -1,3 +1,5 @@
+ability to remove settings
+
 "config.json" string duplicated in two files
 
 settings.hs and config.hs?? seriously???

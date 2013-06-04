@@ -14,6 +14,9 @@
 			background: aliceblue;
 			margin: 5px;
 		}
+		.removeSpan {
+			float: right;
+		}
 	</style>
 </head>
 <body>
@@ -114,18 +117,19 @@
 				$('div#curConfig').append("<h3>" +
 					pluginName + "</h3>");
 				$.each(configByPlugin[pluginName], function(idx, config) {
-					addPluginConfig(config);
+					addPluginConfig(idx, config);
 				});
 			}
 		}
 
-		function addPluginConfig(config) {
+		function addPluginConfig(idx, config) {
 			var contents = "<table>";
 			for (var member in config) {
 				contents += "<tr><td>" + member + "</td><td>" + config[member] + "</td></tr>";
 			}
 			contents += "</table>";
-			$('div#curConfig').append("<div class='configblock'>" + contents + "</div>");
+			var removeBlock = '<span class="removeSpan" onclick="alert(\'TODO\')">[remove]</span>';
+			$('div#curConfig').append("<div class='configblock'>" + removeBlock + contents + "</div>");
 		}
 
 		$(document).ready(function() {

@@ -7,9 +7,13 @@ import Snap.Util.FileServe
 import Snap.Http.Server
 import Control.Monad.IO.Class
 import qualified Data.Text.Encoding as TE
+import System.Directory
+import System.IO
+import Data.ByteString.Lazy (hPut)
 
 import qualified Timesheet
 import qualified Settings
+import qualified Config (getConfigFileName)
 
 main :: IO ()
 main = quickHttpServe site
@@ -20,7 +24,8 @@ site =
     route [ ("timesheet/:tsparam", timesheet),
             ("configdesc", configdesc),
             ("config", serveFile "config.html"),
-            ("configVal", configVal)
+            ("configVal", configVal),
+            ("configUpdate", configUpdate)
           ] <|>
     dir "static" (serveDirectory ".")
 
@@ -40,5 +45,14 @@ configdesc = writeLBS Timesheet.getEventProvidersConfig
 
 configVal :: Snap ()
 configVal = do
-	settingsFolder <- liftIO Settings.getSettingsFolder
-	serveFile $ settingsFolder ++ "config.json"
+	settingsFile <- liftIO Config.getConfigFileName
+	serveFile $ settingsFile
+
+configUpdate :: Snap ()
+configUpdate = do
+	configFileName <- liftIO Config.getConfigFileName
+	liftIO $ renameFile configFileName (configFileName ++ ".bak")
+	outH <- liftIO $ openFile configFileName WriteMode
+	requestBody <- readRequestBody 64000
+	liftIO $ hPut outH requestBody
+	liftIO $ hClose outH

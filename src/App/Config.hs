@@ -11,10 +11,13 @@ import Data.Maybe
 import EventProvider
 import qualified Settings (getSettingsFolder)
 
+getConfigFileName :: IO String
+getConfigFileName = fmap (++"config.json") Settings.getSettingsFolder 
+
 readConfig :: FromJSON a => [EventProvider a] -> IO [(EventProvider a, a)]
 readConfig plugins = do
-	settingsFolder <- Settings.getSettingsFolder
-	input <- BL.readFile $ settingsFolder ++ "config.json"
+	settingsFile <- getConfigFileName
+	input <- BL.readFile $ settingsFile
 	let parsed = decode input :: Maybe (HashMap String Array)
 	case parsed of
 		Nothing -> do
@@ -22,8 +25,6 @@ readConfig plugins = do
 		Just configMap -> do
 				putStrLn "config IS valid JSON"
 				return $ concatMap (processConfigItem plugins) (toList configMap)
-		_ -> do
-			printAndFail "invalid config, must be an array of plugin options"
 
 printAndFail :: String -> IO [(EventProvider a, a)]
 printAndFail msg = do

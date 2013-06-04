@@ -1,5 +1,7 @@
 "config.json" string duplicated in two files
 
+settings.hs and config.hs?? seriously???
+
 config: display the current config (read-only with edit buttons that
 make the popups appear)
 

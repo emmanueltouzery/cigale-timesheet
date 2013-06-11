@@ -77,7 +77,9 @@ Executable timesheet
      time,
      transformers,
      snap-core,
-     snap-server
+     snap-server,
+     Elm,
+     blaze-html
 
   if impl(ghc >= 6.12.0)
     ghc-options: -threaded -Wall -funbox-strict-fields -O2

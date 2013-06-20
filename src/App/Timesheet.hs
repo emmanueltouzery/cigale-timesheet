@@ -44,8 +44,8 @@ processConfig monthStr config = do
 	settings <- getGlobalSettings 
 	allEventsSeq <- sequence $ map (uncurry $ fetchProvider settings date) config
 	let allEvents = foldl (++) [] allEventsSeq
-	let sortedEvents = sortWith (Event.eventDate . snd) allEvents
-	let eventDates = fmap (Event.eventDate . snd) sortedEvents
+	let sortedEvents = sortWith Event.eventDate allEvents
+	let eventDates = fmap Event.eventDate sortedEvents
 	let eventDatesLocal = fmap (utcToLocalTime myTz) eventDates
 	putStrLn "after the fetching!"
 	-- well would be faster to just check the first and last
@@ -68,14 +68,13 @@ getGlobalSettings = do
 	settingsFolder <- Settings.getSettingsFolder
 	return $ GlobalSettings { getSettingsFolder = settingsFolder }
 
-fetchProvider :: GlobalSettings -> Day -> EventProvider Value -> Value -> IO ([(String, Event)])
+fetchProvider :: GlobalSettings -> Day -> EventProvider Value -> Value -> IO [Event]
 fetchProvider settings day provider config = do
 	putStrLn $ "fetching from " ++ (getModuleName provider)
 	print config
 	events <- getEvents provider config settings day
 	putStrLn $ "found " ++ (show $ length events) ++ " events."
-	putStrLn "done!"
-	return $ fmap (\a -> (getModuleName provider, a)) events
+	return events
 
 data PluginConfig = PluginConfig
 	{

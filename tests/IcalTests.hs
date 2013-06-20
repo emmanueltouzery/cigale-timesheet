@@ -10,10 +10,12 @@ import qualified Data.Map as Map
 import Data.Time.Clock
 import Data.Time.Calendar
 
+
 import Str
 import Ical
 import Util
 import Event
+import EventProvider
 
 import TestUtil
 
@@ -41,6 +43,7 @@ testBasicEvent = it "parses basic ICAL event" $ do
 			|]
 	let expected = Event
 		{
+			pluginName = getModuleName getIcalProvider,
 			eventDate = UTCTime (fromGregorian 2013 4 17)
 				(secondsToDiffTime $ 7*3600+30*60),
 			desc = "spent a lot of time researching bus tables for position records",

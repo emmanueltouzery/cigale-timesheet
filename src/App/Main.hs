@@ -41,9 +41,9 @@ timesheet :: Snap ()
 timesheet = do
     modifyResponse $ setContentType "application/json"
     setTimeout 3600
-    param <- getParam "tsparam"
+    tsparam <- getParam "tsparam"
     maybe (writeBS "must specify the month and year in URL, like so: /timesheet/2012-11")
-          handleTimesheet param
+          handleTimesheet tsparam
 
 serveElm :: Snap ()
 serveElm = do
@@ -56,8 +56,8 @@ serveElm = do
 	let compiled = docTypeHtml $ Elm.toHtml elmJsLoc "Timesheet" elmSource
 	writeLBS $ DBLC.pack $ renderHtml compiled
 
-handleTimesheet param = do
-	jsonData <- liftIO $ Timesheet.process $ TE.decodeUtf8 param
+handleTimesheet tsparam = do
+	jsonData <- liftIO $ Timesheet.process $ TE.decodeUtf8 tsparam
 	writeLBS jsonData
 
 configdesc :: Snap ()

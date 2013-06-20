@@ -9,6 +9,7 @@ import GHC.Generics
 
 data Event = Event
 	{
+		pluginName :: String,
 		eventDate :: UTCTime,
 		desc :: T.Text,
 		extraInfo :: T.Text,

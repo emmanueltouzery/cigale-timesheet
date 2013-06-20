@@ -1,5 +1,6 @@
 import Http
 import Json
+import JavaScript.Experimental
 
 -- do i really have an array, or is it maybe a hash?
 serverJson : Signal [JsonValue]
@@ -7,7 +8,7 @@ serverJson = let jsonTxtSig = lift respStr (Http.sendGet (constant "/timesheet/2
              in lift getJsonArray jsonTxtSig
 
 getJsonArray : String -> [JsonValue]
-getJsonArray jsonTxt = case Json.fromString jsonTxt of
+getJsonArray jsonTxt = case JavaScript.Experimental.fromRecord jsonTxt of --case Json.fromString jsonTxt of
                         Just (Array x) -> x
                         _ -> []
 

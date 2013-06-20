@@ -101,6 +101,7 @@ messageByChatInfo dbRow = (fromSql $ head dbRow,
 toEvent :: [ChatRecord] -> Event
 toEvent chatRecords = Event
 		{
+			pluginName = getModuleName getSkypeProvider,
 			eventDate = messageTime (head chatRecords),
 			desc = participantsStr,
 			extraInfo = extraInfoVal,

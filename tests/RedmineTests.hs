@@ -9,6 +9,7 @@ import Data.Time.Calendar
 
 import qualified Data.Text as T
 import Event
+import EventProvider
 
 import Redmine
 
@@ -35,6 +36,7 @@ runRedmineTests = do
 eventWithDesc :: T.Text -> Event
 eventWithDesc descVal = Event
 	{
+		pluginName = getModuleName getRedmineProvider,
 		eventDate = UTCTime (fromGregorian 2012 4 23) 0,
 		desc = descVal,
 		extraInfo = "",

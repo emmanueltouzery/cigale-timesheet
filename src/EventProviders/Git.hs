@@ -14,7 +14,7 @@ import Data.List (isInfixOf, intercalate)
 import Data.Aeson.TH (deriveJSON)
 import Data.Maybe
 
-import qualified Event as Event
+import Event as Event
 import qualified Util
 import EventProvider
 
@@ -68,12 +68,13 @@ toEvent :: T.Text -> TimeZone -> Commit -> Event.Event
 toEvent gitFolderPath timezone commit =
 	Event.Event
 		{
-			Event.eventDate = (localTimeToUTC timezone (commitDate commit)),
-			Event.desc = case commitDesc commit of
-					Nothing -> "no commit message"
-					Just x -> x,
-			Event.extraInfo = getCommitExtraInfo commit gitFolderPath,
-			Event.fullContents = Just $ T.pack $ commitContents commit
+			pluginName = getModuleName getGitProvider,
+			eventDate = (localTimeToUTC timezone (commitDate commit)),
+			desc = case commitDesc commit of
+			  	Nothing -> "no commit message"
+			  	Just x -> x,
+			extraInfo = getCommitExtraInfo commit gitFolderPath,
+			fullContents = Just $ T.pack $ commitContents commit
 		}
 
 getCommitExtraInfo :: Commit -> T.Text -> T.Text

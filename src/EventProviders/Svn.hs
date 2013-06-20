@@ -13,7 +13,7 @@ import qualified Text.Parsec as T
 import Data.Aeson.TH
 
 import qualified Util
-import qualified Event
+import Event as Event
 import EventProvider
 
 import Text.Regex.PCRE.Rex
@@ -75,8 +75,14 @@ data Commit = Commit
 
 toEvent :: TimeZone -> Commit -> Event.Event
 toEvent timezone (Commit dateVal _ commentVal cFiles) =
-	Event.Event (localTimeToUTC timezone dateVal)
-		commentVal (T.pack $ Util.getFilesRoot cFilesStr) Nothing
+	Event.Event
+		{
+			pluginName = getModuleName getSvnProvider,
+			eventDate = localTimeToUTC timezone dateVal,
+			desc = commentVal,
+			extraInfo = T.pack $ Util.getFilesRoot cFilesStr,
+			fullContents = Nothing
+		}
 	where
 		cFilesStr = map T.unpack cFiles
 

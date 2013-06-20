@@ -139,9 +139,8 @@
 			$('table#eventsTable').append("<tr><th>Time</th>"
 				+ "<th>Event type</th><th>Description</th><th>Extra info</th></tr>")
 			$.getJSON('/timesheet/' + getDateStr(), function(data) {
-				$.each(data, function(index, valueAr) {
-					var eventType = valueAr[0];
-					var value = valueAr[1];
+				$.each(data, function(index, value) {
+					var eventType = value.pluginName;
 					$('table#eventsTable').append("<tr>"
 							+ "<td>" + formatTime(value.eventDate)
 							+ "</td><td>" + eventType

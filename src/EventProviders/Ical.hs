@@ -25,7 +25,7 @@ import Data.Aeson.TH
 
 import Text.Regex.PCRE.Rex
 
-import qualified Event
+import Event
 --import qualified Settings
 import qualified Util
 import EventProvider
@@ -114,13 +114,20 @@ parseEvent = do
 	return $ Map.fromList keyValues
 
 keyValuesToEvent :: Map String CalendarValue -> Event.Event
-keyValuesToEvent records = Event.Event startDate desc extraInfo Nothing
+keyValuesToEvent records = Event.Event
+			{
+				pluginName = getModuleName getIcalProvider,
+				eventDate = startDate,
+				desc = descV,
+				extraInfo = extraInfoV,
+				fullContents = Nothing
+			}
 	where
-		desc = T.concat [T.pack $ fromLeaf $ records ! "DESCRIPTION",
+		descV = T.concat [T.pack $ fromLeaf $ records ! "DESCRIPTION",
 				 T.pack $ fromLeaf $ records ! "SUMMARY"]
 		startDate = parseDate $ fromLeaf $ records ! "DTSTART"
 		endDate = parseDate $ fromLeaf $ records ! "DTEND"
-		extraInfo = T.concat["End: ", utctDayTimeStr endDate,
+		extraInfoV = T.concat["End: ", utctDayTimeStr endDate,
 			"; duration: ", Util.formatDurationSec $ diffUTCTime endDate startDate]
 
 utctDayTimeStr :: UTCTime -> T.Text

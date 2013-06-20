@@ -12,7 +12,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as IO
 import Data.Aeson.TH
 
-import qualified Event as Event
+import Event as Event
 import qualified Util
 import EventProvider
 
@@ -56,8 +56,14 @@ getRepoCommits (HgRecord _username _projectPath) _ day = do
 	
 toEvent :: TimeZone -> Commit -> Event.Event
 toEvent timezone commit =
-	Event.Event (localTimeToUTC timezone (commitDate commit)) 
-		(commitDesc commit) (T.pack $ Util.getFilesRoot $ commitFiles commit) Nothing
+	Event.Event
+		{
+			pluginName = getModuleName getHgProvider,
+			eventDate = localTimeToUTC timezone (commitDate commit),
+			desc = commitDesc commit,
+			extraInfo = T.pack $ Util.getFilesRoot $ commitFiles commit,
+			fullContents = Nothing
+		}
 
 formatDate :: Day -> String
 formatDate day =

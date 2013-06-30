@@ -45,6 +45,9 @@ processConfig monthStr config = do
 	allEventsSeq <- sequence $ map (uncurry $ fetchProvider settings date) config
 	let allEvents = foldl (++) [] allEventsSeq
 	let sortedEvents = sortWith Event.eventDate allEvents
+	--let noNullSortedEvents = map (\e -> e {
+	--	fullContents = Just $ maybe "" id (fullContents e),
+	--	}) sortedEvents
 	let eventDates = fmap Event.eventDate sortedEvents
 	let eventDatesLocal = fmap (utcToLocalTime myTz) eventDates
 	putStrLn "after the fetching!"
@@ -53,7 +56,7 @@ processConfig monthStr config = do
 	let outOfRangeData = filter (outOfRange date (addDays 1 date)) eventDatesLocal
 	let ok = null outOfRangeData
 	if ok
-		then return $ JSON.encode sortedEvents 
+		then return $ JSON.encode sortedEvents --noNullSortedEvents
 		else do
 			putStrLn "*** SOME EVENTS ARE NOT IN TIME RANGE"
 			print outOfRangeData

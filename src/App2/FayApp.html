@@ -1,22 +1,114 @@
 <!doctype html>
 <html>
-  <head>
-    <meta http-equiv='Content-Type' content='text/html; charset=utf-8'>
-    <script type="text/javascript" src="jquery-1.8.3.min.js"></script>
+	<head>
+	<style>
+		body {
+/* FAY			height: 100%; */
+			/* at 100% i get a scrollbar for the
+			browser window... also reducing to 97%
+			fixes it but this seems more robust..*/
+/* FAY			overflow-y: hidden; */
+		}
 
-    <script type="text/javascript">
+		#sidebar {
+			width: 28%; /* 100% - #sidebar.left, and
+			some margins */
+			background: aliceblue;
+			display: inline-block;
+			overflow: auto;
+			top: 15px;
+			bottom: 15px;
+			position: absolute;
+			left: 70%; /* same as #eventsDiv.width */
+		}
+
+		#pleasehold {
+			width: 200px;
+			height: 50px;
+			background: aliceblue;
+			text-align: center;
+
+			/* the following two lines center
+			   the block. */
+			margin-left: auto;
+			margin-right: auto;
+
+			/* with line-height==height,
+			   text will be vertically centered. */
+			line-height: 50px;
+		}
+
+		/* http://stackoverflow.com/a/2855726/516188 */
+		.ui-widget { font-size: 0.6em !important; }
+
+		div#eventsDiv {
+			display: inline-block;
+			float: left;
+			width: 70%; /* same as #sidebar.left*/
+			position: relative; /* eventsTable is
+			absolute, see  http://stackoverflow.com/a/2015081/516188 */
+/* FAY			height: 100%; */ /* this will be
+			overwritten by javascript!! */
+		}
+
+		table#eventsTable {
+			border-spacing: 0px;
+			width: 95%;
+			overflow: auto;
+			display: block; /* needed for overflow
+			to work, http://stackoverflow.com/a/4457290/516188 */
+/*	FAY		bottom: 0px;*/
+			top: 0px;
+			position: absolute;
+		}
+		table#eventsTable td {
+			padding: 5px;
+		}
+
+		table#eventsTable th {
+			text-align: left;
+			padding: 5px;
+		}
+
+		table#eventsTable tr:nth-child(even) {
+			background: aliceblue;
+		}
+
+		table#eventsTable tr.current td:first-child {
+			border-left: 1px dashed #000000;
+		}
+
+		table#eventsTable tr.current td:last-child {
+			border-right: 1px dashed #000000;
+		}
+
+		table#eventsTable tr.current td {
+			border-top: 1px dashed #000000;
+			border-bottom: 1px dashed #000000;
+		}
+	</style>
+	<script type="text/javascript" src="jquery-1.8.3.min.js"></script>
+	
+	<script type="text/javascript">
 		function formatTime(dateString) {
 			var dateObj = new Date(dateString);
 			var mins = dateObj.getMinutes()
 			return dateObj.getHours() + ":" + ((mins <= 9) ?  ("0" + mins) : mins);
 		}
-    </script>
-    <script type="text/javascript" src="FayApp.js"></script>
-    </script>
-  </head>
+	</script>
+	<script type="text/javascript" src="FayApp.js"></script>
+	</head>
   <body>
+	<div id="datepicker"></div>
+
+	<div id="pleasehold">Please hold...</div>
 	<div id="eventsDiv">
-		<table id="eventsTable"></table>
+		<table id="eventsTable">
+			<tr><th>Time</th>
+				<th>Event type</th><th>Description</th><th>Extra info</th></tr>
+
+		</table>
 	</div>
+	<div id="sidebar"></div>
   </body>
 </html>

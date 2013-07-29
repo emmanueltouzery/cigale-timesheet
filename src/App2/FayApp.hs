@@ -19,7 +19,10 @@ main = --ready $ do
 		ajax "/timesheet/2013-07-01" processResults
 
 processResults :: [Event] -> Fay ()
-processResults events = mapM_ processResult events
+processResults events = do
+		mapM_ processResult events
+		nodes "#pleasehold" >>= hide
+		return ()
 	where
 		eventsTable = nodes "table#eventsTable"
 		processResult event = eventsTable >>= (append $ makeEventRow event)
@@ -44,3 +47,6 @@ nodes = ffi "jQuery(%1)"
 
 append :: String -> JQuery -> Fay JQuery
 append = ffi "%2.append(%1)"
+
+hide :: JQuery -> Fay JQuery
+hide = ffi "%1.hide()"

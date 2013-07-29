@@ -1,0 +1,7 @@
+fay
+fay-base
+fay-jquery
+
+fay --package fay-jquery FayApp.hs
+
+fay -p --html-wrapper --html-js-lib jquery-1.8.3.min.js FayApp.hs

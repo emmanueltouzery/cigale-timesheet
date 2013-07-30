@@ -28,8 +28,8 @@ processResults events = do
 		processResult event = eventsTable >>= (append $ makeEventRow event)
 
 makeEventRow :: Event -> String
-makeEventRow event = makeTableRow $ map ($ event) [\x -> formatTime $ eventDate x,
-							pluginName, desc, extraInfo]
+makeEventRow event = makeTableRow $ map ($ event)
+			[formatTime . eventDate, pluginName, desc, extraInfo]
 
 makeTableRow :: [String] -> String
 makeTableRow cols = "<tr><td>" ++ intercalate "</td><td>" cols ++ "</td></tr>"

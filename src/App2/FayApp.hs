@@ -28,8 +28,14 @@ processResults events = do
 
 addEventRow :: JQuery -> Main.Event -> Fay JQuery
 addEventRow table event = do
-	let row = (select $ makeEventRow event) >>= appendTo table
-	row >>= click (\x -> do putStrLn $ "click " ++ desc event; return ())
+	row <- (select $ makeEventRow event) >>= appendTo table
+	click (\_ -> eventRowSelected event row) row
+
+eventRowSelected :: Main.Event -> JQuery -> Fay ()
+eventRowSelected event row = --do
+	--putStrLn $ "click " ++ desc event -- >>
+	hide Instantly row >>
+	return ()
 
 makeEventRow :: Main.Event -> String
 makeEventRow event = makeTableRow $ map ($ event)

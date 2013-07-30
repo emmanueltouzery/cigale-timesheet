@@ -2,8 +2,9 @@
 
 import Prelude
 import FFI
+import JQuery
 
--- TODO copy-pasted from Event.hs for now...
+-- TODO copy-pasted from Main.Event.hs for now...
 -- still problems: date and string/text
 data Event = Event
 	{
@@ -16,37 +17,34 @@ data Event = Event
 
 main :: Fay ()
 main = --ready $ do
-		ajax "/timesheet/2013-07-01" processResults
+		myajax "/timesheet/2013-07-01" processResults
 
-processResults :: [Event] -> Fay ()
+processResults :: [Main.Event] -> Fay ()
 processResults events = do
-		mapM_ processResult events
-		nodes "#pleasehold" >>= hide
+		mapM_ addEventRow events
+		select "#pleasehold" >>= hide Instantly
 		return ()
-	where
-		eventsTable = nodes "table#eventsTable"
-		processResult event = eventsTable >>= (append $ makeEventRow event)
 
-makeEventRow :: Event -> String
+addEventRow :: Main.Event -> Fay JQuery
+addEventRow event = select "table#eventsTable" >>=
+	(appendStr $ makeEventRow event) -- >>=
+--	onClick (\x -> do
+--		putStrLn $ "click"
+--		return False
+--	)
+
+makeEventRow :: Main.Event -> String
 makeEventRow event = makeTableRow $ map ($ event)
 			[formatTime . eventDate, pluginName, desc, extraInfo]
 
 makeTableRow :: [String] -> String
 makeTableRow cols = "<tr><td>" ++ intercalate "</td><td>" cols ++ "</td></tr>"
 
-data JQuery
-
 formatTime :: String -> String
 formatTime = ffi "formatTime(%1)"
 
-ajax :: String -> (Automatic b -> Fay ()) -> Fay ()
-ajax = ffi "jQuery.ajax(%1, {'type': 'GET', contentType: 'text/json', processData: false, 'success' : %2 })"
+myajax :: String -> (Automatic b -> Fay ()) -> Fay ()
+myajax = ffi "jQuery.ajax(%1, {'type': 'GET', contentType: 'text/json', processData: false, 'success' : %2 })"
 
-nodes :: String -> Fay JQuery
-nodes = ffi "jQuery(%1)"
-
-append :: String -> JQuery -> Fay JQuery
-append = ffi "%2.append(%1)"
-
-hide :: JQuery -> Fay JQuery
-hide = ffi "%1.hide()"
+appendStr :: String -> JQuery -> Fay JQuery
+appendStr = ffi "%2.append(%1)"

@@ -21,17 +21,15 @@ main = --ready $ do
 
 processResults :: [Main.Event] -> Fay ()
 processResults events = do
-		mapM_ addEventRow events
-		select "#pleasehold" >>= hide Instantly
-		return ()
+	table <- select "table#eventsTable"
+	mapM_ (addEventRow table) events
+	select "#pleasehold" >>= hide Instantly
+	return ()
 
-addEventRow :: Main.Event -> Fay JQuery
-addEventRow event = select "table#eventsTable" >>=
-	(appendStr $ makeEventRow event) -- >>=
---	onClick (\x -> do
---		putStrLn $ "click"
---		return False
---	)
+addEventRow :: JQuery -> Main.Event -> Fay JQuery
+addEventRow table event = do
+	let row = (select $ makeEventRow event) >>= appendTo table
+	row >>= click (\x -> do putStrLn $ "click " ++ desc event; return ())
 
 makeEventRow :: Main.Event -> String
 makeEventRow event = makeTableRow $ map ($ event)
@@ -45,6 +43,3 @@ formatTime = ffi "formatTime(%1)"
 
 myajax :: String -> (Automatic b -> Fay ()) -> Fay ()
 myajax = ffi "jQuery.ajax(%1, {'type': 'GET', contentType: 'text/json', processData: false, 'success' : %2 })"
-
-appendStr :: String -> JQuery -> Fay JQuery
-appendStr = ffi "%2.append(%1)"

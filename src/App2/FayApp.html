@@ -88,6 +88,8 @@
 		}
 	</style>
 	<script type="text/javascript" src="jquery-1.8.3.min.js"></script>
+	<script type='text/javascript' src='/static/jquery-ui-1.9.2/js/jquery-ui-1.9.2.custom.min.js'></script>
+	<link href="/static/jquery-ui-1.9.2/css/smoothness/jquery-ui-1.9.2.custom.css" rel="stylesheet">
 	
 	<script type="text/javascript">
 		function formatTime(dateString) {
@@ -107,6 +109,13 @@
 					rules[i].style.height = "calc(100% - " + (calendarHeight+15) + "px)";
 				}
 			}
+		}
+		function setupDatepicker(callback) {
+			$( "#datepicker" ).datepicker({
+				inline: true,
+				onSelect: callback,
+				firstDay: 1
+			});
 		}
 	</script>
 	<script type="text/javascript" src="FayApp.js"></script>

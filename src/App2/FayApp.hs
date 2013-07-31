@@ -17,7 +17,11 @@ data Event = Event
 
 main :: Fay ()
 main = ready $ do
+		setupDatepicker onDateChanged
 		myajax "/timesheet/2013-07-01" processResults
+
+onDateChanged :: String -> Fay ()
+onDateChanged = putStrLn
 
 processResults :: [Main.Event] -> Fay ()
 processResults events = do
@@ -58,3 +62,6 @@ overwriteCss = ffi "overwriteCss()"
 
 myajax :: String -> (Automatic b -> Fay ()) -> Fay ()
 myajax = ffi "jQuery.ajax(%1, {'type': 'GET', contentType: 'text/json', processData: false, 'success' : %2 })"
+
+setupDatepicker :: (String -> Fay ()) -> Fay ()
+setupDatepicker = ffi "setupDatepicker(%1)"

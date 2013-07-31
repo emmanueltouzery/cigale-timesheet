@@ -32,9 +32,10 @@ addEventRow table event = do
 	click (\_ -> eventRowSelected event row) row
 
 eventRowSelected :: Main.Event -> JQuery -> Fay ()
-eventRowSelected event row = --do
+eventRowSelected event row = do
 	--putStrLn $ "click " ++ desc event -- >>
-	hide Instantly row >>
+	parent row >>= childrenMatching "tr" >>= removeClass "current"
+	addClass "current" row
 	return ()
 
 makeEventRow :: Main.Event -> String

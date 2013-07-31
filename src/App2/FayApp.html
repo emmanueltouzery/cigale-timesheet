@@ -95,6 +95,19 @@
 			var mins = dateObj.getMinutes()
 			return dateObj.getHours() + ":" + ((mins <= 9) ?  ("0" + mins) : mins);
 		}
+
+		function overwriteCss() {
+			// http://stackoverflow.com/questions/730048/how-to-change-remove-css-classes-definitions-at-runtime
+			var rules = document.styleSheets[0].cssRules;
+			var calendarHeight = $('#datepicker').height();
+			for (var i=0;i<rules.length;i++) {
+				if (rules[i].cssText.startsWith('div#eventsDiv'))
+				{
+					// add 15 for margins
+					rules[i].style.height = "calc(100% - " + (calendarHeight+15) + "px)";
+				}
+			}
+		}
 	</script>
 	<script type="text/javascript" src="FayApp.js"></script>
 	</head>

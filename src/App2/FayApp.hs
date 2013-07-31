@@ -16,7 +16,7 @@ data Event = Event
 	}
 
 main :: Fay ()
-main = --ready $ do
+main = ready $ do
 		myajax "/timesheet/2013-07-01" processResults
 
 processResults :: [Main.Event] -> Fay ()
@@ -52,6 +52,9 @@ makeTableRow cols = "<tr><td>" ++ intercalate "</td><td>" cols ++ "</td></tr>"
 
 formatTime :: String -> String
 formatTime = ffi "formatTime(%1)"
+
+overwriteCss :: Fay ()
+overwriteCss = ffi "overwriteCss()"
 
 myajax :: String -> (Automatic b -> Fay ()) -> Fay ()
 myajax = ffi "jQuery.ajax(%1, {'type': 'GET', contentType: 'text/json', processData: false, 'success' : %2 })"

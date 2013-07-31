@@ -36,7 +36,12 @@ eventRowSelected event row = do
 	--putStrLn $ "click " ++ desc event -- >>
 	parent row >>= childrenMatching "tr" >>= removeClass "current"
 	addClass "current" row
+	setSidebar $ fullContents event
 	return ()
+
+setSidebar :: String -> Fay JQuery
+setSidebar text = do
+	select "#sidebar" >>= setScrollTop 0 >>= setHtml text
 
 makeEventRow :: Main.Event -> String
 makeEventRow event = makeTableRow $ map ($ event)

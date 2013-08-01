@@ -17,17 +17,25 @@ data Event = Event
 
 main :: Fay ()
 main = ready $ do
-		setupDatepicker onDateChanged
-		myajax "/timesheet/2013-07-01" processResults
+	setupDatepicker onDateChanged
+	fetchDay "2013-07-01"
+
+fetchDay :: String -> Fay ()
+fetchDay dayStr = do
+	pleaseHold <- select "#pleasehold"
+	unhide pleaseHold
+	myajax ("/timesheet/" ++ dayStr) (processResults pleaseHold)
 
 onDateChanged :: String -> Fay ()
-onDateChanged = putStrLn
+onDateChanged jqDate = fetchDay jqDate
 
-processResults :: [Main.Event] -> Fay ()
-processResults events = do
+processResults :: JQuery -> [Main.Event] -> Fay ()
+processResults pleaseHold events = do
+	setSidebar ""
 	table <- select "table#eventsTable"
+	empty table
 	mapM_ (addEventRow table) events
-	select "#pleasehold" >>= hide Instantly
+	hide Instantly pleaseHold
 	return ()
 
 addEventRow :: JQuery -> Main.Event -> Fay JQuery
@@ -57,8 +65,8 @@ makeTableRow cols = "<tr><td>" ++ intercalate "</td><td>" cols ++ "</td></tr>"
 formatTime :: String -> String
 formatTime = ffi "formatTime(%1)"
 
-overwriteCss :: Fay ()
-overwriteCss = ffi "overwriteCss()"
+-- overwriteCss :: Fay ()
+-- overwriteCss = ffi "overwriteCss()"
 
 myajax :: String -> (Automatic b -> Fay ()) -> Fay ()
 myajax = ffi "jQuery.ajax(%1, {'type': 'GET', contentType: 'text/json', processData: false, 'success' : %2 })"

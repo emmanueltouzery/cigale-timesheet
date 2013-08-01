@@ -98,6 +98,11 @@
 			return dateObj.getHours() + ":" + ((mins <= 9) ?  ("0" + mins) : mins);
 		}
 
+		function todayServerDate() {
+			var now = new Date();
+			return now.getFullYear() + "-" + (now.getMonth()+1) + "-" + now.getDate();
+		}
+
 		function overwriteCss() {
 			// http://stackoverflow.com/questions/730048/how-to-change-remove-css-classes-definitions-at-runtime
 			var rules = document.styleSheets[0].cssRules;
@@ -110,6 +115,7 @@
 				}
 			}
 		}
+
 		function setupDatepicker(callback) {
 			$( "#datepicker" ).datepicker({
 				inline: true,

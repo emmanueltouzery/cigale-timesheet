@@ -19,7 +19,7 @@ main :: Fay ()
 main = ready $ do
 	setupDatepicker onDateChanged
 	overwriteCss
-	fetchDay "2013-07-01"
+	todayServerDate >>= fetchDay
 
 fetchDay :: String -> Fay ()
 fetchDay dayStr = do
@@ -78,3 +78,6 @@ myajax = ffi "jQuery.ajax(%1, {'type': 'GET', contentType: 'text/json', processD
 
 setupDatepicker :: (String -> Fay ()) -> Fay ()
 setupDatepicker = ffi "setupDatepicker(%1)"
+
+todayServerDate :: Fay String
+todayServerDate = ffi "todayServerDate()"

@@ -18,6 +18,7 @@ data Event = Event
 main :: Fay ()
 main = ready $ do
 	setupDatepicker onDateChanged
+	overwriteCss
 	fetchDay "2013-07-01"
 
 fetchDay :: String -> Fay ()
@@ -69,8 +70,8 @@ makeTableRow cols = "<tr><td>" ++ intercalate "</td><td>" cols ++ "</td></tr>"
 formatTime :: String -> String
 formatTime = ffi "formatTime(%1)"
 
--- overwriteCss :: Fay ()
--- overwriteCss = ffi "overwriteCss()"
+overwriteCss :: Fay ()
+overwriteCss = ffi "overwriteCss()"
 
 myajax :: String -> (Automatic b -> Fay ()) -> Fay ()
 myajax = ffi "jQuery.ajax(%1, {'type': 'GET', contentType: 'text/json', processData: false, 'success' : %2 })"

@@ -12,7 +12,7 @@ data Event = Event
 		eventDate :: String,
 		desc :: String,
 		extraInfo :: String, 
-		fullContents :: String -- removed the Maybe
+		fullContents :: Maybe String
 	}
 
 main :: Fay ()
@@ -48,7 +48,7 @@ eventRowSelected event row = do
 	--putStrLn $ "click " ++ desc event -- >>
 	parent row >>= childrenMatching "tr" >>= removeClass "current"
 	addClass "current" row
-	setSidebar $ fullContents event
+	setSidebar $ maybe "" id (fullContents event)
 	return ()
 
 setSidebar :: String -> Fay JQuery

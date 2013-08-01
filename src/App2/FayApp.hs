@@ -12,7 +12,7 @@ data Event = Event
 		eventDate :: String,
 		desc :: String,
 		extraInfo :: String, 
-		fullContents :: Maybe String
+		fullContents :: Nullable String -- it's maybe on the server
 	}
 
 main :: Fay ()
@@ -48,8 +48,12 @@ eventRowSelected event row = do
 	--putStrLn $ "click " ++ desc event -- >>
 	parent row >>= childrenMatching "tr" >>= removeClass "current"
 	addClass "current" row
-	setSidebar $ maybe "" id (fullContents event)
+	setSidebar $ nullable "" id (fullContents event)
 	return ()
+
+nullable :: b -> (a->b) -> Nullable a -> b
+nullable b _ Null = b
+nullable _ f (Nullable x) = f x
 
 setSidebar :: String -> Fay JQuery
 setSidebar text = do

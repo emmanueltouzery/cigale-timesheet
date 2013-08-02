@@ -17,7 +17,7 @@ data Event = Event
 
 main :: Fay ()
 main = ready $ do
-	setupDatepicker onDateChanged
+	setupDatepicker fetchDay
 	overwriteCss
 	todayServerDate >>= fetchDay
 
@@ -26,9 +26,6 @@ fetchDay dayStr = do
 	pleaseHold <- select "#pleasehold"
 	unhide pleaseHold
 	myajax ("/timesheet/" ++ dayStr) (processResults pleaseHold)
-
-onDateChanged :: String -> Fay ()
-onDateChanged jqDate = fetchDay jqDate
 
 processResults :: JQuery -> [Main.Event] -> Fay ()
 processResults pleaseHold events = do
@@ -57,8 +54,7 @@ nullable b _ Null = b
 nullable _ f (Nullable x) = f x
 
 setSidebar :: String -> Fay JQuery
-setSidebar text = do
-	select "#sidebar" >>= setScrollTop 0 >>= setHtml text
+setSidebar text = select "#sidebar" >>= setScrollTop 0 >>= setHtml text
 
 makeEventRow :: Main.Event -> String
 makeEventRow event = makeTableRow $ map ($ event)
@@ -73,6 +69,7 @@ formatTime = ffi "formatTime(%1)"
 overwriteCss :: Fay ()
 overwriteCss = ffi "overwriteCss()"
 
+-- try to migrate to the ajax call from fay-jquery
 myajax :: String -> (Automatic b -> Fay ()) -> Fay ()
 myajax = ffi "jQuery.ajax(%1, {'type': 'GET', contentType: 'text/json', processData: false, 'success' : %2 })"
 

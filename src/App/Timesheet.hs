@@ -19,7 +19,7 @@ import Control.Concurrent.Async
 
 import qualified Util
 import qualified Config
-import EventProviders
+import qualified EventProviders
 import EventProvider
 import Event
 import qualified Settings
@@ -27,7 +27,7 @@ import qualified Settings
 process :: T.Text -> IO BL.ByteString
 process monthStr = do
 	putStrLn "process"
-	config <- Config.readConfig plugins
+	config <- Config.readConfig EventProviders.plugins
 	processConfig monthStr config
 
 processConfig :: T.Text -> [(EventProvider Value, Value)] -> IO BL.ByteString
@@ -87,4 +87,4 @@ data PluginConfig = PluginConfig
 deriveJSON id ''PluginConfig
 
 getEventProvidersConfig :: BL.ByteString
-getEventProvidersConfig = JSON.encode $ fromList $ fmap (\p -> (getModuleName p, getConfigType p)) plugins
+getEventProvidersConfig = JSON.encode $ fromList $ fmap (\p -> (getModuleName p, getConfigType p)) EventProviders.plugins

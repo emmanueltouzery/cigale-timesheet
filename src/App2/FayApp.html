@@ -1,25 +1,37 @@
 <!doctype html>
-<html>
+<html lang="en">
 	<head>
 	<style>
+		html {
+			height: 100%;
+		}
 		body {
-/* FAY			height: 100%; */
-			/* at 100% i get a scrollbar for the
-			browser window... also reducing to 97%
-			fixes it but this seems more robust..*/
-/* FAY			overflow-y: hidden; */
+			min-height: 100%;
+			height: 100%;
+		}
+
+		/* override bootstrap */
+		pre {
+			white-space: nowrap !important;
+		}
+
+		.fully_responsive {
+			/* fill all the height */
+			height: 100%;
+			/* don't take more than the width
+			   i'm allocated! display a scrollbar instead*/
+			overflow: auto;
+		}
+
+		.vert_limited {
+			height: 100%; /* will be overwritten by JS */
 		}
 
 		#sidebar {
-			width: 28%; /* 100% - #sidebar.left, and
-			some margins */
 			background: aliceblue;
-			display: inline-block;
 			overflow: auto;
-			top: 15px;
-			bottom: 15px;
-			position: absolute;
-			left: 70%; /* same as #eventsDiv.width */
+			display: inline-block;
+			height: 100%;
 		}
 
 		#pleasehold {
@@ -41,25 +53,11 @@
 		/* http://stackoverflow.com/a/2855726/516188 */
 		.ui-widget { font-size: 0.6em !important; }
 
-		div#eventsDiv {
-			display: inline-block;
-			float: left;
-			width: 70%; /* same as #sidebar.left*/
-			position: relative; /* eventsTable is
-			absolute, see  http://stackoverflow.com/a/2015081/516188 */
-/* FAY			height: 100%; */ /* this will be
-			overwritten by javascript!! */
-		}
-
 		table#eventsTable {
-			border-spacing: 0px;
-			width: 95%;
 			overflow: auto;
+			height: 100%;
 			display: block; /* needed for overflow
 			to work, http://stackoverflow.com/a/4457290/516188 */
-/*	FAY		bottom: 0px;*/
-			top: 0px;
-			position: absolute;
 		}
 		table#eventsTable td {
 			padding: 5px;
@@ -89,7 +87,8 @@
 	</style>
 	<script type="text/javascript" src="jquery-1.8.3.min.js"></script>
 	<script type='text/javascript' src='/static/jquery-ui-1.9.2/js/jquery-ui-1.9.2.custom.min.js'></script>
-	<link href="/static/jquery-ui-1.9.2/css/smoothness/jquery-ui-1.9.2.custom.css" rel="stylesheet">
+<link href="/static/jquery-ui-1.9.2/css/smoothness/jquery-ui-1.9.2.custom.css" rel="stylesheet">
+<link href="/static/bootstrap.min.css" rel="stylesheet">
 	
 	<script type="text/javascript">
 		function formatTime(dateString) {
@@ -108,7 +107,7 @@
 			var rules = document.styleSheets[0].cssRules;
 			var calendarHeight = $('#datepicker').height();
 			for (var i=0;i<rules.length;i++) {
-				if (rules[i].cssText.startsWith('div#eventsDiv'))
+				if (rules[i].cssText.startsWith('.vert_limited'))
 				{
 					// add 15 for margins
 					rules[i].style.height = "calc(100% - " + (calendarHeight+15) + "px)";
@@ -131,16 +130,21 @@
 	<div id="datepicker"></div>
 
 	<div id="pleasehold">Please hold...</div>
-	<div id="eventsDiv">
-		<table id="eventsTable">
-			<thead>
-			<tr><th>Time</th>
-				<th>Event type</th><th>Description</th><th>Extra info</th></tr>
-			</thead>
-			<tbody>
-			</tbody>
-		</table>
+
+	<div class="row vert_limited">
+		<div class="col-lg-8 fully_responsive">
+			<table id="eventsTable">
+				<thead>
+				<tr><th>Time</th>
+					<th>Event type</th><th>Description</th><th>Extra info</th></tr>
+				</thead>
+				<tbody>
+				</tbody>
+			</table>
+		</div>
+		<div class="col-lg-4 fully_responsive">
+			<div id="sidebar"></div>
+		</div>
 	</div>
-	<div id="sidebar"></div>
   </body>
 </html>

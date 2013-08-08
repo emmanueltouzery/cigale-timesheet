@@ -1,12 +1,13 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell, OverloadedStrings #-}
 
 module Event where
 
 import Data.Time.Clock
 import qualified Data.Text as T
-import Data.Aeson as JSON
+import Data.Aeson (ToJSON, toJSON)
+import Data.Aeson.TH (mkToJSON)
 import GHC.Generics
+import qualified FayAeson
 
 data Event = Event
 	{
@@ -16,14 +17,7 @@ data Event = Event
 		extraInfo :: T.Text,
 		fullContents :: Maybe T.Text
 	}
-	deriving (Eq, Show, Generic)
+	deriving (Eq, Show)
 
---instance JSON.ToJSON Event
 instance ToJSON Event where
-     toJSON (Event name date desc extra full) = object [
-	"instance" .= T.pack "Event",
-	"pluginName" .= name,
-	"eventDate" .= date,
-	"desc" .= desc,
-	"extraInfo" .= extra,
-	"fullContents" .= full]
+     toJSON = (FayAeson.addInstance "Event") . $(mkToJSON id ''Event)

@@ -6,3 +6,6 @@ dist
 log
 cached-calendar.ical
 FayApp.js
+FayApp.html
+FayConfig.js
+FayConfig.html

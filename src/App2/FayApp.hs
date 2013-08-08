@@ -30,7 +30,7 @@ fetchDay dayStr = do
 processResults :: JQuery -> [Main.Event] -> Fay ()
 processResults pleaseHold events = do
 	setSidebar ""
-	table <- select "table#eventsTable"
+	table <- select "table#eventsTable tbody"
 	empty table
 	mapM_ (addEventRow table) events
 	hide Instantly pleaseHold

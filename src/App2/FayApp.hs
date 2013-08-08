@@ -44,8 +44,8 @@ addEventRow table event = do
 eventRowSelected :: Main.Event -> JQuery -> Fay ()
 eventRowSelected event row = do
 	--putStrLn $ "click " ++ desc event -- >>
-	parent row >>= childrenMatching "tr" >>= removeClass "current"
-	addClass "current" row
+	parent row >>= childrenMatching "tr" >>= removeClass "active"
+	addClass "active" row
 	setSidebar $ nullable "" id (fullContents event)
 	return ()
 

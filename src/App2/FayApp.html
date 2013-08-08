@@ -17,7 +17,12 @@
 
 		/* override bootstrap */
 		pre {
-			white-space: nowrap !important;
+			word-break: normal !important;
+			word-wrap: normal !important;
+			white-space: pre !important;
+			/*  http://stackoverflow.com/a/8513330/516188*/
+			overflow: hidden;
+			float: left;
 		}
 		.table {
 			margin-bottom: 0px !important;
@@ -58,7 +63,7 @@
 		}
 
 		/* http://stackoverflow.com/a/2855726/516188 */
-		.ui-widget { font-size: 0.6em !important; }
+		.ui-widget { font-size: 0.7em !important; }
 
 		table#eventsTable {
 			overflow: auto;

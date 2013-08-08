@@ -70,6 +70,7 @@ overwriteCss :: Fay ()
 overwriteCss = ffi "overwriteCss()"
 
 -- try to migrate to the ajax call from fay-jquery
+-- at least don't duplicate between FayApp and FayConfig!
 myajax :: String -> (Automatic b -> Fay ()) -> Fay ()
 myajax = ffi "jQuery.ajax(%1, {'type': 'GET', contentType: 'text/json', processData: false, 'success' : %2 })"
 

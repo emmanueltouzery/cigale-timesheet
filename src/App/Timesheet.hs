@@ -10,8 +10,7 @@ import Data.List
 import Data.Time
 import Data.Maybe
 import Data.Aeson
-import Data.Aeson.TH (deriveJSON)
-import Data.HashMap.Strict (fromList)
+import Data.Aeson.TH (deriveJSON, mkToJSON)
 
 import GHC.Exts
 
@@ -23,6 +22,7 @@ import qualified EventProviders
 import EventProvider
 import Event
 import qualified Settings
+import qualified FayAeson
 
 process :: T.Text -> IO BL.ByteString
 process monthStr = do
@@ -81,10 +81,18 @@ fetchProvider settings day provider config = do
 
 data PluginConfig = PluginConfig
 	{
-		pluginName :: String,
-		pluginConfig :: [ConfigDataType]
+		cfgPluginName :: String,
+		cfgPluginConfig :: [ConfigDataType]
 	}
-deriveJSON id ''PluginConfig
+instance ToJSON PluginConfig where
+    toJSON = (FayAeson.addInstance "PluginConfig") . $(mkToJSON id ''PluginConfig)
 
 getEventProvidersConfig :: BL.ByteString
-getEventProvidersConfig = JSON.encode $ fromList $ fmap (\p -> (getModuleName p, getConfigType p)) EventProviders.plugins
+getEventProvidersConfig = JSON.encode $ fmap getPluginConfig EventProviders.plugins
+
+getPluginConfig :: EventProvider a -> PluginConfig
+getPluginConfig plugin = PluginConfig
+	{
+		cfgPluginName = getModuleName plugin,
+		cfgPluginConfig = getConfigType plugin
+	}

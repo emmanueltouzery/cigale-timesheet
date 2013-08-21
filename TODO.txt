@@ -2,6 +2,8 @@ port to dom-selector 0.2
 
 links broken in skype, see 2013-08-03
 
+try to remove bootstrap and jquery-ui from my GIT and install them through npm instead?
+
 ability to remove settings, settings backed by knockout to make the code manageable...
 
 very bad email display 2013-06-17 7:55

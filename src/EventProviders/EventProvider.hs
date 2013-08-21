@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, FlexibleInstances #-}
+{-# LANGUAGE TemplateHaskell, FlexibleInstances, OverloadedStrings #-}
 module EventProvider (thGetTypeDesc,
 	GlobalSettings(GlobalSettings), EventProvider(EventProvider),
 	eventProviderWrap, getSettingsFolder,
@@ -12,7 +12,8 @@ import Data.Aeson
 import Language.Haskell.TH
 import Language.Haskell.TH.Lift
 import Language.Haskell.TH.Syntax
-import Data.Aeson.TH (deriveJSON)
+import Data.Aeson.TH (deriveJSON, deriveFromJSON, mkToJSON)
+import qualified FayAeson
 
 import Event
 
@@ -22,14 +23,19 @@ data ConfigDataInfo = ConfigDataInfo
 		memberType :: String
 	} deriving (Eq, Show)
 $(deriveLift ''ConfigDataInfo)
-deriveJSON id ''ConfigDataInfo
+$(deriveFromJSON id ''ConfigDataInfo)
+instance ToJSON ConfigDataInfo where
+     toJSON = (FayAeson.addInstance "ConfigDataInfo") . $(mkToJSON id ''ConfigDataInfo)
 
 data ConfigDataType = ConfigDataType
 	{
 		dataName :: String,
 		members :: [ConfigDataInfo]
 	} deriving (Eq, Show)
-deriveJSON id ''ConfigDataType
+
+$(deriveFromJSON id ''ConfigDataType)
+instance ToJSON ConfigDataType where
+     toJSON = (FayAeson.addInstance "ConfigDataType") . $(mkToJSON id ''ConfigDataType)
 
 formatTypeName :: Type -> String
 formatTypeName (ConT x) = nameBase x

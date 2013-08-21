@@ -56,28 +56,38 @@ displayPluginConfig :: [PluginConfig] -> JQuery -> (String, JValue) -> Fay ()
 displayPluginConfig pluginConfig divCurConfig (pluginName, config) = do
 	putStrLn pluginName
 	let myPluginConfig = find (\x -> cfgPluginName x == pluginName) pluginConfig
-	header <- (select $ "<h3>" ++ pluginName ++ "</h3>") >>= appendTo divCurConfig
+	header <- bootstrapPanel divCurConfig pluginName
 	configArray <- jvArray config
 	case myPluginConfig of
 		Nothing -> putStrLn $ "can't find config info for " ++ pluginName
 		Just myP -> forM_ configArray (addPlugin (cfgPluginConfig myP) header)
 
---bootstrapPanel :: String -> Fay String -> Fay ()
---bootstrapPanel title = "<div class='panel panel-default'><div class='panel-heading'>"
---			"<h3 class='panel-title'>" ++ title ++ "</h3></div><div class='panel-body'>"
---			++ contents ++ "</div></div>"
+bootstrapPanel :: JQuery -> String -> Fay JQuery
+bootstrapPanel parent title = do
+	let panelHtml = "<div class='panel panel-default'><div class='panel-heading'>" ++
+		"<h3 class='panel-title'>" ++ title ++ "</h3></div><div class='panel-body'>"
+		++ "</div></div>"
+	panelRoot <- (select panelHtml) >>= appendTo parent
+	findSelector "div.panel-body" panelRoot
+
+bootstrapWell :: JQuery -> Fay JQuery
+bootstrapWell parent = (select "<div class='well'></div>") >>= appendTo parent
 
 addPlugin :: [ConfigDataType] -> JQuery -> JValue -> Fay ()
 addPlugin configDataTypes header config = forM_ configDataTypes (addParameter header config)
 
 addParameter :: JQuery -> JValue -> ConfigDataType -> Fay ()
-addParameter header config dataType = forM_ (members dataType) (addPluginElement header config)
+addParameter header config dataType = do
+	parameterWell <- bootstrapWell header
+	forM_ (members dataType) (addPluginElement parameterWell config)
 
 addPluginElement :: JQuery -> JValue -> ConfigDataInfo -> Fay ()
 addPluginElement header config dataInfo = do
 	let memberNameV = memberName dataInfo
 	putStrLn memberNameV
-	(jvValue config memberNameV) >>= jvGetString >>= putStrLn
+	memberValue <- (jvValue config memberNameV) >>= jvGetString
+	(select $ "<div>" ++ memberNameV ++ " " ++ memberValue ++ "</div>") >>= appendTo header
+	return ()
 
 -- http://stackoverflow.com/questions/18025474/multiple-ajax-queries-in-parrallel-with-fay
 myajax2 :: String -> String -> (Automatic b -> Automatic c -> Fay ()) -> Fay ()

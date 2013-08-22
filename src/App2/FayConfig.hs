@@ -71,7 +71,13 @@ addModuleMenuItem pluginName pluginConfig = do
 	findSelector "a" menuItem >>= click (addModuleAction pluginName pluginConfig)
 
 addModuleAction :: String -> PluginConfig -> Event -> Fay ()
-addModuleAction pluginName pluginConfig _ = putStrLn pluginName
+addModuleAction pluginName pluginConfig _ = do
+	putStrLn pluginName
+	(select "#myModal") >>= bootstrapModal
+	putStrLn pluginName
+
+bootstrapModal :: JQuery -> Fay ()
+bootstrapModal = ffi "%1.modal('show')"
 
 bootstrapPanel :: JQuery -> String -> Fay JQuery
 bootstrapPanel parent title = do

@@ -60,7 +60,18 @@ displayPluginConfig pluginConfig divCurConfig (pluginName, config) = do
 	configArray <- jvArray config
 	case myPluginConfig of
 		Nothing -> putStrLn $ "can't find config info for " ++ pluginName
-		Just myP -> forM_ configArray (addPlugin (cfgPluginConfig myP) header)
+		Just myP -> do
+			addModuleMenuItem pluginName myP
+			forM_ configArray (addPlugin (cfgPluginConfig myP) header)
+
+addModuleMenuItem :: String -> PluginConfig -> Fay JQuery
+addModuleMenuItem pluginName pluginConfig = do
+	parent <- select "ul#add_module_menu"
+	menuItem <- (select $ "<li><a href='#'>" ++ pluginName ++ "</a></li>") >>= appendTo parent
+	findSelector "a" menuItem >>= click (addModuleAction pluginName pluginConfig)
+
+addModuleAction :: String -> PluginConfig -> Event -> Fay ()
+addModuleAction pluginName pluginConfig _ = putStrLn pluginName
 
 bootstrapPanel :: JQuery -> String -> Fay JQuery
 bootstrapPanel parent title = do
@@ -71,7 +82,7 @@ bootstrapPanel parent title = do
 	findSelector "div.panel-body" panelRoot
 
 bootstrapWell :: JQuery -> Fay JQuery
-bootstrapWell parent = (select "<div class='well'></div>") >>= appendTo parent
+bootstrapWell parent = (select "<div class='well well-sm'></div>") >>= appendTo parent
 
 addPlugin :: [ConfigDataType] -> JQuery -> JValue -> Fay ()
 addPlugin configDataTypes header config = forM_ configDataTypes (addParameter header config)

@@ -2,7 +2,7 @@ port to dom-selector 0.2
 
 links broken in skype, see 2013-08-03
 
-try to remove bootstrap and jquery-ui from my GIT and install them through npm instead?
+try to remove bootstrap and jquery-ui from my GIT and install them through npm instead? or maybe put only the zips in GIT and have cabal unzip them.
 
 ability to remove settings, settings backed by knockout to make the code manageable...
 

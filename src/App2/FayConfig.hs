@@ -72,9 +72,9 @@ addModuleMenuItem pluginName pluginConfig = do
 
 addModuleAction :: String -> PluginConfig -> Event -> Fay ()
 addModuleAction pluginName pluginConfig _ = do
-	putStrLn pluginName
-	(select "#myModal") >>= bootstrapModal
-	putStrLn pluginName
+	modal <- select "#myModal"
+	findSelector "div.modal-header h4" modal >>= setText pluginName
+	bootstrapModal modal
 
 bootstrapModal :: JQuery -> Fay ()
 bootstrapModal = ffi "%1.modal('show')"

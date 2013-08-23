@@ -47,10 +47,12 @@ main = ready $ myajax2 "/configVal" "/configdesc" $ \val desc -> handleValDesc (
 
 handleValDesc :: JValue -> [PluginConfig] -> Fay ()
 handleValDesc configVal pluginConfig = do
-	putStrLn $ dataName $ head $ cfgPluginConfig $ head pluginConfig
 	divCurConfig <- select "div#curConfig"
 	hash <- jvAsHash configVal
+	-- display the user's current config
 	forM_ hash (displayPluginConfig pluginConfig divCurConfig)
+	-- offer to add new modules
+	forM_ pluginConfig addModuleMenuItem
 
 displayPluginConfig :: [PluginConfig] -> JQuery -> (String, JValue) -> Fay ()
 displayPluginConfig pluginConfig divCurConfig (pluginName, config) = do
@@ -61,11 +63,11 @@ displayPluginConfig pluginConfig divCurConfig (pluginName, config) = do
 	case myPluginConfig of
 		Nothing -> putStrLn $ "can't find config info for " ++ pluginName
 		Just myP -> do
-			addModuleMenuItem pluginName myP
 			forM_ configArray (addPlugin (cfgPluginConfig myP) header)
 
-addModuleMenuItem :: String -> PluginConfig -> Fay JQuery
-addModuleMenuItem pluginName pluginConfig = do
+addModuleMenuItem :: PluginConfig -> Fay JQuery
+addModuleMenuItem pluginConfig = do
+	let pluginName = cfgPluginName pluginConfig
 	parent <- select "ul#add_module_menu"
 	menuItem <- (select $ "<li><a href='#'>" ++ pluginName ++ "</a></li>") >>= appendTo parent
 	findSelector "a" menuItem >>= click (addModuleAction pluginName pluginConfig)
@@ -74,7 +76,11 @@ addModuleAction :: String -> PluginConfig -> Event -> Fay ()
 addModuleAction pluginName pluginConfig _ = do
 	modal <- select "#myModal"
 	findSelector "div.modal-header h4" modal >>= setText pluginName
+	--findSelector "div.modal-body" modal >>= setText (getModalContents pluginConfig)
 	bootstrapModal modal
+
+getModalContents :: PluginConfig -> String
+getModalContents pluginConfig = ""
 
 bootstrapModal :: JQuery -> Fay ()
 bootstrapModal = ffi "%1.modal('show')"

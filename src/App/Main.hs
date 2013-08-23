@@ -69,7 +69,10 @@ configVal :: Snap ()
 configVal = do
 	modifyResponse $ setContentType "application/json"
 	settingsFile <- liftIO Config.getConfigFileName
-	serveFile $ settingsFile
+	isSettings <- liftIO $ doesFileExist settingsFile
+	if isSettings
+		then serveFile $ settingsFile
+		else writeLBS "{}"
 
 configUpdate :: Snap ()
 configUpdate = do

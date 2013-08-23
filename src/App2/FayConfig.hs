@@ -93,8 +93,14 @@ bootstrapPanel parent title = do
 	panelRoot <- (select panelHtml) >>= appendTo parent
 	findSelector "div.panel-body" panelRoot
 
+bootstrapButton :: String -> String
+bootstrapButton name = "<button type='button' class='btn btn-default btn-lg'>"
+		++ "<span id='" ++ name ++ "' class='glyphicon glyphicon-" ++ name ++ "'></span></button>"
+
 bootstrapWell :: JQuery -> Fay JQuery
-bootstrapWell parent = (select "<div class='well well-sm'></div>") >>= appendTo parent
+bootstrapWell parent = (select $ "<div class='well well-sm'>"
+		++ "<div class='btn-toolbar' style='float: right;'>" ++ (bootstrapButton "edit")
+		++ (bootstrapButton "remove-circle") ++ "</div></div>") >>= appendTo parent
 
 addPlugin :: [ConfigDataType] -> JQuery -> JValue -> Fay ()
 addPlugin configDataTypes header config = forM_ configDataTypes (addParameter header config)

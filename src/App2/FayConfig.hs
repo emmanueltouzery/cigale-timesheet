@@ -63,24 +63,54 @@ displayPluginConfig pluginConfig divCurConfig (pluginName, config) = do
 	case myPluginConfig of
 		Nothing -> putStrLn $ "can't find config info for " ++ pluginName
 		Just myP -> do
-			forM_ configArray (addPlugin (cfgPluginConfig myP) header)
+			forM_ configArray (addPlugin myP header)
 
 addModuleMenuItem :: PluginConfig -> Fay JQuery
 addModuleMenuItem pluginConfig = do
 	let pluginName = cfgPluginName pluginConfig
 	parent <- select "ul#add_module_menu"
 	menuItem <- (select $ "<li><a href='#'>" ++ pluginName ++ "</a></li>") >>= appendTo parent
-	findSelector "a" menuItem >>= click (addModuleAction pluginName pluginConfig)
+	findSelector "a" menuItem >>= click (\_ -> addModuleAction pluginConfig)
 
-addModuleAction :: String -> PluginConfig -> Event -> Fay ()
-addModuleAction pluginName pluginConfig _ = do
+addModuleAction :: PluginConfig -> Fay ()
+addModuleAction pluginConfig = do
+	let pluginName = cfgPluginName pluginConfig
 	modal <- select "#myModal"
 	findSelector "div.modal-header h4" modal >>= setText pluginName
-	--findSelector "div.modal-body" modal >>= setText (getModalContents pluginConfig)
+	prepareModal (Primary "Save changes") modal
+	--let configMembers = members $ cfgPluginConfig pluginConfig
+	--findSelector "div.modal-body" modal >>= setText (getModalContents configMembers)
 	bootstrapModal modal
 
-getModalContents :: PluginConfig -> String
-getModalContents pluginConfig = ""
+data MainAction = Primary String
+		  | Danger String
+	deriving (Show)
+
+prepareModal :: MainAction -> JQuery -> Fay JQuery
+prepareModal action modal = do
+	footer <- findSelector "div.modal-footer" modal
+	findSelector "#main-action" footer >>= remove
+	let btnHtml = "<button type='button' id='main-action' class='btn btn-" ++ btnType ++ "'>" ++ actionText ++ "</button>"
+	(select btnHtml) >>= appendTo footer
+	where
+		(btnType, actionText) = case action of
+			Primary x -> ("primary", x)
+			Danger x -> ("danger", x)
+			_ -> error $ "Unknown action: " ++ (show action)
+
+getModalContents :: [ConfigDataInfo] -> String
+getModalContents types = "<form role='form'><div class='form-group'>"
+		++ formContents ++ "</div></form>"
+	where formContents = concatMap getConfigDataInfoForm types
+
+getConfigDataInfoForm :: ConfigDataInfo -> String
+getConfigDataInfoForm dataInfo = case memberType dataInfo of
+	"String" -> addTextEntry $ memberName dataInfo
+	_ -> error $ "unknown member type: " ++ memberType dataInfo
+
+addTextEntry :: String -> String
+addTextEntry memberName = "<label for='{}'>{}</label><input type='text'"
+				++ " class='form-control' id='{}' placeholder='Enter {}'></div>"
 
 bootstrapModal :: JQuery -> Fay ()
 bootstrapModal = ffi "%1.modal('show')"
@@ -94,21 +124,42 @@ bootstrapPanel parent title = do
 	findSelector "div.panel-body" panelRoot
 
 bootstrapButton :: String -> String
-bootstrapButton name = "<button type='button' class='btn btn-default btn-lg'>"
-		++ "<span id='" ++ name ++ "' class='glyphicon glyphicon-" ++ name ++ "'></span></button>"
+bootstrapButton name = "<button type='button' class='btn btn-default btn-lg' id='" ++ name ++ "'>"
+		++ "<span class='glyphicon glyphicon-" ++ name ++ "'></span></button>"
 
 bootstrapWell :: JQuery -> Fay JQuery
 bootstrapWell parent = (select $ "<div class='well well-sm'>"
 		++ "<div class='btn-toolbar' style='float: right;'>" ++ (bootstrapButton "edit")
 		++ (bootstrapButton "remove-circle") ++ "</div></div>") >>= appendTo parent
 
-addPlugin :: [ConfigDataType] -> JQuery -> JValue -> Fay ()
-addPlugin configDataTypes header config = forM_ configDataTypes (addParameter header config)
+addPlugin :: PluginConfig -> JQuery -> JValue -> Fay ()
+addPlugin pluginConfig header config = do
+	let configDataTypes = cfgPluginConfig pluginConfig
+	forM_ configDataTypes (addParameter pluginConfig header config)
 
-addParameter :: JQuery -> JValue -> ConfigDataType -> Fay ()
-addParameter header config dataType = do
+addParameter :: PluginConfig -> JQuery -> JValue -> ConfigDataType -> Fay ()
+addParameter pluginConfig header config dataType = do
 	parameterWell <- bootstrapWell header
 	forM_ (members dataType) (addPluginElement parameterWell config)
+	findSelector "#edit" parameterWell >>= click (\_ -> editConfigItem pluginConfig config dataType)
+	findSelector "#remove-circle" parameterWell >>= click (\_ -> deleteConfigItem pluginConfig config dataType)
+	return ()
+
+editConfigItem :: PluginConfig -> JValue -> ConfigDataType -> Fay ()
+editConfigItem pluginConfig config dataType = addModuleAction pluginConfig
+
+deleteConfigItem :: PluginConfig -> JValue -> ConfigDataType -> Fay ()
+deleteConfigItem pluginConfig config dataType = deleteModuleAction pluginConfig
+
+deleteModuleAction :: PluginConfig -> Fay ()
+deleteModuleAction pluginConfig = do
+	let pluginName = cfgPluginName pluginConfig
+	modal <- select "#myModal"
+	findSelector "div.modal-header h4" modal >>= setText pluginName
+	prepareModal (Danger "Delete") modal
+	--let configMembers = members $ cfgPluginConfig pluginConfig
+	--findSelector "div.modal-body" modal >>= setText (getModalContents configMembers)
+	bootstrapModal modal
 
 addPluginElement :: JQuery -> JValue -> ConfigDataInfo -> Fay ()
 addPluginElement header config dataInfo = do

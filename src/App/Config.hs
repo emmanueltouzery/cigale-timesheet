@@ -7,30 +7,27 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import Data.HashMap.Strict as Map hiding (map)
 import Data.Maybe
+import System.Directory
 
 import EventProvider
 import qualified Settings (getSettingsFolder)
 
 getConfigFileName :: IO String
-getConfigFileName = fmap (++"config.json") Settings.getSettingsFolder 
+getConfigFileName = fmap (++"config.json") Settings.getSettingsFolder
 
 readConfig :: FromJSON a => [EventProvider a] -> IO [(EventProvider a, a)]
 readConfig plugins = do
 	settingsFile <- getConfigFileName
-	input <- BL.readFile $ settingsFile
-	let parsed = decode input :: Maybe (HashMap String Array)
-	case parsed of
-		Nothing -> do
-			printAndFail "config is NOT valid JSON"
-		Just configMap -> do
-				putStrLn "config IS valid JSON"
-				return $ concatMap (processConfigItem plugins) (toList configMap)
+	isSettings <- doesFileExist settingsFile
+	if isSettings
+		then BL.readFile settingsFile >>= (return . parseSettingsFile plugins)
+		else return []
 
-printAndFail :: String -> IO [(EventProvider a, a)]
-printAndFail msg = do
-	putStrLn msg
-	error msg
-	return []
+parseSettingsFile :: FromJSON a => [EventProvider a] -> BL.ByteString -> [(EventProvider a, a)]
+parseSettingsFile plugins input = let parsed = decode input :: Maybe (HashMap String Array) in
+	case parsed of
+		Nothing -> error "config is NOT valid JSON"
+		Just configMap -> concatMap (processConfigItem plugins) (toList configMap)
 
 processConfigItem :: FromJSON a => [EventProvider a] -> (String, Array) -> [(EventProvider a, a)]
 processConfigItem plugins (providerName, config) =

@@ -1,5 +1,3 @@
-HTTP 500 on getting the data when you don't have a config file set up
-
 port to dom-selector 0.2
 
 somehow codify the dependency on fay, make cabal build the whole thing. there is a conflict with dependencies between rex and fay if you want both at the same time, too. Elm is building the files at request time, could be an option too for Fay... although I'd rather to pre-build.

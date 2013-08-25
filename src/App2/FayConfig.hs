@@ -4,6 +4,8 @@ import Prelude
 import FFI
 import JQuery
 
+import Utils
+
 data JValue
 
 jvKeys :: JValue -> Fay [String]
@@ -109,7 +111,7 @@ getConfigDataInfoForm dataInfo = case memberType dataInfo of
 	_ -> error $ "unknown member type: " ++ memberType dataInfo
 
 addTextEntry :: String -> String
-addTextEntry memberName = "<label for='{}'>{}</label><input type='text'"
+addTextEntry memberName = replace "{}" memberName "<label for='{}'>{}</label><input type='text'"
 				++ " class='form-control' id='{}' placeholder='Enter {}'></div>"
 
 bootstrapModal :: JQuery -> Fay ()
@@ -157,8 +159,7 @@ deleteModuleAction pluginConfig = do
 	modal <- select "#myModal"
 	findSelector "div.modal-header h4" modal >>= setText pluginName
 	prepareModal (Danger "Delete") modal
-	--let configMembers = members $ cfgPluginConfig pluginConfig
-	--findSelector "div.modal-body" modal >>= setText (getModalContents configMembers)
+	findSelector "div.modal-body" modal >>= setText "Are you sure you want to delete this data source?"
 	bootstrapModal modal
 
 addPluginElement :: JQuery -> JValue -> ConfigDataInfo -> Fay ()

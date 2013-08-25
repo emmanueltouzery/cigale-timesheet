@@ -25,7 +25,7 @@ jvAsHash value = do
 	values <- sequence $ map (jvValue value) keys
 	return $ zip keys values
 
--- I would return only Maybe JValue...
+-- TODO I would return only Maybe JValue...
 -- but somehow I can't make it compile.
 -- I think maybe it's because JValue is
 -- a phantom type and it has different

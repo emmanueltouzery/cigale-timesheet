@@ -30,7 +30,7 @@ getSvnProvider = EventProvider
 	{
 		getModuleName = "Svn",
 		getEvents = getRepoCommits,
-		getConfigType = [$(thGetTypeDesc ''SvnConfigRecord)]
+		getConfigType = members $(thGetTypeDesc ''SvnConfigRecord)
 	}
 
 getRepoCommits :: SvnConfigRecord -> GlobalSettings -> Day -> IO [Event.Event]

@@ -43,7 +43,7 @@ getRedmineProvider = EventProvider
 	{
 		getModuleName = "Redmine",
 		getEvents = getRedmineEvents,
-		getConfigType = [$(thGetTypeDesc ''RedmineConfig)]
+		getConfigType = members $(thGetTypeDesc ''RedmineConfig)
 	}
 
 getRedmineEvents :: RedmineConfig -> GlobalSettings -> Day -> IO [Event]

@@ -67,7 +67,7 @@ data GlobalSettings = GlobalSettings {
 data EventProvider a = EventProvider {
 	getModuleName :: String,
 	getEvents :: a -> GlobalSettings -> Day -> IO [Event],
-	getConfigType :: [ConfigDataType]
+	getConfigType :: [ConfigDataInfo]
 	
 	-- i could derive the ConfigSpec from the data using
 	-- template haskell or maybe sth like that:

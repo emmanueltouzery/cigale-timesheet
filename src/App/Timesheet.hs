@@ -82,7 +82,7 @@ fetchProvider settings day provider config = do
 data PluginConfig = PluginConfig
 	{
 		cfgPluginName :: String,
-		cfgPluginConfig :: [ConfigDataType]
+		cfgPluginConfig :: [ConfigDataInfo]
 	}
 instance ToJSON PluginConfig where
     toJSON = (FayAeson.addInstance "PluginConfig") . $(mkToJSON id ''PluginConfig)

@@ -39,7 +39,7 @@ getEmailProvider = EventProvider
 	{
 		getModuleName = "Email",
 		getEvents = getEmailEvents,
-		getConfigType = [$(thGetTypeDesc ''EmailConfig)]
+		getConfigType = members $(thGetTypeDesc ''EmailConfig)
 		--getConfigRequirements = SubElementArraySpec [
 		--	SubElementArraySpec [StringFieldSpec "emailPath"],
 		--	SubElementArraySpec [StringFieldSpec "project", SubElementArraySpec [StringFieldSpec "emailPatterns"]]]

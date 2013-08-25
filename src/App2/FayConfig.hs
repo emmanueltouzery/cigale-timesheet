@@ -32,16 +32,11 @@ data ConfigDataInfo = ConfigDataInfo
 		memberType :: String
 	} deriving (Eq, Show)
 
-data ConfigDataType = ConfigDataType
-	{
-		dataName :: String,
-		members :: [ConfigDataInfo]
-	} deriving (Eq, Show)
-
 data PluginConfig = PluginConfig
 	{
 		cfgPluginName :: String,
-		cfgPluginConfig :: [ConfigDataType]
+		-- pluginConfig.cfgPluginConfig returns configinfo? stupid naming.
+		cfgPluginConfig :: [ConfigDataInfo]
 	}
 
 main :: Fay ()
@@ -136,22 +131,18 @@ bootstrapWell parent = (select $ "<div class='well well-sm'>"
 
 addPlugin :: PluginConfig -> JQuery -> JValue -> Fay ()
 addPlugin pluginConfig header config = do
-	let configDataTypes = cfgPluginConfig pluginConfig
-	forM_ configDataTypes (addParameter pluginConfig header config)
-
-addParameter :: PluginConfig -> JQuery -> JValue -> ConfigDataType -> Fay ()
-addParameter pluginConfig header config dataType = do
 	parameterWell <- bootstrapWell header
-	forM_ (members dataType) (addPluginElement parameterWell config)
-	findSelector "#edit" parameterWell >>= click (\_ -> editConfigItem pluginConfig config dataType)
-	findSelector "#remove-circle" parameterWell >>= click (\_ -> deleteConfigItem pluginConfig config dataType)
+	let configDataInfos = cfgPluginConfig pluginConfig
+	forM_ configDataInfos (addPluginElement parameterWell config)
+	findSelector "#edit" parameterWell >>= click (\_ -> editConfigItem pluginConfig config)
+	findSelector "#remove-circle" parameterWell >>= click (\_ -> deleteConfigItem pluginConfig config)
 	return ()
 
-editConfigItem :: PluginConfig -> JValue -> ConfigDataType -> Fay ()
-editConfigItem pluginConfig config dataType = addModuleAction pluginConfig
+editConfigItem :: PluginConfig -> JValue -> Fay ()
+editConfigItem pluginConfig config = addModuleAction pluginConfig
 
-deleteConfigItem :: PluginConfig -> JValue -> ConfigDataType -> Fay ()
-deleteConfigItem pluginConfig config dataType = deleteModuleAction pluginConfig
+deleteConfigItem :: PluginConfig -> JValue -> Fay ()
+deleteConfigItem pluginConfig config = deleteModuleAction pluginConfig
 
 deleteModuleAction :: PluginConfig -> Fay ()
 deleteModuleAction pluginConfig = do

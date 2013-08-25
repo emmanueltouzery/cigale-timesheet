@@ -28,7 +28,7 @@ getHgProvider = EventProvider
 	{
 		getModuleName = "Hg",
 		getEvents = getRepoCommits,
-		getConfigType = [$(thGetTypeDesc ''HgRecord)]
+		getConfigType = members $(thGetTypeDesc ''HgRecord)
 	}
 
 getRepoCommits :: HgRecord -> GlobalSettings -> Day -> IO [Event.Event]

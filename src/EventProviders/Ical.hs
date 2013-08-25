@@ -42,7 +42,7 @@ getIcalProvider = EventProvider
 	{
 		getModuleName = "Ical",
 		getEvents = getCalendarEvents,
-		getConfigType = [$(thGetTypeDesc ''IcalRecord)]
+		getConfigType = members $(thGetTypeDesc ''IcalRecord)
 	}
 
 --eventsTxt = "crap\r\nBEGIN:VEVENT\r\nDTSTART:20121220T113000Z\r\nDTEND:20121220T123000Z\r\nDTSTAMP:20121222T202323Z\r\nUID:libdtse87aoci8tar144sctm7g@google.com\r\nCREATED:20121221T102110Z\r\nDESCRIPTION:test\r\nLAST-MODIFIED:20121221T102116Z\r\nLOCATION:\r\nSEQUENCE:2\r\nSTATUS:CONFIRMED\r\nSUMMARY:sestanek Matej\r\nTRANSP:OPAQUE\r\nEND:VEVENT"

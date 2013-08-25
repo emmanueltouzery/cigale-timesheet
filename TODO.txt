@@ -46,6 +46,8 @@ for emails, nice display if there is an attachment instead of dumping
 the base64. a download button would be groovy (or inline preview for
 images).
 
+decent error message if the config file is corrupted?
+
 for emails check for a library, if there is none extract one from this
 app, make regression tests and so on.
 

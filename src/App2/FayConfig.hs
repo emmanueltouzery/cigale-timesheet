@@ -17,11 +17,21 @@ jvValue = ffi "%1[%2]"
 jvArray :: JValue -> Fay [JValue]
 jvArray = ffi "%1"
 
-jvAsHash :: JValue -> Fay [(String, JValue)]
+type JvHash = [(String, JValue)]
+
+jvAsHash :: JValue -> Fay JvHash
 jvAsHash value = do
 	keys <- jvKeys value
 	values <- sequence $ map (jvValue value) keys
 	return $ zip keys values
+
+-- I would return only Maybe JValue...
+-- but somehow I can't make it compile.
+-- I think maybe it's because JValue is
+-- a phantom type and it has different
+-- semantics (notably I shouldn't evaluate it)
+jvHashVal :: String -> JvHash -> Maybe (String, JValue)
+jvHashVal key hash = find ((==key) . fst) hash -- >>= (Just . snd)
 
 jvGetString :: JValue -> Fay String
 jvGetString = ffi "%1"
@@ -67,16 +77,17 @@ addModuleMenuItem pluginConfig = do
 	let pluginName = cfgPluginName pluginConfig
 	parent <- select "ul#add_module_menu"
 	menuItem <- (select $ "<li><a href='#'>" ++ pluginName ++ "</a></li>") >>= appendTo parent
-	findSelector "a" menuItem >>= click (\_ -> addModuleAction pluginConfig)
+	findSelector "a" menuItem >>= click (\_ -> addEditModuleAction pluginConfig [])
 
-addModuleAction :: PluginConfig -> Fay ()
-addModuleAction pluginConfig = do
+addEditModuleAction :: PluginConfig -> JvHash -> Fay ()
+addEditModuleAction pluginConfig existingConfig = do
 	let pluginName = cfgPluginName pluginConfig
 	modal <- select "#myModal"
 	findSelector "div.modal-header h4" modal >>= setText pluginName
 	prepareModal (Primary "Save changes") modal
 	let configMembers = cfgPluginConfig pluginConfig
-	findSelector "div.modal-body" modal >>= setHtml (getModalContents configMembers)
+	modalContents <- getModalContents configMembers existingConfig
+	findSelector "div.modal-body" modal >>= setHtml modalContents
 	bootstrapModal modal
 
 data MainAction = Primary String
@@ -95,21 +106,28 @@ prepareModal action modal = do
 			Danger x -> ("danger", x)
 			_ -> error $ "Unknown action: " ++ (show action)
 
-getModalContents :: [ConfigDataInfo] -> String
-getModalContents types = "<form role='form'><div class='form-group'>"
-		++ formContents ++ "</div></form>"
-	where formContents = concatMap getConfigDataInfoForm types
+getModalContents :: [ConfigDataInfo] -> JvHash -> Fay String
+getModalContents types configHash = do
+		formContents <- sequence $ map (getConfigDataInfoForm configHash) types 
+		return $ "<form role='form'><div class='form-group'>"
+			++ (foldr (++) [] formContents) ++ "</div></form>"
 
-getConfigDataInfoForm :: ConfigDataInfo -> String
-getConfigDataInfoForm dataInfo
-	| mType `elem` ["String", "Text", "ByteString"] = addTextEntry $ memberName dataInfo
+getConfigDataInfoForm :: JvHash -> ConfigDataInfo -> Fay String
+getConfigDataInfoForm configHash dataInfo
+	| mType `elem` ["String", "Text", "ByteString"] =
+		memberAsString  >>= (return . addTextEntry mName)
 	| otherwise = error $ "unknown member type: " ++ mType
 	where
 		mType = memberType dataInfo
+		mName = memberName dataInfo
+		memberAsString = case jvHashVal mName configHash of
+				Nothing -> return ""
+				Just x -> jvGetString $ snd x
 
-addTextEntry :: String -> String
-addTextEntry memberName = replace "{}" memberName ("<label for='{}'>{}</label><input type='text'"
-				++ " class='form-control' id='{}' placeholder='Enter {}'></div>")
+addTextEntry :: String -> String -> String
+addTextEntry memberName curValue = replace "{}" memberName ("<label for='{}'>{}</label><input type='text'"
+				++ " class='form-control' id='{}' placeholder='Enter {}' value='"
+				++ curValue ++ "'></div>")
 
 bootstrapModal :: JQuery -> Fay ()
 bootstrapModal = ffi "%1.modal('show')"
@@ -141,7 +159,7 @@ addPlugin pluginConfig header config = do
 	return ()
 
 editConfigItem :: PluginConfig -> JValue -> Fay ()
-editConfigItem pluginConfig config = addModuleAction pluginConfig
+editConfigItem pluginConfig config = jvAsHash config >>= addEditModuleAction pluginConfig
 
 deleteConfigItem :: PluginConfig -> JValue -> Fay ()
 deleteConfigItem pluginConfig config = deleteModuleAction pluginConfig
@@ -158,7 +176,6 @@ deleteModuleAction pluginConfig = do
 addPluginElement :: JQuery -> JValue -> ConfigDataInfo -> Fay ()
 addPluginElement header config dataInfo = do
 	let memberNameV = memberName dataInfo
-	putStrLn memberNameV
 	memberValue <- (jvValue config memberNameV) >>= jvGetString
 	(select $ "<div>" ++ memberNameV ++ " " ++ memberValue ++ "</div>") >>= appendTo header
 	return ()

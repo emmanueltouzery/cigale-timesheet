@@ -46,6 +46,8 @@ for emails, nice display if there is an attachment instead of dumping
 the base64. a download button would be groovy (or inline preview for
 images).
 
+would be cool to make a nice API for bootstrap helper functions with monad parameter like http-streams, to specify extra html attributes
+
 decent error message if the config file is corrupted?
 
 for emails check for a library, if there is none extract one from this

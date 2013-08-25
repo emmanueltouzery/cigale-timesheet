@@ -1,5 +1,7 @@
 port to dom-selector 0.2
 
+somehow codify the dependency on fay, make cabal build the whole thing. there is a conflict with dependencies between rex and fay if you want both at the same time, too. Elm is building the files at request time, could be an option too for Fay... although I'd rather to pre-build.
+
 links broken in skype, see 2013-08-03
 
 try to remove bootstrap and jquery-ui from my GIT and install them through npm instead? or maybe put only the zips in GIT and have cabal unzip them.

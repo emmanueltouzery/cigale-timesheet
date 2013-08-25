@@ -144,16 +144,19 @@ bootstrapButton :: String -> String
 bootstrapButton name = "<button type='button' class='btn btn-default btn-lg' id='" ++ name ++ "'>"
 		++ "<span class='glyphicon glyphicon-" ++ name ++ "'></span></button>"
 
+-- putting XS for the columns because i want a responsive design,
+-- that it behaves well when the user reduces the width of the browser
 bootstrapWell :: JQuery -> Fay JQuery
-bootstrapWell parent = (select $ "<div class='well well-sm'>"
-		++ "<div class='btn-toolbar' style='float: right;'>" ++ (bootstrapButton "edit")
-		++ (bootstrapButton "remove-circle") ++ "</div></div>") >>= appendTo parent
+bootstrapWell parent = (select $ "<div class='well well-sm'><div class='row'><div class='col-xs-8' id='contents'>"
+		++ "</div><div class='col-xs-4'><div class='btn-toolbar' style='float: right;'>" ++ (bootstrapButton "edit")
+		++ (bootstrapButton "remove-circle") ++ "</div></div></div>") >>= appendTo parent
 
 addPlugin :: PluginConfig -> JQuery -> JValue -> Fay ()
 addPlugin pluginConfig header config = do
 	parameterWell <- bootstrapWell header
+	parameterContentsDiv <- findSelector "div#contents" parameterWell
 	let configDataInfos = cfgPluginConfig pluginConfig
-	forM_ configDataInfos (addPluginElement parameterWell config)
+	forM_ configDataInfos (addPluginElement parameterContentsDiv config)
 	findSelector "#edit" parameterWell >>= click (\_ -> editConfigItem pluginConfig config)
 	findSelector "#remove-circle" parameterWell >>= click (\_ -> deleteConfigItem pluginConfig config)
 	return ()

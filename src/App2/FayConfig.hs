@@ -75,8 +75,8 @@ addModuleAction pluginConfig = do
 	modal <- select "#myModal"
 	findSelector "div.modal-header h4" modal >>= setText pluginName
 	prepareModal (Primary "Save changes") modal
-	--let configMembers = members $ cfgPluginConfig pluginConfig
-	--findSelector "div.modal-body" modal >>= setText (getModalContents configMembers)
+	let configMembers = cfgPluginConfig pluginConfig
+	findSelector "div.modal-body" modal >>= setHtml (getModalContents configMembers)
 	bootstrapModal modal
 
 data MainAction = Primary String
@@ -101,13 +101,15 @@ getModalContents types = "<form role='form'><div class='form-group'>"
 	where formContents = concatMap getConfigDataInfoForm types
 
 getConfigDataInfoForm :: ConfigDataInfo -> String
-getConfigDataInfoForm dataInfo = case memberType dataInfo of
-	"String" -> addTextEntry $ memberName dataInfo
-	_ -> error $ "unknown member type: " ++ memberType dataInfo
+getConfigDataInfoForm dataInfo
+	| mType `elem` ["String", "Text", "ByteString"] = addTextEntry $ memberName dataInfo
+	| otherwise = error $ "unknown member type: " ++ mType
+	where
+		mType = memberType dataInfo
 
 addTextEntry :: String -> String
-addTextEntry memberName = replace "{}" memberName "<label for='{}'>{}</label><input type='text'"
-				++ " class='form-control' id='{}' placeholder='Enter {}'></div>"
+addTextEntry memberName = replace "{}" memberName ("<label for='{}'>{}</label><input type='text'"
+				++ " class='form-control' id='{}' placeholder='Enter {}'></div>")
 
 bootstrapModal :: JQuery -> Fay ()
 bootstrapModal = ffi "%1.modal('show')"

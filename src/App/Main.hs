@@ -12,7 +12,6 @@ import System.IO
 import Data.ByteString.Lazy as LBS (hPut, fromChunks, concat)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy.Char8 as DBLC
-import qualified Language.Elm as Elm
 import qualified Data.Text as T
 import Data.Maybe (fromJust)
 import Text.Blaze.Html5
@@ -32,8 +31,7 @@ site =
             ("configdesc", configdesc),
             ("config", serveFile "config.html"),
             ("configVal", configVal),
-            ("configUpdate", configUpdate),
-            ("elm/:filename", serveElm)
+            ("configUpdate", configUpdate)
           ] <|>
     dir "static" (serveDirectory ".")
 
@@ -44,17 +42,6 @@ timesheet = do
     tsparam <- getParam "tsparam"
     maybe (writeBS "must specify the month and year in URL, like so: /timesheet/2012-11")
           handleTimesheet tsparam
-
-serveElm :: Snap ()
-serveElm = do
-	paramFilename <- getParam "filename"
-	let elmFilename = T.unpack $ TE.decodeUtf8 $ fromJust paramFilename
-	let filename = "/home/emmanuel/Dropbox/haskell/timesheet/" ++ elmFilename ++ ".elm"
-	--let filename = elmFilename ++ ".elm"
-	elmSource <- liftIO $ readFile $ filename
-	let elmJsLoc = "/static/elm-runtime.js"
-	let compiled = docTypeHtml $ Elm.toHtml elmJsLoc "Timesheet" elmSource
-	writeLBS $ DBLC.pack $ renderHtml compiled
 
 handleTimesheet tsparam = do
 	jsonData <- liftIO $ Timesheet.process $ TE.decodeUtf8 tsparam

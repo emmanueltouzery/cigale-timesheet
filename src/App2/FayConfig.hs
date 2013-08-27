@@ -11,6 +11,9 @@ data JValue
 jvKeys :: JValue -> Fay [String]
 jvKeys = ffi "getKeys(%1)"
 
+jvArrayToObject :: [(String,String)] -> Fay JValue
+jvArrayToObject = ffi "toJsObject(%1)"
+
 jvValue :: JValue -> String -> Fay JValue
 jvValue = ffi "%1[%2]"
 
@@ -77,17 +80,22 @@ addModuleMenuItem pluginConfig = do
 	let pluginName = cfgPluginName pluginConfig
 	parent <- select "ul#add_module_menu"
 	menuItem <- (select $ "<li><a href='#'>" ++ pluginName ++ "</a></li>") >>= appendTo parent
-	findSelector "a" menuItem >>= click (\_ -> addEditModuleAction pluginConfig [])
+	findSelector "a" menuItem >>= click (\_ -> addEditModuleAction pluginConfig Nothing)
 
-addEditModuleAction :: PluginConfig -> JvHash -> Fay ()
-addEditModuleAction pluginConfig existingConfig = do
+addEditModuleAction :: PluginConfig -> Maybe JValue -> Fay ()
+addEditModuleAction pluginConfig mbExistingConfig = do
 	let pluginName = cfgPluginName pluginConfig
 	modal <- select "#myModal"
 	findSelector "div.modal-header h4" modal >>= setText pluginName
 	prepareModal (Primary "Save changes") modal
 	let configMembers = cfgPluginConfig pluginConfig
-	modalContents <- getModalContents configMembers existingConfig
+	modalContents <- getModalContents configMembers mbExistingConfig
 	findSelector "div.modal-body" modal >>= setHtml modalContents
+	let clickCallback enteredData = case mbExistingConfig of
+		Nothing -> addPluginConfig enteredData
+		Just existingConfig -> do
+			updatePluginConfig enteredData existingConfig
+	findSelector "button#main-action" modal >>= click (\_ -> getModalEnteredData configMembers modal >>= clickCallback) -- pluginConfig config)
 	bootstrapModal modal
 
 data MainAction = Primary String
@@ -106,8 +114,9 @@ prepareModal action modal = do
 			Danger x -> ("danger", x)
 			_ -> error $ "Unknown action: " ++ (show action)
 
-getModalContents :: [ConfigDataInfo] -> JvHash -> Fay String
-getModalContents types configHash = do
+getModalContents :: [ConfigDataInfo] -> Maybe JValue -> Fay String
+getModalContents types config = do
+		configHash <- maybeFay [] jvAsHash config
 		formContents <- sequence $ map (getConfigDataInfoForm configHash) types 
 		return $ "<form role='form'><div class='form-group'>"
 			++ (foldr (++) [] formContents) ++ "</div></form>"
@@ -123,6 +132,19 @@ getConfigDataInfoForm configHash dataInfo
 		memberAsString = case jvHashVal mName configHash of
 				Nothing -> return ""
 				Just x -> jvGetString $ snd x
+
+getModalEnteredData :: [ConfigDataInfo] -> JQuery -> Fay [(String,String)]
+getModalEnteredData types modal = sequence $ map (getConfigDataInfoFormValue modal) types 
+
+getConfigDataInfoFormValue :: JQuery -> ConfigDataInfo -> Fay (String, String)
+getConfigDataInfoFormValue modal dataInfo
+	| mType `elem` ["String", "Text", "ByteString"] = do
+		value <- findSelector ("input#" ++ mName) modal >>= getVal
+		return (mName, value)
+	| otherwise = error $ "unknown member type: " ++ mType
+	where
+		mType = memberType dataInfo
+		mName = memberName dataInfo
 
 addTextEntry :: String -> String -> String
 addTextEntry memberName curValue = replace "{}" memberName ("<label for='{}'>{}</label><input type='text'"
@@ -147,8 +169,10 @@ bootstrapButton name = "<button type='button' class='btn btn-default btn-lg' id=
 -- putting XS for the columns because i want a responsive design,
 -- that it behaves well when the user reduces the width of the browser
 bootstrapWell :: JQuery -> Fay JQuery
-bootstrapWell parent = (select $ "<div class='well well-sm'><div class='row'><div class='col-xs-8' id='contents'>"
-		++ "</div><div class='col-xs-4'><div class='btn-toolbar' style='float: right;'>" ++ (bootstrapButton "edit")
+bootstrapWell parent = (select $ "<div class='well well-sm'><div class='row'>"
+		++ "<div class='col-xs-8' id='contents'>"
+		++ "</div><div class='col-xs-4'><div class='btn-toolbar'"
+		++ " style='float: right;'>" ++ (bootstrapButton "edit")
 		++ (bootstrapButton "remove-circle") ++ "</div></div></div>") >>= appendTo parent
 
 addPlugin :: PluginConfig -> JQuery -> JValue -> Fay ()
@@ -157,24 +181,55 @@ addPlugin pluginConfig header config = do
 	parameterContentsDiv <- findSelector "div#contents" parameterWell
 	let configDataInfos = cfgPluginConfig pluginConfig
 	forM_ configDataInfos (addPluginElement parameterContentsDiv config)
-	findSelector "#edit" parameterWell >>= click (\_ -> editConfigItem pluginConfig config)
-	findSelector "#remove-circle" parameterWell >>= click (\_ -> deleteConfigItem pluginConfig config)
+	findSelector "#edit" parameterWell >>= click (\_ -> addEditModuleAction pluginConfig (Just config))
+	findSelector "#remove-circle" parameterWell >>= click (\_ -> deleteModuleAction pluginConfig config)
 	return ()
 
-editConfigItem :: PluginConfig -> JValue -> Fay ()
-editConfigItem pluginConfig config = jvAsHash config >>= addEditModuleAction pluginConfig
-
-deleteConfigItem :: PluginConfig -> JValue -> Fay ()
-deleteConfigItem pluginConfig config = deleteModuleAction pluginConfig
-
-deleteModuleAction :: PluginConfig -> Fay ()
-deleteModuleAction pluginConfig = do
+deleteModuleAction :: PluginConfig -> JValue -> Fay ()
+deleteModuleAction pluginConfig config = do
 	let pluginName = cfgPluginName pluginConfig
 	modal <- select "#myModal"
 	findSelector "div.modal-header h4" modal >>= setText pluginName
 	prepareModal (Danger "Delete") modal
 	findSelector "div.modal-body" modal >>= setText "Are you sure you want to delete this data source?"
 	bootstrapModal modal
+	findSelector "button#main-action" modal >>= click (deletePluginConfig pluginConfig config)
+	return ()
+
+getOriginalPluginConfig :: JValue -> Fay [(String,String)]
+getOriginalPluginConfig json = jvAsHash json >>= sequence . map toStrPair
+	where
+		toStrPair (a, b) = do
+			val <- jvGetString b
+			return (a, val)
+
+updatePluginConfig :: [(String,String)] -> JValue -> Fay ()
+updatePluginConfig newConfig oldConfig = do
+	newConfigObj <- jvArrayToObject newConfig
+	parm <- jqParam oldConfig
+	ajxPut ("/test?" ++ parm) newConfigObj
+
+addPluginConfig :: [(String,String)] -> Fay ()
+addPluginConfig newConfig = do
+	newConfigObj <- jvArrayToObject newConfig
+	ajxPost ("/test") newConfigObj
+
+deletePluginConfig :: PluginConfig -> JValue -> Event -> Fay ()
+deletePluginConfig pluginConfig config _ = do
+	parm <- jqParam config
+	ajxDelete $ "/test?" ++ parm
+
+ajxPut :: String -> JValue -> Fay ()
+ajxPut = ffi "jQuery.ajax({type:'PUT', url: %1, data: JSON.stringify(%2)})"
+
+ajxPost :: String -> JValue -> Fay ()
+ajxPost = ffi "jQuery.ajax({type:'POST', url: %1, data: JSON.stringify(%2)})"
+
+ajxDelete :: String -> Fay ()
+ajxDelete = ffi "jQuery.ajax({type:'DELETE', url: %1})"
+
+jqParam :: JValue -> Fay String
+jqParam = ffi "jQuery.param(%1)"
 
 addPluginElement :: JQuery -> JValue -> ConfigDataInfo -> Fay ()
 addPluginElement header config dataInfo = do

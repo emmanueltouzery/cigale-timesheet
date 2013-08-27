@@ -27,6 +27,14 @@
 		}
 		return result;
 	}
+	function toJsObject(ar) {
+		var result = {};
+		for (var i=0;i<ar.length;i++) {
+			var subarray = ar[i];
+			result[subarray[0]] = subarray[1];
+		}
+		return result;
+	}
 	</script>
 	<script type="text/javascript" src="FayConfig.js"></script>
 	<link href="/static/bootstrap-3.0.0/css/bootstrap.min.css" rel="stylesheet">

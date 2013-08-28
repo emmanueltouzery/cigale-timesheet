@@ -107,6 +107,7 @@ data MainAction = Primary String
 
 prepareModal :: MainAction -> JQuery -> Fay JQuery
 prepareModal action modal = do
+	select "div#error" >>= hide Instantly
 	footer <- findSelector "div.modal-footer" modal
 	findSelector "#main-action" footer >>= remove
 	let btnHtml = "<button type='button' id='main-action' class='btn btn-" ++ btnType ++ "'>" ++ actionText ++ "</button>"
@@ -218,7 +219,7 @@ updatePluginConfig newConfig oldConfig = do
 addPluginConfig :: String -> [(String,String)] -> Fay ()
 addPluginConfig pluginName newConfig = do
 	newConfigObj <- jvArrayToObject newConfig
-	ajxPost ("/config?pluginName=" ++ pluginName) newConfigObj closePopupAndRefresh
+	ajxPost ("/config?pluginName=" ++ pluginName) newConfigObj closePopupAndRefresh 
 
 closePopupAndRefresh :: Fay ()
 closePopupAndRefresh = do
@@ -234,7 +235,7 @@ ajxPut :: String -> JValue -> Fay ()
 ajxPut = ffi "jQuery.ajax({type:'PUT', url: %1, data: JSON.stringify(%2)})"
 
 ajxPost :: String -> JValue -> Fay () -> Fay ()
-ajxPost = ffi "jQuery.ajax({type:'POST', url: %1, data: JSON.stringify(%2)}).success(%3)"
+ajxPost = ffi "jQuery.ajax({type:'POST', url: %1, data: JSON.stringify(%2)}).success(%3).fail($('div#error').show())"
 
 ajxDelete :: String -> Fay ()
 ajxDelete = ffi "jQuery.ajax({type:'DELETE', url: %1})"

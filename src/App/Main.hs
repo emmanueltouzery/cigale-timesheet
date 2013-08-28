@@ -29,9 +29,10 @@ site =
     ifTop (serveFile "index.html") <|>
     route [ ("timesheet/:tsparam", timesheet),
             ("configdesc", configdesc),
-            ("config", serveFile "config.html"),
+            ("config", method GET (serveFile "config.html")),
             ("configVal", configVal),
-            ("configUpdate", configUpdate)
+            ("configUpdate", configUpdate), -- TODO remove this
+            ("config", method POST addConfigEntry)
           ] <|>
     dir "static" (serveDirectory ".")
 
@@ -69,3 +70,12 @@ configUpdate = do
 	requestBody <- readRequestBody 64000
 	liftIO $ hPut outH requestBody
 	liftIO $ hClose outH
+
+addConfigEntry :: Snap ()
+addConfigEntry = do
+	rq <- getRequest 
+	case rqParam "pluginName" rq of
+		(Just (x:[])) -> liftIO $ putStrLn $ "pluginName is " ++ (show x)
+		_ -> error "add config: pluginName not specified"
+	configJson <- getRequestBody
+	liftIO $ print configJson

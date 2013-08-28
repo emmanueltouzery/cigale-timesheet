@@ -92,7 +92,7 @@ addEditModuleAction pluginConfig mbExistingConfig = do
 	modalContents <- getModalContents configMembers mbExistingConfig
 	findSelector "div.modal-body" modal >>= setHtml modalContents
 	let clickCallback enteredData = case mbExistingConfig of
-		Nothing -> addPluginConfig enteredData
+		Nothing -> addPluginConfig pluginName enteredData
 		Just existingConfig -> do
 			updatePluginConfig enteredData existingConfig
 	findSelector "button#main-action" modal >>= click (\_ -> getModalEnteredData configMembers modal >>= clickCallback) -- pluginConfig config)
@@ -207,17 +207,17 @@ updatePluginConfig :: [(String,String)] -> JValue -> Fay ()
 updatePluginConfig newConfig oldConfig = do
 	newConfigObj <- jvArrayToObject newConfig
 	parm <- jqParam oldConfig
-	ajxPut ("/test?" ++ parm) newConfigObj
+	ajxPut ("/config?" ++ parm) newConfigObj
 
-addPluginConfig :: [(String,String)] -> Fay ()
-addPluginConfig newConfig = do
+addPluginConfig :: String -> [(String,String)] -> Fay ()
+addPluginConfig pluginName newConfig = do
 	newConfigObj <- jvArrayToObject newConfig
-	ajxPost ("/test") newConfigObj
+	ajxPost ("/config?pluginName=" ++ pluginName) newConfigObj
 
 deletePluginConfig :: PluginConfig -> JValue -> Event -> Fay ()
 deletePluginConfig pluginConfig config _ = do
 	parm <- jqParam config
-	ajxDelete $ "/test?" ++ parm
+	ajxDelete $ "/config?" ++ parm
 
 ajxPut :: String -> JValue -> Fay ()
 ajxPut = ffi "jQuery.ajax({type:'PUT', url: %1, data: JSON.stringify(%2)})"

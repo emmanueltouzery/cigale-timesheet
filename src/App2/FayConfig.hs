@@ -53,7 +53,10 @@ data PluginConfig = PluginConfig
 	}
 
 main :: Fay ()
-main = ready $ myajax2 "/configVal" "/configdesc" $ \val desc -> handleValDesc (head val) (head desc)
+main = ready refreshDisplay
+
+refreshDisplay :: Fay ()
+refreshDisplay = myajax2 "/configVal" "/configdesc" $ \val desc -> handleValDesc (head val) (head desc)
 
 handleValDesc :: JValue -> [PluginConfig] -> Fay ()
 handleValDesc configVal pluginConfig = do
@@ -154,6 +157,9 @@ addTextEntry memberName curValue = replace "{}" memberName ("<label for='{}'>{}<
 bootstrapModal :: JQuery -> Fay ()
 bootstrapModal = ffi "%1.modal('show')"
 
+bootstrapModalHide :: JQuery -> Fay ()
+bootstrapModalHide = ffi "%1.modal('hide')"
+
 bootstrapPanel :: JQuery -> String -> Fay JQuery
 bootstrapPanel parent title = do
 	let panelHtml = "<div class='panel panel-default'><div class='panel-heading'>" ++
@@ -212,7 +218,12 @@ updatePluginConfig newConfig oldConfig = do
 addPluginConfig :: String -> [(String,String)] -> Fay ()
 addPluginConfig pluginName newConfig = do
 	newConfigObj <- jvArrayToObject newConfig
-	ajxPost ("/config?pluginName=" ++ pluginName) newConfigObj
+	ajxPost ("/config?pluginName=" ++ pluginName) newConfigObj closePopupAndRefresh
+
+closePopupAndRefresh :: Fay ()
+closePopupAndRefresh = do
+	select "#myModal" >>= bootstrapModalHide
+	refreshDisplay
 
 deletePluginConfig :: PluginConfig -> JValue -> Event -> Fay ()
 deletePluginConfig pluginConfig config _ = do
@@ -222,8 +233,8 @@ deletePluginConfig pluginConfig config _ = do
 ajxPut :: String -> JValue -> Fay ()
 ajxPut = ffi "jQuery.ajax({type:'PUT', url: %1, data: JSON.stringify(%2)})"
 
-ajxPost :: String -> JValue -> Fay ()
-ajxPost = ffi "jQuery.ajax({type:'POST', url: %1, data: JSON.stringify(%2)})"
+ajxPost :: String -> JValue -> Fay () -> Fay ()
+ajxPost = ffi "jQuery.ajax({type:'POST', url: %1, data: JSON.stringify(%2)}).success(%3)"
 
 ajxDelete :: String -> Fay ()
 ajxDelete = ffi "jQuery.ajax({type:'DELETE', url: %1})"

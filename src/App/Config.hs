@@ -48,4 +48,4 @@ processConfigElement providersByName providerName configValue =
 addPluginInConfig :: BS.ByteString -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)
 addPluginInConfig pluginName configJson = do
 	print pluginName
-	return $ Left ""
+	return $ Right ""

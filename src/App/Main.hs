@@ -19,7 +19,8 @@ import Text.Blaze.Html.Renderer.String
 
 import qualified Timesheet
 import qualified Settings
-import qualified Config (getConfigFileName)
+import Config (getConfigFileName, addPluginInConfig)
+import Util (toStrict1)
 
 main :: IO ()
 main = quickHttpServe site
@@ -75,7 +76,11 @@ addConfigEntry :: Snap ()
 addConfigEntry = do
 	rq <- getRequest 
 	case rqParam "pluginName" rq of
-		(Just (x:[])) -> liftIO $ putStrLn $ "pluginName is " ++ (show x)
-		_ -> error "add config: pluginName not specified"
-	configJson <- getRequestBody
-	liftIO $ print configJson
+		Nothing -> error "add config: pluginName not specified"
+		(Just (pName:[])) -> do
+			configJson <- getRequestBody >>= return . toStrict1
+			(liftIO $ addPluginInConfig pName configJson) >>= setResponse
+
+setResponse :: Either BS.ByteString BS.ByteString -> Snap ()
+setResponse (Left msg) = modifyResponse $ setResponseStatus 500 msg
+setResponse (Right val) = writeBS val

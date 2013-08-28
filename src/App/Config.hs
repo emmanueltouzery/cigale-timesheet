@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Config where
 
 import Data.Aeson
@@ -8,6 +10,7 @@ import qualified Data.Text as T
 import Data.HashMap.Strict as Map hiding (map)
 import Data.Maybe
 import System.Directory
+import qualified Data.ByteString as BS
 
 import EventProvider
 import qualified Settings (getSettingsFolder)
@@ -41,3 +44,8 @@ processConfigElement providersByName providerName configValue =
 		(provider, (\(Success x) -> x) $ fromJSON configValue)
 	where
 		provider = fromJust $ HashMap.lookup providerName providersByName
+
+addPluginInConfig :: BS.ByteString -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)
+addPluginInConfig pluginName configJson = do
+	print pluginName
+	return $ Left ""

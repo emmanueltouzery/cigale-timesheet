@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, ViewPatterns #-}
 
 module Config where
 
@@ -11,9 +11,11 @@ import Data.HashMap.Strict as Map hiding (map)
 import Data.Maybe
 import System.Directory
 import qualified Data.ByteString as BS
+import qualified Data.Text.Encoding as TE
 
 import EventProvider
 import qualified Settings (getSettingsFolder)
+import qualified EventProviders
 
 getConfigFileName :: IO String
 getConfigFileName = fmap (++"config.json") Settings.getSettingsFolder
@@ -30,22 +32,27 @@ parseSettingsFile :: FromJSON a => [EventProvider a] -> BL.ByteString -> [(Event
 parseSettingsFile plugins input = let parsed = decode input :: Maybe (HashMap String Array) in
 	case parsed of
 		Nothing -> error "config is NOT valid JSON"
-		Just configMap -> concatMap (processConfigItem plugins) (toList configMap)
-
-processConfigItem :: FromJSON a => [EventProvider a] -> (String, Array) -> [(EventProvider a, a)]
-processConfigItem plugins (providerName, config) =
-		fmap (processConfigElement providersByName providerName) (Vector.toList config)
+		Just configMap -> concatMap (processConfigItem providersByNameHash) (toList configMap)
 	where
-		providersByName = HashMap.fromList $ map (\p -> (getModuleName p, p)) plugins
+		providersByNameHash = providersByName plugins
 
-processConfigElement :: FromJSON a => HashMap String (EventProvider a) -> String 
+processConfigItem :: FromJSON a => HashMap String (EventProvider a) -> (String, Array) -> [(EventProvider a, a)]
+processConfigItem providersByNameHash (providerName, config) =
+		fmap (processConfigElement provider) (Vector.toList config)
+		where
+			provider = fromJust $ HashMap.lookup providerName providersByNameHash
+
+providersByName :: FromJSON a => [EventProvider a] -> HashMap String (EventProvider a)
+providersByName plugins = HashMap.fromList $ map (\p -> (getModuleName p, p)) plugins
+
+processConfigElement :: FromJSON a => EventProvider a
 				      -> Value -> (EventProvider a, a)
-processConfigElement providersByName providerName configValue =
+processConfigElement provider configValue =
 		(provider, (\(Success x) -> x) $ fromJSON configValue)
-	where
-		provider = fromJust $ HashMap.lookup providerName providersByName
 
 addPluginInConfig :: BS.ByteString -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)
-addPluginInConfig pluginName configJson = do
+addPluginInConfig (T.unpack . TE.decodeUtf8 -> pluginName) configJson = do
+	let providersByNameHash = providersByName EventProviders.plugins
+	let provider = fromJust $ HashMap.lookup pluginName providersByNameHash
 	print pluginName
 	return $ Right ""

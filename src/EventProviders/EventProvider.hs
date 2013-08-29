@@ -78,7 +78,7 @@ data EventProvider a = EventProvider {
 instance Show (EventProvider a) where
 	show (EventProvider modName _ _) = show modName
 
-eventProviderWrap :: FromJSON a =>  EventProvider a -> EventProvider Value
+eventProviderWrap :: (FromJSON a, ToJSON a) =>  EventProvider a -> EventProvider Value
 eventProviderWrap (EventProvider innerGetModName innerGetEvents innerGetConfigType) = EventProvider
 	{
 		getModuleName = innerGetModName,

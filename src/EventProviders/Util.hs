@@ -20,6 +20,8 @@ import qualified System.IO.Streams as Streams
 import qualified Blaze.ByteString.Builder as Builder
 import qualified System.Info as Sysinfo
 import qualified OpenSSL.Session as SSL
+import qualified Data.Aeson as A
+import qualified Data.Attoparsec as AP
 
 import OpenSSL (withOpenSSL)
 
@@ -106,3 +108,13 @@ http url contents responseProcessor requestSpec = withOpenSSL $ do
 	result <- receiveResponse c responseProcessor
 	closeConnection c
 	return result
+
+-- https://github.com/bos/aeson/issues/99
+decodeStrict :: A.FromJSON a => B.ByteString -> Maybe a
+decodeStrict bs = 
+    case AP.parse A.json' bs of
+      AP.Done _ v -> case A.fromJSON v of
+                       A.Success a -> Just a
+                       _            -> Nothing
+      _           -> Nothing
+

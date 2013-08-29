@@ -62,6 +62,7 @@ handleValDesc :: JValue -> [PluginConfig] -> Fay ()
 handleValDesc configVal pluginConfig = do
 	divCurConfig <- select "div#curConfig"
 	hash <- jvAsHash configVal
+	--let sortedHash = sortBy (comparing fst) hash
 	-- display the user's current config
 	forM_ hash (displayPluginConfig pluginConfig divCurConfig)
 	-- offer to add new modules

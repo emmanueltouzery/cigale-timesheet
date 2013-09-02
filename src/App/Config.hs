@@ -7,7 +7,7 @@ import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Vector as Vector
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
-import Data.HashMap.Strict as Map hiding (map)
+import Data.HashMap.Strict as Map hiding (map, filter)
 import Data.Maybe
 import System.Directory
 import qualified Data.ByteString as BS
@@ -66,12 +66,43 @@ groupByProvider ((plugin, config):xs) result = groupByProvider xs (case HashMap.
 
 addPluginInConfig :: BS.ByteString -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)
 addPluginInConfig (T.unpack . TE.decodeUtf8 -> pluginName) configJson = do
-	let providersByNameHash = providersByName EventProviders.plugins
-	let provider = fromJust $ HashMap.lookup pluginName providersByNameHash
-	print pluginName
-	case Util.decodeStrict configJson of
-		Nothing -> return $ Left "invalid json"
-		Just configValue -> do
-			let newElt = (provider, configValue)
+	case decodeIncomingConfigElt pluginName configJson of
+		Nothing -> return $ Left $ BS.concat ["invalid new config info ", configJson]
+		Just newElt -> do
 			readConfig EventProviders.plugins >>= (return . \x -> newElt:x) >>= writeConfiguration
 			return $ Right ""
+
+decodeIncomingConfigElt :: String -> BS.ByteString -> Maybe (EventProvider Value, Value)
+decodeIncomingConfigElt pluginName configJson = do
+	let providersByNameHash = providersByName EventProviders.plugins
+	provider <- HashMap.lookup pluginName providersByNameHash
+	configValue <- Util.decodeStrict configJson
+	return (provider, configValue)
+
+updatePluginInConfig :: BS.ByteString -> BS.ByteString -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)
+updatePluginInConfig oldCfgItemStr (T.unpack . TE.decodeUtf8 -> pluginName) configJson = do
+	let incomingInfo = do
+			nElt <- decodeIncomingConfigElt pluginName configJson
+			oConfigItem <- Util.decodeStrict oldCfgItemStr
+			return (nElt, oConfigItem)
+	case incomingInfo of
+		Nothing -> return $ Left $ BS.concat ["invalid new or old config info; new: [",
+							configJson, "], old: [", oldCfgItemStr, "]"]
+		Just (newElt, oldConfigItem) -> do
+			-- first remove the old config, then add the new one.
+			config <- readConfig EventProviders.plugins
+			let configWithoutThisSource = filter (not . isConfigItem oldConfigItem) config
+			if length configWithoutThisSource == length config
+				then return $ Left "Didn't find the configuration to update"
+				else do
+					writeConfiguration $ newElt:configWithoutThisSource
+					return $ Right ""
+	where
+		isConfigItem :: HashMap T.Text Value -> (EventProvider Value, Value) -> Bool
+		isConfigItem oldConfig (provider, config)
+			| pluginName /= (getModuleName provider) = False
+			| otherwise = allValuesMatch oldConfig config
+
+allValuesMatch :: HashMap T.Text Value -> Value -> Bool
+allValuesMatch clientVal (Object configVal) = clientVal == configVal
+allValuesMatch _ _ = False

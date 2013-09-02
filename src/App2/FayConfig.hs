@@ -60,7 +60,7 @@ refreshDisplay = myajax2 "/configVal" "/configdesc" $ \val desc -> handleValDesc
 
 handleValDesc :: JValue -> [PluginConfig] -> Fay ()
 handleValDesc configVal pluginConfig = do
-	divCurConfig <- select "div#curConfig"
+	divCurConfig <- select "div#curConfig" >>= setHtml ""
 	hash <- jvAsHash configVal
 	--let sortedHash = sortBy (comparing fst) hash
 	-- display the user's current config
@@ -98,7 +98,7 @@ addEditModuleAction pluginConfig mbExistingConfig = do
 	let clickCallback enteredData = case mbExistingConfig of
 		Nothing -> addPluginConfig pluginName enteredData
 		Just existingConfig -> do
-			updatePluginConfig enteredData existingConfig
+			updatePluginConfig pluginName enteredData existingConfig
 	findSelector "button#main-action" modal >>= click (\_ -> getModalEnteredData configMembers modal >>= clickCallback) -- pluginConfig config)
 	bootstrapModal modal
 
@@ -211,11 +211,13 @@ getOriginalPluginConfig json = jvAsHash json >>= sequence . map toStrPair
 			val <- jvGetString b
 			return (a, val)
 
-updatePluginConfig :: [(String,String)] -> JValue -> Fay ()
-updatePluginConfig newConfig oldConfig = do
+updatePluginConfig :: String -> [(String,String)] -> JValue -> Fay ()
+updatePluginConfig pluginName newConfig oldConfig = do
+	putStrLn $ "old config JS: " ++ (show oldConfig)
 	newConfigObj <- jvArrayToObject newConfig
-	parm <- jqParam oldConfig
-	ajxPut ("/config?" ++ parm) newConfigObj
+	parm <- jqParam (show oldConfig) >>= jvGetString
+	putStrLn $ "old config: " ++ parm
+	ajxPut ("/config?pluginName=" ++ pluginName ++ "&oldVal=" ++ parm) newConfigObj closePopupAndRefresh
 
 addPluginConfig :: String -> [(String,String)] -> Fay ()
 addPluginConfig pluginName newConfig = do
@@ -229,11 +231,11 @@ closePopupAndRefresh = do
 
 deletePluginConfig :: PluginConfig -> JValue -> Event -> Fay ()
 deletePluginConfig pluginConfig config _ = do
-	parm <- jqParam config
+	parm <- jqParam (show config) >>= jvGetString
 	ajxDelete $ "/config?" ++ parm
 
-ajxPut :: String -> JValue -> Fay ()
-ajxPut = ffi "jQuery.ajax({type:'PUT', url: %1, data: JSON.stringify(%2)})"
+ajxPut :: String -> JValue -> Fay () -> Fay ()
+ajxPut = ffi "jQuery.ajax({type:'PUT', url: %1, data: JSON.stringify(%2)}).success(%3).fail($('div#error').show())"
 
 ajxPost :: String -> JValue -> Fay () -> Fay ()
 ajxPost = ffi "jQuery.ajax({type:'POST', url: %1, data: JSON.stringify(%2)}).success(%3).fail($('div#error').show())"
@@ -241,8 +243,9 @@ ajxPost = ffi "jQuery.ajax({type:'POST', url: %1, data: JSON.stringify(%2)}).suc
 ajxDelete :: String -> Fay ()
 ajxDelete = ffi "jQuery.ajax({type:'DELETE', url: %1})"
 
-jqParam :: JValue -> Fay String
-jqParam = ffi "jQuery.param(%1)"
+jqParam :: String -> Fay JValue
+--jqParam = ffi "jQuery.param(%1)"
+jqParam = ffi "encodeURIComponent(%1)"
 
 addPluginElement :: JQuery -> JValue -> ConfigDataInfo -> Fay ()
 addPluginElement header config dataInfo = do

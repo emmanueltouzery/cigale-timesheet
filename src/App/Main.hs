@@ -19,7 +19,7 @@ import Text.Blaze.Html.Renderer.String
 
 import qualified Timesheet
 import qualified Settings
-import Config (getConfigFileName, addPluginInConfig)
+import Config (getConfigFileName, addPluginInConfig, updatePluginInConfig)
 import Util (toStrict1)
 
 main :: IO ()
@@ -33,7 +33,8 @@ site =
             ("config", method GET (serveFile "config.html")),
             ("configVal", configVal),
             ("configUpdate", configUpdate), -- TODO remove this
-            ("config", method POST addConfigEntry)
+            ("config", method POST addConfigEntry),
+            ("config", method PUT updateConfigEntry)
           ] <|>
     dir "static" (serveDirectory ".")
 
@@ -73,13 +74,24 @@ configUpdate = do
 	liftIO $ hClose outH
 
 addConfigEntry :: Snap ()
-addConfigEntry = do
+addConfigEntry = processConfigFromBody addPluginInConfig 
+
+updateConfigEntry :: Snap ()
+updateConfigEntry = do
+	rq <- getRequest 
+	case rqParam "oldVal" rq of
+		(Just (oldCfg:[])) -> processConfigFromBody (updatePluginInConfig  oldCfg)
+		_ -> setResponse $ Left "update config: pluginName not specified"
+
+processConfigFromBody :: (BS.ByteString -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)) ->
+		 Snap ()
+processConfigFromBody handler = do
 	rq <- getRequest 
 	case rqParam "pluginName" rq of
-		Nothing -> error "add config: pluginName not specified"
 		(Just (pName:[])) -> do
 			configJson <- getRequestBody >>= return . toStrict1
-			(liftIO $ addPluginInConfig pName configJson) >>= setResponse
+			(liftIO $ handler pName configJson) >>= setResponse
+		_ -> setResponse $ Left "add config: pluginName not specified"
 
 setResponse :: Either BS.ByteString BS.ByteString -> Snap ()
 setResponse (Left msg) = modifyResponse $ setResponseStatus 500 msg

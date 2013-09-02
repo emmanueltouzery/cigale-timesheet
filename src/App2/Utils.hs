@@ -100,13 +100,18 @@ maybeFay :: b -> (a -> Fay b) -> Maybe a -> Fay b
 maybeFay n _ Nothing  = return n
 maybeFay _ f (Just x) = f x
 
----- http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-Ord.html#comparing
----- | 
----- > comparing p x y = compare (p x) (p y)
-----
----- Useful combinator for use in conjunction with the @xxxBy@ family
----- of functions from "Data.List", for example:
-----
----- >   ... sortBy (comparing fst) ...
+-- http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-Ord.html#comparing
+-- | 
+-- > comparing p x y = compare (p x) (p y)
+--
+-- Useful combinator for use in conjunction with the @xxxBy@ family
+-- of functions from "Data.List", for example:
+--
+-- >   ... sortBy (comparing fst) ...
 --comparing :: Ord a => (b -> a) -> b -> b -> Ordering
 --comparing p x y = compare (p x) (p y)
+comparing p x y = if (p x) == (p y) 
+		then EQ
+		else if (p x) > (p y)
+			then GT
+			else LT

@@ -231,8 +231,10 @@ closePopupAndRefresh = do
 
 deletePluginConfig :: PluginConfig -> JValue -> Event -> Fay ()
 deletePluginConfig pluginConfig config _ = do
+	let pluginName = cfgPluginName pluginConfig
 	parm <- jqParam (show config) >>= jvGetString
-	ajxDelete $ "/config?" ++ parm
+	let url = "/config?pluginName=" ++ pluginName ++ "&oldVal=" ++ parm
+	ajxDelete url closePopupAndRefresh
 
 ajxPut :: String -> JValue -> Fay () -> Fay ()
 ajxPut = ffi "jQuery.ajax({type:'PUT', url: %1, data: JSON.stringify(%2)}).success(%3).fail($('div#error').show())"
@@ -240,8 +242,8 @@ ajxPut = ffi "jQuery.ajax({type:'PUT', url: %1, data: JSON.stringify(%2)}).succe
 ajxPost :: String -> JValue -> Fay () -> Fay ()
 ajxPost = ffi "jQuery.ajax({type:'POST', url: %1, data: JSON.stringify(%2)}).success(%3).fail($('div#error').show())"
 
-ajxDelete :: String -> Fay ()
-ajxDelete = ffi "jQuery.ajax({type:'DELETE', url: %1})"
+ajxDelete :: String -> Fay () -> Fay ()
+ajxDelete = ffi "jQuery.ajax({type:'DELETE', url: %1}).success(%2).fail($('div#error').show())"
 
 jqParam :: String -> Fay JValue
 --jqParam = ffi "jQuery.param(%1)"

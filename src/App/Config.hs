@@ -79,29 +79,43 @@ decodeIncomingConfigElt pluginName configJson = do
 	configValue <- Util.decodeStrict configJson
 	return (provider, configValue)
 
+deletePluginFromConfig :: BS.ByteString -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)
+deletePluginFromConfig oldCfgItemStr (T.unpack . TE.decodeUtf8 -> pluginName) = do
+	config <- readConfig EventProviders.plugins
+	let configWithoutItem = Util.decodeStrict oldCfgItemStr >>= checkRemoveFromConfig config pluginName
+	case configWithoutItem of
+		Nothing -> return $ Left "Error removing"
+		Just configWithoutThisSource -> do
+			writeConfiguration $ configWithoutThisSource
+			return $ Right ""
+
 updatePluginInConfig :: BS.ByteString -> BS.ByteString -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)
 updatePluginInConfig oldCfgItemStr (T.unpack . TE.decodeUtf8 -> pluginName) configJson = do
+	config <- readConfig EventProviders.plugins
 	let incomingInfo = do
 			nElt <- decodeIncomingConfigElt pluginName configJson
-			oConfigItem <- Util.decodeStrict oldCfgItemStr
-			return (nElt, oConfigItem)
+			oldConfigItem <- Util.decodeStrict oldCfgItemStr
+			configWithoutElt <- checkRemoveFromConfig config pluginName oldConfigItem
+			return (nElt, configWithoutElt)
 	case incomingInfo of
 		Nothing -> return $ Left $ BS.concat ["invalid new or old config info; new: [",
 							configJson, "], old: [", oldCfgItemStr, "]"]
-		Just (newElt, oldConfigItem) -> do
-			-- first remove the old config, then add the new one.
-			config <- readConfig EventProviders.plugins
-			let configWithoutThisSource = filter (not . isConfigItem oldConfigItem) config
-			if length configWithoutThisSource == length config
-				then return $ Left "Didn't find the configuration to update"
-				else do
-					writeConfiguration $ newElt:configWithoutThisSource
-					return $ Right ""
-	where
-		isConfigItem :: HashMap T.Text Value -> (EventProvider Value, Value) -> Bool
-		isConfigItem oldConfig (provider, config)
-			| pluginName /= (getModuleName provider) = False
-			| otherwise = allValuesMatch oldConfig config
+		Just (newElt, configWithoutThisSource) -> do
+			writeConfiguration $ newElt:configWithoutThisSource
+			return $ Right ""
+
+isConfigItem :: String -> HashMap T.Text Value -> (EventProvider Value, Value) -> Bool
+isConfigItem pluginName oldConfig (provider, config)
+	| pluginName /= (getModuleName provider) = False
+	| otherwise = allValuesMatch oldConfig config
+
+checkRemoveFromConfig ::  [(EventProvider Value, Value)] -> String -> HashMap T.Text Value -> Maybe [(EventProvider Value, Value)]
+checkRemoveFromConfig config pluginName oldConfigItem =
+	let configWithoutThisSource = filter (not . isConfigItem pluginName oldConfigItem) config in
+	if length configWithoutThisSource == length config
+		then Nothing
+		else Just configWithoutThisSource
+
 
 allValuesMatch :: HashMap T.Text Value -> Value -> Bool
 allValuesMatch clientVal (Object configVal) = clientVal == configVal

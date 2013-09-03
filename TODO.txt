@@ -8,6 +8,8 @@ links broken in skype, see 2013-08-03
 
 i made my own system for configuration but i think this might document a similar and probably better approach? to check: https://www.fpcomplete.com/user/thoughtpolice/using-reflection http://www.reddit.com/r/haskell/comments/1l9qzw/reflecting_values_to_types_and_back/
 
+store passwords using gnome-keyring on linux?
+
 try to remove bootstrap and jquery-ui from my GIT and install them through npm instead? or maybe put only the zips in GIT and have cabal unzip them.
 
 ability to remove settings, settings backed by knockout to make the code manageable...

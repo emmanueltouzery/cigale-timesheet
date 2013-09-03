@@ -19,7 +19,7 @@ import Text.Blaze.Html.Renderer.String
 
 import qualified Timesheet
 import qualified Settings
-import Config (getConfigFileName, addPluginInConfig, updatePluginInConfig)
+import Config (getConfigFileName, addPluginInConfig, updatePluginInConfig, deletePluginFromConfig)
 import Util (toStrict1)
 
 main :: IO ()
@@ -34,7 +34,8 @@ site =
             ("configVal", configVal),
             ("configUpdate", configUpdate), -- TODO remove this
             ("config", method POST addConfigEntry),
-            ("config", method PUT updateConfigEntry)
+            ("config", method PUT updateConfigEntry),
+            ("config", method DELETE deleteConfigEntry)
           ] <|>
     dir "static" (serveDirectory ".")
 
@@ -76,21 +77,38 @@ configUpdate = do
 addConfigEntry :: Snap ()
 addConfigEntry = processConfigFromBody addPluginInConfig 
 
+deleteConfigEntry :: Snap ()
+deleteConfigEntry = do
+	mOldCfg <- getSingleParam "oldVal"
+	mPluginName <- getSingleParam "pluginName"
+	let mOldCfgPluginName = sequence [mOldCfg, mPluginName]
+	case mOldCfgPluginName of
+		Just (oldCfg:pName:[]) ->
+			(liftIO $ deletePluginFromConfig oldCfg pName) >>= setResponse
+		_ -> setResponse $ Left "delete: parameters missing"
+
 updateConfigEntry :: Snap ()
 updateConfigEntry = do
-	rq <- getRequest 
-	case rqParam "oldVal" rq of
-		(Just (oldCfg:[])) -> processConfigFromBody (updatePluginInConfig  oldCfg)
+	oldCfg <- getSingleParam "oldVal"
+	case oldCfg of
+		Just _oldCfg -> processConfigFromBody (updatePluginInConfig _oldCfg)
 		_ -> setResponse $ Left "update config: pluginName not specified"
+
+getSingleParam :: BS.ByteString -> Snap (Maybe BS.ByteString)
+getSingleParam pName = do
+	rq <- getRequest 
+	case rqParam pName rq of
+		(Just (pVal:[])) -> return $ Just pVal
+		_ -> return Nothing
 
 processConfigFromBody :: (BS.ByteString -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)) ->
 		 Snap ()
 processConfigFromBody handler = do
-	rq <- getRequest 
-	case rqParam "pluginName" rq of
-		(Just (pName:[])) -> do
+	pName <- getSingleParam "pluginName"
+	case pName of
+		Just _pName -> do
 			configJson <- getRequestBody >>= return . toStrict1
-			(liftIO $ handler pName configJson) >>= setResponse
+			(liftIO $ handler _pName configJson) >>= setResponse
 		_ -> setResponse $ Left "add config: pluginName not specified"
 
 setResponse :: Either BS.ByteString BS.ByteString -> Snap ()

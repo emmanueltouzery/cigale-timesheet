@@ -13,6 +13,8 @@
 			   it's to scroll to blank space. i think the
 			   right 15px padding from bootstrap.*/
 			overflow: hidden;
+		
+			padding-top: 70px;
 		}
 
 		/* override bootstrap */
@@ -75,7 +77,7 @@
 	<script type="text/javascript" src="jquery-2.0.3.min.js"></script>
 	<script type='text/javascript' src='/static/jquery-ui-1.9.2/js/jquery-ui-1.9.2.custom.min.js'></script>
 <link href="/static/jquery-ui-1.9.2/css/smoothness/jquery-ui-1.9.2.custom.css" rel="stylesheet">
-<link href="/static/bootstrap.min.css" rel="stylesheet">
+	<script src="/static/bootstrap-3.0.0/js/bootstrap.js"></script>
 	
 	<script type="text/javascript">
 		function formatTime(dateString) {
@@ -112,8 +114,35 @@
 		}
 	</script>
 	<script type="text/javascript" src="FayApp.js"></script>
+       <link href="/static/bootstrap-3.0.0/css/bootstrap.min.css" rel="stylesheet">
 	</head>
   <body>
+	<nav class="navbar navbar-default navbar-fixed-top" role="navigation">
+	<!-- Brand and toggle get grouped for better mobile display -->
+		<div class="navbar-header">
+			 <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-ex1-collapse">
+				<span class="sr-only">Toggle navigation</span>
+				<span class="icon-bar"></span>
+				<span class="icon-bar"></span>
+				<span class="icon-bar"></span>
+			</button>
+			<a class="navbar-brand" href="#">Timesheet</a>
+		</div>
+		<div class="collapse navbar-collapse navbar-ex1-collapse">
+			<ul class="nav navbar-nav">
+				<li class="active"><a href="#">Activities</a></li>
+				<li><a href="FayConfig.html">Event providers</a></li>
+			</ul>
+			<ul class="nav navbar-nav navbar-right">
+				<li class="dropdown">
+					<a href="#" class="dropdown-toggle" data-toggle="dropdown">Add module<b class="caret"></b></a>
+					<ul class="dropdown-menu" id="add_module_menu">
+					</ul>
+				</li>
+			</ul>
+		</div><!-- /.navbar-collapse -->
+	</nav>
+
 	<div id="datepicker"></div>
 
 	<div id="pleasehold">Please hold...</div>

@@ -1,6 +1,5 @@
 make it clear that passwords are plain text.
-special password entry and also file picker.
-for password entry have an option "show password", see: http://stackoverflow.com/questions/1544317/
+special file picker entry.
 
 client-side validation if the user doesn't enter all the details
 
@@ -16,8 +15,6 @@ store passwords using gnome-keyring on linux?
 
 try to remove bootstrap and jquery-ui from my GIT and install them through npm instead? or maybe put only the zips in GIT and have cabal unzip them.
 
-ability to remove settings, settings backed by knockout to make the code manageable...
-
 very bad email display 2013-06-17 7:55
 
 "config.json" string duplicated in two files
@@ -26,8 +23,6 @@ settings.hs and config.hs?? seriously???
 
 config: display the current config (read-only with edit buttons that
 make the popups appear)
-
-config: in popups, probably use jquery ui Dialog
 
 config: differenciate String and FilePath, browse button for FilePath
 

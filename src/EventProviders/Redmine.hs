@@ -29,12 +29,14 @@ import qualified Util as Util
 import Event
 import EventProvider
 
+type Password = ByteString
+
 data RedmineConfig = RedmineConfig
 	{
 		redmineUrl :: ByteString,
 		redmineUsername :: ByteString,
 		redmineUserDisplay :: T.Text,
-		redminePassword :: ByteString
+		redminePassword :: Password
 	} deriving Show
 deriveJSON id ''RedmineConfig
 

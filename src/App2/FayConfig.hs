@@ -93,8 +93,12 @@ addEditModuleAction pluginConfig mbExistingConfig = do
 	findSelector "div.modal-header h4" modal >>= setText pluginName
 	prepareModal (Primary "Save changes") modal
 	let configMembers = cfgPluginConfig pluginConfig
-	modalContents <- getModalContents configMembers mbExistingConfig
-	findSelector "div.modal-body" modal >>= setHtml modalContents
+	(modalContents, callbacks) <- getModalContents configMembers mbExistingConfig
+	let contentsSelector = findSelector "div.modal-body" modal
+	contentsSelector >>= setHtml modalContents
+	putStrLn "running callbacks"
+	mapM_ ($ contentsSelector) callbacks
+	putStrLn "ran callbacks"
 	let clickCallback enteredData = case mbExistingConfig of
 		Nothing -> addPluginConfig pluginName enteredData
 		Just existingConfig -> do
@@ -119,17 +123,21 @@ prepareModal action modal = do
 			Danger x -> ("danger", x)
 			_ -> error $ "Unknown action: " ++ (show action)
 
-getModalContents :: [ConfigDataInfo] -> Maybe JValue -> Fay String
+getModalContents :: [ConfigDataInfo] -> Maybe JValue -> Fay (String, [Fay JQuery -> Fay()])
 getModalContents types config = do
 		configHash <- maybeFay [] jvAsHash config
 		formContents <- sequence $ map (getConfigDataInfoForm configHash) types 
-		return $ "<form role='form'><div class='form-group'>"
-			++ (foldr (++) [] formContents) ++ "</div></form>"
+		let str = "<form role='form'><div class='form-group'>"
+			++ (foldr (++) [] (map fst formContents)) ++ "</div></form>"
+		let callbacks = map snd formContents
+		return (str, callbacks)
 
-getConfigDataInfoForm :: JvHash -> ConfigDataInfo -> Fay String
+getConfigDataInfoForm :: JvHash -> ConfigDataInfo -> Fay (String, Fay JQuery -> Fay ())
 getConfigDataInfoForm configHash dataInfo
 	| mType `elem` ["String", "Text", "ByteString"] =
 		memberAsString  >>= (return . addTextEntry mName)
+	| mType == "Password" =
+		memberAsString  >>= (return . addPasswordEntry mName)
 	| otherwise = error $ "unknown member type: " ++ mType
 	where
 		mType = memberType dataInfo
@@ -143,7 +151,7 @@ getModalEnteredData types modal = sequence $ map (getConfigDataInfoFormValue mod
 
 getConfigDataInfoFormValue :: JQuery -> ConfigDataInfo -> Fay (String, String)
 getConfigDataInfoFormValue modal dataInfo
-	| mType `elem` ["String", "Text", "ByteString"] = do
+	| mType `elem` ["String", "Text", "ByteString", "Password"] = do
 		value <- findSelector ("input#" ++ mName) modal >>= getVal
 		return (mName, value)
 	| otherwise = error $ "unknown member type: " ++ mType
@@ -151,10 +159,30 @@ getConfigDataInfoFormValue modal dataInfo
 		mType = memberType dataInfo
 		mName = memberName dataInfo
 
-addTextEntry :: String -> String -> String
-addTextEntry memberName curValue = replace "{}" memberName ("<label for='{}'>{}</label><input type='text'"
+addTextEntry :: String -> String -> (String, Fay JQuery -> Fay ())
+addTextEntry memberName curValue = (html, \_ -> return ())
+	where
+		html = replace "{}" memberName ("<label for='{}'>{}</label><input type='text'"
 				++ " class='form-control' id='{}' placeholder='Enter {}' value='"
 				++ curValue ++ "'></div>")
+
+addPasswordEntry :: String -> String -> (String, Fay JQuery -> Fay ())
+addPasswordEntry memberName curValue = (html, handleCb)
+	where
+		html = replace "{}" memberName ("<label for='{}'>{}</label><input type='password'"
+				++ " class='form-control' id='{}' placeholder='Enter {}' value='"
+				++ curValue ++ "'><label><input type='checkbox' id='cb-{}'/>"
+				++ "Show password</label></div>")
+		handleCb jqSel = jqSel >>= findSelector ("input#cb-" ++ memberName)
+					>>= click (\_ -> toggleShowPass jqSel) >> return ()
+		toggleShowPass jqSel = do
+				input <- jqSel >>= findSelector ("input#" ++ memberName)
+				otherType <- getOtherType input
+				setAttr "type" otherType input
+				return ()
+		getOtherType input = do
+				typeStr <- getAttr "type" input
+				return $ if typeStr == "text" then "password" else "text"
 
 bootstrapModal :: JQuery -> Fay ()
 bootstrapModal = ffi "%1.modal('show')"
@@ -253,7 +281,10 @@ addPluginElement :: JQuery -> JValue -> ConfigDataInfo -> Fay ()
 addPluginElement header config dataInfo = do
 	let memberNameV = memberName dataInfo
 	memberValue <- (jvValue config memberNameV) >>= jvGetString
-	(select $ "<div>" ++ memberNameV ++ " " ++ memberValue ++ "</div>") >>= appendTo header
+	let memberValueDisplay = case (memberType dataInfo) of
+		"Password" -> replicate (length memberValue) '*'
+		_ -> memberValue
+	(select $ "<div>" ++ memberNameV ++ " " ++ memberValueDisplay ++ "</div>") >>= appendTo header
 	return ()
 
 -- http://stackoverflow.com/questions/18025474/multiple-ajax-queries-in-parrallel-with-fay

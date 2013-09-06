@@ -39,6 +39,8 @@ jvHashVal key hash = find ((==key) . fst) hash -- >>= (Just . snd)
 jvGetString :: JValue -> Fay String
 jvGetString = ffi "%1"
 
+--- server structs START
+
 data ConfigDataInfo = ConfigDataInfo
 	{
 		memberName :: String,
@@ -51,6 +53,53 @@ data PluginConfig = PluginConfig
 		-- pluginConfig.cfgPluginConfig returns configinfo? stupid naming.
 		cfgPluginConfig :: [ConfigDataInfo]
 	}
+
+--- server structs END
+
+data FormEntryProvider = FormEntryProvider
+	{
+		prvServerTypes :: [String],
+		prvGetHtml :: String -> String -> String,
+		prvGetValue :: JQuery -> String -> Fay String,
+		prvCreateCallback :: String -> Fay JQuery -> Fay ()
+	}
+-- TODO use this trick: http://www.haskell.org/haskellwiki/Default_values_in_records
+-- to define default values for prvGetValue and prvCreateCallback.
+
+stringEntryProvider = FormEntryProvider ["String", "Text", "ByteString"]
+			getHtml getValue (\_ _ -> return ())
+	where
+		getHtml memberName curValue = replace "{}" memberName (
+				"<label for='{}'>{}</label><input type='text'"
+				++ " class='form-control' id='{}' placeholder='Enter {}' value='"
+				++ curValue ++ "'></div>")
+		getValue sel mName = findSelector ("input#" ++ mName) sel >>= getVal
+
+passwordEntryProvider = FormEntryProvider ["Password"] getHtml getValue handleCb
+	where
+		getHtml memberName curValue = replace "{}" memberName (
+				"<label for='{}'>{}</label><input type='password'"
+				++ " class='form-control' id='{}' placeholder='Enter {}' value='"
+				++ curValue ++ "'><label><input type='checkbox' id='cb-{}'/>"
+				++ "Show password</label></div>")
+		getValue sel mName = findSelector ("input#" ++ mName) sel >>= getVal
+		handleCb memberName jqSel = jqSel >>= findSelector ("input#cb-" ++ memberName)
+					>>= click (\_ -> toggleShowPass jqSel memberName)
+					>> return ()
+		toggleShowPass jqSel memberName = do
+				input <- jqSel >>= findSelector ("input#" ++ memberName)
+				otherType <- getOtherType input
+				setAttr "type" otherType input
+				return ()
+		getOtherType input = do
+				typeStr <- getAttr "type" input
+				return $ if typeStr == "text" then "password" else "text"
+
+formEntryProviders :: [FormEntryProvider]
+formEntryProviders = [stringEntryProvider, passwordEntryProvider]
+
+formEntryForType :: String -> Maybe FormEntryProvider
+formEntryForType serverType = find (\p -> serverType `elem` prvServerTypes p) formEntryProviders
 
 main :: Fay ()
 main = ready refreshDisplay
@@ -133,16 +182,18 @@ getModalContents types config = do
 		return (str, callbacks)
 
 getConfigDataInfoForm :: JvHash -> ConfigDataInfo -> Fay (String, Fay JQuery -> Fay ())
-getConfigDataInfoForm configHash dataInfo
-	| mType `elem` ["String", "Text", "ByteString"] =
-		memberAsString  >>= (return . addTextEntry mName)
-	| mType == "Password" =
-		memberAsString  >>= (return . addPasswordEntry mName)
-	| otherwise = error $ "unknown member type: " ++ mType
+getConfigDataInfoForm configHash dataInfo =
+	-- TODO two maybe cases!
+	case formEntryForType mType of
+		Nothing -> error $ "unknown member type: " ++ mType
+		Just formEntry -> do
+				memberAsString <- jMemberAsString
+				return (prvGetHtml formEntry mName memberAsString,
+					prvCreateCallback formEntry mName)
 	where
 		mType = memberType dataInfo
 		mName = memberName dataInfo
-		memberAsString = case jvHashVal mName configHash of
+		jMemberAsString = case jvHashVal mName configHash of
 				Nothing -> return ""
 				Just x -> jvGetString $ snd x
 
@@ -150,39 +201,13 @@ getModalEnteredData :: [ConfigDataInfo] -> JQuery -> Fay [(String,String)]
 getModalEnteredData types modal = sequence $ map (getConfigDataInfoFormValue modal) types 
 
 getConfigDataInfoFormValue :: JQuery -> ConfigDataInfo -> Fay (String, String)
-getConfigDataInfoFormValue modal dataInfo
-	| mType `elem` ["String", "Text", "ByteString", "Password"] = do
-		value <- findSelector ("input#" ++ mName) modal >>= getVal
-		return (mName, value)
-	| otherwise = error $ "unknown member type: " ++ mType
+getConfigDataInfoFormValue modal dataInfo =
+	case formEntryForType mType of
+		Nothing -> error $ "unknown member type: " ++ mType
+		Just formEntry -> prvGetValue formEntry modal mName >>= return . (,) mName
 	where
 		mType = memberType dataInfo
 		mName = memberName dataInfo
-
-addTextEntry :: String -> String -> (String, Fay JQuery -> Fay ())
-addTextEntry memberName curValue = (html, \_ -> return ())
-	where
-		html = replace "{}" memberName ("<label for='{}'>{}</label><input type='text'"
-				++ " class='form-control' id='{}' placeholder='Enter {}' value='"
-				++ curValue ++ "'></div>")
-
-addPasswordEntry :: String -> String -> (String, Fay JQuery -> Fay ())
-addPasswordEntry memberName curValue = (html, handleCb)
-	where
-		html = replace "{}" memberName ("<label for='{}'>{}</label><input type='password'"
-				++ " class='form-control' id='{}' placeholder='Enter {}' value='"
-				++ curValue ++ "'><label><input type='checkbox' id='cb-{}'/>"
-				++ "Show password</label></div>")
-		handleCb jqSel = jqSel >>= findSelector ("input#cb-" ++ memberName)
-					>>= click (\_ -> toggleShowPass jqSel) >> return ()
-		toggleShowPass jqSel = do
-				input <- jqSel >>= findSelector ("input#" ++ memberName)
-				otherType <- getOtherType input
-				setAttr "type" otherType input
-				return ()
-		getOtherType input = do
-				typeStr <- getAttr "type" input
-				return $ if typeStr == "text" then "password" else "text"
 
 bootstrapModal :: JQuery -> Fay ()
 bootstrapModal = ffi "%1.modal('show')"

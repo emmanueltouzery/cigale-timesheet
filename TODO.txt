@@ -1,3 +1,6 @@
+liftM b a instead of my a >>= (return . b)?
+liftM2 instead of do block for Maybe
+
 make it clear that passwords are plain text.
 special file picker entry.
 

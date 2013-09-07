@@ -182,20 +182,19 @@ getModalContents types config = do
 		return (str, callbacks)
 
 getConfigDataInfoForm :: JvHash -> ConfigDataInfo -> Fay (String, Fay JQuery -> Fay ())
-getConfigDataInfoForm configHash dataInfo =
-	-- TODO two maybe cases!
-	case formEntryForType mType of
-		Nothing -> error $ "unknown member type: " ++ mType
-		Just formEntry -> do
-				memberAsString <- jMemberAsString
-				return (prvGetHtml formEntry mName memberAsString,
-					prvCreateCallback formEntry mName)
+getConfigDataInfoForm configHash dataInfo = do
+	case liftMaybe2 processData (formEntryForType mType) (jvHashVal mName configHash) of
+		Nothing -> error $ "unknown member type " ++ mType ++ " or can't get data"
+		Just result -> result
 	where
 		mType = memberType dataInfo
 		mName = memberName dataInfo
-		jMemberAsString = case jvHashVal mName configHash of
-				Nothing -> return ""
-				Just x -> jvGetString $ snd x
+		processData :: FormEntryProvider -> (String, JValue) -> Fay (String, Fay JQuery -> Fay())
+		processData formEntry hashVal = do
+			memberAsString <- jvGetString $ snd hashVal
+			return (prvGetHtml formEntry mName memberAsString,
+				prvCreateCallback formEntry mName)
+
 
 getModalEnteredData :: [ConfigDataInfo] -> JQuery -> Fay [(String,String)]
 getModalEnteredData types modal = sequence $ map (getConfigDataInfoFormValue modal) types 

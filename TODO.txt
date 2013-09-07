@@ -2,9 +2,9 @@ liftM b a instead of my a >>= (return . b)?
 liftM2 instead of do block for Maybe
 
 make it clear that passwords are plain text.
-special file picker entry.
+special file picker entry?  http://stackoverflow.com/a/18676841/516188
 
-client-side validation if the user doesn't enter all the details
+activity view: popup instead of sidebar? that or a min-width on the body to ensure the sidebar is always visible or something.
 
 port to dom-selector 0.2
 

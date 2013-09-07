@@ -73,7 +73,7 @@ basicEntryProvider = FormEntryProvider
 
 stringEntryProvider = basicEntryProvider
 	{
-		prvServerTypes = ["String", "Text", "ByteString"],
+		prvServerTypes = ["String", "Text", "ByteString", "FilePath"],
 		prvGetHtml = getHtml
 	}
 	where

@@ -29,7 +29,7 @@ import Util
 
 data EmailConfig = EmailConfig
 	{
-		emailPath :: String
+		emailPath :: FilePath
 		
 	} deriving Show
 deriveJSON id ''EmailConfig

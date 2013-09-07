@@ -1,6 +1,8 @@
 liftM b a instead of my a >>= (return . b)?
 liftM2 instead of do block for Maybe
 
+fix URLs, that we don't need anymore to go to /static/FayApp.html...
+
 make it clear that passwords are plain text.
 special file picker entry?  http://stackoverflow.com/a/18676841/516188
 

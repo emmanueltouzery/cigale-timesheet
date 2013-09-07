@@ -32,6 +32,7 @@ processResults pleaseHold events = do
 	setSidebar ""
 	table <- select "table#eventsTable tbody"
 	empty table
+	setScrollTop 0 table
 	mapM_ (addEventRow table) events
 	hide Instantly pleaseHold
 	return ()

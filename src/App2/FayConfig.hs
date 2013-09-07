@@ -63,26 +63,37 @@ data FormEntryProvider = FormEntryProvider
 		prvGetValue :: JQuery -> String -> Fay String,
 		prvCreateCallback :: String -> Fay JQuery -> Fay ()
 	}
--- TODO use this trick: http://www.haskell.org/haskellwiki/Default_values_in_records
--- to define default values for prvGetValue and prvCreateCallback.
+basicEntryProvider = FormEntryProvider
+	{
+		prvServerTypes = undefined,
+		prvGetHtml = undefined,
+		prvGetValue = \sel mName -> findSelector ("input#" ++ mName) sel >>= getVal,
+		prvCreateCallback = \_ _ -> return ()
+	}
 
-stringEntryProvider = FormEntryProvider ["String", "Text", "ByteString"]
-			getHtml getValue (\_ _ -> return ())
+stringEntryProvider = basicEntryProvider
+	{
+		prvServerTypes = ["String", "Text", "ByteString"],
+		prvGetHtml = getHtml
+	}
 	where
 		getHtml memberName curValue = replace "{}" memberName (
 				"<label for='{}'>{}</label><input type='text'"
 				++ " class='form-control' id='{}' placeholder='Enter {}' value='"
 				++ curValue ++ "'></div>")
-		getValue sel mName = findSelector ("input#" ++ mName) sel >>= getVal
 
-passwordEntryProvider = FormEntryProvider ["Password"] getHtml getValue handleCb
+passwordEntryProvider = basicEntryProvider
+	{
+		prvServerTypes = ["Password"],
+		prvGetHtml = getHtml,
+		prvCreateCallback = handleCb
+	}
 	where
 		getHtml memberName curValue = replace "{}" memberName (
 				"<label for='{}'>{}</label><input type='password'"
 				++ " class='form-control' id='{}' placeholder='Enter {}' value='"
 				++ curValue ++ "'><label><input type='checkbox' id='cb-{}'/>"
 				++ "Show password</label></div>")
-		getValue sel mName = findSelector ("input#" ++ mName) sel >>= getVal
 		handleCb memberName jqSel = jqSel >>= findSelector ("input#cb-" ++ memberName)
 					>>= click (\_ -> toggleShowPass jqSel memberName)
 					>> return ()

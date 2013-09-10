@@ -3,7 +3,13 @@ liftM2 instead of do block for Maybe
 
 so that the app stops when the browser tab is closed, have the client send periodical ping (heartbeat) and have the server commit suicide if not receiving it some time.
 
+"timesheet" is a link in FayApp, not so in FayConfig
+
+massive waste of vertical space due to the calendar. maybe move to read-only text containing the full date time (Tuesday, 10 September, 2013), and pop-calendar
+
 make a .desktop file for linux and an icon
+
+browser freezes displaying email 2013-08-2 17:52: problem of displaying attachment inline.
 
 fix URLs, that we don't need anymore to go to /static/FayApp.html...
 

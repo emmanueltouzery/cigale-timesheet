@@ -7,19 +7,18 @@ import Test.HUnit
 
 import Util
 
-testParsecExpectList :: (Eq a, Show a) => T.Text 
-		-> (T.Text -> Either ParseError [a]) -> [a] -> Assertion
-testParsecExpectList = testParsecExpectTransform id
+testParsecExpectVal :: (Eq a, Show a) => T.Text 
+		-> (T.Text -> Either ParseError a) -> a -> Assertion
+testParsecExpectVal = testParsecExpectTransform id
 
-testParsecExpect :: (Eq a, Show a) => T.Text 
+testParsecExpectFirst :: (Eq a, Show a) => T.Text 
 		-> (T.Text -> Either ParseError [a]) -> a -> Assertion
-testParsecExpect = testParsecExpectTransform head
+testParsecExpectFirst = testParsecExpectTransform head
 
-testParsecExpectTransform :: (Eq b, Show b) => ([a]->b) -> T.Text 
-		-> (T.Text -> Either ParseError [a]) -> b -> Assertion
+testParsecExpectTransform :: (Eq b, Show b) => (a->b) -> T.Text 
+		-> (T.Text -> Either ParseError a) -> b -> Assertion
 testParsecExpectTransform trans source parser expected = do
 	case parser source of
 		(Right x) -> assertEqual "Parse succeeded, value doesn't match"
 			expected (trans x)
 		Left pe -> assertBool ("Parse failed" ++ displayErrors pe) False
-		_ -> assertBool "Parse succeeded, wrong results count" False

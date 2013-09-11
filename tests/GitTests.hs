@@ -43,7 +43,7 @@ testMerge = it "parses merge commits" $ do
 				commitContents = "<pre></pre>",
 				commitIsMerge = True
 			}
-		testParsecExpect source parseCommitsParsec expected
+		testParsecExpectFirst source parseCommitsParsec expected
 
 testUsualCommit :: Spec
 testUsualCommit = it "parses usual commits" $ do
@@ -67,7 +67,7 @@ testUsualCommit = it "parses usual commits" $ do
 				commitContents = "<pre>test/src/main/users.js | 2 ++</pre>",
 				commitIsMerge = False
 			}
-		testParsecExpect source parseCommitsParsec expected
+		testParsecExpectFirst source parseCommitsParsec expected
 
 testMultipleCommits :: Spec
 testMultipleCommits = it "parses multiple commits" $ do
@@ -112,7 +112,7 @@ testMultipleCommits = it "parses multiple commits" $ do
 					commitIsMerge = False
 				}
 			]
-		testParsecExpectList source parseCommitsParsec expected
+		testParsecExpectVal source parseCommitsParsec expected
 
 testCommitWithoutMessage :: Spec
 testCommitWithoutMessage = it "parses commits without message" $ do
@@ -134,7 +134,7 @@ testCommitWithoutMessage = it "parses commits without message" $ do
 				commitContents = "<pre>test/src/main/users.js | 2 ++</pre>",
 				commitIsMerge = False
 			}
-		testParsecExpect source parseCommitsParsec expected
+		testParsecExpectFirst source parseCommitsParsec expected
 
 
 testMultipleCommitsFirstIsMerge :: Spec
@@ -157,7 +157,7 @@ testMultipleCommitsFirstIsMerge = it "parses multiple commits first is merge" $ 
 				 1 file changed, 1 insertion(+), 1 deletion(-)
 				
 				|]
-		testParsecExpectList source parseCommitsParsec [
+		testParsecExpectVal source parseCommitsParsec [
 			Commit
 			{
 				commitDate = LocalTime (fromGregorian 2013 4 3) (TimeOfDay 16 54 39),
@@ -196,7 +196,7 @@ testNoMessageUsualCommitWithCommitAfter = it "parses no message usual commit wit
 				    Merge branch 'master'
 				
 				|]
-		testParsecExpectList source parseCommitsParsec [
+		testParsecExpectVal source parseCommitsParsec [
 			Commit
 			{
 				commitDate = LocalTime (fromGregorian 2013 4 8) (TimeOfDay 18 50 43),

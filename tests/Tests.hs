@@ -7,10 +7,12 @@ import IcalTests
 import StrTests
 import SkypeTests
 import EventProviderTests
+import EmailTests
 
 main :: IO ()
 main = do
 	hspec $ do
+	describe "Email tests" runEmailTests
 	describe "STR tests" runStrTests
 	describe "GIT tests" runGitTests
 	describe "redmine mergeSuccessiveEvents" runRedmineTests

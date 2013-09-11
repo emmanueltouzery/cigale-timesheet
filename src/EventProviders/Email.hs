@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, QuasiQuotes, ViewPatterns, DeriveGeneric, TemplateHaskell #-}
 
-module Email (getEmailProvider) where
+module Email where
 
 import Codec.Mbox
 import Data.Time.Calendar

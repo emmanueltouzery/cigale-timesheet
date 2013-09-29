@@ -22,6 +22,7 @@ import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
 import Data.Aeson.TH (deriveJSON)
 import qualified Codec.Text.IConv as IConv
+import Debug.Trace
 
 import Text.Regex.PCRE.Rex
 
@@ -199,33 +200,38 @@ decodeMimeContents :: String -> T.Text -> T.Text
 decodeMimeContents encoding contentsVal = 
 		case parseQuotedPrintable (T.unpack contentsVal) of
 			Left _ -> T.concat ["can't parse ", contentsVal , " as quoted printable?"]
-			Right elts -> T.concat $ map (qpEltToString encoding) elts
+			Right elts -> traceShow elts $ T.concat $ map (qpEltToString encoding) elts
 
 qpEltToString :: String -> QuotedPrintableElement -> T.Text
 qpEltToString encoding (AsciiSection str) = T.pack str
-qpEltToString encoding (NonAsciiChar chrInt) = iconvFuzzyText encoding (BSL.pack [chrInt])
+qpEltToString encoding (NonAsciiChars chrInt) = iconvFuzzyText encoding (BSL.pack chrInt)
 
-data QuotedPrintableElement = AsciiSection String | NonAsciiChar Word8
+data QuotedPrintableElement = AsciiSection String | NonAsciiChars [Word8]
 	deriving (Show, Eq)
 
 parseQuotedPrintable :: String -> Either ParseError [QuotedPrintableElement]
 parseQuotedPrintable = parse parseQPElements ""
 
 parseQPElements :: GenParser Char st [QuotedPrintableElement]
-parseQPElements = many $ parseAsciiSection <|> parseNonAsciiChar <|> parseUnderscoreSpace
+parseQPElements = many $ parseAsciiSection <|> parseNonAsciiChars <|> parseUnderscoreSpace
 
 parseAsciiSection :: GenParser Char st QuotedPrintableElement
 parseAsciiSection = do
 	contentsVal <- many1 $ noneOf "=_"
 	return $ AsciiSection contentsVal
 
-parseNonAsciiChar :: GenParser Char st QuotedPrintableElement
+parseNonAsciiChars :: GenParser Char st QuotedPrintableElement
+parseNonAsciiChars = do
+	chars <- many1 parseNonAsciiChar
+	return $ NonAsciiChars chars
+
+parseNonAsciiChar :: GenParser Char st Word8
 parseNonAsciiChar = do
 	char '='
 	value <- count 2 (oneOf "0123456789ABCDEFabcdef")
 	case hexadecimal $ T.pack value of
-		Right (a, _) -> return $ NonAsciiChar a
-		_ -> return $ AsciiSection $ "internal error with hex string " ++ value
+		Right (a, _) -> return a
+		_ -> error $ "internal error with hex string " ++ value
 
 parseUnderscoreSpace :: GenParser Char st QuotedPrintableElement
 parseUnderscoreSpace = do

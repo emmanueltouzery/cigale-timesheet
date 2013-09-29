@@ -58,13 +58,11 @@ allEqual list = all (== head list) list
 zipLists :: [[a]] -> [[a]]
 zipLists list = takeWhile (\x -> length x == length list) $ transpose list
 
--- parsecParse :: T.Text -> (T.GenParser st T.Text) -> IO T.Text
+parsecParse :: T.GenParser () T.Text -> T.Text -> T.Text
 parsecParse parser input = do
 	case parse parser "" input of
-		Left pe -> do
-			putStrLn $ "parse error: " ++ displayErrors pe
-			return input
-		Right result -> return result
+		Left pe -> error $ "parse error: " ++ displayErrors pe
+		Right result -> result
 
 displayErrors :: ParseError -> String
 displayErrors pe = concat $ fmap messageString' (errorMessages pe) ++

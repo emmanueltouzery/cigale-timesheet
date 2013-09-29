@@ -89,32 +89,29 @@ getEmails sent_mbox fromDate toDate = do
 	-- need to reverse messages because i'm reading from the end.
 	let messages1 = takeWhile isBefore (reverse messages)
 	--print $ map getEmailDate messages1
-	mapM parseMessage messages1
+	return $ map parseMessage messages1
 	where
 		isAfter email = (localDay $ getEmailDate email) >= fromDate
 		isBefore email = (localDay $ getEmailDate email) <= toDate
 
-parseMessage :: MboxMessage BL.ByteString -> IO Email
+parseMessage :: MboxMessage BL.ByteString -> Email
 parseMessage msg = do
 	let toVal = headerValSafe "To: " msg
 	let ccVal = headerVal "CC: " msg
 	let subjectVal = headerValSafe "Subject: " msg
 	let contentType = headerVal "Content-Type" msg
-	print contentType
 	let isMultipart = case contentType of
 		Nothing -> False
 		Just x -> "multipart/alternative" `T.isInfixOf` x
 	let emailDate = getEmailDate msg
-	print emailDate
-	putStrLn $ "is multipartX? " ++ show isMultipart
 	let msgBody = Util.toStrict1 $ _mboxMsgBody msg
 	-- TODO i may hit a base64 body. decodeMime would be a
 	-- starting base then. Must check the content-typel
 	let bodyContents = textAfterHeaders $ decUtf8IgnErrors msgBody
-	emailContents <- if isMultipart
+	let emailContents = if isMultipart
 			then Util.parsecParse parseMultipartBody bodyContents
 			else Util.parsecParse parseAsciiBody bodyContents
-	return $ Email emailDate toVal ccVal subjectVal emailContents
+	Email emailDate toVal ccVal subjectVal emailContents
 
 textAfterHeaders :: T.Text -> T.Text
 textAfterHeaders txt = snd $ T.breakOn "\n\n" $ T.replace "\r" "" txt

@@ -32,7 +32,6 @@ Library
     ghc-prim,
     attoparsec,
     old-locale,
-    text-icu,
     base64-bytestring,
     HDBC,
     HDBC-sqlite3,
@@ -47,7 +46,8 @@ Library
     transformers,
     template-haskell,
     th-lift,
-    unordered-containers
+    unordered-containers,
+    iconv
   exposed-modules:
     EventProviders,
     Event,
@@ -112,7 +112,6 @@ test-suite        tests
     ghc-prim,
     attoparsec,
     old-locale,
-    text-icu,
     base64-bytestring,
     HDBC,
     HDBC-sqlite3,
@@ -130,4 +129,5 @@ test-suite        tests
     HUnit,
     template-haskell,
     transformers,
-    th-lift
+    th-lift,
+    iconv

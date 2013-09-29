@@ -3,16 +3,17 @@
 module Email where
 
 import Codec.Mbox
+import Control.Monad
 import Data.Time.Calendar
 import Data.Time.LocalTime
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BSL
 import Data.Maybe
 import Data.List
 import qualified Data.Text as T
 import Data.Text.Encoding 
-import qualified Data.Text.ICU.Convert as ICU
 import Text.ParserCombinators.Parsec
 import Data.Text.Read
 import GHC.Word
@@ -20,6 +21,7 @@ import qualified Data.ByteString.Base64 as Base64
 import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
 import Data.Aeson.TH (deriveJSON)
+import qualified Codec.Text.IConv as IConv
 
 import Text.Regex.PCRE.Rex
 
@@ -93,10 +95,10 @@ getEmails sent_mbox fromDate toDate = do
 
 parseMessage :: MboxMessage BL.ByteString -> IO Email
 parseMessage msg = do
-	toVal <- headerValSafe "To: " msg
-	ccVal <- headerVal "CC: " msg
-	subjectVal <- headerValSafe "Subject: " msg
-	contentType <- headerVal "Content-Type" msg
+	let toVal = headerValSafe "To: " msg
+	let ccVal = headerVal "CC: " msg
+	let subjectVal = headerValSafe "Subject: " msg
+	let contentType = headerVal "Content-Type" msg
 	print contentType
 	let isMultipart = case contentType of
 		Nothing -> False
@@ -177,30 +179,31 @@ parseEmailDate v@_  = error $ "Invalid date format " ++ (T.unpack $ decUtf8IgnEr
 decUtf8IgnErrors :: B.ByteString -> T.Text
 decUtf8IgnErrors = decodeUtf8With (\str input -> Just ' ')
 
-decodeMime :: B.ByteString -> IO T.Text
+iconvFuzzyText :: String -> BL.ByteString -> T.Text
+iconvFuzzyText encoding input = decodeUtf8 $ toStrict1 lbsResult
+	where lbsResult = IConv.convertFuzzy IConv.Transliterate encoding "utf8" input
+
+decodeMime :: B.ByteString -> T.Text
 -- base64
 decodeMime [brex|=\?(?{T.unpack . decUtf8IgnErrors -> encoding}[\w\d-]+)
 		\?B\?(?{contentsB64}.*)\?=|] = do
-		conv <- ICU.open encoding Nothing
-		let contentsBinary = Base64.decodeLenient contentsB64
-		return $ ICU.toUnicode conv contentsBinary
+		let contentsBinary = BL.fromChunks [Base64.decodeLenient contentsB64]
+		iconvFuzzyText encoding contentsBinary
 -- quoted printable
 decodeMime [brex|=\?(?{T.unpack . decUtf8IgnErrors -> encoding}[\w\d-]+)
 		\?Q\?(?{decUtf8IgnErrors -> contentsVal}.*)\?=|] = do
-		conv <- ICU.open encoding Nothing
-		let result = decodeMimeContents conv (T.unpack contentsVal)
-		return $ T.pack result
-decodeMime s@_ = return $ decUtf8IgnErrors s
+		decodeMimeContents encoding contentsVal
+decodeMime s@_ = decUtf8IgnErrors s
 
-decodeMimeContents :: ICU.Converter -> String -> String
-decodeMimeContents conv contentsVal = 
-		case parseQuotedPrintable contentsVal of
-			Left _ -> concat ["can't parse ", contentsVal , " as quoted printable?"]
-			Right elts -> concatMap (qpEltToString conv) elts
+decodeMimeContents :: String -> T.Text -> T.Text
+decodeMimeContents encoding contentsVal = 
+		case parseQuotedPrintable (T.unpack contentsVal) of
+			Left _ -> T.concat ["can't parse ", contentsVal , " as quoted printable?"]
+			Right elts -> T.concat $ map (qpEltToString encoding) elts
 
-qpEltToString :: ICU.Converter -> QuotedPrintableElement -> String
-qpEltToString conv (AsciiSection str) = str
-qpEltToString conv (NonAsciiChar chrInt) = T.unpack $ ICU.toUnicode conv $ BS.pack [chrInt]
+qpEltToString :: String -> QuotedPrintableElement -> T.Text
+qpEltToString encoding (AsciiSection str) = T.pack str
+qpEltToString encoding (NonAsciiChar chrInt) = iconvFuzzyText encoding (BSL.pack [chrInt])
 
 data QuotedPrintableElement = AsciiSection String | NonAsciiChar Word8
 	deriving (Show, Eq)
@@ -229,24 +232,12 @@ parseUnderscoreSpace = do
 	char '_'
 	return $ AsciiSection " "
 
--- TODO this one is a bit over my head.
--- as input i have a Maybe (first monad)
--- and then I want to apply to it a monadic function
--- of the IO monad.
--- I first get rid of the Maybe.
-headerVal :: B.ByteString -> MboxMessage BL.ByteString -> IO (Maybe T.Text)
-headerVal header msg = case maybeRow of
-			Nothing -> return Nothing
-			Just x -> do
-				text <- (decodeMime . (B.drop (B.length header))) x
-				return $ Just text
+headerVal :: B.ByteString -> MboxMessage BL.ByteString -> Maybe T.Text
+headerVal header msg = liftM doDecode maybeRow
 	where
+		doDecode = decodeMime . (B.drop (B.length header))
 		msgContents = Util.toStrict1 $ _mboxMsgBody msg
 		maybeRow = find (B.isPrefixOf header) (B.lines msgContents)
 
-headerValSafe :: B.ByteString -> MboxMessage BL.ByteString -> IO T.Text
-headerValSafe fieldHeader msg = do
-		headerValV <- headerVal fieldHeader msg
-		case headerValV of
-			Just a -> return a
-			Nothing -> return "Missing"
+headerValSafe :: B.ByteString -> MboxMessage BL.ByteString -> T.Text
+headerValSafe fieldHeader msg = fromMaybe "Missing" (headerVal fieldHeader msg)

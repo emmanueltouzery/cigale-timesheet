@@ -7,6 +7,8 @@ import Test.HUnit
 
 import Codec.Mbox
 import Text.ParserCombinators.Parsec (parse)
+import Data.Time.Calendar (fromGregorian)
+import Data.Time.LocalTime
 
 import Str
 import Util
@@ -20,6 +22,7 @@ runEmailTests = do
 	testMimeNonUtf
 	testMimeMultibyte
 	testMimeB64
+	testParseEmailDate
 
 testEmail1 :: Spec
 testEmail1 = it "parses a simple email structure" $ do
@@ -36,3 +39,9 @@ testMimeMultibyte = it "parses multibyte quoted printable" $
 testMimeB64 :: Spec
 testMimeB64 = it "parses base64 email subject" $
 	assertEqual "doesn't match" "Prevent Foreclosure & Save Your Home " (decodeMime "=?iso-8859-1?B?UHJldmVudCBGb3JlY2xvc3VyZSAmIFNhdmUgWW91ciBIb21lIA=?=")
+
+testParseEmailDate :: Spec
+testParseEmailDate = it "parses email date" $
+	assertEqual "doesn't match" expected (parseEmailDate "Sep 27 20:46:35 2013")
+		where
+			expected = LocalTime (fromGregorian 2013 9 27) (TimeOfDay 20 46 (fromIntegral 35))

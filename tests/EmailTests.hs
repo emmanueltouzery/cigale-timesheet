@@ -19,6 +19,7 @@ runEmailTests = do
 	testEmail1
 	testMimeNonUtf
 	testMimeMultibyte
+	testMimeB64
 
 testEmail1 :: Spec
 testEmail1 = it "parses a simple email structure" $ do
@@ -31,3 +32,7 @@ testMimeNonUtf = it "parses simple quoted printable" $
 testMimeMultibyte :: Spec
 testMimeMultibyte = it "parses multibyte quoted printable" $
 	assertEqual "doesn't match" "Arrières plans" (decodeMime "=?utf-8?Q?Arri=C3=A8res_plans?=")
+
+testMimeB64 :: Spec
+testMimeB64 = it "parses base64 email subject" $
+	assertEqual "doesn't match" "Prevent Foreclosure & Save Your Home " (decodeMime "=?iso-8859-1?B?UHJldmVudCBGb3JlY2xvc3VyZSAmIFNhdmUgWW91ciBIb21lIA=?=")

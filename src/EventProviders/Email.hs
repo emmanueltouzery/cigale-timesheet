@@ -102,7 +102,7 @@ parseMessage msg = do
 	let contentType = headerVal "Content-Type" msg
 	let isMultipart = case contentType of
 		Nothing -> False
-		Just x -> "multipart/alternative" `T.isInfixOf` x
+		Just x -> "multipart/" `T.isInfixOf` x
 	let emailDate = getEmailDate msg
 	let msgBody = Util.toStrict1 $ _mboxMsgBody msg
 	-- TODO i may hit a base64 body. decodeMime would be a
@@ -124,9 +124,52 @@ parseMultipartBody = do
 	many eol
 	optional $ string "This is a multi-part message in MIME format.\n"
 	mimeSeparator <- readLine
-	firstPart <- manyTill readLine (T.try $ T.string $ T.unpack mimeSeparator)
-	secondPart <- manyTill readLine (T.try $ string $ T.unpack mimeSeparator)
-	return $ textAfterHeaders $ T.unlines $ secondPart
+	sections <- manyTill (parseMultipartSection mimeSeparator) (T.try $ sectionsEnd)
+	-- pick a section containing text/html or as a second choice text/plain
+	let sectionsByContentTypes = zip (fmap sectionContentType sections) sections
+	let section = find (keyContainsStr "text/html") sectionsByContentTypes
+		`mplus` find (keyContainsStr "text/plain") sectionsByContentTypes
+	case section of
+		Nothing -> return "no contents!"
+		Just (_, s) -> return $ sectionContent s
+	where
+		keyContainsStr str (Nothing, _) = False
+		keyContainsStr str (Just x, _) = (T.isInfixOf str) $ x
+
+data MultipartSection = MultipartSection
+	{
+		sectionHeaders :: [(T.Text, T.Text)],
+		sectionContent :: T.Text
+	} deriving Show
+
+sectionContentType :: MultipartSection -> Maybe T.Text
+sectionContentType (MultipartSection headers _) = fmap snd $ find ((=="Content-Type") . fst) headers
+
+parseMultipartSection :: T.Text -> T.GenParser st MultipartSection
+parseMultipartSection mimeSeparator = do
+	headers <- manyTill readHeader (T.try $ do eol)
+	contents <- manyTill readLine (T.try $ T.string $ T.unpack mimeSeparator)
+	many eol
+	return $ MultipartSection headers  (T.unlines contents)
+
+readHeader :: T.GenParser st (T.Text, T.Text)
+readHeader = do
+	key <- many $ T.noneOf ":\n\r"
+	T.string ":"
+	many $ T.string " "
+	val <- readHeaderValue
+	return (T.pack key, val)
+
+readHeaderValue :: T.GenParser st T.Text
+readHeaderValue = do
+	val <- many $ noneOf "\r\n;"
+	rest <- (do T.string ";"; optional eol; readHeaderValue) <|> eol
+	return $ T.concat [T.pack val, rest]
+
+sectionsEnd :: T.GenParser st ()
+sectionsEnd = do
+	T.string "--"
+	(eol >> return ()) <|> eof
 
 parseAsciiBody :: T.GenParser st T.Text
 parseAsciiBody = do

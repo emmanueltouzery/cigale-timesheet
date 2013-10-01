@@ -25,14 +25,16 @@ runEmailTests = do
 	testMimeB64
 	testParseEmailDate
 	testParseMultipartBody
+	testParseMultipartBodyTextPlainAttach
+	testMultipartAlternative
 
 testEmail1 :: Spec
 testEmail1 = it "parses a simple email structure" $ do
-	testParsecExpectVal "\n\nThis is a multi-part message in MIME format.\nseparator\nfirstpart\nseparator\nsecond part\n\nafter headers\nseparator" (parse parseMultipartBody "") "\n\nafter headers\n"
+	testParsecExpectVal "\n\nThis is a multi-part message in MIME format.\nseparator\nContent-Type: text/plain\n\nfirstpart\nseparator\nContent-Type: text/html\n\nafter headers\nseparator--" (parse parseMultipartBody "") "after headers\n"
 
 testEmail2 :: Spec
 testEmail2 = it "parses a simple email structure" $ do
-	testParsecExpectVal "\n\nseparator\nfirstpart\nseparator\nsecond part\n\nafter headers\nseparator" (parse parseMultipartBody "") "\n\nafter headers\n"
+	testParsecExpectVal "\n\nseparator\nContent-Type: text/html\n\nfirstpart\nseparator\n\nContent-Type: text/plain\n\nafter headers\nseparator--\n" (parse parseMultipartBody "") "firstpart\n"
 
 testMimeNonUtf :: Spec
 testMimeNonUtf = it "parses simple quoted printable" $
@@ -115,4 +117,110 @@ testParseMultipartBody = it "parses multipart body" $ do
 			CkVORDpWRVZFTlQNCkVORDpWQ0FMRU5EQVINCg==
 			--047d7bfeb46643324304e617c30e--
 			|]
-	testParsecExpectVal source (parse parseMultipartBody "") "\n\nmessage body, but html\n"
+	testParsecExpectVal source (parse parseMultipartBody "") "message body, but html\n"
+
+testParseMultipartBodyTextPlainAttach :: Spec
+testParseMultipartBodyTextPlainAttach = it "parse multipart body text/plain plus attach" $ do
+	let source = [strT|
+			--047d7bfeb46643323d04e617c30c
+			Content-Type: text/html;
+                           charset=ISO-8859-2; format=flowed; delsp=yes
+			Content-Transfer-Encoding: base64
+			
+			UG92YWJsamVuaSBzdGUgYmlsaSBuYSB0YSBkb2dvZGVrLg0KDQpOYXppdjogWm9ibmkgcmVudGdl
+			BiBMYXJhDQpab2JuaSByZW50Z2VuIExhcmENCktkYWo6IHBldCA0LiBva3QgMjAxMyAwNzoxMCAt
+			IDA4OjEwIE9zcmVkbmppIGV2cm9wc2tpIOhhcyAtIEJlb2dyYWQNCktqZTogWkQgVmnoDQpLb2xl
+			ZGFyOiBldG91emVyeUBnbWFpbC5jb20NCktkbzoNCiAgICAgKiBTaW1vbmEgSHZhbGnoIFRvdXpl
+			CnktIG9yZ2FuaXphdG9yDQogICAgICogRW1tYW51ZWwgVG91emVyeQ0KDQpQb2Ryb2Jub3N0aSBk
+			B2dvZGthOiAgDQpodHRwczovL3d3dy5nb29nbGUuY29tL2NhbGVuZGFyL2V2ZW50P2FjdGlvbj1W
+			SUVXJmVpZD1aR3R4T1dWck1tazRNbkp0Y21SelozUmtkVEF5Tm1aek16QWdaWFJ2ZFhwbGNubEFi
+			USZ0b2s9TXpFamMybHRiMjVoTG1oMllXeHBZeTUwYjNWNlpYSjVRR2R0WVdsc0xtTnZiV1JsT0Rn
+			D1pUWm1Oemd5T1RobFltVTNPREl3TVdSaVlqVTBNR0U1TVRjNE1UTmlZbVF6TmpjJmN0ej1FdXJv
+			CGUvQmVsZ3JhZGUmaGw9c2wNCg0KVmFiaWxvIGl6IEdvb2dsZSBLb2xlZGFyamE6IGh0dHBzOi8v
+			D3d3Lmdvb2dsZS5jb20vY2FsZW5kYXIvDQoNClRvIGUtcG+5dG8gcHJlamVtYXRlIG5hIHJh6HVu
+			IGV0b3V6ZXJ5QGdtYWlsLmNvbSwga2VyIHN0ZSBuYXJv6GVuaSBuYSAgDQpwb3ZhYmlsYSB2IGtv
+			BGVkYXJqdSBldG91emVyeUBnbWFpbC5jb20uDQoNCshlIG5lIL5lbGl0ZSB2ZeggcHJlamVtYXRp
+			IG9idmVzdGlsLCBzZSBwcmlqYXZpdGUgdiAgDQpodHRwczovL3d3dy5nb29nbGUuY29tL2NhbGVu
+			ZGFyLyBpbiBzcHJlbWVuaXRlIG5hc3Rhdml0dmUgb2J2ZXN0aWwgemEgdGEgIA0Ka29sZWRhci4N
+			Cg==
+			--047d7bfeb46643323d04e617c30c
+			Content-Type: text/plain; charset=ISO-8859-2
+			Content-Transfer-Encoding: quoted-printable
+			
+			message body, but html
+			--047d7bfeb46643323d04e617c30c
+			Content-Type: text/calendar; charset=UTF-8; method=REQUEST
+			Content-Transfer-Encoding: quoted-printable
+			
+			BEGIN:VCALENDAR
+			calendar contents
+			END:VCALENDAR
+			
+			--047d7bfeb46643323d04e617c30c--
+			--047d7bfeb46643324304e617c30e
+			Content-Type: application/ics; name="invite.ics"
+			Content-Disposition: attachment; filename="invite.ics"
+			Content-Transfer-Encoding: base64
+			
+			QkVHSU46VkNBTEVOREFSDQpQUk9ESUQ6LS8vR29vZ2xlIEluYy8vR29vZ2xlIENhbGVuZGFyIDcw
+			LjkwNTQvL0VODQpWRVJTSU9OOjIuMA0KQ0FMU0NBTEU6R1JFR09SSUFODQpNRVRIT0Q6UkVRVUVT
+			VA0KQkVHSU46VkVWRU5UDQpEVFNUQVJUOjIwMTMxMDA0VDA1MTAwMFoNCkRURU5EOjIwMTMxMDA0
+			VDA2MTAwMFoNCkRUU1RBTVA6MjAxMzA5MTFUMDg1NDAxWg0KT1JHQU5JWkVSOm1haWx0bzpzaW1v
+			BmEuaHZhbGljLnRvdXplcnlAZ21haWwuY29tDQpVSUQ6ZGtxOWVrMmk4MnJtcmRzZ3RkdTAyNmZz
+			MzBAZ29vZ2xlLmNvbQ0KQVRURU5ERUU7Q1VUWVBFPUlORElWSURVQUw7Uk9MRT1SRVEtUEFSVElD
+			SVBBTlQ7UEFSVFNUQVQ9QUNDRVBURUQ7UlNWUD1UUlVFDQogO1gtTlVNLUdVRVNUUz0wOm1haWx0
+			BzpzaW1vbmEuaHZhbGljLnRvdXplcnlAZ21haWwuY29tDQpBVFRFTkRFRTtDVVRZUEU9SU5ESVZJ
+			RFVBTDtST0xFPVJFUS1QQVJUSUNJUEFOVDtQQVJUU1RBVD1ORUVEUy1BQ1RJT047UlNWUD0NCiBU
+			UlVFO0NOPUVtbWFudWVsIFRvdXplcnk7WC1OVU0tR1VFU1RTPTA6bWFpbHRvOmV0b3V6ZXJ5QGdt
+			YWlsLmNvbQ0KQ1JFQVRFRDoyMDEzMDkxMVQwODU0MDBaDQpERVNDUklQVElPTjpab2JuaSByZW50
+			Z2VuIExhcmFcbk9nbGVqdGUgc2kgZG9nb2RlayBuYSBodHRwOi8vd3d3Lmdvb2dsZS5jb20NCiAv
+			Y2FsZW5kYXIvZXZlbnQ/YWN0aW9uPVZJRVcmZWlkPVpHdHhPV1ZyTW1rNE1uSnRjbVJ6WjNSa2RU
+			QXlObVp6TXpBZ1pYUnZkWHANCiBsY25sQWJRJnRvaz1NekVqYzJsdGIyNWhMbWgyWVd4cFl5NTBi
+			M1Y2WlhKNVFHZHRZV2xzTG1OdmJXUmxPRGd3WlRabU56Z3lPVGgNCiBsWW1VM09ESXdNV1JpWWpV
+			ME1HRTVNVGM0TVROaVltUXpOamMmY3R6PUV1cm9wZS9CZWxncmFkZSZobD1zbC4NCkxBU1QtTU9E
+			SUZJRUQ6MjAxMzA5MTFUMDg1NDAwWg0KTE9DQVRJT046WkQgVmnEjQ0KU0VRVUVOQ0U6MA0KU1RB
+			VFVTOkNPTkZJUk1FRA0KU1VNTUFSWTpab2JuaSByZW50Z2VuIExhcmENClRSQU5TUDpPUEFRVUUN
+			CkVORDpWRVZFTlQNCkVORDpWQ0FMRU5EQVINCg==
+			--047d7bfeb46643324304e617c30e--
+			|] 
+	testParsecExpectVal source (parse parseMultipartBody "") "UG92YWJsamVuaSBzdGUgYmlsaSBuYSB0YSBkb2dvZGVrLg0KDQpOYXppdjogWm9ibmkgcmVudGdl\nBiBMYXJhDQpab2JuaSByZW50Z2VuIExhcmENCktkYWo6IHBldCA0LiBva3QgMjAxMyAwNzoxMCAt\nIDA4OjEwIE9zcmVkbmppIGV2cm9wc2tpIOhhcyAtIEJlb2dyYWQNCktqZTogWkQgVmnoDQpLb2xl\nZGFyOiBldG91emVyeUBnbWFpbC5jb20NCktkbzoNCiAgICAgKiBTaW1vbmEgSHZhbGnoIFRvdXpl\nCnktIG9yZ2FuaXphdG9yDQogICAgICogRW1tYW51ZWwgVG91emVyeQ0KDQpQb2Ryb2Jub3N0aSBk\nB2dvZGthOiAgDQpodHRwczovL3d3dy5nb29nbGUuY29tL2NhbGVuZGFyL2V2ZW50P2FjdGlvbj1W\nSUVXJmVpZD1aR3R4T1dWck1tazRNbkp0Y21SelozUmtkVEF5Tm1aek16QWdaWFJ2ZFhwbGNubEFi\nUSZ0b2s9TXpFamMybHRiMjVoTG1oMllXeHBZeTUwYjNWNlpYSjVRR2R0WVdsc0xtTnZiV1JsT0Rn\nD1pUWm1Oemd5T1RobFltVTNPREl3TVdSaVlqVTBNR0U1TVRjNE1UTmlZbVF6TmpjJmN0ej1FdXJv\nCGUvQmVsZ3JhZGUmaGw9c2wNCg0KVmFiaWxvIGl6IEdvb2dsZSBLb2xlZGFyamE6IGh0dHBzOi8v\nD3d3Lmdvb2dsZS5jb20vY2FsZW5kYXIvDQoNClRvIGUtcG+5dG8gcHJlamVtYXRlIG5hIHJh6HVu\nIGV0b3V6ZXJ5QGdtYWlsLmNvbSwga2VyIHN0ZSBuYXJv6GVuaSBuYSAgDQpwb3ZhYmlsYSB2IGtv\nBGVkYXJqdSBldG91emVyeUBnbWFpbC5jb20uDQoNCshlIG5lIL5lbGl0ZSB2ZeggcHJlamVtYXRp\nIG9idmVzdGlsLCBzZSBwcmlqYXZpdGUgdiAgDQpodHRwczovL3d3dy5nb29nbGUuY29tL2NhbGVu\nZGFyLyBpbiBzcHJlbWVuaXRlIG5hc3Rhdml0dmUgb2J2ZXN0aWwgemEgdGEgIA0Ka29sZWRhci4N\nCg==\n"
+
+testMultipartAlternative :: Spec
+testMultipartAlternative = it "parse multipart alternative body plus attach" $ do
+	let source = [strT|
+			This is a multi-part message in MIME format.
+			--------------070503040503000700050104
+			Content-Type: multipart/alternative;
+			 boundary="------------000008060108030905000402"
+			
+			
+			--------------000008060108030905000402
+			Content-Type: text/plain; charset=ISO-8859-2; format=flowed
+			Content-Transfer-Encoding: 8bit
+			
+			text version
+			
+			--------------000008060108030905000402
+			Content-Type: text/html; charset=ISO-8859-2
+			Content-Transfer-Encoding: 8bit
+			
+			html version
+			
+			--------------000008060108030905000402--
+			
+			--------------070503040503000700050104
+			Content-Type: application/octet-stream;
+			 name="9780133018004.pdf"
+			Content-Transfer-Encoding: base64
+			Content-Disposition: attachment;
+			 filename="9780133018004.pdf"
+			
+			JVBERi0xLjYKJfv8/f4KMjgzIDAgb2JqCjw8Ci9SZXNvdXJjZXMgMTQ2OCAwIFIKL1BhcmVu
+			dCA0IDAgUgovQ3JvcEJveCBbMTIuOTYwMDAgMC43MjAwMCA0NzMuMDQwMDAgNjU1IF0KL0Nv
+			bnRlbnRzIFsxNDY3IDAgUiAxNDcwIDAgUiAxNDY5IDAgUiBdCi9Bbm5vdHMgWzE0NzEgMCBS
+			IF0KL01lZGlhQm94IFswIDAgNDczLjA0MDAwIDY1NSBdCi9Sb3RhdGUgMAovVHlwZSAvUGFn
+			ZQovQXJ0Qm94IFswIDcyIDQ2OCA2NTUuMjAwMDAgXQo+PgplbmRvYmoKMzAwIDAgb2JqCjw8
+			Ci9SZXNvdXJjZXMgMTQ3MyAwIFIKL1BhcmVudCA0IDAgUgovQ3JvcEJveCBbMTIuOTYwMDAg
+			MC43MjAwMCA0NzMuMDQwMDAgNjU1IF0KL0NvbnRlbnRzIFsxNDcyIDAgUiAxNDc1IDAgUiAx
+			|] -- WARNING i truncated the base64!!
+	testParsecExpectVal source (parse parseMultipartBody "") "html version"

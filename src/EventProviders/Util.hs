@@ -61,7 +61,7 @@ zipLists list = takeWhile (\x -> length x == length list) $ transpose list
 parsecParse :: T.GenParser () T.Text -> T.Text -> T.Text
 parsecParse parser input = do
 	case parse parser "" input of
-		Left pe -> error $ "parse error: " ++ displayErrors pe
+		Left pe -> error $ "parse error: " ++ displayErrors pe ++ " >> input >> " ++ (T.unpack input)
 		Right result -> result
 
 displayErrors :: ParseError -> String

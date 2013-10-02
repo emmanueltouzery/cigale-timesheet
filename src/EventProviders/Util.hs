@@ -58,7 +58,7 @@ allEqual list = all (== head list) list
 zipLists :: [[a]] -> [[a]]
 zipLists list = takeWhile (\x -> length x == length list) $ transpose list
 
-parsecParse :: T.GenParser () T.Text -> T.Text -> T.Text
+parsecParse :: T.GenParser () a -> T.Text -> a
 parsecParse parser input = do
 	case parse parser "" input of
 		Left pe -> error $ "parse error: " ++ displayErrors pe ++ " >> input >> " ++ (T.unpack input)

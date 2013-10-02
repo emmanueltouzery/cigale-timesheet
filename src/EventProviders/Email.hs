@@ -109,7 +109,7 @@ parseMessage msg = do
 	-- starting base then. Must check the content-typel
 	let bodyContents = textAfterHeaders $ decUtf8IgnErrors msgBody
 	let emailContents = if isMultipart
-			then Util.parsecParse parseMultipartBody bodyContents
+			then parseMultipartBody bodyContents
 			else Util.parsecParse parseAsciiBody bodyContents
 	Email emailDate toVal ccVal subjectVal emailContents
 
@@ -119,28 +119,42 @@ textAfterHeaders txt = snd $ T.breakOn "\n\n" $ T.replace "\r" "" txt
 getEmailDate :: MboxMessage BL.ByteString -> LocalTime
 getEmailDate = parseEmailDate . Util.toStrict1 . _mboxMsgTime
 
-parseMultipartBody :: T.GenParser st T.Text
-parseMultipartBody = do
+parseMultipartBody :: T.Text -> T.Text
+parseMultipartBody body =
+		case section of
+			Nothing -> "no contents!"
+			Just (_, s) -> sectionTextContent s
+	where
+		-- pick a section containing text/html or as a second choice text/plain
+		section = sectionForMimeType "text/html" sectionsByContentTypes
+			`mplus` sectionForMimeType "text/plain" sectionsByContentTypes
+			`mplus` sectionForMimeType "multipart/alternative" sectionsByContentTypes
+		sections = Util.parsecParse parseMultipartBodyParsec body
+		sectionsByContentTypes = zip (fmap sectionContentType sections) sections
+		sectionForMimeType mType = find (keyContainsStr mType)
+		keyContainsStr str (Nothing, _) = False
+		keyContainsStr str (Just x, _) = (T.isInfixOf str) $ x
+
+parseMultipartBodyParsec :: T.GenParser st [MultipartSection]
+parseMultipartBodyParsec = do
 	many eol
 	optional $ string "This is a multi-part message in MIME format.\n"
 	mimeSeparator <- readLine
-	sections <- manyTill (parseMultipartSection mimeSeparator) (T.try $ sectionsEnd)
-	-- pick a section containing text/html or as a second choice text/plain
-	let sectionsByContentTypes = zip (fmap sectionContentType sections) sections
-	let section = find (keyContainsStr "text/html") sectionsByContentTypes
-		`mplus` find (keyContainsStr "text/plain") sectionsByContentTypes
-	case section of
-		Nothing -> return "no contents!"
-		Just (_, s) -> return $ sectionContent s
-	where
-		keyContainsStr str (Nothing, _) = False
-		keyContainsStr str (Just x, _) = (T.isInfixOf str) $ x
+	manyTill (parseMultipartSection mimeSeparator) (T.try $ sectionsEnd)
 
 data MultipartSection = MultipartSection
 	{
 		sectionHeaders :: [(T.Text, T.Text)],
 		sectionContent :: T.Text
 	} deriving Show
+
+sectionTextContent :: MultipartSection -> T.Text
+sectionTextContent section
+	| "multipart/alternative" `T.isInfixOf` sectionCType =
+		parseMultipartBody (sectionContent section)
+	| otherwise = sectionContent section
+	where
+		sectionCType = fromMaybe "" (sectionContentType section)
 
 sectionContentType :: MultipartSection -> Maybe T.Text
 sectionContentType (MultipartSection headers _) = fmap snd $ find ((=="Content-Type") . fst) headers
@@ -240,7 +254,7 @@ decodeMimeContents :: String -> T.Text -> T.Text
 decodeMimeContents encoding contentsVal = 
 		case parseQuotedPrintable (T.unpack contentsVal) of
 			Left _ -> T.concat ["can't parse ", contentsVal , " as quoted printable?"]
-			Right elts -> traceShow elts $ T.concat $ map (qpEltToString encoding) elts
+			Right elts -> T.concat $ map (qpEltToString encoding) elts
 
 qpEltToString :: String -> QuotedPrintableElement -> T.Text
 qpEltToString encoding (AsciiSection str) = T.pack str

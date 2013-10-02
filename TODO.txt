@@ -9,8 +9,6 @@ massive waste of vertical space due to the calendar. maybe move to read-only tex
 
 make a .desktop file for linux and an icon
 
-browser freezes displaying email 2013-08-2 17:52: problem of displaying attachment inline.
-
 fix URLs, that we don't need anymore to go to /static/FayApp.html...
 
 make it clear that passwords are plain text.

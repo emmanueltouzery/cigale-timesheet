@@ -222,5 +222,6 @@ testMultipartAlternative = it "parse multipart alternative body plus attach" $ d
 			ZQovQXJ0Qm94IFswIDcyIDQ2OCA2NTUuMjAwMDAgXQo+PgplbmRvYmoKMzAwIDAgb2JqCjw8
 			Ci9SZXNvdXJjZXMgMTQ3MyAwIFIKL1BhcmVudCA0IDAgUgovQ3JvcEJveCBbMTIuOTYwMDAg
 			MC43MjAwMCA0NzMuMDQwMDAgNjU1IF0KL0NvbnRlbnRzIFsxNDcyIDAgUiAxNDc1IDAgUiAx
+			--------------070503040503000700050104--
 			|] -- WARNING i truncated the base64!!
 	testParsecExpectVal source (parse parseMultipartBody "") "html version"

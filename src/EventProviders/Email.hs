@@ -121,17 +121,25 @@ getEmailDate = parseEmailDate . Util.toStrict1 . _mboxMsgTime
 
 parseMultipartBody :: T.Text -> T.Text
 parseMultipartBody body =
-		case section of
+		case sectionToConsider sections of
 			Nothing -> "no contents!"
-			Just (_, s) -> sectionTextContent s
+			Just s -> sectionTextContent s
 	where
-		-- pick a section containing text/html or as a second choice text/plain
-		section = sectionForMimeType "text/html" sectionsByContentTypes
+		sections = Util.parsecParse parseMultipartBodyParsec body
+
+-- pick a section containing text/html or as a second choice text/plain,
+-- and final choice multipart/alternative
+sectionToConsider :: [MultipartSection] -> Maybe MultipartSection
+sectionToConsider sections =
+		sectionForMimeType "text/html" sectionsByContentTypes
 			`mplus` sectionForMimeType "text/plain" sectionsByContentTypes
 			`mplus` sectionForMimeType "multipart/alternative" sectionsByContentTypes
-		sections = Util.parsecParse parseMultipartBodyParsec body
+	where
 		sectionsByContentTypes = zip (fmap sectionContentType sections) sections
-		sectionForMimeType mType = find (keyContainsStr mType)
+
+sectionForMimeType :: T.Text -> [(Maybe T.Text, MultipartSection)] -> Maybe MultipartSection
+sectionForMimeType mType secsByCt = liftM snd (find (keyContainsStr mType) secsByCt)
+	where
 		keyContainsStr str (Nothing, _) = False
 		keyContainsStr str (Just x, _) = (T.isInfixOf str) $ x
 

@@ -1,3 +1,7 @@
+emails:
+11/09, 21:27, text/plain, add <br/> all over the place.
+display attachments list (name+mimetype)
+
 liftM b a instead of my a >>= (return . b)?
 liftM2 instead of do block for Maybe
 

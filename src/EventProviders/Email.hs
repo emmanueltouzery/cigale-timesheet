@@ -132,8 +132,9 @@ parseMultipartBody body =
 sectionToConsider :: [MultipartSection] -> Maybe MultipartSection
 sectionToConsider sections =
 		sectionForMimeType "text/html" sectionsByContentTypes
+			-- multipart/alternative or multipart/related
+			`mplus` sectionForMimeType "multipart/" sectionsByContentTypes
 			`mplus` sectionForMimeType "text/plain" sectionsByContentTypes
-			`mplus` sectionForMimeType "multipart/alternative" sectionsByContentTypes
 	where
 		sectionsByContentTypes = zip (fmap sectionContentType sections) sections
 
@@ -158,7 +159,7 @@ data MultipartSection = MultipartSection
 
 sectionTextContent :: MultipartSection -> T.Text
 sectionTextContent section
-	| "multipart/alternative" `T.isInfixOf` sectionCType =
+	| "multipart/" `T.isInfixOf` sectionCType = -- multipart/alternative or multipart/related
 		parseMultipartBody (sectionContent section)
 	| otherwise = sectionContent section
 	where

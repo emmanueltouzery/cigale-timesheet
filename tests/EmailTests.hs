@@ -27,6 +27,7 @@ runEmailTests = do
 	testParseMultipartBody
 	testParseMultipartBodyTextPlainAttach
 	testMultipartAlternative
+	testMultipartRelated
 
 testEmail1 :: Spec
 testEmail1 = it "parses a simple email structure" $ do
@@ -225,3 +226,43 @@ testMultipartAlternative = it "parse multipart alternative body plus attach" $ d
 			--------------070503040503000700050104--
 			|] -- WARNING i truncated the base64!!
 	assertEqual "doesn't match" "html version\n\n" (parseMultipartBody source)
+
+testMultipartRelated :: Spec
+testMultipartRelated = it "parse multipart related body plus attach" $ do
+	let source = [strT|
+			This is a multi-part message in MIME format.
+			--------------080701080400090206090002
+			Content-Type: text/plain; charset=UTF-8; format=flowed
+			Content-Transfer-Encoding: 8bit
+			
+			text
+			
+			--------------080701080400090206090002
+			Content-Type: multipart/related;
+			 boundary="------------040602030008000703040204"
+			
+			
+			--------------040602030008000703040204
+			Content-Type: text/html; charset=UTF-8
+			Content-Transfer-Encoding: 8bit
+			
+			html content
+			<img id="Picture_x0020_2" src="cid:part20.08050508.06050608@lecip-its.com" alt="cid:image002.jpg@01CEAF06.B364DF00" border="0" height="562" width="601">
+			
+			--------------040602030008000703040204
+			Content-Type: image/jpeg
+			Content-Transfer-Encoding: base64
+			Content-ID: <part20.08050508.06050608@lecip-its.com>
+			
+			/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAoHBwgHBgoICAgLCgoLDhgQDg0NDh0VFhEYIx8l
+			JCIfIiEmKzcvJik0KSEiMEExNDk7Pj4+JS5ESUM8SDc9Pjv/2wBDAQoLCw4NDhwQEBw7KCIo
+			Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozv/wAAR
+			CAIyAlkDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAA
+			AgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkK
+			FhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWG
+			h4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl
+			--------------040602030008000703040204--
+			
+			--------------080701080400090206090002--
+			|] -- WARNING i truncated the base64!!!
+	assertEqual "doesn't match" "html content\n<img id=\"Picture_x0020_2\" src=\"cid:part20.08050508.06050608@lecip-its.com\" alt=\"cid:image002.jpg@01CEAF06.B364DF00\" border=\"0\" height=\"562\" width=\"601\">\n\n" (parseMultipartBody source)

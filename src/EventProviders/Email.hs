@@ -104,7 +104,8 @@ parseMessage msg = do
 		Nothing -> False
 		Just x -> "multipart/" `T.isInfixOf` x
 	let emailDate = getEmailDate msg
-	let msgBody = Util.toStrict1 $ _mboxMsgBody msg
+	let msgBody = (trace $ "Parsing email " ++ (show emailDate) ++ " " ++ (T.unpack subjectVal))
+		Util.toStrict1 $ _mboxMsgBody msg
 	-- TODO i may hit a base64 body. decodeMime would be a
 	-- starting base then. Must check the content-typel
 	let bodyContents = textAfterHeaders $ decUtf8IgnErrors msgBody

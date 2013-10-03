@@ -49,6 +49,7 @@ timesheet = do
 
 handleTimesheet tsparam = do
 	jsonData <- liftIO $ Timesheet.process $ TE.decodeUtf8 tsparam
+	liftIO $ putStrLn $ "OK i have all the json" ++ (show $ DBLC.length jsonData)
 	writeLBS jsonData
 
 configdesc :: Snap ()

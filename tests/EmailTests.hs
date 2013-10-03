@@ -28,6 +28,7 @@ runEmailTests = do
 	testParseMultipartBodyTextPlainAttach
 	testMultipartAlternative
 	testMultipartRelated
+	testMultipartProblem
 
 testEmail1 :: Spec
 testEmail1 = it "parses a simple email structure" $ do
@@ -265,4 +266,53 @@ testMultipartRelated = it "parse multipart related body plus attach" $ do
 			
 			--------------080701080400090206090002--
 			|] -- WARNING i truncated the base64!!!
+	assertEqual "doesn't match" "html content\n<img id=\"Picture_x0020_2\" src=\"cid:part20.08050508.06050608@lecip-its.com\" alt=\"cid:image002.jpg@01CEAF06.B364DF00\" border=\"0\" height=\"562\" width=\"601\">\n\n" (parseMultipartBody source)
+
+testMultipartProblem :: Spec
+testMultipartProblem = it "parse multipart problem body" $ do
+	let source = [strT|
+			------=_Part_261520_1752112592.1379489229611
+			Content-Type: multipart/alternative; 
+				boundary="----=_Part_261521_1460566080.1379489229611"
+			
+			------=_Part_261521_1460566080.1379489229611
+			Content-Type: text/plain; charset=utf-8
+			Content-Transfer-Encoding: quoted-printable
+			
+			do tega najverjetneje pride ker gledate stare podatke ali zato ker stara en=
+			ota oddaja. namre=C4=8D je Dejan pomotoma spremenil kode za alerte in event=
+			e. Ko je to naredil, smo se zna=C5=A1li v polo=C5=BEaju v katerem stare eve=
+			nte so imeli en format in nove en drug, kar je polo=C5=BEaj v katerem se NO=
+			=C4=8CE=C5=A0 najti. v glavnem, imamo po mojem dve re=C5=A1itvi:=20
+			
+			------=_Part_261521_1460566080.1379489229611
+			Content-Type: multipart/related; 
+				boundary="----=_Part_261522_1996021350.1379489229611"
+			
+			------=_Part_261522_1996021350.1379489229611
+			Content-Type: text/html; charset=utf-8
+			Content-Transfer-Encoding: quoted-printable
+			
+			<html>
+			------=_Part_261522_1996021350.1379489229611
+			Content-Type: image/png; name=ddfiieci.png
+			Content-Disposition: attachment; filename=ddfiieci.png
+			Content-Transfer-Encoding: base64
+			Content-ID: <part1.05020003.09090100@lecip-its.com>
+			
+			iVBORw0KGgoAAAANSUhEUgAAA9MAAABeCAIAAACvqdCJAAAgAElEQVR4nO2dXaKjIAyFux634kpc
+			iAtxHbO5efCHBM4JYG1rb8/3MlMvhhBCiEjL4yGEEEIIIYQQQgghhBBCCCGEEEIIIYQQQgghhBDi
+			------=_Part_261522_1996021350.1379489229611--
+			
+			------=_Part_261521_1460566080.1379489229611--
+			
+			------=_Part_261520_1752112592.1379489229611
+			Content-Type: text/x-java; name=Event-current.java
+			Content-Disposition: attachment; filename=Event-current.java
+			Content-Transfer-Encoding: base64
+			
+			cGFja2FnZSBjb20ubGVjaXAudHJhbnNtaXR0ZXI7CgppbXBvcnQgamF2YS51dGlsLkxpc3Q7Cgpp
+			bXBvcnQgb3JnLmpzb24uSlNPTkFycmF5OwppbXBvcnQgb3JnLmpzb24uSlNPTkV4Y2VwdGlvbjsK
+			------=_Part_261520_1752112592.1379489229611--
+			|] -- TODO truncated base64!!
 	assertEqual "doesn't match" "html content\n<img id=\"Picture_x0020_2\" src=\"cid:part20.08050508.06050608@lecip-its.com\" alt=\"cid:image002.jpg@01CEAF06.B364DF00\" border=\"0\" height=\"562\" width=\"601\">\n\n" (parseMultipartBody source)

@@ -187,7 +187,7 @@ readHeader = do
 readHeaderValue :: T.GenParser st T.Text
 readHeaderValue = do
 	val <- many $ noneOf "\r\n;"
-	rest <- (do T.string ";"; optional eol; readHeaderValue) <|> eol
+	rest <- (do T.string ";"; many $ T.string " "; optional eol; readHeaderValue) <|> eol
 	return $ T.concat [T.pack val, rest]
 
 sectionsEnd :: T.GenParser st ()

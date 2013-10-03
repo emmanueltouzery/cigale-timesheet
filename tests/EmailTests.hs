@@ -293,7 +293,7 @@ testMultipartProblem = it "parse multipart problem body" $ do
 			Content-Type: text/html; charset=utf-8
 			Content-Transfer-Encoding: quoted-printable
 			
-			<html>
+			<html> smo se zna=C5=A1li v polo=C5=BEaju se NO==C4=8CE=C5=A0 najti
 			------=_Part_261522_1996021350.1379489229611
 			Content-Type: image/png; name=ddfiieci.png
 			Content-Disposition: attachment; filename=ddfiieci.png
@@ -315,4 +315,4 @@ testMultipartProblem = it "parse multipart problem body" $ do
 			bXBvcnQgb3JnLmpzb24uSlNPTkFycmF5OwppbXBvcnQgb3JnLmpzb24uSlNPTkV4Y2VwdGlvbjsK
 			------=_Part_261520_1752112592.1379489229611--
 			|] -- TODO truncated base64!!
-	assertEqual "doesn't match" "html content\n<img id=\"Picture_x0020_2\" src=\"cid:part20.08050508.06050608@lecip-its.com\" alt=\"cid:image002.jpg@01CEAF06.B364DF00\" border=\"0\" height=\"562\" width=\"601\">\n\n" (parseMultipartBody source)
+	assertEqual "doesn't match" "<html> smo se zna=C5=A1li v polo=C5=BEaju se NO==C4=8CE=C5=A0 najti\n" (parseMultipartBody source)

@@ -119,7 +119,7 @@ testParseMultipartBody = it "parses multipart body" $ do
 			CkVORDpWRVZFTlQNCkVORDpWQ0FMRU5EQVINCg==
 			--047d7bfeb46643324304e617c30e--
 			|]
-	assertEqual "doesn't match" "message body, but html\n" (parseMultipartBody source) 
+	assertEqual "doesn't match" "message body, but html" (parseMultipartBody source) 
 
 testParseMultipartBodyTextPlainAttach :: Spec
 testParseMultipartBodyTextPlainAttach = it "parse multipart body text/plain plus attach" $ do
@@ -293,7 +293,8 @@ testMultipartProblem = it "parse multipart problem body" $ do
 			Content-Type: text/html; charset=utf-8
 			Content-Transfer-Encoding: quoted-printable
 			
-			<html> smo se zna=C5=A1li v polo=C5=BEaju se NO==C4=8CE=C5=A0 najti
+			<html> smo se zna=C5=A1li v polo=C5=BEaju se NO=
+			=C4=8CE=C5=A0 najti
 			------=_Part_261522_1996021350.1379489229611
 			Content-Type: image/png; name=ddfiieci.png
 			Content-Disposition: attachment; filename=ddfiieci.png
@@ -315,4 +316,4 @@ testMultipartProblem = it "parse multipart problem body" $ do
 			bXBvcnQgb3JnLmpzb24uSlNPTkFycmF5OwppbXBvcnQgb3JnLmpzb24uSlNPTkV4Y2VwdGlvbjsK
 			------=_Part_261520_1752112592.1379489229611--
 			|] -- TODO truncated base64!!
-	assertEqual "doesn't match" "<html> smo se zna=C5=A1li v polo=C5=BEaju se NO==C4=8CE=C5=A0 najti\n" (parseMultipartBody source)
+	assertEqual "doesn't match" "<html> smo se znašli v položaju se NOČEŠ najti" (parseMultipartBody source)

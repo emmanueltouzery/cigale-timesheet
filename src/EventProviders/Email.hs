@@ -162,12 +162,29 @@ sectionTextContent :: MultipartSection -> T.Text
 sectionTextContent section
 	| "multipart/" `T.isInfixOf` sectionCType = -- multipart/alternative or multipart/related
 		parseMultipartBody (sectionContent section)
-	| otherwise = sectionContent section
+	| otherwise = sectionFormattedContent section
 	where
 		sectionCType = fromMaybe "" (sectionContentType section)
 
+sectionFormattedContent :: MultipartSection -> T.Text
+sectionFormattedContent section
+	| sectionCTTransferEnc == "quoted-printable" =
+		decodeMimeContents (sectionCharset section) (sectionContent section)
+	| otherwise = sectionContent section
+	where
+		sectionCTTransferEnc = fromMaybe "" (sectionContentTransferEncoding section)
+
+sectionCharset :: MultipartSection -> String
+sectionCharset section = "utf-8" -- #### TODO
+
 sectionContentType :: MultipartSection -> Maybe T.Text
-sectionContentType (MultipartSection headers _) = fmap snd $ find ((=="Content-Type") . fst) headers
+sectionContentType = sectionHeaderValue "Content-Type"
+
+sectionContentTransferEncoding :: MultipartSection -> Maybe T.Text
+sectionContentTransferEncoding = sectionHeaderValue "Content-Transfer-Encoding"
+
+sectionHeaderValue :: T.Text -> MultipartSection -> Maybe T.Text
+sectionHeaderValue headerName (MultipartSection headers _) = fmap snd $ find ((==headerName) . fst) headers
 
 parseMultipartSection :: T.Text -> T.GenParser st MultipartSection
 parseMultipartSection mimeSeparator = do
@@ -187,7 +204,7 @@ readHeader = do
 readHeaderValue :: T.GenParser st T.Text
 readHeaderValue = do
 	val <- many $ noneOf "\r\n;"
-	rest <- (do T.string ";"; many $ T.string " "; optional eol; readHeaderValue) <|> eol
+	rest <- (do T.string ";"; many $ T.string " "; optional eol; readHeaderValue) <|> (eol >> return "")
 	return $ T.concat [T.pack val, rest]
 
 sectionsEnd :: T.GenParser st ()
@@ -263,25 +280,36 @@ decodeMime s@_ = decUtf8IgnErrors s
 decodeMimeContents :: String -> T.Text -> T.Text
 decodeMimeContents encoding contentsVal = 
 		case parseQuotedPrintable (T.unpack contentsVal) of
-			Left _ -> T.concat ["can't parse ", contentsVal , " as quoted printable?"]
+			Left err -> T.concat ["can't parse ", contentsVal ,
+				" as quoted printable? ", T.pack $ show err]
 			Right elts -> T.concat $ map (qpEltToString encoding) elts
 
 qpEltToString :: String -> QuotedPrintableElement -> T.Text
 qpEltToString encoding (AsciiSection str) = T.pack str
 qpEltToString encoding (NonAsciiChars chrInt) = iconvFuzzyText encoding (BSL.pack chrInt)
+qpEltToString _ LineBreak = T.pack ""
 
-data QuotedPrintableElement = AsciiSection String | NonAsciiChars [Word8]
+data QuotedPrintableElement = AsciiSection String
+		| NonAsciiChars [Word8]
+		| LineBreak
 	deriving (Show, Eq)
 
 parseQuotedPrintable :: String -> Either ParseError [QuotedPrintableElement]
 parseQuotedPrintable = parse parseQPElements ""
 
 parseQPElements :: GenParser Char st [QuotedPrintableElement]
-parseQPElements = many $ parseAsciiSection <|> parseNonAsciiChars <|> parseUnderscoreSpace
+parseQPElements = many $ parseAsciiSection <|> parseUnderscoreSpace <|> (try parseNonAsciiChars) <|> (try pqLineBreak)
+
+pqLineBreak :: GenParser Char st QuotedPrintableElement
+pqLineBreak = do
+	string "="
+	optional $ string "\r"
+	string "\n"
+	return LineBreak
 
 parseAsciiSection :: GenParser Char st QuotedPrintableElement
 parseAsciiSection = do
-	contentsVal <- many1 $ noneOf "=_"
+	contentsVal <- many1 $ noneOf "=_\n\r"
 	return $ AsciiSection contentsVal
 
 parseNonAsciiChars :: GenParser Char st QuotedPrintableElement

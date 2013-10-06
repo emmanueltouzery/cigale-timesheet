@@ -18,11 +18,13 @@ import Text.ParserCombinators.Parsec
 import Data.Text.Read
 import GHC.Word
 import qualified Data.ByteString.Base64 as Base64
-import qualified Text.Parsec.Text as T
+import qualified Text.Parsec.ByteString as T
+import qualified Text.Parsec.Text as TT
 import qualified Text.Parsec as T
 import Data.Aeson.TH (deriveJSON)
 import qualified Codec.Text.IConv as IConv
 import Debug.Trace
+import qualified Data.Map as Map
 
 import Text.Regex.PCRE.Rex
 
@@ -43,9 +45,6 @@ getEmailProvider = EventProvider
 		getModuleName = "Email",
 		getEvents = getEmailEvents,
 		getConfigType = members $(thGetTypeDesc ''EmailConfig)
-		--getConfigRequirements = SubElementArraySpec [
-		--	SubElementArraySpec [StringFieldSpec "emailPath"],
-		--	SubElementArraySpec [StringFieldSpec "project", SubElementArraySpec [StringFieldSpec "emailPatterns"]]]
 	}
 
 data Email = Email
@@ -78,9 +77,6 @@ toEvent timezone email = Event.Event
 getEmails :: String -> Day -> Day -> IO [Email]
 getEmails sent_mbox fromDate toDate = do
 	mbox <- parseMboxFile Backward sent_mbox
-	--print $ head $ (map _mboxMsgTime (mboxMessages mbox))
-	--print $ head $ (map parseMessage (mboxMessages mbox))
-	putStrLn "before sequence"
 	-- going from the end, stop at the first message which
 	-- is older than my start date.
 	let messages = takeWhile isAfter (mboxMessages mbox)
@@ -88,7 +84,6 @@ getEmails sent_mbox fromDate toDate = do
 	-- now we remove the messages that are newer than end date
 	-- need to reverse messages because i'm reading from the end.
 	let messages1 = takeWhile isBefore (reverse messages)
-	--print $ map getEmailDate messages1
 	return $ map parseMessage messages1
 	where
 		isAfter email = (localDay $ getEmailDate email) >= fromDate
@@ -96,31 +91,44 @@ getEmails sent_mbox fromDate toDate = do
 
 parseMessage :: MboxMessage BL.ByteString -> Email
 parseMessage msg = do
-	let toVal = headerValSafe "To: " msg
-	let ccVal = headerVal "CC: " msg
-	let subjectVal = headerValSafe "Subject: " msg
-	let contentType = headerVal "Content-Type" msg
+	let emailDate = getEmailDate msg
+	let msgBody = (trace $ "Parsing email " ++ (show emailDate))
+		Util.toStrict1 $ _mboxMsgBody msg
+	let (headers, rawMessage) = Util.parsecParse parseMessageParsec (_mboxMsgBody msg)
+	let toVal = (trace $ "raw message ==> " ++ (show rawMessage)) readHeader "To" headers
+	let ccVal = Map.lookup "CC" headers
+	let subjectVal = readHeader "Subject" headers
+	let contentType = Map.lookup "Content-Type" headers
 	let isMultipart = case contentType of
 		Nothing -> False
 		Just x -> "multipart/" `T.isInfixOf` x
-	let emailDate = getEmailDate msg
-	let msgBody = (trace $ "Parsing email " ++ (show emailDate) ++ " " ++ (T.unpack subjectVal))
-		Util.toStrict1 $ _mboxMsgBody msg
-	-- TODO i may hit a base64 body. decodeMime would be a
-	-- starting base then. Must check the content-typel
-	let bodyContents = textAfterHeaders $ decUtf8IgnErrors msgBody
 	let emailContents = if isMultipart
-			then parseMultipartBody bodyContents
-			else Util.parsecParse parseAsciiBody bodyContents
+			then parseMultipartBody rawMessage
+			else parseTextPlain rawMessage headers
 	Email emailDate toVal ccVal subjectVal emailContents
+	where
+		-- TODO ugly to re-encode in ByteString, now I do ByteString->Text->ByteString->Text
+		-- pazi another top-level function is also named readHeader!!!
+		readHeader hName = decodeMime . encodeUtf8 . (Map.findWithDefault "missing" hName)
 
-textAfterHeaders :: T.Text -> T.Text
-textAfterHeaders txt = snd $ T.breakOn "\n\n" $ T.replace "\r" "" txt
+parseMessageParsec :: T.Parsec BSL.ByteString st (Map.Map T.Text T.Text, BSL.ByteString)
+parseMessageParsec = do
+	headers <- readHeaders
+	body <- many anyChar
+	return (Map.fromList headers, BL.pack body)
+
+parseTextPlain :: BSL.ByteString -> Map.Map T.Text T.Text -> T.Text
+parseTextPlain bodyContents headers = T.replace "\n" "\n<br/>" (sectionFormattedContent section)
+	where
+		section = MultipartSection (Map.toList headers) bodyContents
+
+--textAfterHeaders :: T.Text -> T.Text
+--textAfterHeaders txt = snd $ T.breakOn "\n\n" $ T.replace "\r" "" txt
 
 getEmailDate :: MboxMessage BL.ByteString -> LocalTime
 getEmailDate = parseEmailDate . Util.toStrict1 . _mboxMsgTime
 
-parseMultipartBody :: T.Text -> T.Text
+parseMultipartBody :: BSL.ByteString -> T.Text
 parseMultipartBody body =
 		case sectionToConsider sections of
 			Nothing -> "no contents!"
@@ -145,17 +153,18 @@ sectionForMimeType mType secsByCt = liftM snd (find (keyContainsStr mType) secsB
 		keyContainsStr str (Nothing, _) = False
 		keyContainsStr str (Just x, _) = (T.isInfixOf str) $ x
 
-parseMultipartBodyParsec :: T.GenParser st [MultipartSection]
+parseMultipartBodyParsec :: T.Parsec BSL.ByteString st [MultipartSection]
 parseMultipartBodyParsec = do
-	many eol
-	optional $ string "This is a multi-part message in MIME format.\n"
-	mimeSeparator <- readLine
-	manyTill (parseMultipartSection mimeSeparator) (T.try $ sectionsEnd)
+	many eolBS
+	optional $ T.string "This is a multi-part message in MIME format."
+	optional eolBS
+	mimeSeparator <- readLineBS
+	manyTill (parseMultipartSection (decodeASCII $ toStrict1 mimeSeparator)) (T.try $ sectionsEnd)
 
 data MultipartSection = MultipartSection
 	{
 		sectionHeaders :: [(T.Text, T.Text)],
-		sectionContent :: T.Text
+		sectionContent :: BSL.ByteString
 	} deriving Show
 
 sectionTextContent :: MultipartSection -> T.Text
@@ -169,13 +178,27 @@ sectionTextContent section
 sectionFormattedContent :: MultipartSection -> T.Text
 sectionFormattedContent section
 	| sectionCTTransferEnc == "quoted-printable" =
-		decodeMimeContents (sectionCharset section) (sectionContent section)
-	| otherwise = sectionContent section
+		decodeMimeContents encoding (decodeASCII $ toStrict1 $ sectionContent section)
+	| otherwise = iconvFuzzyText encoding (sectionContent section)
 	where
 		sectionCTTransferEnc = fromMaybe "" (sectionContentTransferEncoding section)
+		encoding = sectionCharset section
+
+charsetFromContentType :: T.Text -> String
+charsetFromContentType ct = (traceShow kvHash) T.unpack $ Map.findWithDefault "utf-8" "charset" kvHash
+	where
+		kvHash = Map.fromList $ map (split2 "=" . T.strip) $
+			filter (T.isInfixOf "=") $ T.splitOn ";" ct
 
 sectionCharset :: MultipartSection -> String
-sectionCharset section = "utf-8" -- #### TODO
+sectionCharset section = charsetFromContentType contentType
+	where
+		contentType = fromMaybe "" (sectionContentType section)
+
+split2 :: T.Text -> T.Text -> (T.Text, T.Text)
+split2 a b = (x, T.concat xs)
+	where
+		(x:xs) = T.splitOn a b
 
 sectionContentType :: MultipartSection -> Maybe T.Text
 sectionContentType = sectionHeaderValue "Content-Type"
@@ -186,45 +209,57 @@ sectionContentTransferEncoding = sectionHeaderValue "Content-Transfer-Encoding"
 sectionHeaderValue :: T.Text -> MultipartSection -> Maybe T.Text
 sectionHeaderValue headerName (MultipartSection headers _) = fmap snd $ find ((==headerName) . fst) headers
 
-parseMultipartSection :: T.Text -> T.GenParser st MultipartSection
+parseMultipartSection :: T.Text -> T.Parsec BSL.ByteString st MultipartSection
 parseMultipartSection mimeSeparator = do
-	headers <- manyTill readHeader (T.try $ do eol)
-	contents <- manyTill readLine (T.try $ T.string $ T.unpack mimeSeparator)
-	many eol
-	return $ MultipartSection headers  (T.unlines contents)
+	headers <- readHeaders
+	contents <- manyTill readLineBS (T.try $ T.string $ T.unpack $ mimeSeparator)
+	many eolBS
+	return $ MultipartSection headers (BSL.intercalate "\n" contents)
 
-readHeader :: T.GenParser st (T.Text, T.Text)
+readHeaders :: T.Parsec BSL.ByteString st [(T.Text, T.Text)]
+readHeaders = do
+	val <- manyTill readHeader (T.try $ do eolBS)
+	return $ map (\(a,b) -> (decodeASCII $ toStrict1 $ BL.pack a, decodeASCII $ toStrict1 b)) val
+
+readHeader :: T.Parsec BSL.ByteString st (String, BSL.ByteString)
 readHeader = do
-	key <- many $ T.noneOf ":\n\r"
-	T.string ":"
+	key <- T.many $ T.noneOf ":\n\r"
+	(trace key) T.string ":"
 	many $ T.string " "
 	val <- readHeaderValue
-	return (T.pack key, val)
+	(traceShow (BL.pack key, val)) return (key, val)
 
-readHeaderValue :: T.GenParser st T.Text
+readHeaderValue :: T.Parsec BSL.ByteString st BSL.ByteString
 readHeaderValue = do
-	val <- many $ noneOf "\r\n;"
-	rest <- (do T.string ";"; many $ T.string " "; optional eol; readHeaderValue) <|> (eol >> return "")
-	return $ T.concat [T.pack val, rest]
+	val <- T.many $ T.noneOf "\r\n"
+	(trace val) eolBS
+	rest <- (do many1 $ oneOf " \t"; v <- readHeaderValue; return $ BSL.concat [" ", v])
+		<|> (return "")
+	return $ BSL.concat [BL.pack val, rest]
 
-sectionsEnd :: T.GenParser st ()
+sectionsEnd :: T.Parsec BSL.ByteString st ()
 sectionsEnd = do
 	T.string "--"
-	(eol >> return ()) <|> eof
+	(eolBS >> return ()) <|> eof
 
-parseAsciiBody :: T.GenParser st T.Text
-parseAsciiBody = do
-	many eol
-	textLines <- many readLine
-	return $ T.intercalate "<br/>" textLines
-
-readLine :: T.GenParser st T.Text
+readLine :: TT.GenParser st T.Text
 readLine = do
 	val <- many $ noneOf "\r\n"
 	eol
 	return $ T.pack val
 
-eol :: T.GenParser st T.Text
+readLineBS = do
+	--liftM BSL.concat (T.manyTill anyCharBS (try $ eolBS))
+	val <- T.many $ noneOf "\r\n"
+	eolBS
+	return $ BL.pack val
+
+eolBS = do
+	optional $ string "\r"
+	string "\n"
+	return "\n"
+
+eol :: TT.GenParser st T.Text
 eol = do
 	optional $ string "\r"
 	string "\n"
@@ -309,7 +344,7 @@ pqLineBreak = do
 
 parseAsciiSection :: GenParser Char st QuotedPrintableElement
 parseAsciiSection = do
-	contentsVal <- many1 $ noneOf "=_\n\r"
+	contentsVal <- many1 $ noneOf "=_"
 	return $ AsciiSection contentsVal
 
 parseNonAsciiChars :: GenParser Char st QuotedPrintableElement
@@ -329,13 +364,3 @@ parseUnderscoreSpace :: GenParser Char st QuotedPrintableElement
 parseUnderscoreSpace = do
 	char '_'
 	return $ AsciiSection " "
-
-headerVal :: B.ByteString -> MboxMessage BL.ByteString -> Maybe T.Text
-headerVal header msg = liftM doDecode maybeRow
-	where
-		doDecode = decodeMime . (B.drop (B.length header))
-		msgContents = Util.toStrict1 $ _mboxMsgBody msg
-		maybeRow = find (B.isPrefixOf header) (B.lines msgContents)
-
-headerValSafe :: B.ByteString -> MboxMessage BL.ByteString -> T.Text
-headerValSafe fieldHeader msg = fromMaybe "Missing" (headerVal fieldHeader msg)

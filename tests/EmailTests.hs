@@ -9,6 +9,9 @@ import Codec.Mbox
 import Text.ParserCombinators.Parsec (parse)
 import Data.Time.Calendar (fromGregorian)
 import Data.Time.LocalTime
+import qualified Data.Map as Map
+import qualified Data.Text as T
+import qualified Data.ByteString.Lazy.Char8 as BL
 
 import Str
 import Util
@@ -29,14 +32,19 @@ runEmailTests = do
 	testMultipartAlternative
 	testMultipartRelated
 	testMultipartProblem
+	testHeadersParse
+	testCharsetFromContenType
+	--testMboxMessage
+	testMboxMessageQP
+	testMboxMultipartMessage
 
 testEmail1 :: Spec
 testEmail1 = it "parses a simple email structure" $ do
-	assertEqual "doesn't match" "after headers\n" (parseMultipartBody "\n\nThis is a multi-part message in MIME format.\nseparator\nContent-Type: text/plain\n\nfirstpart\nseparator\nContent-Type: text/html\n\nafter headers\nseparator--")
+	assertEqual "doesn't match" "after headers" (parseMultipartBody "\n\nThis is a multi-part message in MIME format.\nseparator\nContent-Type: text/plain\n\nfirstpart\nseparator\nContent-Type: text/html\n\nafter headers\nseparator--")
 
 testEmail2 :: Spec
 testEmail2 = it "parses a simple email structure" $ do
-	assertEqual "doesn't match" "firstpart\n" (parseMultipartBody "\n\nseparator\nContent-Type: text/html\n\nfirstpart\nseparator\n\nContent-Type: text/plain\n\nafter headers\nseparator--\n")
+	assertEqual "doesn't match" "firstpart" (parseMultipartBody "\n\nseparator\nContent-Type: text/html\n\nfirstpart\nseparator\n\nContent-Type: text/plain\n\nafter headers\nseparator--\n")
 
 testMimeNonUtf :: Spec
 testMimeNonUtf = it "parses simple quoted printable" $
@@ -58,7 +66,7 @@ testParseEmailDate = it "parses email date" $
 
 testParseMultipartBody :: Spec
 testParseMultipartBody = it "parses multipart body" $ do
-	let source = [strT|
+	let source = BL.pack $ T.unpack [strT|
 			--047d7bfeb46643323d04e617c30c
 			Content-Type: text/plain; charset=ISO-8859-2; format=flowed; delsp=yes
 			Content-Transfer-Encoding: base64
@@ -123,7 +131,7 @@ testParseMultipartBody = it "parses multipart body" $ do
 
 testParseMultipartBodyTextPlainAttach :: Spec
 testParseMultipartBodyTextPlainAttach = it "parse multipart body text/plain plus attach" $ do
-	let source = [strT|
+	let source = BL.pack $ T.unpack [strT|
 			--047d7bfeb46643323d04e617c30c
 			Content-Type: text/html;
                            charset=ISO-8859-2; format=flowed; delsp=yes
@@ -185,11 +193,11 @@ testParseMultipartBodyTextPlainAttach = it "parse multipart body text/plain plus
 			CkVORDpWRVZFTlQNCkVORDpWQ0FMRU5EQVINCg==
 			--047d7bfeb46643324304e617c30e--
 			|] 
-	assertEqual "doesn't match" "UG92YWJsamVuaSBzdGUgYmlsaSBuYSB0YSBkb2dvZGVrLg0KDQpOYXppdjogWm9ibmkgcmVudGdl\nBiBMYXJhDQpab2JuaSByZW50Z2VuIExhcmENCktkYWo6IHBldCA0LiBva3QgMjAxMyAwNzoxMCAt\nIDA4OjEwIE9zcmVkbmppIGV2cm9wc2tpIOhhcyAtIEJlb2dyYWQNCktqZTogWkQgVmnoDQpLb2xl\nZGFyOiBldG91emVyeUBnbWFpbC5jb20NCktkbzoNCiAgICAgKiBTaW1vbmEgSHZhbGnoIFRvdXpl\nCnktIG9yZ2FuaXphdG9yDQogICAgICogRW1tYW51ZWwgVG91emVyeQ0KDQpQb2Ryb2Jub3N0aSBk\nB2dvZGthOiAgDQpodHRwczovL3d3dy5nb29nbGUuY29tL2NhbGVuZGFyL2V2ZW50P2FjdGlvbj1W\nSUVXJmVpZD1aR3R4T1dWck1tazRNbkp0Y21SelozUmtkVEF5Tm1aek16QWdaWFJ2ZFhwbGNubEFi\nUSZ0b2s9TXpFamMybHRiMjVoTG1oMllXeHBZeTUwYjNWNlpYSjVRR2R0WVdsc0xtTnZiV1JsT0Rn\nD1pUWm1Oemd5T1RobFltVTNPREl3TVdSaVlqVTBNR0U1TVRjNE1UTmlZbVF6TmpjJmN0ej1FdXJv\nCGUvQmVsZ3JhZGUmaGw9c2wNCg0KVmFiaWxvIGl6IEdvb2dsZSBLb2xlZGFyamE6IGh0dHBzOi8v\nD3d3Lmdvb2dsZS5jb20vY2FsZW5kYXIvDQoNClRvIGUtcG+5dG8gcHJlamVtYXRlIG5hIHJh6HVu\nIGV0b3V6ZXJ5QGdtYWlsLmNvbSwga2VyIHN0ZSBuYXJv6GVuaSBuYSAgDQpwb3ZhYmlsYSB2IGtv\nBGVkYXJqdSBldG91emVyeUBnbWFpbC5jb20uDQoNCshlIG5lIL5lbGl0ZSB2ZeggcHJlamVtYXRp\nIG9idmVzdGlsLCBzZSBwcmlqYXZpdGUgdiAgDQpodHRwczovL3d3dy5nb29nbGUuY29tL2NhbGVu\nZGFyLyBpbiBzcHJlbWVuaXRlIG5hc3Rhdml0dmUgb2J2ZXN0aWwgemEgdGEgIA0Ka29sZWRhci4N\nCg==\n" (parseMultipartBody source)
+	assertEqual "doesn't match" "UG92YWJsamVuaSBzdGUgYmlsaSBuYSB0YSBkb2dvZGVrLg0KDQpOYXppdjogWm9ibmkgcmVudGdl\nBiBMYXJhDQpab2JuaSByZW50Z2VuIExhcmENCktkYWo6IHBldCA0LiBva3QgMjAxMyAwNzoxMCAt\nIDA4OjEwIE9zcmVkbmppIGV2cm9wc2tpIOhhcyAtIEJlb2dyYWQNCktqZTogWkQgVmnoDQpLb2xl\nZGFyOiBldG91emVyeUBnbWFpbC5jb20NCktkbzoNCiAgICAgKiBTaW1vbmEgSHZhbGnoIFRvdXpl\nCnktIG9yZ2FuaXphdG9yDQogICAgICogRW1tYW51ZWwgVG91emVyeQ0KDQpQb2Ryb2Jub3N0aSBk\nB2dvZGthOiAgDQpodHRwczovL3d3dy5nb29nbGUuY29tL2NhbGVuZGFyL2V2ZW50P2FjdGlvbj1W\nSUVXJmVpZD1aR3R4T1dWck1tazRNbkp0Y21SelozUmtkVEF5Tm1aek16QWdaWFJ2ZFhwbGNubEFi\nUSZ0b2s9TXpFamMybHRiMjVoTG1oMllXeHBZeTUwYjNWNlpYSjVRR2R0WVdsc0xtTnZiV1JsT0Rn\nD1pUWm1Oemd5T1RobFltVTNPREl3TVdSaVlqVTBNR0U1TVRjNE1UTmlZbVF6TmpjJmN0ej1FdXJv\nCGUvQmVsZ3JhZGUmaGw9c2wNCg0KVmFiaWxvIGl6IEdvb2dsZSBLb2xlZGFyamE6IGh0dHBzOi8v\nD3d3Lmdvb2dsZS5jb20vY2FsZW5kYXIvDQoNClRvIGUtcG+5dG8gcHJlamVtYXRlIG5hIHJh6HVu\nIGV0b3V6ZXJ5QGdtYWlsLmNvbSwga2VyIHN0ZSBuYXJv6GVuaSBuYSAgDQpwb3ZhYmlsYSB2IGtv\nBGVkYXJqdSBldG91emVyeUBnbWFpbC5jb20uDQoNCshlIG5lIL5lbGl0ZSB2ZeggcHJlamVtYXRp\nIG9idmVzdGlsLCBzZSBwcmlqYXZpdGUgdiAgDQpodHRwczovL3d3dy5nb29nbGUuY29tL2NhbGVu\nZGFyLyBpbiBzcHJlbWVuaXRlIG5hc3Rhdml0dmUgb2J2ZXN0aWwgemEgdGEgIA0Ka29sZWRhci4N\nCg==" (parseMultipartBody source)
 
 testMultipartAlternative :: Spec
 testMultipartAlternative = it "parse multipart alternative body plus attach" $ do
-	let source = [strT|
+	let source = BL.pack $ T.unpack [strT|
 			This is a multi-part message in MIME format.
 			--------------070503040503000700050104
 			Content-Type: multipart/alternative;
@@ -226,11 +234,11 @@ testMultipartAlternative = it "parse multipart alternative body plus attach" $ d
 			MC43MjAwMCA0NzMuMDQwMDAgNjU1IF0KL0NvbnRlbnRzIFsxNDcyIDAgUiAxNDc1IDAgUiAx
 			--------------070503040503000700050104--
 			|] -- WARNING i truncated the base64!!
-	assertEqual "doesn't match" "html version\n\n" (parseMultipartBody source)
+	assertEqual "doesn't match" "html version\n" (parseMultipartBody source)
 
 testMultipartRelated :: Spec
 testMultipartRelated = it "parse multipart related body plus attach" $ do
-	let source = [strT|
+	let source = BL.pack $ T.unpack [strT|
 			This is a multi-part message in MIME format.
 			--------------080701080400090206090002
 			Content-Type: text/plain; charset=UTF-8; format=flowed
@@ -248,12 +256,12 @@ testMultipartRelated = it "parse multipart related body plus attach" $ do
 			Content-Transfer-Encoding: 8bit
 			
 			html content
-			<img id="Picture_x0020_2" src="cid:part20.08050508.06050608@lecip-its.com" alt="cid:image002.jpg@01CEAF06.B364DF00" border="0" height="562" width="601">
+			<img id="Picture_x0020_2" src="cid:part20.08050508.06050608@test.com" alt="cid:image002.jpg@01CEAF06.B364DF00" border="0" height="562" width="601">
 			
 			--------------040602030008000703040204
 			Content-Type: image/jpeg
 			Content-Transfer-Encoding: base64
-			Content-ID: <part20.08050508.06050608@lecip-its.com>
+			Content-ID: <part20.08050508.06050608@test.com>
 			
 			/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAoHBwgHBgoICAgLCgoLDhgQDg0NDh0VFhEYIx8l
 			JCIfIiEmKzcvJik0KSEiMEExNDk7Pj4+JS5ESUM8SDc9Pjv/2wBDAQoLCw4NDhwQEBw7KCIo
@@ -266,11 +274,11 @@ testMultipartRelated = it "parse multipart related body plus attach" $ do
 			
 			--------------080701080400090206090002--
 			|] -- WARNING i truncated the base64!!!
-	assertEqual "doesn't match" "html content\n<img id=\"Picture_x0020_2\" src=\"cid:part20.08050508.06050608@lecip-its.com\" alt=\"cid:image002.jpg@01CEAF06.B364DF00\" border=\"0\" height=\"562\" width=\"601\">\n\n" (parseMultipartBody source)
+	assertEqual "doesn't match" "html content\n<img id=\"Picture_x0020_2\" src=\"cid:part20.08050508.06050608@test.com\" alt=\"cid:image002.jpg@01CEAF06.B364DF00\" border=\"0\" height=\"562\" width=\"601\">\n" (parseMultipartBody source)
 
 testMultipartProblem :: Spec
 testMultipartProblem = it "parse multipart problem body" $ do
-	let source = [strT|
+	let source = BL.pack $ T.unpack [strT|
 			------=_Part_261520_1752112592.1379489229611
 			Content-Type: multipart/alternative; 
 				boundary="----=_Part_261521_1460566080.1379489229611"
@@ -299,7 +307,7 @@ testMultipartProblem = it "parse multipart problem body" $ do
 			Content-Type: image/png; name=ddfiieci.png
 			Content-Disposition: attachment; filename=ddfiieci.png
 			Content-Transfer-Encoding: base64
-			Content-ID: <part1.05020003.09090100@lecip-its.com>
+			Content-ID: <part1.05020003.09090100@test.com>
 			
 			iVBORw0KGgoAAAANSUhEUgAAA9MAAABeCAIAAACvqdCJAAAgAElEQVR4nO2dXaKjIAyFux634kpc
 			iAtxHbO5efCHBM4JYG1rb8/3MlMvhhBCiEjL4yGEEEIIIYQQQgghhBBCCCGEEEIIIYQQQgghhBDi
@@ -317,3 +325,155 @@ testMultipartProblem = it "parse multipart problem body" $ do
 			------=_Part_261520_1752112592.1379489229611--
 			|] -- TODO truncated base64!!
 	assertEqual "doesn't match" "<html> smo se znašli v položaju se NOČEŠ najti" (parseMultipartBody source)
+
+testHeadersParse :: Spec
+testHeadersParse = it "parses headers" $ do
+	let source = BL.pack $ T.unpack [strT|
+			X-Spam-Level:
+			X-Spam-Status: No, score=-3.054
+				tests=[ALL_TRUSTED=-1,
+				T_NOT_A_PERSON=-0.01]
+			Received: from www.google.com ([127.0.0.1])
+				by localhost (www.google.com [127.0.0.1])
+			
+			|]
+	assertEqual "doesn't match" [("X-Spam-Level", ""),
+		("X-Spam-Status", "No, score=-3.054 tests=[ALL_TRUSTED=-1, T_NOT_A_PERSON=-0.01]"),
+		("Received",
+		   "from www.google.com ([127.0.0.1]) by localhost (www.google.com [127.0.0.1])")] 
+		(Util.parsecParse readHeaders source)
+
+testCharsetFromContenType :: Spec
+testCharsetFromContenType = it "parses charset for content type" $ do
+	let source = "text/plain; charset=windows-1252; format=flowed"
+	assertEqual "doesn't match" "windows-1252" (charsetFromContentType source)
+
+-- not sure why this one doesn't go through...
+testMboxMessage :: Spec
+testMboxMessage = it "parses a message from start to end" $ do
+	let source = BL.pack $ T.unpack [strT|
+			From - Thu Oct 03 13:34:30 2013
+			X-Mozilla-Status: 0001
+			X-Mozilla-Status2: 00800000
+			X-Mozilla-Keys:                                                                                 
+			Message-ID: <524D5646.90908@test.com>
+			Date: Thu, 03 Oct 2013 13:34:30 +0200
+			From: Emmanuel <emmanuel@test.com>
+			MIME-Version: 1.0
+			To: 'a b' <a.b@test.com>
+			Subject: test
+			Content-Type: text/plain; charset=UTF-8; format=flowed
+			Content-Transfer-Encoding: 8bit
+			
+			Živjo
+			|]
+	let msg = MboxMessage "sender" "Jan 23 6:0:5 2013" source "file" 0
+	let expected = Email
+		{
+			date = LocalTime (fromGregorian 2013 1 23) (TimeOfDay 6 0 (fromIntegral 5)),
+			to = "'a b' <a.b@test.com>",
+			cc = Nothing,
+			subject = "test",
+			contents = "Živjo\n<br/>"
+		}
+	assertEqual "doesn't match" expected (parseMessage msg)
+
+testMboxMessageQP :: Spec
+testMboxMessageQP = it "parses a quoted-printable plain text message from start to end" $ do
+	let source = BL.pack $ T.unpack [strT|
+			From - Thu Oct 03 13:34:30 2013
+			X-Mozilla-Status: 0001
+			X-Mozilla-Status2: 00800000
+			X-Mozilla-Keys:                                                                                 
+			Message-ID: <524D5646.90908@test.com>
+			Date: Thu, 03 Oct 2013 13:34:30 +0200
+			From: Emmanuel <emmanuel@test.com>
+			MIME-Version: 1.0
+			To: 'a b' <a.b@test.com>
+			Subject: test
+			Content-Type: text/plain; charset=UTF-8; format=flowed
+			Content-Transfer-Encoding: quoted-printable
+			
+			=C5=BDivjo,
+
+			Lep pozdrav,
+
+			Emmanuel
+			|]
+	let msg = MboxMessage "sender" "Jan 23 6:0:5 2013" source "file" 0
+	let expected = Email
+		{
+			date = LocalTime (fromGregorian 2013 1 23) (TimeOfDay 6 0 (fromIntegral 5)),
+			to = "'a b' <a.b@test.com>",
+			cc = Nothing,
+			subject = "test",
+			contents = "Živjo,\n<br/>Lep pozdrav,\n<br/>Emmanuel\n<br/>"
+		}
+	assertEqual "doesn't match" expected (parseMessage msg)
+
+testMboxMultipartMessage :: Spec
+testMboxMultipartMessage = it "parses a multipart message from start to end" $ do
+	let source = BL.pack $ T.unpack [strT|
+			From - Thu Oct 03 10:18:41 2013
+			X-Mozilla-Status: 0001
+			X-Mozilla-Status2: 00800000
+			X-Mozilla-Keys:                                                                                 
+			Message-ID: <524D2860.2060103@test.com>
+			Date: Thu, 03 Oct 2013 10:18:40 +0200
+			From: a b <a.b@test.com>
+			MIME-Version: 1.0
+			To: c d <c@test.com>
+			Subject: Re: FW: Test
+			Content-Type: multipart/alternative;
+			 boundary="------------090707030607080209050905"
+			
+			This is a multi-part message in MIME format.
+			--------------090707030607080209050905
+			Content-Type: text/plain; charset=ISO-8859-2; format=flowed
+			Content-Transfer-Encoding: 8bit
+			
+			yes, sorry i was focused on these upgrades and let the mails go a bit.
+			
+			--------------090707030607080209050905
+			Content-Type: multipart/related;
+			 boundary="------------040305040006080906090803"
+			
+			
+			--------------040305040006080906090803
+			Content-Type: text/html; charset=ISO-8859-2
+			Content-Transfer-Encoding: 8bit
+			
+			<html>contents HTML
+			</html>
+			
+			--------------040305040006080906090803
+			Content-Type: image/png
+			Content-Transfer-Encoding: base64
+			Content-ID: <part2.04000607.07010808@test.com>
+			
+			iVBORw0KGgoAAAANSUhEUgAABAgAAANtCAIAAACSZd4qAAAAAXNSR0IArs4c6QAA/8pJREFU
+			eF7sfQeYZGWVduWcc3XOcUJPYoacg6iIoIIKoq66ZmV1XXHRNfAvqCiorGExrqxiWExrYAVB
+			RU5ErkJggg==
+			
+			--------------040305040006080906090803
+			Content-Type: image/png
+			Content-Transfer-Encoding: base64
+			Content-ID: <part4.00020808.07050000@test.com>
+			
+			iVBORw0KGgoAAAANSUhEUgAAB4AAAAQQCAIAAACMTtFPAAAAAXNSR0IArs4c6QAA/8pJREFU
+			eF7snQdgFFX+xyedhISEQCD0LqEX6WAHBREUAQX1lLNXznaennJ6ooINORV74e+pIEUQDkEB
+			CCCAAAIIIIAAAgjoC/w/mDOVH0wNG5MAAAAASUVORK5CYII=
+			--------------040305040006080906090803--
+			
+			--------------090707030607080209050905--
+			|] -- warning I truncated the base64 picture attachments
+	let msg = MboxMessage "sender" "Jan 23 6:0:5 2013" source "file" 0
+	let expected = Email
+		{
+			date = LocalTime (fromGregorian 2013 1 23) (TimeOfDay 6 0 (fromIntegral 5)),
+			to = "c d <c@test.com>",
+			cc = Nothing,
+			subject = "Re: FW: Test",
+			contents = "<html>contents HTML\n</html>\n"
+		}
+	assertEqual "doesn't match" expected (parseMessage msg)

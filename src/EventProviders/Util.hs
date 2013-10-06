@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, FlexibleContexts #-}
 
 module Util where
 
@@ -22,6 +22,7 @@ import qualified System.Info as Sysinfo
 import qualified OpenSSL.Session as SSL
 import qualified Data.Aeson as A
 import qualified Data.Attoparsec as AP
+import qualified Data.Functor.Identity as DFI
 
 import OpenSSL (withOpenSSL)
 
@@ -58,10 +59,10 @@ allEqual list = all (== head list) list
 zipLists :: [[a]] -> [[a]]
 zipLists list = takeWhile (\x -> length x == length list) $ transpose list
 
-parsecParse :: T.GenParser () a -> T.Text -> a
+parsecParse :: (Show a1, T.Stream a1 DFI.Identity t) => T.Parsec a1 () a -> a1 -> a
 parsecParse parser input = do
 	case parse parser "" input of
-		Left pe -> error $ "parse error: " ++ displayErrors pe ++ " >> input >> " ++ (T.unpack input)
+		Left pe -> error $ "parse error: " ++ displayErrors pe ++ " >> input >> " ++ (show input)
 		Right result -> result
 
 displayErrors :: ParseError -> String

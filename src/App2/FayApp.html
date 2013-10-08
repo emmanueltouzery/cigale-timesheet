@@ -49,6 +49,7 @@
 		}
 
 		#pleasehold {
+			position: relative;
 			width: 200px;
 			height: 50px;
 			background: aliceblue;
@@ -62,6 +63,16 @@
 			/* with line-height==height,
 			   text will be vertically centered. */
 			line-height: 50px;
+			z-index:2001;
+		}
+ 		#shadow {
+			background:rgba(0,0,0,0.5);
+			position:absolute;
+			left:0;
+			top:0;
+			right:0;
+			bottom:0;
+			z-index:2000;
 		}
 
 		/* http://stackoverflow.com/a/2855726/516188 */
@@ -138,6 +149,7 @@
 
 	<div id="datepicker"></div>
 
+	<div id="shadow"></div> 
 	<div id="pleasehold">Please hold...</div>
 
 	<div class="row vert_limited">

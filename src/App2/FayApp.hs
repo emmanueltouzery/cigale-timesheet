@@ -24,17 +24,20 @@ main = ready $ do
 fetchDay :: String -> Fay ()
 fetchDay dayStr = do
 	pleaseHold <- select "#pleasehold"
+	shadow <- select "#shadow"
+	unhide shadow
 	unhide pleaseHold
-	myajax ("/timesheet/" ++ dayStr) (processResults pleaseHold)
+	myajax ("/timesheet/" ++ dayStr) (processResults pleaseHold shadow)
 
-processResults :: JQuery -> [Main.Event] -> Fay ()
-processResults pleaseHold events = do
+processResults :: JQuery -> JQuery -> [Main.Event] -> Fay ()
+processResults pleaseHold shadow events = do
 	setSidebar ""
 	table <- select "table#eventsTable tbody"
 	empty table
 	setScrollTop 0 table
 	mapM_ (addEventRow table) events
 	hide Instantly pleaseHold
+	hide Instantly shadow
 	return ()
 
 addEventRow :: JQuery -> Main.Event -> Fay JQuery

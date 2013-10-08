@@ -4,7 +4,7 @@ redmine is almost useless, must show bug status change at the moment of the even
 
 quoted-printable ==> _ should not be translated to space, that applies only to message subject!
 
-gray out the whole screen when in-progress will make it more obvious. also probably animated throbber.
+probably animated throbber.
 
 for git, an optional diff would be nice too...
 

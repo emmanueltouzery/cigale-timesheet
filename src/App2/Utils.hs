@@ -146,3 +146,14 @@ liftM5 f m1 m2 m3 m4 m5 = do { x1 <- m1; x2 <- m2; x3 <- m3; x4 <- m4; x5 <- m5;
 liftMaybe2 :: (a -> b -> c) -> Maybe a -> Maybe b ->  Maybe c
 liftMaybe2 f (Just a) (Just b) = Just $ f a b
 liftMaybe2 _ _ _                    = Nothing
+
+liftMaybe :: (a -> b) -> Maybe a -> Maybe b
+liftMaybe f (Just a) = Just $ f a
+liftMaybe _ _                     = Nothing
+
+
+-- | The 'fromMaybe' function takes a default value and and 'Maybe'
+-- value.  If the 'Maybe' is 'Nothing', it returns the default values;
+-- otherwise, it returns the value contained in the 'Maybe'.
+fromMaybe     :: a -> Maybe a -> a
+fromMaybe d x = case x of {Nothing -> d;Just v  -> v}

@@ -1,4 +1,14 @@
+redmine and git times don't match. one has got to be in UTC, the other in local time. see 2013-09-12 bug #338 for instance
+
+redmine is almost useless, must show bug status change at the moment of the event.
+
 quoted-printable ==> _ should not be translated to space, that applies only to message subject!
+
+gray out the whole screen when in-progress will make it more obvious. also probably animated throbber.
+
+for git, an optional diff would be nice too...
+
+could use the favicon to display progress when fetching, if i won't manage to speed up the fetching enough: https://github.com/tommoor/tinycon
 
 fetch from all providers in parrallel to speed up in particular the network-oriented ones. optional, defaults to true
 

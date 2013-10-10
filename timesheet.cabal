@@ -7,7 +7,7 @@ Author:              Author
 Maintainer:          etouzery@gmail.com
 Stability:           Experimental
 Category:            Web
-Build-type:          Simple
+Build-type:          Custom
 Cabal-version:       >=1.8
 
 

@@ -38,6 +38,7 @@ doPostBuild _ _ pkg_descr lbi = do
 	exit2 <- compileFay "src/App2/" "FayConfig.hs" "FayConfig.js" appDataDir
 	unzipToTarget "lib/bootstrap-3.0.0.zip" appDataDir
 	unzipToTarget "lib/jquery-ui-1.9.2.zip" appDataDir
+	copyFile "lib/jquery-2.0.3.min.js" (appDataDir ++ "/jquery-2.0.3.min.js")
 
 compileFay :: String -> String -> String -> FilePath -> IO ExitCode
 compileFay sourceFolder filename targetFilename appDataDir =

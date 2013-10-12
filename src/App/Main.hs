@@ -21,23 +21,25 @@ import qualified Timesheet
 import qualified Settings
 import Config (getConfigFileName, addPluginInConfig, updatePluginInConfig, deletePluginFromConfig)
 import Util (toStrict1)
+import Paths_timesheet
 
 main :: IO ()
-main = quickHttpServe site
+main = do
+	installPath <- Paths_timesheet.getDataFileName ""
+	quickHttpServe (site installPath)
 
-site :: Snap ()
-site =
-    ifTop (serveFile "index.html") <|>
+site :: FilePath -> Snap ()
+site installPath =
+    ifTop (serveFile $ installPath ++ "/FayApp.html") <|>
     route [ ("timesheet/:tsparam", timesheet),
+            ("config", method GET (serveFile $ installPath ++ "/FayConfig.html")),
             ("configdesc", configdesc),
-            ("config", method GET (serveFile "config.html")),
             ("configVal", configVal),
-            ("configUpdate", configUpdate), -- TODO remove this
             ("config", method POST addConfigEntry),
             ("config", method PUT updateConfigEntry),
             ("config", method DELETE deleteConfigEntry)
           ] <|>
-    dir "static" (serveDirectory ".")
+    dir "static" (serveDirectory installPath)
 
 timesheet :: Snap ()
 timesheet = do
@@ -49,7 +51,7 @@ timesheet = do
 
 handleTimesheet tsparam = do
 	jsonData <- liftIO $ Timesheet.process $ TE.decodeUtf8 tsparam
-	liftIO $ putStrLn $ "OK i have all the json" ++ (show $ DBLC.length jsonData)
+	liftIO $ putStrLn $ "OK i have all the json -- bytes: " ++ (show $ DBLC.length jsonData)
 	writeLBS jsonData
 
 configdesc :: Snap ()
@@ -65,15 +67,6 @@ configVal = do
 	if isSettings
 		then serveFile $ settingsFile
 		else writeLBS "{}"
-
-configUpdate :: Snap ()
-configUpdate = do
-	configFileName <- liftIO Config.getConfigFileName
-	liftIO $ renameFile configFileName (configFileName ++ ".bak")
-	outH <- liftIO $ openFile configFileName WriteMode
-	requestBody <- readRequestBody 64000
-	liftIO $ hPut outH requestBody
-	liftIO $ hClose outH
 
 addConfigEntry :: Snap ()
 addConfigEntry = processConfigFromBody addPluginInConfig 

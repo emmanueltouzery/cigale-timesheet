@@ -15,6 +15,9 @@ import qualified Data.ByteString.Lazy as B
 import Control.Monad ( when, unless, zipWithM )
 import System.FilePath.Posix
 
+-- probably message that you need zip-archive and fay and fay-jquery
+-- before attempting to build...
+
 import Codec.Archive.Zip as Zip
 
 main = defaultMainWithHooks simpleUserHooks
@@ -36,9 +39,11 @@ doPostBuild _ _ pkg_descr lbi = do
 	createDirectoryIfMissing True appDataDir
 	exit1 <- compileFay "src/App2/" "FayApp.hs" "FayApp.js" appDataDir
 	exit2 <- compileFay "src/App2/" "FayConfig.hs" "FayConfig.js" appDataDir
-	unzipToTarget "lib/bootstrap-3.0.0.zip" appDataDir
-	unzipToTarget "lib/jquery-ui-1.9.2.zip" appDataDir
+	unzipToTarget "lib/bootstrap-3.0.0-dist.zip" appDataDir
+	unzipToTarget "lib/jquery-ui-1.9.2.custom.zip" appDataDir
 	copyFile "lib/jquery-2.0.3.min.js" (appDataDir ++ "/jquery-2.0.3.min.js")
+	copyFile "src/App2/FayApp.html" (appDataDir ++ "/FayApp.html")
+	copyFile "src/App2/FayConfig.html" (appDataDir ++ "/FayConfig.html")
 
 compileFay :: String -> String -> String -> FilePath -> IO ExitCode
 compileFay sourceFolder filename targetFilename appDataDir =

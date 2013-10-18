@@ -1,18 +1,22 @@
-{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE NoImplicitPrelude, OverloadedStrings, RebindableSyntax #-}
 
-import Prelude
+import Prelude hiding ((++))
 import FFI
 import JQuery
+import qualified Fay.Text as T
+import Fay.Text (fromString, Text)
+
+(++) = T.append
 
 -- TODO copy-pasted from Main.Event.hs for now...
 -- still problems: date and string/text
 data Event = Event
 	{
-		pluginName :: String,
-		eventDate :: String,
-		desc :: String,
-		extraInfo :: String, 
-		fullContents :: Nullable String -- it's maybe on the server
+		pluginName :: Text,
+		eventDate :: Text,
+		desc :: Text,
+		extraInfo :: Text, 
+		fullContents :: Nullable Text -- it's maybe on the server
 	}
 
 main :: Fay ()
@@ -21,7 +25,7 @@ main = ready $ do
 	overwriteCss
 	todayServerDate >>= fetchDay
 
-fetchDay :: String -> Fay ()
+fetchDay :: Text -> Fay ()
 fetchDay dayStr = do
 	pleaseHold <- select "#pleasehold"
 	shadow <- select "#shadow"
@@ -57,17 +61,17 @@ nullable :: b -> (a->b) -> Nullable a -> b
 nullable b _ Null = b
 nullable _ f (Nullable x) = f x
 
-setSidebar :: String -> Fay JQuery
-setSidebar text = select "#sidebar" >>= setScrollTop 0 >>= setHtml text
+setSidebar :: Text -> Fay JQuery
+setSidebar text = select "#sidebar" >>= setScrollTop 0 >>= (setHtml $ text)
 
-makeEventRow :: Main.Event -> String
+makeEventRow :: Main.Event -> Text
 makeEventRow event = makeTableRow $ map ($ event)
 			[formatTime . eventDate, pluginName, desc, extraInfo]
 
-makeTableRow :: [String] -> String
-makeTableRow cols = "<tr><td>" ++ intercalate "</td><td>" cols ++ "</td></tr>"
+makeTableRow :: [Text] -> Text
+makeTableRow cols = "<tr><td>" ++ T.intercalate "</td><td>" cols ++ "</td></tr>"
 
-formatTime :: String -> String
+formatTime :: Text -> Text
 formatTime = ffi "formatTime(%1)"
 
 overwriteCss :: Fay ()
@@ -75,11 +79,11 @@ overwriteCss = ffi "overwriteCss()"
 
 -- try to migrate to the ajax call from fay-jquery
 -- at least don't duplicate between FayApp and FayConfig!
-myajax :: String -> (Automatic b -> Fay ()) -> Fay ()
+myajax :: Text -> (Automatic b -> Fay ()) -> Fay ()
 myajax = ffi "jQuery.ajax(%1, {'type': 'GET', contentType: 'text/json', processData: false, 'success' : %2 })"
 
-setupDatepicker :: (String -> Fay ()) -> Fay ()
+setupDatepicker :: (Text -> Fay ()) -> Fay ()
 setupDatepicker = ffi "setupDatepicker(%1)"
 
-todayServerDate :: Fay String
+todayServerDate :: Fay Text
 todayServerDate = ffi "todayServerDate()"

@@ -21,7 +21,7 @@ import qualified Data.ByteString.Base64 as Base64
 import qualified Text.Parsec.ByteString as T
 import qualified Text.Parsec.Text as TT
 import qualified Text.Parsec as T
-import Data.Aeson.TH (deriveJSON)
+import Data.Aeson.TH (deriveJSON, defaultOptions)
 import qualified Codec.Text.IConv as IConv
 import Debug.Trace
 import qualified Data.Map as Map
@@ -37,7 +37,7 @@ data EmailConfig = EmailConfig
 		emailPath :: FilePath
 		
 	} deriving Show
-deriveJSON id ''EmailConfig
+deriveJSON defaultOptions ''EmailConfig
 
 getEmailProvider :: EventProvider EmailConfig
 getEmailProvider = EventProvider

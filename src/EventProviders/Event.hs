@@ -5,7 +5,7 @@ module Event where
 import Data.Time.Clock
 import qualified Data.Text as T
 import Data.Aeson (ToJSON, toJSON)
-import Data.Aeson.TH (mkToJSON)
+import Data.Aeson.TH (mkToJSON, defaultOptions)
 import GHC.Generics
 import qualified FayAeson
 
@@ -20,4 +20,4 @@ data Event = Event
 	deriving (Eq, Show)
 
 instance ToJSON Event where
-     toJSON = (FayAeson.addInstance "Event") . $(mkToJSON id ''Event)
+     toJSON = (FayAeson.addInstance "Event") . $(mkToJSON defaultOptions ''Event)

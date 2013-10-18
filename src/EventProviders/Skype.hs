@@ -10,7 +10,7 @@ import qualified Data.Text as T
 import qualified Data.Map as Map
 import Data.List
 import System.Directory
-import Data.Aeson.TH (deriveJSON)
+import Data.Aeson.TH (deriveJSON, defaultOptions)
 
 import Database.HDBC
 import Database.HDBC.Sqlite3
@@ -26,7 +26,7 @@ data SkypeConfig = SkypeConfig
 	{
 		skypeUsername :: String
 	} deriving Show
-deriveJSON id ''SkypeConfig
+deriveJSON defaultOptions ''SkypeConfig
 
 getSkypeProvider :: EventProvider SkypeConfig
 getSkypeProvider = EventProvider

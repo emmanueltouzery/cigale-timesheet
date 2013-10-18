@@ -12,7 +12,7 @@ import Data.Aeson
 import Language.Haskell.TH
 import Language.Haskell.TH.Lift
 import Language.Haskell.TH.Syntax
-import Data.Aeson.TH (deriveJSON, deriveFromJSON, mkToJSON)
+import Data.Aeson.TH (deriveJSON, deriveFromJSON, mkToJSON, defaultOptions)
 import qualified FayAeson
 
 import Event
@@ -23,9 +23,9 @@ data ConfigDataInfo = ConfigDataInfo
 		memberType :: String
 	} deriving (Eq, Show)
 $(deriveLift ''ConfigDataInfo)
-$(deriveFromJSON id ''ConfigDataInfo)
+$(deriveFromJSON defaultOptions ''ConfigDataInfo)
 instance ToJSON ConfigDataInfo where
-     toJSON = (FayAeson.addInstance "ConfigDataInfo") . $(mkToJSON id ''ConfigDataInfo)
+     toJSON = (FayAeson.addInstance "ConfigDataInfo") . $(mkToJSON defaultOptions ''ConfigDataInfo)
 
 data ConfigDataType = ConfigDataType
 	{
@@ -33,9 +33,9 @@ data ConfigDataType = ConfigDataType
 		members :: [ConfigDataInfo]
 	} deriving (Eq, Show)
 
-$(deriveFromJSON id ''ConfigDataType)
+$(deriveFromJSON defaultOptions ''ConfigDataType)
 instance ToJSON ConfigDataType where
-     toJSON = (FayAeson.addInstance "ConfigDataType") . $(mkToJSON id ''ConfigDataType)
+     toJSON = (FayAeson.addInstance "ConfigDataType") . $(mkToJSON defaultOptions ''ConfigDataType)
 
 formatTypeName :: Type -> String
 formatTypeName (ConT x) = nameBase x

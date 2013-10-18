@@ -1,55 +1,69 @@
-{-# LANGUAGE NoImplicitPrelude, EmptyDataDecls #-}
+{-# LANGUAGE NoImplicitPrelude, EmptyDataDecls, OverloadedStrings, RebindableSyntax #-}
 
-import Prelude
+import Fay.Text (Text, fromString)
+import qualified Fay.Text as T
 import FFI
 import JQuery
+import Prelude hiding ((++), error, putStrLn)
+import qualified Prelude as P
 
 import Utils
 
 data JValue
 
-jvKeys :: JValue -> Fay [String]
+(++) = T.append
+tshow = T.pack . show
+error = P.error . T.unpack
+putStrLn = P.putStrLn . T.unpack
+
+jvKeys :: JValue -> [Text]
 jvKeys = ffi "getKeys(%1)"
 
-jvArrayToObject :: [(String,String)] -> Fay JValue
+jvArrayToObject :: [(Text,Text)] -> JValue
 jvArrayToObject = ffi "toJsObject(%1)"
 
-jvValue :: JValue -> String -> Fay JValue
+--jvValue :: JValue -> T.Text -> JValue
+--jvValue v k = jvValue' v (T.unpack k)
+--
+--jvValue' :: JValue -> String -> JValue
+--jvValue' = ffi "%1[%2]"
+
+jvValue :: JValue -> Text -> JValue
 jvValue = ffi "%1[%2]"
 
-jvArray :: JValue -> Fay [JValue]
+jvArray :: JValue -> [JValue]
 jvArray = ffi "%1"
 
-type JvHash = [(String, JValue)]
+type JvHash = [(Text, JValue)]
 
-jvAsHash :: JValue -> Fay JvHash
-jvAsHash value = do
-	keys <- jvKeys value
-	values <- sequence $ map (jvValue value) keys
-	return $ zip keys values
+jvAsHash :: JValue -> JvHash
+jvAsHash value = zip keys values
+	where
+		keys = jvKeys value
+		values = map (jvValue value) keys
 
 -- TODO I would return only Maybe JValue...
 -- but somehow I can't make it compile.
 -- I think maybe it's because JValue is
 -- a phantom type and it has different
 -- semantics (notably I shouldn't evaluate it)
-jvHashVal :: String -> JvHash -> Maybe (String, JValue)
+jvHashVal :: Text -> JvHash -> Maybe (Text, JValue)
 jvHashVal key hash = find ((==key) . fst) hash -- >>= (Just . snd)
 
-jvGetString :: JValue -> Fay String
-jvGetString = ffi "%1"
+jvGetString :: JValue -> Text
+jvGetString = ffi "%1 + ''"
 
 --- server structs START
 
 data ConfigDataInfo = ConfigDataInfo
 	{
-		memberName :: String,
-		memberType :: String
-	} deriving (Eq, Show)
+		memberName :: Text,
+		memberType :: Text
+	} deriving (Eq) --, Show)
 
 data PluginConfig = PluginConfig
 	{
-		cfgPluginName :: String,
+		cfgPluginName :: Text,
 		-- pluginConfig.cfgPluginConfig returns configinfo? stupid naming.
 		cfgPluginConfig :: [ConfigDataInfo]
 	}
@@ -58,10 +72,10 @@ data PluginConfig = PluginConfig
 
 data FormEntryProvider = FormEntryProvider
 	{
-		prvServerTypes :: [String],
-		prvGetHtml :: String -> String -> String,
-		prvGetValue :: JQuery -> String -> Fay String,
-		prvCreateCallback :: String -> Fay JQuery -> Fay ()
+		prvServerTypes :: [Text],
+		prvGetHtml :: Text -> Text -> Text,
+		prvGetValue :: JQuery -> Text -> Fay Text,
+		prvCreateCallback :: Text -> Fay JQuery -> Fay ()
 	}
 basicEntryProvider = FormEntryProvider
 	{
@@ -77,7 +91,7 @@ stringEntryProvider = basicEntryProvider
 		prvGetHtml = getHtml
 	}
 	where
-		getHtml memberName curValue = replace "{}" memberName (
+		getHtml memberName curValue = textReplaceAll "{}" memberName (
 				"<label for='{}'>{}</label><input type='text'"
 				++ " class='form-control' id='{}' placeholder='Enter {}' value='"
 				++ curValue ++ "'></div>")
@@ -89,7 +103,7 @@ passwordEntryProvider = basicEntryProvider
 		prvCreateCallback = handleCb
 	}
 	where
-		getHtml memberName curValue = replace "{}" memberName (
+		getHtml memberName curValue = textReplaceAll "{}" memberName (
 				"<label for='{}'>{}</label><input type='password'"
 				++ " class='form-control' id='{}' placeholder='Enter {}' value='"
 				++ curValue ++ "'><label><input type='checkbox' id='cb-{}'/>"
@@ -109,7 +123,7 @@ passwordEntryProvider = basicEntryProvider
 formEntryProviders :: [FormEntryProvider]
 formEntryProviders = [stringEntryProvider, passwordEntryProvider]
 
-formEntryForType :: String -> Maybe FormEntryProvider
+formEntryForType :: Text -> Maybe FormEntryProvider
 formEntryForType serverType = find (\p -> serverType `elem` prvServerTypes p) formEntryProviders
 
 main :: Fay ()
@@ -121,23 +135,23 @@ refreshDisplay = myajax2 "/configVal" "/configdesc" $ \val desc -> handleValDesc
 handleValDesc :: JValue -> [PluginConfig] -> Fay ()
 handleValDesc configVal pluginConfig = do
 	divCurConfig <- select "div#curConfig" >>= setHtml ""
-	hash <- jvAsHash configVal
-	let sortedHash = sortBy (\(a, _) (b, _) -> strComp a b) hash
+	let hash = jvAsHash configVal
+	-- TODO probably need a proper Text comparison...
+	let sortedHash = sortBy (\(a, _) (b, _) -> strComp (T.unpack a) (T.unpack b)) hash
 	-- display the user's current config
 	forM_ sortedHash (displayPluginConfig pluginConfig divCurConfig)
 	-- offer to add new modules
 	forM_ pluginConfig addModuleMenuItem
 
-displayPluginConfig :: [PluginConfig] -> JQuery -> (String, JValue) -> Fay ()
+displayPluginConfig :: [PluginConfig] -> JQuery -> (Text, JValue) -> Fay ()
 displayPluginConfig pluginConfig divCurConfig (pluginName, config) = do
 	putStrLn pluginName
 	let myPluginConfig = find (\x -> cfgPluginName x == pluginName) pluginConfig
 	header <- bootstrapPanel divCurConfig pluginName
-	configArray <- jvArray config
+	let configArray = jvArray config
 	case myPluginConfig of
 		Nothing -> putStrLn $ "can't find config info for " ++ pluginName
-		Just myP -> do
-			forM_ configArray (addPlugin myP header)
+		Just myP -> forM_ configArray (addPlugin myP header)
 
 addModuleMenuItem :: PluginConfig -> Fay JQuery
 addModuleMenuItem pluginConfig = do
@@ -166,9 +180,8 @@ addEditModuleAction pluginConfig mbExistingConfig = do
 	findSelector "button#main-action" modal >>= click (\_ -> getModalEnteredData configMembers modal >>= clickCallback) -- pluginConfig config)
 	bootstrapModal modal
 
-data MainAction = Primary String
-		  | Danger String
-	deriving (Show)
+data MainAction = Primary Text
+		  | Danger Text
 
 prepareModal :: MainAction -> JQuery -> Fay JQuery
 prepareModal action modal = do
@@ -181,18 +194,18 @@ prepareModal action modal = do
 		(btnType, actionText) = case action of
 			Primary x -> ("primary", x)
 			Danger x -> ("danger", x)
-			_ -> error $ "Unknown action: " ++ (show action)
+			_ -> error $ "Unknown action: " ++ (tshow action)
 
-getModalContents :: [ConfigDataInfo] -> Maybe JValue -> Fay (String, [Fay JQuery -> Fay()])
+getModalContents :: [ConfigDataInfo] -> Maybe JValue -> Fay (Text, [Fay JQuery -> Fay()])
 getModalContents types config = do
-		configHash <- maybeFay [] jvAsHash config
+		let configHash = maybe [] jvAsHash config
 		formContents <- sequence $ map (getConfigDataInfoForm configHash) types 
 		let str = "<form role='form'><div class='form-group'>"
-			++ (foldr (++) [] (map fst formContents)) ++ "</div></form>"
+			++ (foldr (++) "" (map fst formContents)) ++ "</div></form>"
 		let callbacks = map snd formContents
 		return (str, callbacks)
 
-getConfigDataInfoForm :: JvHash -> ConfigDataInfo -> Fay (String, Fay JQuery -> Fay ())
+getConfigDataInfoForm :: JvHash -> ConfigDataInfo -> Fay (Text, Fay JQuery -> Fay ())
 getConfigDataInfoForm configHash dataInfo = do
 	case liftMaybe (processData (jvHashVal mName configHash)) (formEntryForType mType) of
 		Nothing -> error $ "unknown member type " ++ mType ++ " or can't get data"
@@ -200,19 +213,19 @@ getConfigDataInfoForm configHash dataInfo = do
 	where
 		mType = memberType dataInfo
 		mName = memberName dataInfo
-		processData :: Maybe (String, JValue) -> FormEntryProvider -> Fay (String, Fay JQuery -> Fay())
+		processData :: Maybe (Text, JValue) -> FormEntryProvider -> Fay (Text, Fay JQuery -> Fay())
 		processData hashVal formEntry = do
 			memberAsString <- case hashVal of
-				Just _hv -> jvGetString $ snd _hv
+				Just _hv -> return $ jvGetString $ snd _hv
 				Nothing -> return ""
 			return (prvGetHtml formEntry mName memberAsString,
 				prvCreateCallback formEntry mName)
 
 
-getModalEnteredData :: [ConfigDataInfo] -> JQuery -> Fay [(String,String)]
+getModalEnteredData :: [ConfigDataInfo] -> JQuery -> Fay [(Text,Text)]
 getModalEnteredData types modal = sequence $ map (getConfigDataInfoFormValue modal) types 
 
-getConfigDataInfoFormValue :: JQuery -> ConfigDataInfo -> Fay (String, String)
+getConfigDataInfoFormValue :: JQuery -> ConfigDataInfo -> Fay (Text, Text)
 getConfigDataInfoFormValue modal dataInfo =
 	case formEntryForType mType of
 		Nothing -> error $ "unknown member type: " ++ mType
@@ -227,7 +240,7 @@ bootstrapModal = ffi "%1.modal('show')"
 bootstrapModalHide :: JQuery -> Fay ()
 bootstrapModalHide = ffi "%1.modal('hide')"
 
-bootstrapPanel :: JQuery -> String -> Fay JQuery
+bootstrapPanel :: JQuery -> Text -> Fay JQuery
 bootstrapPanel parent title = do
 	let panelHtml = "<div class='panel panel-default'><div class='panel-heading'>" ++
 		"<h3 class='panel-title'>" ++ title ++ "</h3></div><div class='panel-body'>"
@@ -235,7 +248,7 @@ bootstrapPanel parent title = do
 	panelRoot <- (select panelHtml) >>= appendTo parent
 	findSelector "div.panel-body" panelRoot
 
-bootstrapButton :: String -> String
+bootstrapButton :: Text -> Text
 bootstrapButton name = "<button type='button' class='btn btn-default btn-lg' id='" ++ name ++ "'>"
 		++ "<span class='glyphicon glyphicon-" ++ name ++ "'></span></button>"
 
@@ -269,24 +282,22 @@ deleteModuleAction pluginConfig config = do
 	findSelector "button#main-action" modal >>= click (deletePluginConfig pluginConfig config)
 	return ()
 
-getOriginalPluginConfig :: JValue -> Fay [(String,String)]
-getOriginalPluginConfig json = jvAsHash json >>= sequence . map toStrPair
+getOriginalPluginConfig :: JValue -> [(Text,Text)]
+getOriginalPluginConfig json = map toStrPair (jvAsHash json)
 	where
-		toStrPair (a, b) = do
-			val <- jvGetString b
-			return (a, val)
+		toStrPair (a, b) = (a, jvGetString b)
 
-updatePluginConfig :: String -> [(String,String)] -> JValue -> Fay ()
+updatePluginConfig :: Text -> [(Text,Text)] -> JValue -> Fay ()
 updatePluginConfig pluginName newConfig oldConfig = do
-	putStrLn $ "old config JS: " ++ (show oldConfig)
-	newConfigObj <- jvArrayToObject newConfig
-	parm <- jqParam (show oldConfig) >>= jvGetString
+	putStrLn $ "old config JS: " ++ (tshow oldConfig)
+	let newConfigObj = jvArrayToObject newConfig
+	let parm = jvGetString $ jqParam (tshow oldConfig)
 	putStrLn $ "old config: " ++ parm
 	ajxPut ("/config?pluginName=" ++ pluginName ++ "&oldVal=" ++ parm) newConfigObj closePopupAndRefresh
 
-addPluginConfig :: String -> [(String,String)] -> Fay ()
+addPluginConfig :: Text -> [(Text,Text)] -> Fay ()
 addPluginConfig pluginName newConfig = do
-	newConfigObj <- jvArrayToObject newConfig
+	let newConfigObj = jvArrayToObject newConfig
 	ajxPost ("/config?pluginName=" ++ pluginName) newConfigObj closePopupAndRefresh 
 
 closePopupAndRefresh :: Fay ()
@@ -297,33 +308,36 @@ closePopupAndRefresh = do
 deletePluginConfig :: PluginConfig -> JValue -> Event -> Fay ()
 deletePluginConfig pluginConfig config _ = do
 	let pluginName = cfgPluginName pluginConfig
-	parm <- jqParam (show config) >>= jvGetString
+	let parm = jvGetString $ jqParam (tshow config)
 	let url = "/config?pluginName=" ++ pluginName ++ "&oldVal=" ++ parm
 	ajxDelete url closePopupAndRefresh
 
-ajxPut :: String -> JValue -> Fay () -> Fay ()
+textReplaceAll :: Text -> Text -> Text -> Text
+textReplaceAll = ffi "%3.split(%1).join(%2)"
+
+ajxPut :: Text -> JValue -> Fay () -> Fay ()
 ajxPut = ffi "jQuery.ajax({type:'PUT', url: %1, data: JSON.stringify(%2)}).success(%3).fail($('div#error').show())"
 
-ajxPost :: String -> JValue -> Fay () -> Fay ()
+ajxPost :: Text -> JValue -> Fay () -> Fay ()
 ajxPost = ffi "jQuery.ajax({type:'POST', url: %1, data: JSON.stringify(%2)}).success(%3).fail($('div#error').show())"
 
-ajxDelete :: String -> Fay () -> Fay ()
+ajxDelete :: Text -> Fay () -> Fay ()
 ajxDelete = ffi "jQuery.ajax({type:'DELETE', url: %1}).success(%2).fail($('div#error').show())"
 
-jqParam :: String -> Fay JValue
+jqParam :: Text -> JValue
 --jqParam = ffi "jQuery.param(%1)"
 jqParam = ffi "encodeURIComponent(%1)"
 
 addPluginElement :: JQuery -> JValue -> ConfigDataInfo -> Fay ()
 addPluginElement header config dataInfo = do
 	let memberNameV = memberName dataInfo
-	memberValue <- (jvValue config memberNameV) >>= jvGetString
+	let memberValue = jvGetString (jvValue config memberNameV)
 	let memberValueDisplay = case (memberType dataInfo) of
-		"Password" -> replicate (length memberValue) '*'
+		"Password" -> T.pack $ replicate (T.length memberValue) '*'
 		_ -> memberValue
 	(select $ "<div>" ++ memberNameV ++ " " ++ memberValueDisplay ++ "</div>") >>= appendTo header
 	return ()
 
 -- http://stackoverflow.com/questions/18025474/multiple-ajax-queries-in-parrallel-with-fay
-myajax2 :: String -> String -> (Automatic b -> Automatic c -> Fay ()) -> Fay ()
+myajax2 :: Text -> Text -> (Automatic b -> Automatic c -> Fay ()) -> Fay ()
 myajax2 = ffi "$.when($.getJSON(%1), $.getJSON(%2)).then(%3)"

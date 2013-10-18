@@ -10,7 +10,7 @@ import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
 import qualified Data.Text as T
 import qualified Data.Text.IO as IO
-import Data.Aeson.TH
+import Data.Aeson.TH (deriveJSON, defaultOptions)
 
 import Event as Event
 import qualified Util
@@ -21,7 +21,7 @@ data HgRecord = HgRecord
 		hgUser :: T.Text,
 		hgRepo :: T.Text
 	} deriving Show
-deriveJSON id ''HgRecord
+deriveJSON defaultOptions ''HgRecord
 
 getHgProvider :: EventProvider HgRecord
 getHgProvider = EventProvider

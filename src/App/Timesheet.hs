@@ -10,7 +10,7 @@ import Data.List
 import Data.Time
 import Data.Maybe
 import Data.Aeson
-import Data.Aeson.TH (deriveJSON, mkToJSON)
+import Data.Aeson.TH (deriveJSON, mkToJSON, defaultOptions)
 
 import GHC.Exts
 
@@ -85,7 +85,7 @@ data PluginConfig = PluginConfig
 		cfgPluginConfig :: [ConfigDataInfo]
 	}
 instance ToJSON PluginConfig where
-    toJSON = (FayAeson.addInstance "PluginConfig") . $(mkToJSON id ''PluginConfig)
+    toJSON = (FayAeson.addInstance "PluginConfig") . $(mkToJSON defaultOptions ''PluginConfig)
 
 getEventProvidersConfig :: BL.ByteString
 getEventProvidersConfig = JSON.encode $ fmap getPluginConfig EventProviders.plugins

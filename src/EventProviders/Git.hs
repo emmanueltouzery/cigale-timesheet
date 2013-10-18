@@ -11,7 +11,7 @@ import qualified Text.Parsec as T
 import qualified Data.Text as T
 import qualified Data.Text.IO as IO
 import Data.List (isInfixOf, intercalate)
-import Data.Aeson.TH (deriveJSON)
+import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.Maybe
 
 import Event as Event
@@ -23,7 +23,7 @@ data GitRecord = GitRecord
 		gitUser :: T.Text,
 		gitRepo :: T.Text
 	} deriving Show
-deriveJSON id ''GitRecord
+deriveJSON defaultOptions ''GitRecord
 
 getGitProvider :: EventProvider GitRecord
 getGitProvider = EventProvider

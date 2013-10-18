@@ -21,7 +21,7 @@ import Data.Time.Clock.POSIX
 import System.Time.Utils
 import Data.Time.Format
 import System.Locale
-import Data.Aeson.TH
+import Data.Aeson.TH (deriveJSON, defaultOptions)
 
 import Text.Regex.PCRE.Rex
 
@@ -35,7 +35,7 @@ data IcalRecord = IcalRecord
 	{
 		icalUrl :: String
 	} deriving Show
-deriveJSON id ''IcalRecord
+deriveJSON defaultOptions ''IcalRecord
 
 getIcalProvider :: EventProvider IcalRecord
 getIcalProvider = EventProvider

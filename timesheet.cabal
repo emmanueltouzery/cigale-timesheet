@@ -18,7 +18,7 @@ Library
     bytestring,
     MonadCatchIO-transformers,
     mtl,
-    aeson,
+    aeson >= 0.6.2.0,
     rex,
     codec-mbox,
     text,
@@ -47,7 +47,11 @@ Library
     template-haskell,
     th-lift,
     unordered-containers,
-    iconv
+    iconv,
+-- after this line are build/install dependencies, not runtime dependencies!
+    fay,
+    fay-jquery,
+    zip-archive >= 0.1.4
   exposed-modules:
     EventProviders,
     Event,
@@ -74,7 +78,7 @@ Executable timesheet
      bytestring,
      vector,
      unordered-containers,
-     aeson,
+     aeson >= 0.6.2.0,
      async,
      time,
      transformers,

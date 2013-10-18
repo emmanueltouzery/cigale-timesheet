@@ -16,7 +16,7 @@ import Data.Time.Clock
 import Data.Time.Calendar
 import Data.Time.LocalTime
 import Data.List (find)
-import Data.Aeson.TH (deriveJSON)
+import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.Maybe
 
 import Text.XML (Node(..))
@@ -38,7 +38,7 @@ data RedmineConfig = RedmineConfig
 		redmineUserDisplay :: T.Text,
 		redminePassword :: Password
 	} deriving Show
-deriveJSON id ''RedmineConfig
+deriveJSON defaultOptions ''RedmineConfig
 
 getRedmineProvider :: EventProvider RedmineConfig
 getRedmineProvider = EventProvider

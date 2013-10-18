@@ -10,7 +10,7 @@ import Data.Time.LocalTime
 import Text.ParserCombinators.Parsec
 import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
-import Data.Aeson.TH
+import Data.Aeson.TH (deriveJSON, defaultOptions)
 
 import qualified Util
 import Event as Event
@@ -23,7 +23,7 @@ data SvnConfigRecord = SvnConfigRecord
 		svnUser :: String,
 		svnRepo :: String
 	} deriving Show
-deriveJSON id ''SvnConfigRecord
+deriveJSON defaultOptions ''SvnConfigRecord
 
 getSvnProvider :: EventProvider SvnConfigRecord
 getSvnProvider = EventProvider

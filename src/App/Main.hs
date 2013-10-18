@@ -21,11 +21,11 @@ import qualified Timesheet
 import qualified Settings
 import Config (getConfigFileName, addPluginInConfig, updatePluginInConfig, deletePluginFromConfig)
 import Util (toStrict1)
-import Paths_timesheet
+import Paths_cigale_timesheet
 
 main :: IO ()
 main = do
-	installPath <- Paths_timesheet.getDataFileName ""
+	installPath <- Paths_cigale_timesheet.getDataFileName ""
 	quickHttpServe (site installPath)
 
 site :: FilePath -> Snap ()

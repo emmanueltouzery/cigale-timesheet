@@ -1,4 +1,4 @@
-Name:                timesheet
+Name:                cigale-timesheet
 Version:             0.1
 Synopsis:            Project Synopsis Here
 Description:         Project Description Here
@@ -67,12 +67,12 @@ Library
     Skype,
     Ical
 
-Executable timesheet
+Executable cigale-timesheet
   hs-source-dirs: src/App
   main-is: Main.hs
   Build-depends:
      base,
-     timesheet,
+     cigale-timesheet,
      directory,
      text,
      bytestring,

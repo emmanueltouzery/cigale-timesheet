@@ -16,6 +16,7 @@ import qualified Data.Text as T
 import Data.Maybe (fromJust)
 import Text.Blaze.Html5
 import Text.Blaze.Html.Renderer.String
+import System.Process (rawSystem)
 
 import qualified Timesheet
 import qualified Settings
@@ -26,6 +27,7 @@ import Paths_cigale_timesheet
 main :: IO ()
 main = do
 	installPath <- Paths_cigale_timesheet.getDataFileName ""
+	rawSystem "xdg-open" ["http://localhost:8000"]
 	quickHttpServe (site installPath)
 
 site :: FilePath -> Snap ()

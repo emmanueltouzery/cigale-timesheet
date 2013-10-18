@@ -73,6 +73,7 @@ Executable cigale-timesheet
   Build-depends:
      base,
      cigale-timesheet,
+     process,
      directory,
      text,
      bytestring,

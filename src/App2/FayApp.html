@@ -102,13 +102,17 @@
 			return now.getFullYear() + "-" + (now.getMonth()+1) + "-" + now.getDate();
 		}
 
+		// http://stackoverflow.com/a/646631/516188
+		function startsWith(str, pattern) {
+			return str.substring(0, pattern.length) == pattern;
+		}
+
 		function overwriteCss() {
 			// http://stackoverflow.com/questions/730048/how-to-change-remove-css-classes-definitions-at-runtime
 			var rules = document.styleSheets[0].cssRules;
 			var calendarHeight = $('#datepicker').height();
 			for (var i=0;i<rules.length;i++) {
-				if (rules[i].cssText.startsWith('.vert_limited'))
-				{
+				if (startsWith(rules[i].cssText, '.vert_limited')) {
 					// add 15 for margins
 					rules[i].style.height = "calc(100% - " + (calendarHeight+15) + "px)";
 				}

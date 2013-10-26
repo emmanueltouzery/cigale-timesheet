@@ -7,6 +7,7 @@ import qualified Fay.Text as T
 import Fay.Text (fromString, Text)
 import Knockout
 
+-- TODO fill the sidebar using the viewmodel
 (++) = T.append
 
 -- TODO copy-pasted from Main.Event.hs for now...

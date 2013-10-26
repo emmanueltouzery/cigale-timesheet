@@ -89,6 +89,7 @@
 	<script type='text/javascript' src='/static/jquery-ui-1.9.2.custom/js/jquery-ui-1.9.2.custom.min.js'></script>
 <link href="/static/jquery-ui-1.9.2.custom/css/smoothness/jquery-ui-1.9.2.custom.css" rel="stylesheet">
 	<script src="/static/bootstrap-3.0.0/js/bootstrap.js"></script>
+	<script src="/static/knockout-2.3.0.js"></script>
 	
 	<script type="text/javascript">
 		function formatTime(dateString) {
@@ -158,14 +159,20 @@
 
 	<div class="row vert_limited">
 		<div class="col-xs-7 fully_responsive">
-			<table id="eventsTable" class="table">
-				<thead>
-				<tr><th>Time</th>
-					<th>Event type</th><th>Description</th><th>Extra info</th></tr>
-				</thead>
-				<tbody>
-				</tbody>
-			</table>
+		<table id="eventsTable" class="table">
+			<thead>
+			<tr><th>Time</th>
+				<th>Event type</th><th>Description</th><th>Extra info</th></tr>
+			</thead>
+			<tbody data-bind="foreach: eventsObs">
+				<tr data-bind="css: {active: $root.isActive($root, $data)}, click: function() {$root.showSidebar($root, $data);}">
+					<td data-bind="text: eventDate"></td>
+					<td data-bind="text: pluginName"></td>
+					<td data-bind="text: desc"></td>
+					<td data-bind="text: extraInfo"></td>
+				</tr>
+			</tbody>
+		</table>
 		</div>
 		<div class="col-xs-5 fully_responsive">
 			<div id="sidebar"></div>

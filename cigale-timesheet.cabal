@@ -49,7 +49,7 @@ Library
     unordered-containers,
     iconv,
 -- after this line are build/install dependencies, not runtime dependencies!
-    fay,
+    fay >= 0.18.0.4,
     fay-jquery,
     zip-archive >= 0.1.4
   exposed-modules:

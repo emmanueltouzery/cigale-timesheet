@@ -1,15 +1,18 @@
-{-# LANGUAGE NoImplicitPrelude, OverloadedStrings, RebindableSyntax #-}
+{-# LANGUAGE NoImplicitPrelude, OverloadedStrings, RebindableSyntax, EmptyDataDecls #-}
 
 import Prelude hiding ((++))
 import FFI
-import JQuery
+import JQuery hiding (Event)
 import qualified Fay.Text as T
 import Fay.Text (fromString, Text)
+import Knockout
 
 (++) = T.append
 
 -- TODO copy-pasted from Main.Event.hs for now...
--- still problems: date and string/text
+-- I would prefer not to have the NullEvent constructor
+-- and instead have "Nullable Event" in the viewmodel,
+-- but it didn't work.
 data Event = Event
 	{
 		pluginName :: Text,
@@ -17,45 +20,74 @@ data Event = Event
 		desc :: Text,
 		extraInfo :: Text, 
 		fullContents :: Nullable Text -- it's maybe on the server
+	} | NullEvent
+
+-- I would prever to implement Eq for Event,
+-- but it didn't work.
+x === y = (eventDate x) == (eventDate y) &&
+		(pluginName x) == (pluginName y) &&
+		(desc x) == (desc y) &&
+		(extraInfo x) == (extraInfo y)
+
+data MainViewModel = MainViewModel
+	{
+		eventsObs :: ObservableArray Event,
+		selectedEvent :: Observable Event,
+		showSidebar :: MainViewModel -> Event -> Fay (),
+		isActive :: MainViewModel -> Event -> Fay Bool
 	}
+instance KnockoutModel MainViewModel
 
 main :: Fay ()
 main = ready $ do
-	setupDatepicker fetchDay
+	eventsObsV <- ko_observableList []
+	let viewModel = MainViewModel
+		{
+			eventsObs = eventsObsV,
+			showSidebar = showSidebarCb,
+			selectedEvent = ko_observable NullEvent,
+			isActive = isActiveCb
+		}
+	
+	ko_applyBindings viewModel
+	setupDatepicker (fetchDay viewModel)
 	overwriteCss
-	todayServerDate >>= fetchDay
+	todayServerDate >>= (fetchDay viewModel)
 
-fetchDay :: Text -> Fay ()
-fetchDay dayStr = do
+fetchDay :: MainViewModel -> Text -> Fay ()
+fetchDay viewModel dayStr = do
 	pleaseHold <- select "#pleasehold"
 	shadow <- select "#shadow"
 	unhide shadow
 	unhide pleaseHold
-	myajax ("/timesheet/" ++ dayStr) (processResults pleaseHold shadow)
+	myajax ("/timesheet/" ++ dayStr) (processResults viewModel pleaseHold shadow)
 
-processResults :: JQuery -> JQuery -> [Main.Event] -> Fay ()
-processResults pleaseHold shadow events = do
+processResults :: MainViewModel -> JQuery -> JQuery -> [Main.Event] -> Fay ()
+processResults viewModel pleaseHold shadow events = do
 	setSidebar ""
 	table <- select "table#eventsTable tbody"
 	empty table
 	setScrollTop 0 table
-	mapM_ (addEventRow table) events
+	let eventsObsV =  eventsObs viewModel
+	ko_removeAllObservableArray eventsObsV
+	mapM_ (\e -> ko_pushObservableArray eventsObsV (evtFormatTime e)) events
 	hide Instantly pleaseHold
 	hide Instantly shadow
 	return ()
 
-addEventRow :: JQuery -> Main.Event -> Fay JQuery
-addEventRow table event = do
-	row <- (select $ makeEventRow event) >>= appendTo table
-	click (\_ -> eventRowSelected event row) row
-
-eventRowSelected :: Main.Event -> JQuery -> Fay ()
-eventRowSelected event row = do
-	--putStrLn $ "click " ++ desc event -- >>
-	parent row >>= childrenMatching "tr" >>= removeClass "active"
-	addClass "active" row
+showSidebarCb :: MainViewModel -> Event -> Fay ()
+showSidebarCb vm event = do
+	ko_set (selectedEvent vm) event
 	setSidebar $ nullable "" id (fullContents event)
 	return ()
+
+isActiveCb :: MainViewModel -> Event -> Fay Bool
+isActiveCb vm event = do
+	-- I think this would work:
+	-- (and then maybe put it inline in the viewmodel)
+	-- liftM (=== event) (ko_get $ selectedEvent vm)
+	selectedEventV <- ko_get (selectedEvent vm)
+	return $ event === selectedEventV
 
 nullable :: b -> (a->b) -> Nullable a -> b
 nullable b _ Null = b
@@ -64,12 +96,9 @@ nullable _ f (Nullable x) = f x
 setSidebar :: Text -> Fay JQuery
 setSidebar text = select "#sidebar" >>= setScrollTop 0 >>= (setHtml $ text)
 
-makeEventRow :: Main.Event -> Text
-makeEventRow event = makeTableRow $ map ($ event)
-			[formatTime . eventDate, pluginName, desc, extraInfo]
-
-makeTableRow :: [Text] -> Text
-makeTableRow cols = "<tr><td>" ++ T.intercalate "</td><td>" cols ++ "</td></tr>"
+evtFormatTime :: Main.Event -> Main.Event
+-- change this, evtFormatTime event = event { eventDate = formatTime $ eventDate event}
+evtFormatTime (Main.Event a date c d e) = Main.Event a (formatTime date) c d e
 
 formatTime :: Text -> Text
 formatTime = ffi "formatTime(%1)"

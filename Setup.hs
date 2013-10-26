@@ -39,6 +39,7 @@ doPostBuild _ _ pkg_descr lbi = do
 	unzipToTarget "lib/bootstrap-3.0.0-dist.zip" appDataDir
 	unzipToTarget "lib/jquery-ui-1.9.2.custom.zip" appDataDir
 	copyFile "lib/jquery-2.0.3.min.js" (appDataDir ++ "/jquery-2.0.3.min.js")
+	copyFile "lib/knockout-2.3.0.js" (appDataDir ++ "/knockout-2.3.0.js")
 	copyFile "src/App2/FayApp.html" (appDataDir ++ "/FayApp.html")
 	copyFile "src/App2/FayConfig.html" (appDataDir ++ "/FayConfig.html")
 

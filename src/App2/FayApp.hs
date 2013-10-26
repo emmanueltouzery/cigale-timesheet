@@ -91,8 +91,7 @@ setSidebar :: Text -> Fay JQuery
 setSidebar text = select "#sidebar" >>= setScrollTop 0 >>= (setHtml $ text)
 
 evtFormatTime :: Main.Event -> Main.Event
--- change this, evtFormatTime event = event { eventDate = formatTime $ eventDate event}
-evtFormatTime (Main.Event a date c d e) = Main.Event a (formatTime date) c d e
+evtFormatTime event = event { eventDate = formatTime $ eventDate event}
 
 formatTime :: Text -> Text
 formatTime = ffi "formatTime(%1)"

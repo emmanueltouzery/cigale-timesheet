@@ -6,6 +6,7 @@ import JQuery hiding (Event)
 import qualified Fay.Text as T
 import Fay.Text (fromString, Text)
 import Knockout
+import Utils
 
 -- TODO fill the sidebar using the viewmodel
 (++) = T.append
@@ -47,7 +48,7 @@ main = ready $ do
 			eventsObs = eventsObsV,
 			showSidebar = showSidebarCb,
 			selectedEvent = ko_observable NullEvent,
-			isActive = isActiveCb
+			isActive = \vm event -> liftM (=== event) (ko_get $ selectedEvent vm)
 		}
 	
 	ko_applyBindings viewModel
@@ -81,14 +82,6 @@ showSidebarCb vm event = do
 	ko_set (selectedEvent vm) event
 	setSidebar $ nullable "" id (fullContents event)
 	return ()
-
-isActiveCb :: MainViewModel -> Event -> Fay Bool
-isActiveCb vm event = do
-	-- I think this would work:
-	-- (and then maybe put it inline in the viewmodel)
-	-- liftM (=== event) (ko_get $ selectedEvent vm)
-	selectedEventV <- ko_get (selectedEvent vm)
-	return $ event === selectedEventV
 
 nullable :: b -> (a->b) -> Nullable a -> b
 nullable b _ Null = b

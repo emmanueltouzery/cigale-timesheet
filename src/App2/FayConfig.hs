@@ -153,7 +153,7 @@ main = ready $ do
 			pluginTypes = pluginTypesObs,
 			configSections = sectionsObs,
 			pluginContents = pluginContentsCb,
-			addConfigItem = \vm cfg -> addEditModuleAction vm cfg Nothing Nothing,
+			addConfigItem = \vm cfg -> addEditModuleAction vm cfg Nothing,
 			deleteConfigItem = deleteConfigItemCb,
 			editConfigItem = editConfigItemCb
 		}
@@ -188,29 +188,24 @@ getConfigSection configValue pluginConfigs = do
 			Nothing -> error $ "The app doesn't know about plugin type " ++ (fst configValue)
 
 -- TODO get rid of the double maybe
-addEditModuleAction :: ConfigViewModel -> PluginConfig -> Maybe ConfigSection -> Maybe JValue -> Fay ()
-addEditModuleAction vm pluginConfig configSection mbExistingConfig = do
+addEditModuleAction :: ConfigViewModel -> PluginConfig -> Maybe (ConfigSection, JValue) -> Fay ()
+addEditModuleAction vm pluginConfig maybeConfigValue = do
 	let pluginName = cfgPluginName pluginConfig
 	modal <- select "#myModal"
 	findSelector "div.modal-header h4" modal >>= setText pluginName
 	prepareModal (Primary "Save changes") modal
 	let configMembers = cfgPluginConfig pluginConfig
-	(modalContents, callbacks) <- getModalContents configMembers mbExistingConfig
+	(modalContents, callbacks) <- getModalContents configMembers (liftMaybe snd maybeConfigValue)
 	let contentsSelector = findSelector "div.modal-body" modal
 	contentsSelector >>= setHtml modalContents
 	putStrLn "running callbacks"
 	mapM_ ($ contentsSelector) callbacks
 	putStrLn "ran callbacks"
-	let clickCallback enteredData = case mbExistingConfig of
+	let clickCallback enteredData = case maybeConfigValue of
 		Nothing -> addPluginConfig vm pluginConfig enteredData
-		Just existingConfig -> do
-			updatePluginConfig vm (fromJust configSection) pluginName enteredData existingConfig
+		Just (configSection, existingConfig) -> updatePluginConfig vm configSection pluginName enteredData existingConfig
 	findSelector "button#main-action" modal >>= click (\_ -> getModalEnteredData configMembers modal >>= clickCallback) -- pluginConfig config)
 	bootstrapModal modal
-
--- TODO get rid of this
-fromJust :: Maybe a -> a
-fromJust (Just x) = x
 
 data MainAction = Primary Text
 		  | Danger Text
@@ -294,7 +289,7 @@ deleteConfigItemAction section userSetting = do
 
 editConfigItemCb :: ConfigViewModel -> ConfigSection -> JValue -> Fay ()
 editConfigItemCb vm section userSetting = do
-	addEditModuleAction vm (pluginInfo section) (Just section) (Just userSetting)
+	addEditModuleAction vm (pluginInfo section) (Just (section, userSetting))
 
 updatePluginConfig :: ConfigViewModel -> ConfigSection -> Text -> [(Text,Text)] -> JValue -> Fay ()
 updatePluginConfig vm configSection pluginName newConfig oldConfig = do

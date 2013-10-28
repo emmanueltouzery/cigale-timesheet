@@ -69,3 +69,14 @@ fromMaybe d x = case x of {Nothing -> d;Just v  -> v}
 maybeFay :: b -> (a -> Fay b) -> Maybe a -> Fay b
 maybeFay n _ Nothing  = return n
 maybeFay _ f (Just x) = f x
+
+--foldM             :: (Monad m) => (a -> b -> m a) -> a -> [b] -> m a
+foldM _ a []      =  return a
+foldM f a (x:xs)  =  f a x >>= \fax -> foldM f fax xs
+
+-- | Like 'foldM', but discards the result.
+--foldM_            :: (Monad m) => (a -> b -> m a) -> a -> [b] -> m ()
+foldM_ f a xs     = foldM f a xs >> return ()
+
+mapM :: (a -> Fay b) -> [a] -> Fay [b]
+mapM f as       =  sequence (map f as)

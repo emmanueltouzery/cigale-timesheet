@@ -1,3 +1,14 @@
+disable access+error log of snap
+http://hackage.haskell.org/package/snap-server-0.9.3.4/docs/src/Snap-Internal-Http-Server-Config.html
+    , Option [] ["no-access-log"]
+             (NoArg $ Just $ setConfig setAccessLog ConfigNoLog)
+             $ "don't have an access log"
+    , Option [] ["no-error-log"]
+             (NoArg $ Just $ setConfig setErrorLog ConfigNoLog)
+             $ "don't have an error log"
+
+knockout functions: inconsistent naming observable array/list
+
 way too much inline HTML in FayConfig.hs. I can surely do much better!!
 
 redmine and git times don't match. one has got to be in UTC, the other in local time. see 2013-09-12 bug #338 for instance

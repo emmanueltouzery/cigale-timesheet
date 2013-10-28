@@ -3,9 +3,10 @@
 import Fay.Text (Text, fromString)
 import qualified Fay.Text as T
 import FFI
-import JQuery
+import JQuery hiding (filter)
 import Prelude hiding ((++), error, putStrLn)
 import qualified Prelude as P
+import Knockout
 
 import Utils
 
@@ -70,6 +71,23 @@ data PluginConfig = PluginConfig
 
 --- server structs END
 
+data ConfigSection = ConfigSection
+	{
+		pluginInfo :: PluginConfig,
+		userSettings :: ObservableArray JValue
+	}
+
+data ConfigViewModel = ConfigViewModel
+	{
+		pluginTypes :: ObservableArray PluginConfig,
+		configSections :: ObservableArray ConfigSection,
+		pluginContents :: PluginConfig -> JValue -> Fay Text,
+		addConfigItem :: ConfigViewModel -> PluginConfig -> Fay (),
+		deleteConfigItem :: ConfigSection -> JValue -> Fay (),
+		editConfigItem :: ConfigViewModel -> ConfigSection -> JValue -> Fay ()
+	}
+instance KnockoutModel ConfigViewModel
+
 data FormEntryProvider = FormEntryProvider
 	{
 		prvServerTypes :: [Text],
@@ -127,41 +145,51 @@ formEntryForType :: Text -> Maybe FormEntryProvider
 formEntryForType serverType = find (\p -> serverType `elem` prvServerTypes p) formEntryProviders
 
 main :: Fay ()
-main = ready refreshDisplay
+main = ready $ do
+	sectionsObs <- ko_observableList []
+	pluginTypesObs <- ko_observableList []
+	let viewModel = ConfigViewModel
+		{
+			pluginTypes = pluginTypesObs,
+			configSections = sectionsObs,
+			pluginContents = pluginContentsCb,
+			addConfigItem = \vm cfg -> addEditModuleAction vm cfg Nothing Nothing,
+			deleteConfigItem = deleteConfigItemCb,
+			editConfigItem = editConfigItemCb
+		}
+	ko_applyBindings viewModel
+	myajax2 "/configVal" "/configdesc" $ \val desc ->
+		handleValDesc viewModel (head val) (head desc)
 
-refreshDisplay :: Fay ()
-refreshDisplay = myajax2 "/configVal" "/configdesc" $ \val desc -> handleValDesc (head val) (head desc)
-
-handleValDesc :: JValue -> [PluginConfig] -> Fay ()
-handleValDesc configVal pluginConfig = do
-	divCurConfig <- select "div#curConfig" >>= setHtml ""
+handleValDesc :: ConfigViewModel -> JValue -> [PluginConfig] -> Fay ()
+handleValDesc vm configVal pluginConfigs = do
 	let hash = jvAsHash configVal
 	-- TODO probably need a proper Text comparison...
 	let sortedHash = sortBy (\(a, _) (b, _) -> strComp (T.unpack a) (T.unpack b)) hash
-	-- display the user's current config
-	forM_ sortedHash (displayPluginConfig pluginConfig divCurConfig)
-	-- offer to add new modules
-	forM_ pluginConfig addModuleMenuItem
+	-- TODO too long line
+	foldM_ (\soFar configValue -> getConfigSection configValue pluginConfigs >>= ko_pushObservableArray soFar >> return soFar) (configSections vm) sortedHash
+	ko_pushAllObservableArray (pluginTypes vm) pluginConfigs
+	configSections <- ko_unwrapObservableArray (configSections vm)
+	return ()
 
-displayPluginConfig :: [PluginConfig] -> JQuery -> (Text, JValue) -> Fay ()
-displayPluginConfig pluginConfig divCurConfig (pluginName, config) = do
-	putStrLn pluginName
-	let myPluginConfig = find (\x -> cfgPluginName x == pluginName) pluginConfig
-	header <- bootstrapPanel divCurConfig pluginName
-	let configArray = jvArray config
-	case myPluginConfig of
-		Nothing -> putStrLn $ "can't find config info for " ++ pluginName
-		Just myP -> forM_ configArray (addPlugin myP header)
+getConfigSection :: (Text, JValue) -> [PluginConfig] -> Fay ConfigSection
+getConfigSection configValue pluginConfigs = do
+		userSettingsL <- ko_observableList userSettingsList
+		return ConfigSection
+			{
+				pluginInfo = pluginConfig,
+				userSettings = userSettingsL
+			}
+	where
+		userSettingsList = jvArray $ snd configValue
+		mPluginConfig = find ((== fst configValue) . cfgPluginName) pluginConfigs
+		pluginConfig = case mPluginConfig of
+			Just x -> x
+			Nothing -> error $ "The app doesn't know about plugin type " ++ (fst configValue)
 
-addModuleMenuItem :: PluginConfig -> Fay JQuery
-addModuleMenuItem pluginConfig = do
-	let pluginName = cfgPluginName pluginConfig
-	parent <- select "ul#add_module_menu"
-	menuItem <- (select $ "<li><a href='#'>" ++ pluginName ++ "</a></li>") >>= appendTo parent
-	findSelector "a" menuItem >>= click (\_ -> addEditModuleAction pluginConfig Nothing)
-
-addEditModuleAction :: PluginConfig -> Maybe JValue -> Fay ()
-addEditModuleAction pluginConfig mbExistingConfig = do
+-- TODO get rid of the double maybe
+addEditModuleAction :: ConfigViewModel -> PluginConfig -> Maybe ConfigSection -> Maybe JValue -> Fay ()
+addEditModuleAction vm pluginConfig configSection mbExistingConfig = do
 	let pluginName = cfgPluginName pluginConfig
 	modal <- select "#myModal"
 	findSelector "div.modal-header h4" modal >>= setText pluginName
@@ -174,11 +202,15 @@ addEditModuleAction pluginConfig mbExistingConfig = do
 	mapM_ ($ contentsSelector) callbacks
 	putStrLn "ran callbacks"
 	let clickCallback enteredData = case mbExistingConfig of
-		Nothing -> addPluginConfig pluginName enteredData
+		Nothing -> addPluginConfig vm pluginConfig enteredData
 		Just existingConfig -> do
-			updatePluginConfig pluginName enteredData existingConfig
+			updatePluginConfig vm (fromJust configSection) pluginName enteredData existingConfig
 	findSelector "button#main-action" modal >>= click (\_ -> getModalEnteredData configMembers modal >>= clickCallback) -- pluginConfig config)
 	bootstrapModal modal
+
+-- TODO get rid of this
+fromJust :: Maybe a -> a
+fromJust (Just x) = x
 
 data MainAction = Primary Text
 		  | Danger Text
@@ -240,77 +272,74 @@ bootstrapModal = ffi "%1.modal('show')"
 bootstrapModalHide :: JQuery -> Fay ()
 bootstrapModalHide = ffi "%1.modal('hide')"
 
-bootstrapPanel :: JQuery -> Text -> Fay JQuery
-bootstrapPanel parent title = do
-	let panelHtml = "<div class='panel panel-default'><div class='panel-heading'>" ++
-		"<h3 class='panel-title'>" ++ title ++ "</h3></div><div class='panel-body'>"
-		++ "</div></div>"
-	panelRoot <- (select panelHtml) >>= appendTo parent
-	findSelector "div.panel-body" panelRoot
-
-bootstrapButton :: Text -> Text
-bootstrapButton name = "<button type='button' class='btn btn-default btn-lg' id='" ++ name ++ "'>"
-		++ "<span class='glyphicon glyphicon-" ++ name ++ "'></span></button>"
-
--- putting XS for the columns because i want a responsive design,
--- that it behaves well when the user reduces the width of the browser
-bootstrapWell :: JQuery -> Fay JQuery
-bootstrapWell parent = (select $ "<div class='well well-sm'><div class='row'>"
-		++ "<div class='col-xs-8' id='contents'>"
-		++ "</div><div class='col-xs-4'><div class='btn-toolbar'"
-		++ " style='float: right;'>" ++ (bootstrapButton "edit")
-		++ (bootstrapButton "remove-circle") ++ "</div></div></div>") >>= appendTo parent
-
-addPlugin :: PluginConfig -> JQuery -> JValue -> Fay ()
-addPlugin pluginConfig header config = do
-	parameterWell <- bootstrapWell header
-	parameterContentsDiv <- findSelector "div#contents" parameterWell
-	let configDataInfos = cfgPluginConfig pluginConfig
-	forM_ configDataInfos (addPluginElement parameterContentsDiv config)
-	findSelector "#edit" parameterWell >>= click (\_ -> addEditModuleAction pluginConfig (Just config))
-	findSelector "#remove-circle" parameterWell >>= click (\_ -> deleteModuleAction pluginConfig config)
-	return ()
-
-deleteModuleAction :: PluginConfig -> JValue -> Fay ()
-deleteModuleAction pluginConfig config = do
-	let pluginName = cfgPluginName pluginConfig
+deleteConfigItemCb :: ConfigSection -> JValue -> Fay ()
+deleteConfigItemCb section userSetting = do
+	let pluginName = cfgPluginName $ pluginInfo section
 	modal <- select "#myModal"
 	findSelector "div.modal-header h4" modal >>= setText pluginName
 	prepareModal (Danger "Delete") modal
 	findSelector "div.modal-body" modal >>= setText "Are you sure you want to delete this data source?"
 	bootstrapModal modal
-	findSelector "button#main-action" modal >>= click (deletePluginConfig pluginConfig config)
+	findSelector "button#main-action" modal >>= click (\_ -> deleteConfigItemAction section userSetting)
 	return ()
 
-getOriginalPluginConfig :: JValue -> [(Text,Text)]
-getOriginalPluginConfig json = map toStrPair (jvAsHash json)
-	where
-		toStrPair (a, b) = (a, jvGetString b)
+deleteConfigItemAction :: ConfigSection -> JValue -> Fay ()
+deleteConfigItemAction section userSetting = do
+	let pluginName = cfgPluginName $ pluginInfo section
+	let parm = jvGetString $ jqParam (tshow userSetting)
+	let url = "/config?pluginName=" ++ pluginName ++ "&oldVal=" ++ parm
+	ajxDelete url $ do
+		ko_removeObservableArray (userSettings section) userSetting
+		closePopup
 
-updatePluginConfig :: Text -> [(Text,Text)] -> JValue -> Fay ()
-updatePluginConfig pluginName newConfig oldConfig = do
+editConfigItemCb :: ConfigViewModel -> ConfigSection -> JValue -> Fay ()
+editConfigItemCb vm section userSetting = do
+	addEditModuleAction vm (pluginInfo section) (Just section) (Just userSetting)
+
+updatePluginConfig :: ConfigViewModel -> ConfigSection -> Text -> [(Text,Text)] -> JValue -> Fay ()
+updatePluginConfig vm configSection pluginName newConfig oldConfig = do
 	putStrLn $ "old config JS: " ++ (tshow oldConfig)
 	let newConfigObj = jvArrayToObject newConfig
 	let parm = jvGetString $ jqParam (tshow oldConfig)
 	putStrLn $ "old config: " ++ parm
-	ajxPut ("/config?pluginName=" ++ pluginName ++ "&oldVal=" ++ parm) newConfigObj closePopupAndRefresh
+	ajxPut ("/config?pluginName=" ++ pluginName ++ "&oldVal=" ++ parm) newConfigObj $ do
+		ko_replaceElementObservableArray (userSettings configSection) oldConfig newConfigObj
+		closePopup
 
-addPluginConfig :: Text -> [(Text,Text)] -> Fay ()
-addPluginConfig pluginName newConfig = do
+addPluginConfig :: ConfigViewModel -> PluginConfig -> [(Text,Text)] -> Fay ()
+addPluginConfig vm pluginConfig newConfig = do
+	let pluginName = cfgPluginName pluginConfig
 	let newConfigObj = jvArrayToObject newConfig
-	ajxPost ("/config?pluginName=" ++ pluginName) newConfigObj closePopupAndRefresh 
+	ajxPost ("/config?pluginName=" ++ pluginName) newConfigObj (addPluginInVm vm pluginConfig newConfig >> closePopup)
 
-closePopupAndRefresh :: Fay ()
-closePopupAndRefresh = do
+addPluginInVm :: ConfigViewModel -> PluginConfig -> [(Text,Text)] -> Fay ()
+addPluginInVm vm pluginConfig newConfig = do
+	section <- findOrCreateSection vm pluginConfig
+	ko_pushObservableArray (userSettings section) (jvArrayToObject newConfig)
+
+findOrCreateSection :: ConfigViewModel -> PluginConfig -> Fay ConfigSection
+findOrCreateSection vm pluginConfig = do
+	sections <- ko_unwrapObservableArray (configSections vm)
+	let mSection = find ((==cfgPluginName pluginConfig) . cfgPluginName . pluginInfo) sections
+	case mSection of
+		Just section -> return section
+		Nothing -> do
+			-- no such section, create it.
+			userSettingsL <- ko_observableList []
+			let newSection = ConfigSection {pluginInfo = pluginConfig, userSettings=userSettingsL}
+			ko_pushObservableArray (configSections vm) newSection
+			return newSection
+
+closePopup :: Fay ()
+closePopup = do
 	select "#myModal" >>= bootstrapModalHide
-	refreshDisplay
 
-deletePluginConfig :: PluginConfig -> JValue -> Event -> Fay ()
-deletePluginConfig pluginConfig config _ = do
+deletePluginConfig :: ConfigViewModel -> PluginConfig -> JValue -> Event -> Fay ()
+deletePluginConfig vm pluginConfig config _ = do
 	let pluginName = cfgPluginName pluginConfig
 	let parm = jvGetString $ jqParam (tshow config)
 	let url = "/config?pluginName=" ++ pluginName ++ "&oldVal=" ++ parm
-	ajxDelete url closePopupAndRefresh
+	ajxDelete url closePopup
 
 textReplaceAll :: Text -> Text -> Text -> Text
 textReplaceAll = ffi "%3.split(%1).join(%2)"
@@ -328,15 +357,19 @@ jqParam :: Text -> JValue
 --jqParam = ffi "jQuery.param(%1)"
 jqParam = ffi "encodeURIComponent(%1)"
 
-addPluginElement :: JQuery -> JValue -> ConfigDataInfo -> Fay ()
-addPluginElement header config dataInfo = do
+getPluginElementHtml :: JValue -> ConfigDataInfo -> Fay Text
+getPluginElementHtml config dataInfo = do
 	let memberNameV = memberName dataInfo
 	let memberValue = jvGetString (jvValue config memberNameV)
 	let memberValueDisplay = case (memberType dataInfo) of
 		"Password" -> T.pack $ replicate (T.length memberValue) '*'
 		_ -> memberValue
-	(select $ "<div>" ++ memberNameV ++ " " ++ memberValueDisplay ++ "</div>") >>= appendTo header
-	return ()
+	return $ memberNameV ++ " " ++ memberValueDisplay
+
+pluginContentsCb :: PluginConfig -> JValue -> Fay Text
+pluginContentsCb pluginConfig configContents = do
+	htmlList <- mapM (getPluginElementHtml configContents) (cfgPluginConfig pluginConfig)
+	return $ "<div>" ++ T.intercalate "</div><div>" htmlList ++ "</div>"
 
 -- http://stackoverflow.com/questions/18025474/multiple-ajax-queries-in-parrallel-with-fay
 myajax2 :: Text -> Text -> (Automatic b -> Automatic c -> Fay ()) -> Fay ()

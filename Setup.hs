@@ -47,7 +47,7 @@ compileFay :: String -> String -> String -> FilePath -> IO ()
 compileFay sourceFolder filename targetFilename appDataDir = do
 	let command = "fay --package fay-jquery,fay-text --include " ++ sourceFolder ++ " "
 		++ sourceFolder ++ filename ++ " -o "
-		++ appDataDir ++ "/" ++ targetFilename
+		++ appDataDir ++ "/" ++ targetFilename ++ " --pretty"
 	putStrLn command
 	exitCode <- (runCommand command) >>= waitForProcess
 	case exitCode of

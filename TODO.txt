@@ -1,3 +1,5 @@
+try to get JS functions getKeys and toJsObject in my Utils.hs as inline in FFI to avoid to depend on the HTML source.
+
 disable access+error log of snap
 http://hackage.haskell.org/package/snap-server-0.9.3.4/docs/src/Snap-Internal-Http-Server-Config.html
     , Option [] ["no-access-log"]

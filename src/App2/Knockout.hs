@@ -50,7 +50,7 @@ ko_observableList = ffi "ko.observableArray(%1)"
 ko_pushObservableArray :: ObservableArray a -> Automatic a -> Fay ()
 ko_pushObservableArray = ffi "%1.push(%2)"
 
-ko_pushAllObservableArray :: ObservableArray a -> [a] -> Fay ()
+ko_pushAllObservableArray :: ObservableArray a -> Automatic [a] -> Fay ()
 ko_pushAllObservableArray list = foldM_ (\soFar x -> ko_pushObservableArray soFar x >> return soFar) list
 
 ko_removeAllObservableArray :: ObservableArray a -> Fay ()

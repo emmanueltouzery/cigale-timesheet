@@ -55,6 +55,16 @@ liftMaybe :: (a -> b) -> Maybe a -> Maybe b
 liftMaybe f (Just a) = Just $ f a
 liftMaybe _ _                     = Nothing
 
+-- | The 'isNothing' function returns 'True' iff its argument is 'Nothing'.
+isNothing         :: Maybe a -> Bool
+isNothing Nothing = True
+isNothing _       = False
+
+-- | The 'isJust' function returns 'True' iff its argument is of the
+-- form @Just _@.
+isJust         :: Maybe a -> Bool
+isJust Nothing = False
+isJust _       = True
 
 -- | The 'fromMaybe' function takes a default value and and 'Maybe'
 -- value.  If the 'Maybe' is 'Nothing', it returns the default values;

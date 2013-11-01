@@ -20,14 +20,11 @@ putStrLn = P.putStrLn . T.unpack
 jvKeys :: JValue -> [Text]
 jvKeys = ffi "getKeys(%1)"
 
+jEmptyValue :: JValue
+jEmptyValue = ffi "{}"
+
 jvArrayToObject :: [(Text,Text)] -> JValue
 jvArrayToObject = ffi "toJsObject(%1)"
-
---jvValue :: JValue -> T.Text -> JValue
---jvValue v k = jvValue' v (T.unpack k)
---
---jvValue' :: JValue -> String -> JValue
---jvValue' = ffi "%1[%2]"
 
 jvValue :: JValue -> Text -> JValue
 jvValue = ffi "%1[%2]"
@@ -43,6 +40,9 @@ jvAsHash value = zip keys values
 		keys = jvKeys value
 		values = map (jvValue value) keys
 
+jvAsTextHash :: JValue -> [(Text, Text)]
+jvAsTextHash = map (\(k,v) -> (k, jvGetString v)) . jvAsHash
+
 -- TODO I would return only Maybe JValue...
 -- but somehow I can't make it compile.
 -- I think maybe it's because JValue is
@@ -54,6 +54,9 @@ jvHashVal key hash = find ((==key) . fst) hash -- >>= (Just . snd)
 jvGetString :: JValue -> Text
 jvGetString = ffi "%1 + ''"
 
+jClone :: JValue -> JValue
+jClone = ffi "JSON.parse(JSON.stringify(%1))"
+
 --- server structs START
 
 data ConfigDataInfo = ConfigDataInfo
@@ -62,12 +65,14 @@ data ConfigDataInfo = ConfigDataInfo
 		memberType :: Text
 	} deriving (Eq) --, Show)
 
-data PluginConfig = PluginConfig
+data PluginConfig =
+	PluginConfig
 	{
 		cfgPluginName :: Text,
 		-- pluginConfig.cfgPluginConfig returns configinfo? stupid naming.
 		cfgPluginConfig :: [ConfigDataInfo]
 	}
+	| InvalidPluginConfig
 
 --- server structs END
 
@@ -77,6 +82,9 @@ data ConfigSection = ConfigSection
 		userSettings :: ObservableArray JValue
 	}
 
+-- TODO modal click callback also through VM ###
+
+-- TODO i don't like JValue in the view model
 data ConfigViewModel = ConfigViewModel
 	{
 		pluginTypes :: ObservableArray PluginConfig,
@@ -84,78 +92,54 @@ data ConfigViewModel = ConfigViewModel
 		pluginContents :: PluginConfig -> JValue -> Fay Text,
 		addConfigItem :: ConfigViewModel -> PluginConfig -> Fay (),
 		deleteConfigItem :: ConfigSection -> JValue -> Fay (),
-		editConfigItem :: ConfigViewModel -> ConfigSection -> JValue -> Fay ()
+		editConfigItem :: ConfigViewModel -> ConfigSection -> JValue -> Fay (),
+		modalTitle :: Observable Text,
+		modalTemplate :: Observable Text,
+		configAddEditVM :: ConfigAddEditDialogVM
 	}
+
+data ConfigAddEditDialogVM = ConfigAddEditDialogVM
+	{
+		pluginBeingEdited :: Observable PluginConfig,
+		-- need observable because I'm reusing the
+		-- ConfigAddEditDialogVM instead of creating
+		-- a new one each time, and if it's not Observable
+		-- I can't change it... The view won't change it.
+		configurationOriginalValue :: Observable JValue,
+		configurationBeingEdited :: Observable JValue,
+		passwordType :: Observable Text,
+		pluginBeingEditedHasPasswords :: Observable Bool,
+		showPasswords :: Observable Bool
+	}
+
 instance KnockoutModel ConfigViewModel
-
-data FormEntryProvider = FormEntryProvider
-	{
-		prvServerTypes :: [Text],
-		prvGetHtml :: Text -> Text -> Text,
-		prvGetValue :: JQuery -> Text -> Fay Text,
-		prvCreateCallback :: Text -> Fay JQuery -> Fay ()
-	}
-basicEntryProvider = FormEntryProvider
-	{
-		prvServerTypes = undefined,
-		prvGetHtml = undefined,
-		prvGetValue = \sel mName -> findSelector ("input#" ++ mName) sel >>= getVal,
-		prvCreateCallback = \_ _ -> return ()
-	}
-
-stringEntryProvider = basicEntryProvider
-	{
-		prvServerTypes = ["String", "Text", "ByteString", "FilePath"],
-		prvGetHtml = getHtml
-	}
-	where
-		getHtml memberName curValue = textReplaceAll "{}" memberName (
-				"<label for='{}'>{}</label><input type='text'"
-				++ " class='form-control' id='{}' placeholder='Enter {}' value='"
-				++ curValue ++ "'></div>")
-
-passwordEntryProvider = basicEntryProvider
-	{
-		prvServerTypes = ["Password"],
-		prvGetHtml = getHtml,
-		prvCreateCallback = handleCb
-	}
-	where
-		getHtml memberName curValue = textReplaceAll "{}" memberName (
-				"<label for='{}'>{}</label><input type='password'"
-				++ " class='form-control' id='{}' placeholder='Enter {}' value='"
-				++ curValue ++ "'><label><input type='checkbox' id='cb-{}'/>"
-				++ "Show password</label></div>")
-		handleCb memberName jqSel = jqSel >>= findSelector ("input#cb-" ++ memberName)
-					>>= click (\_ -> toggleShowPass jqSel memberName)
-					>> return ()
-		toggleShowPass jqSel memberName = do
-				input <- jqSel >>= findSelector ("input#" ++ memberName)
-				otherType <- getOtherType input
-				setAttr "type" otherType input
-				return ()
-		getOtherType input = do
-				typeStr <- getAttr "type" input
-				return $ if typeStr == "text" then "password" else "text"
-
-formEntryProviders :: [FormEntryProvider]
-formEntryProviders = [stringEntryProvider, passwordEntryProvider]
-
-formEntryForType :: Text -> Maybe FormEntryProvider
-formEntryForType serverType = find (\p -> serverType `elem` prvServerTypes p) formEntryProviders
 
 main :: Fay ()
 main = ready $ do
 	sectionsObs <- ko_observableList []
 	pluginTypesObs <- ko_observableList []
+	let configAddEditVMV = ConfigAddEditDialogVM
+		{
+			pluginBeingEdited = ko_observable InvalidPluginConfig,
+			configurationOriginalValue = ko_observable jEmptyValue,
+			configurationBeingEdited = ko_observable jEmptyValue,
+			passwordType = ko_computed $ do
+				isShowPasswd <- ko_get $ showPasswords configAddEditVMV
+				return $ if isShowPasswd then "text" else "password",
+			pluginBeingEditedHasPasswords = ko_observable False,
+			showPasswords = ko_observable False
+		}
 	let viewModel = ConfigViewModel
 		{
 			pluginTypes = pluginTypesObs,
 			configSections = sectionsObs,
 			pluginContents = pluginContentsCb,
 			addConfigItem = \vm cfg -> addEditModuleAction vm cfg Nothing,
-			deleteConfigItem = deleteConfigItemCb,
-			editConfigItem = editConfigItemCb
+			deleteConfigItem = deleteConfigItemCb viewModel,
+			editConfigItem = editConfigItemCb,
+			modalTitle = ko_observable "",
+			modalTemplate = ko_observable "",
+			configAddEditVM = configAddEditVMV
 		}
 	ko_applyBindings viewModel
 	myajax2 "/configVal" "/configdesc" $ \val desc ->
@@ -187,25 +171,35 @@ getConfigSection configValue pluginConfigs = do
 			Just x -> x
 			Nothing -> error $ "The app doesn't know about plugin type " ++ (fst configValue)
 
--- TODO get rid of the double maybe
+-- hmm... doesn't the configsection include the jvalue?
 addEditModuleAction :: ConfigViewModel -> PluginConfig -> Maybe (ConfigSection, JValue) -> Fay ()
 addEditModuleAction vm pluginConfig maybeConfigValue = do
 	let pluginName = cfgPluginName pluginConfig
 	modal <- select "#myModal"
-	findSelector "div.modal-header h4" modal >>= setText pluginName
+	ko_set (modalTitle vm) pluginName
 	prepareModal (Primary "Save changes") modal
 	let configMembers = cfgPluginConfig pluginConfig
-	(modalContents, callbacks) <- getModalContents configMembers (liftMaybe snd maybeConfigValue)
-	let contentsSelector = findSelector "div.modal-body" modal
-	contentsSelector >>= setHtml modalContents
-	putStrLn "running callbacks"
-	mapM_ ($ contentsSelector) callbacks
-	putStrLn "ran callbacks"
-	let clickCallback enteredData = case maybeConfigValue of
-		Nothing -> addPluginConfig vm pluginConfig enteredData
-		Just (configSection, existingConfig) -> updatePluginConfig vm configSection pluginName enteredData existingConfig
-	findSelector "button#main-action" modal >>= click (\_ -> getModalEnteredData configMembers modal >>= clickCallback) -- pluginConfig config)
+	let cfgAddEditVm = configAddEditVM vm
+	ko_set (pluginBeingEdited cfgAddEditVm) pluginConfig
+	ko_set (pluginBeingEditedHasPasswords cfgAddEditVm) (hasPasswords pluginConfig)
+	case maybeConfigValue of
+		Just configValue -> do
+			ko_set (configurationBeingEdited cfgAddEditVm) (snd configValue)
+			ko_set (configurationOriginalValue cfgAddEditVm) (jClone $ snd configValue)
+		Nothing -> do
+			ko_set (configurationBeingEdited cfgAddEditVm) jEmptyValue
+			ko_set (configurationOriginalValue cfgAddEditVm) jEmptyValue
+	ko_set (modalTemplate vm) "configEditTemplate"
+	let clickCallback = case maybeConfigValue of
+		Nothing -> addPluginConfig vm pluginConfig
+		Just (configSection, existingConfig) ->
+			(ko_get $ configurationOriginalValue cfgAddEditVm) >>=
+				updatePluginConfig vm configSection pluginName
+	findSelector "button#main-action" modal >>= click (\_ -> clickCallback) -- pluginConfig config)
 	bootstrapModal modal
+
+hasPasswords :: PluginConfig -> Bool
+hasPasswords pluginCfg = isJust $ find ((== "Password") . memberType) (cfgPluginConfig pluginCfg)
 
 data MainAction = Primary Text
 		  | Danger Text
@@ -223,57 +217,19 @@ prepareModal action modal = do
 			Danger x -> ("danger", x)
 			_ -> error $ "Unknown action: " ++ (tshow action)
 
-getModalContents :: [ConfigDataInfo] -> Maybe JValue -> Fay (Text, [Fay JQuery -> Fay()])
-getModalContents types config = do
-		let configHash = maybe [] jvAsHash config
-		formContents <- sequence $ map (getConfigDataInfoForm configHash) types 
-		let str = "<form role='form'><div class='form-group'>"
-			++ (foldr (++) "" (map fst formContents)) ++ "</div></form>"
-		let callbacks = map snd formContents
-		return (str, callbacks)
-
-getConfigDataInfoForm :: JvHash -> ConfigDataInfo -> Fay (Text, Fay JQuery -> Fay ())
-getConfigDataInfoForm configHash dataInfo = do
-	case liftMaybe (processData (jvHashVal mName configHash)) (formEntryForType mType) of
-		Nothing -> error $ "unknown member type " ++ mType ++ " or can't get data"
-		Just result -> result
-	where
-		mType = memberType dataInfo
-		mName = memberName dataInfo
-		processData :: Maybe (Text, JValue) -> FormEntryProvider -> Fay (Text, Fay JQuery -> Fay())
-		processData hashVal formEntry = do
-			memberAsString <- case hashVal of
-				Just _hv -> return $ jvGetString $ snd _hv
-				Nothing -> return ""
-			return (prvGetHtml formEntry mName memberAsString,
-				prvCreateCallback formEntry mName)
-
-
-getModalEnteredData :: [ConfigDataInfo] -> JQuery -> Fay [(Text,Text)]
-getModalEnteredData types modal = sequence $ map (getConfigDataInfoFormValue modal) types 
-
-getConfigDataInfoFormValue :: JQuery -> ConfigDataInfo -> Fay (Text, Text)
-getConfigDataInfoFormValue modal dataInfo =
-	case formEntryForType mType of
-		Nothing -> error $ "unknown member type: " ++ mType
-		Just formEntry -> prvGetValue formEntry modal mName >>= return . (,) mName
-	where
-		mType = memberType dataInfo
-		mName = memberName dataInfo
-
 bootstrapModal :: JQuery -> Fay ()
 bootstrapModal = ffi "%1.modal('show')"
 
 bootstrapModalHide :: JQuery -> Fay ()
 bootstrapModalHide = ffi "%1.modal('hide')"
 
-deleteConfigItemCb :: ConfigSection -> JValue -> Fay ()
-deleteConfigItemCb section userSetting = do
+deleteConfigItemCb :: ConfigViewModel -> ConfigSection -> JValue -> Fay ()
+deleteConfigItemCb vm section userSetting = do
 	let pluginName = cfgPluginName $ pluginInfo section
 	modal <- select "#myModal"
-	findSelector "div.modal-header h4" modal >>= setText pluginName
+	ko_set (modalTitle vm) pluginName
 	prepareModal (Danger "Delete") modal
-	findSelector "div.modal-body" modal >>= setText "Are you sure you want to delete this data source?"
+	ko_set (modalTemplate vm) "confirmDeleteTemplate"
 	bootstrapModal modal
 	findSelector "button#main-action" modal >>= click (\_ -> deleteConfigItemAction section userSetting)
 	return ()
@@ -291,18 +247,20 @@ editConfigItemCb :: ConfigViewModel -> ConfigSection -> JValue -> Fay ()
 editConfigItemCb vm section userSetting = do
 	addEditModuleAction vm (pluginInfo section) (Just (section, userSetting))
 
-updatePluginConfig :: ConfigViewModel -> ConfigSection -> Text -> [(Text,Text)] -> JValue -> Fay ()
-updatePluginConfig vm configSection pluginName newConfig oldConfig = do
-	putStrLn $ "old config JS: " ++ (tshow oldConfig)
+updatePluginConfig :: ConfigViewModel -> ConfigSection -> Text -> JValue -> Fay ()
+updatePluginConfig vm configSection pluginName oldConfig = do
+	newConfigJValue <- ko_get (configurationBeingEdited $ configAddEditVM vm)
+	let newConfig = jvAsTextHash newConfigJValue
 	let newConfigObj = jvArrayToObject newConfig
-	let parm = jvGetString $ jqParam (tshow oldConfig)
-	putStrLn $ "old config: " ++ parm
+	let parm = jvGetString $ jqParam (tshow $ oldConfig)
 	ajxPut ("/config?pluginName=" ++ pluginName ++ "&oldVal=" ++ parm) newConfigObj $ do
 		ko_replaceElementObservableArray (userSettings configSection) oldConfig newConfigObj
 		closePopup
 
-addPluginConfig :: ConfigViewModel -> PluginConfig -> [(Text,Text)] -> Fay ()
-addPluginConfig vm pluginConfig newConfig = do
+addPluginConfig :: ConfigViewModel -> PluginConfig -> Fay ()
+addPluginConfig vm pluginConfig = do
+	newConfigJValue <- ko_get (configurationBeingEdited $ configAddEditVM vm)
+	let newConfig = jvAsTextHash newConfigJValue
 	let pluginName = cfgPluginName pluginConfig
 	let newConfigObj = jvArrayToObject newConfig
 	ajxPost ("/config?pluginName=" ++ pluginName) newConfigObj (addPluginInVm vm pluginConfig newConfig >> closePopup)
@@ -328,16 +286,6 @@ findOrCreateSection vm pluginConfig = do
 closePopup :: Fay ()
 closePopup = do
 	select "#myModal" >>= bootstrapModalHide
-
-deletePluginConfig :: ConfigViewModel -> PluginConfig -> JValue -> Event -> Fay ()
-deletePluginConfig vm pluginConfig config _ = do
-	let pluginName = cfgPluginName pluginConfig
-	let parm = jvGetString $ jqParam (tshow config)
-	let url = "/config?pluginName=" ++ pluginName ++ "&oldVal=" ++ parm
-	ajxDelete url closePopup
-
-textReplaceAll :: Text -> Text -> Text -> Text
-textReplaceAll = ffi "%3.split(%1).join(%2)"
 
 ajxPut :: Text -> JValue -> Fay () -> Fay ()
 ajxPut = ffi "jQuery.ajax({type:'PUT', url: %1, data: JSON.stringify(%2)}).success(%3).fail($('div#error').show())"

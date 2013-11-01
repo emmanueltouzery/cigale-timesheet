@@ -1,5 +1,8 @@
-
 {-# LANGUAGE EmptyDataDecls #-}
+
+-- the original code is from: https://github.com/jorpic/fay-knockout
+-- I've just updated it to work with recent versions of Fay and added
+-- a couple of helpers.
 
 module Knockout
   ( Observable

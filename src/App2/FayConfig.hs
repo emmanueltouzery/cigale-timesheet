@@ -188,15 +188,15 @@ addEditModuleAction vm pluginConfig maybeConfigValue = do
 	modal <- select "#myModal"
 	let configMembers = cfgPluginConfig pluginConfig
 	let cfgAddEditVm = configAddEditVM vm
-	ko_set (pluginBeingEdited cfgAddEditVm) pluginConfig
-	ko_set (pluginBeingEditedHasPasswords cfgAddEditVm) (hasPasswords pluginConfig)
+	pluginConfig ~> pluginBeingEdited cfgAddEditVm
+	hasPasswords pluginConfig ~> pluginBeingEditedHasPasswords cfgAddEditVm
 	case maybeConfigValue of
 		Just configValue -> do
-			ko_set (configurationBeingEdited cfgAddEditVm) (snd configValue)
-			ko_set (configurationOriginalValue cfgAddEditVm) (jClone $ snd configValue)
+			snd configValue ~> configurationBeingEdited cfgAddEditVm
+			jClone (snd configValue) ~> configurationOriginalValue cfgAddEditVm
 		Nothing -> do
-			ko_set (configurationBeingEdited cfgAddEditVm) jEmptyValue
-			ko_set (configurationOriginalValue cfgAddEditVm) jEmptyValue
+			jEmptyValue ~> configurationBeingEdited cfgAddEditVm
+			jEmptyValue ~> configurationOriginalValue cfgAddEditVm
 	let clickCallback = case maybeConfigValue of
 		Nothing -> addPluginConfig vm pluginConfig
 		Just (configSection, existingConfig) ->
@@ -304,7 +304,7 @@ closePopup = do
 showError :: ConfigViewModel -> Fay ()
 showError vm = do
 	modalVM <- ko_get $ modalDialogVM vm
-	ko_set (errorText $ modalVM) "Error applying the change!"
+	"Error applying the change!" ~> errorText modalVM
 
 ajxPut :: Text -> JValue -> Fay () -> Fay () -> Fay ()
 ajxPut = ffi "jQuery.ajax({type:'PUT', url: %1, data: JSON.stringify(%2)}).success(%4).fail(%3)"

@@ -19,6 +19,7 @@ module Knockout
   , ko_removeAllObservableArray
   , ko_removeObservableArray
   , ko_replaceElementObservableArray
+  , (~>)
 
   , KnockoutModel
   , ko_applyBindings
@@ -44,6 +45,9 @@ ko_get = ffi "%1()"
 
 ko_set :: Observable a -> Automatic a -> Fay ()
 ko_set = ffi "%1(%2)"
+
+(~>) :: Automatic a -> Observable a -> Fay ()
+(~>) = flip ko_set
 
 data ObservableArray a
 

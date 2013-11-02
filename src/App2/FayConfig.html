@@ -95,7 +95,10 @@ $root.configAddEditVM.configurationBeingEdited()[memberName], attr: {id: memberN
 				<div class="modal-header">
 					<button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
 					<h4 class="modal-title" data-bind="text: modalDialogVM().modalTitle"></h4>
-					<div class="alert alert-danger" id="error">Error applying the change!</div>
+					<!-- ko if: (modalDialogVM().errorText) && (modalDialogVM().errorText().length > 0) -->
+						<div class="alert alert-danger"
+							data-bind="text: modalDialogVM().errorText"></div>
+					<!-- /ko -->
 				</div>
 				<div class="modal-body" data-bind="template: { name: modalDialogVM().modalTemplate, data: $root}">
 				</div>

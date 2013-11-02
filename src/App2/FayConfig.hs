@@ -82,7 +82,6 @@ data ConfigSection = ConfigSection
 		userSettings :: ObservableArray JValue
 	}
 
--- TODO modal error messages and info also through VM ###
 -- TODO info when entering passwords that they're stored as plaintext
 
 -- TODO i don't like JValue in the view model
@@ -105,6 +104,7 @@ data ModalDialogVM =
 		modalTemplate :: Text,
 		actionButtonClass :: Text,
 		actionButtonText :: Text,
+		errorText :: Observable Text,
 		modalOkClick :: Fay ()
 	}
 	| InvalidModalDialogVM
@@ -221,9 +221,9 @@ prepareModal action title template clickCallback modal vm = do
 			modalTemplate = template,
 			modalOkClick = clickCallback,
 			actionButtonClass = "btn btn-" ++ btnType,
-			actionButtonText = actionText
+			actionButtonText = actionText,
+			errorText = ko_observable ""
 		}
-	select "div#error" >>= hide Instantly
 	return ()
 	where
 		(btnType, actionText) = case action of
@@ -241,16 +241,17 @@ deleteConfigItemCb :: ConfigViewModel -> ConfigSection -> JValue -> Fay ()
 deleteConfigItemCb vm section userSetting = do
 	let pluginName = cfgPluginName $ pluginInfo section
 	modal <- select "#myModal"
-	prepareModal (Danger "Delete") pluginName "confirmDeleteTemplate" (deleteConfigItemAction section userSetting) modal vm
+	prepareModal (Danger "Delete") pluginName "confirmDeleteTemplate"
+		(deleteConfigItemAction vm section userSetting) modal vm
 	bootstrapModal modal
 	return ()
 
-deleteConfigItemAction :: ConfigSection -> JValue -> Fay ()
-deleteConfigItemAction section userSetting = do
+deleteConfigItemAction :: ConfigViewModel -> ConfigSection -> JValue -> Fay ()
+deleteConfigItemAction vm section userSetting = do
 	let pluginName = cfgPluginName $ pluginInfo section
 	let parm = jvGetString $ jqParam (tshow userSetting)
 	let url = "/config?pluginName=" ++ pluginName ++ "&oldVal=" ++ parm
-	ajxDelete url $ do
+	ajxDelete url (showError vm) $ do
 		ko_removeObservableArray (userSettings section) userSetting
 		closePopup
 
@@ -264,7 +265,8 @@ updatePluginConfig vm configSection pluginName oldConfig = do
 	let newConfig = jvAsTextHash newConfigJValue
 	let newConfigObj = jvArrayToObject newConfig
 	let parm = jvGetString $ jqParam (tshow $ oldConfig)
-	ajxPut ("/config?pluginName=" ++ pluginName ++ "&oldVal=" ++ parm) newConfigObj $ do
+	let url = ("/config?pluginName=" ++ pluginName ++ "&oldVal=" ++ parm)
+	ajxPut url newConfigObj (showError vm) $ do
 		ko_replaceElementObservableArray (userSettings configSection) oldConfig newConfigObj
 		closePopup
 
@@ -274,7 +276,8 @@ addPluginConfig vm pluginConfig = do
 	let newConfig = jvAsTextHash newConfigJValue
 	let pluginName = cfgPluginName pluginConfig
 	let newConfigObj = jvArrayToObject newConfig
-	ajxPost ("/config?pluginName=" ++ pluginName) newConfigObj (addPluginInVm vm pluginConfig newConfig >> closePopup)
+	ajxPost ("/config?pluginName=" ++ pluginName) newConfigObj (showError vm)
+		(addPluginInVm vm pluginConfig newConfig >> closePopup)
 
 addPluginInVm :: ConfigViewModel -> PluginConfig -> [(Text,Text)] -> Fay ()
 addPluginInVm vm pluginConfig newConfig = do
@@ -298,14 +301,19 @@ closePopup :: Fay ()
 closePopup = do
 	select "#myModal" >>= bootstrapModalHide
 
-ajxPut :: Text -> JValue -> Fay () -> Fay ()
-ajxPut = ffi "jQuery.ajax({type:'PUT', url: %1, data: JSON.stringify(%2)}).success(%3).fail($('div#error').show())"
+showError :: ConfigViewModel -> Fay ()
+showError vm = do
+	modalVM <- ko_get $ modalDialogVM vm
+	ko_set (errorText $ modalVM) "Error applying the change!"
 
-ajxPost :: Text -> JValue -> Fay () -> Fay ()
-ajxPost = ffi "jQuery.ajax({type:'POST', url: %1, data: JSON.stringify(%2)}).success(%3).fail($('div#error').show())"
+ajxPut :: Text -> JValue -> Fay () -> Fay () -> Fay ()
+ajxPut = ffi "jQuery.ajax({type:'PUT', url: %1, data: JSON.stringify(%2)}).success(%4).fail(%3)"
 
-ajxDelete :: Text -> Fay () -> Fay ()
-ajxDelete = ffi "jQuery.ajax({type:'DELETE', url: %1}).success(%2).fail($('div#error').show())"
+ajxPost :: Text -> JValue -> Fay () -> Fay () -> Fay ()
+ajxPost = ffi "jQuery.ajax({type:'POST', url: %1, data: JSON.stringify(%2)}).success(%4).fail(%3)"
+
+ajxDelete :: Text -> Fay () -> Fay () -> Fay ()
+ajxDelete = ffi "jQuery.ajax({type:'DELETE', url: %1}).success(%3).fail(%2)"
 
 jqParam :: Text -> JValue
 --jqParam = ffi "jQuery.param(%1)"

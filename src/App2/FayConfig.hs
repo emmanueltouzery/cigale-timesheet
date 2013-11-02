@@ -93,9 +93,16 @@ data ConfigViewModel = ConfigViewModel
 		addConfigItem :: ConfigViewModel -> PluginConfig -> Fay (),
 		deleteConfigItem :: ConfigSection -> JValue -> Fay (),
 		editConfigItem :: ConfigViewModel -> ConfigSection -> JValue -> Fay (),
+		modalDialogVM :: ModalDialogVM,
+		configAddEditVM :: ConfigAddEditDialogVM
+	}
+
+data ModalDialogVM = ModalDialogVM
+	{
 		modalTitle :: Observable Text,
 		modalTemplate :: Observable Text,
-		configAddEditVM :: ConfigAddEditDialogVM
+		actionButtonClass :: Observable Text,
+		actionButtonText :: Observable Text
 	}
 
 data ConfigAddEditDialogVM = ConfigAddEditDialogVM
@@ -129,6 +136,13 @@ main = ready $ do
 			pluginBeingEditedHasPasswords = ko_observable False,
 			showPasswords = ko_observable False
 		}
+	let modalDialogVMV = ModalDialogVM
+		{
+			modalTitle = ko_observable "",
+			modalTemplate = ko_observable "",
+			actionButtonClass = ko_observable "",
+			actionButtonText = ko_observable ""
+		}
 	let viewModel = ConfigViewModel
 		{
 			pluginTypes = pluginTypesObs,
@@ -137,8 +151,7 @@ main = ready $ do
 			addConfigItem = \vm cfg -> addEditModuleAction vm cfg Nothing,
 			deleteConfigItem = deleteConfigItemCb viewModel,
 			editConfigItem = editConfigItemCb,
-			modalTitle = ko_observable "",
-			modalTemplate = ko_observable "",
+			modalDialogVM = modalDialogVMV,
 			configAddEditVM = configAddEditVMV
 		}
 	ko_applyBindings viewModel
@@ -176,8 +189,8 @@ addEditModuleAction :: ConfigViewModel -> PluginConfig -> Maybe (ConfigSection, 
 addEditModuleAction vm pluginConfig maybeConfigValue = do
 	let pluginName = cfgPluginName pluginConfig
 	modal <- select "#myModal"
-	ko_set (modalTitle vm) pluginName
-	prepareModal (Primary "Save changes") modal
+	ko_set (modalTitle $ modalDialogVM vm) pluginName
+	prepareModal (Primary "Save changes") modal vm
 	let configMembers = cfgPluginConfig pluginConfig
 	let cfgAddEditVm = configAddEditVM vm
 	ko_set (pluginBeingEdited cfgAddEditVm) pluginConfig
@@ -189,7 +202,7 @@ addEditModuleAction vm pluginConfig maybeConfigValue = do
 		Nothing -> do
 			ko_set (configurationBeingEdited cfgAddEditVm) jEmptyValue
 			ko_set (configurationOriginalValue cfgAddEditVm) jEmptyValue
-	ko_set (modalTemplate vm) "configEditTemplate"
+	ko_set (modalTemplate $ modalDialogVM vm) "configEditTemplate"
 	let clickCallback = case maybeConfigValue of
 		Nothing -> addPluginConfig vm pluginConfig
 		Just (configSection, existingConfig) ->
@@ -204,13 +217,13 @@ hasPasswords pluginCfg = isJust $ find ((== "Password") . memberType) (cfgPlugin
 data MainAction = Primary Text
 		  | Danger Text
 
-prepareModal :: MainAction -> JQuery -> Fay JQuery
-prepareModal action modal = do
+-- TODO remove the modal parameter,
+-- in the end all must be through knockout.
+prepareModal :: MainAction -> JQuery -> ConfigViewModel -> Fay ()
+prepareModal action modal vm = do
 	select "div#error" >>= hide Instantly
-	footer <- findSelector "div.modal-footer" modal
-	findSelector "#main-action" footer >>= remove
-	let btnHtml = "<button type='button' id='main-action' class='btn btn-" ++ btnType ++ "'>" ++ actionText ++ "</button>"
-	(select btnHtml) >>= appendTo footer
+	ko_set (actionButtonClass $ modalDialogVM vm) $ "btn btn-" ++ btnType
+	ko_set (actionButtonText $ modalDialogVM vm) actionText
 	where
 		(btnType, actionText) = case action of
 			Primary x -> ("primary", x)
@@ -227,9 +240,9 @@ deleteConfigItemCb :: ConfigViewModel -> ConfigSection -> JValue -> Fay ()
 deleteConfigItemCb vm section userSetting = do
 	let pluginName = cfgPluginName $ pluginInfo section
 	modal <- select "#myModal"
-	ko_set (modalTitle vm) pluginName
-	prepareModal (Danger "Delete") modal
-	ko_set (modalTemplate vm) "confirmDeleteTemplate"
+	ko_set (modalTitle $ modalDialogVM vm) pluginName
+	prepareModal (Danger "Delete") modal vm
+	ko_set (modalTemplate $ modalDialogVM vm) "confirmDeleteTemplate"
 	bootstrapModal modal
 	findSelector "button#main-action" modal >>= click (\_ -> deleteConfigItemAction section userSetting)
 	return ()

@@ -18,6 +18,7 @@ import Data.Time.LocalTime
 import Data.List (find)
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.Maybe
+import Control.Monad (liftM)
 
 import Text.XML (Node(..))
 import Text.XML.Cursor
@@ -100,7 +101,7 @@ getIssues config html day today timezone = case maybeDayNode of
 		maybeDayNode = find (isDayTitle day today) dayNodes
 
 date :: IO Day
-date = getCurrentTime >>= return . utctDay
+date = liftM utctDay getCurrentTime
 
 isDayTitle :: Day -> Day -> Cursor -> Bool
 isDayTitle day today nod = dayTitle == innerTextN (node nod)

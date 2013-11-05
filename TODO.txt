@@ -11,10 +11,6 @@ http://hackage.haskell.org/package/snap-server-0.9.3.4/docs/src/Snap-Internal-Ht
 
 knockout functions: inconsistent naming observable array/list
 
-way too much inline HTML in FayConfig.hs. I can surely do much better!!
-
-redmine and git times don't match. one has got to be in UTC, the other in local time. see 2013-09-12 bug #338 for instance
-
 redmine is almost useless, must show bug status change at the moment of the event.
 
 quoted-printable ==> _ should not be translated to space, that applies only to message subject!

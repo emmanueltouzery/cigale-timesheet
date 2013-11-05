@@ -26,7 +26,6 @@ fetch from all providers in parrallel to speed up in particular the network-orie
 emails:
 display attachments list (name+mimetype) -> probably use this to return images: http://stackoverflow.com/a/10802497/516188 the server returns a JSON describing the data to display, with main HTML and image attachments directly in that JSON, then the client builds the display. But for that I must change the Event definition, to add the possibility of attachments...
 
-liftM b a instead of my a >>= (return . b)?
 liftM2 instead of do block for Maybe
 
 so that the app stops when the browser tab is closed, have the client send periodical ping (heartbeat) and have the server commit suicide if not receiving it some time.

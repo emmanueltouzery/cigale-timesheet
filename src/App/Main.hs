@@ -68,7 +68,7 @@ configVal = do
 	settingsFile <- liftIO Config.getConfigFileName
 	isSettings <- liftIO $ doesFileExist settingsFile
 	if isSettings
-		then serveFile $ settingsFile
+		then serveFile settingsFile
 		else writeLBS "{}"
 
 addConfigEntry :: Snap ()

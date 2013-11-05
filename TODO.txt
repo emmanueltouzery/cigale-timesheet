@@ -1,3 +1,5 @@
+bootstrap date picker instead of jquery-ui?
+
 try to get JS functions getKeys and toJsObject in my Utils.hs as inline in FFI to avoid to depend on the HTML source.
 
 disable access+error log of snap
@@ -42,8 +44,6 @@ special file picker entry?  http://stackoverflow.com/a/18676841/516188
 
 activity view: popup instead of sidebar? that or a min-width on the body to ensure the sidebar is always visible or something.
 => maybe always visible+button to get display in a popup if there's too much data to fit in the sidebar.
-
-port to dom-selector 0.2
 
 links broken in skype, see 2013-08-03
 

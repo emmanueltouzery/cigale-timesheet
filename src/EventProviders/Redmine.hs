@@ -19,6 +19,7 @@ import Data.List (find)
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.Maybe
 import Control.Monad (liftM)
+import Data.Text.Lazy (toStrict)
 
 import Text.XML (Node(..))
 import Text.XML.Cursor
@@ -104,7 +105,7 @@ date :: IO Day
 date = liftM utctDay getCurrentTime
 
 isDayTitle :: Day -> Day -> Cursor -> Bool
-isDayTitle day today nod = dayTitle == innerTextN (node nod)
+isDayTitle day today nod = dayTitle == (toStrict $ innerText (node nod))
 	where
 		(y, m, d) = toGregorian day
 		dayTitle = T.pack $ if day == today
@@ -135,7 +136,7 @@ parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) = if authorName ==
 		timeOfDayStr = firstNodeInnerText $ queryT [jq|span.time|] bugInfo
 		bugComment = firstNodeInnerText $ queryT [jq|span.description|] changeInfo
 		authorName = firstNodeInnerText $ queryT [jq|span.author a|] changeInfo
-		firstNodeInnerText = innerTextN . node . head
+		firstNodeInnerText = toStrict . innerText . node . head
 parseBugNodes _ _ _ [] = []
 parseBugNodes _ _ _ [_] = error "parseBugNodes: invalid pattern!?"
 

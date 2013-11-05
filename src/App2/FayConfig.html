@@ -99,6 +99,10 @@ $root.configAddEditVM.configurationBeingEdited()[memberName], attr: {id: memberN
 						<div class="alert alert-danger"
 							data-bind="text: modalDialogVM().errorText"></div>
 					<!-- /ko -->
+					<!-- ko if: (modalDialogVM().warningText) && (modalDialogVM().warningText().length > 0) -->
+						<div class="alert alert-warning"
+							data-bind="text: modalDialogVM().warningText"></div>
+					<!-- /ko -->
 				</div>
 				<div class="modal-body" data-bind="template: { name: modalDialogVM().modalTemplate, data: $root}">
 				</div>

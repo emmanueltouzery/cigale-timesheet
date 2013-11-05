@@ -82,8 +82,6 @@ data ConfigSection = ConfigSection
 		userSettings :: ObservableArray JValue
 	}
 
--- TODO info when entering passwords that they're stored as plaintext
-
 -- TODO i don't like JValue in the view model
 data ConfigViewModel = ConfigViewModel
 	{
@@ -105,6 +103,7 @@ data ModalDialogVM =
 		actionButtonClass :: Text,
 		actionButtonText :: Text,
 		errorText :: Observable Text,
+		warningText :: Observable Text,
 		modalOkClick :: Fay ()
 	}
 	| InvalidModalDialogVM
@@ -202,7 +201,11 @@ addEditModuleAction vm pluginConfig maybeConfigValue = do
 		Just (configSection, existingConfig) ->
 			(ko_get $ configurationOriginalValue cfgAddEditVm) >>=
 				updatePluginConfig vm configSection pluginName
-	prepareModal (Primary "Save changes") pluginName "configEditTemplate" clickCallback modal vm
+	let warningTextV = case hasPasswords pluginConfig of
+		True -> "Warning: passwords are stored in plain text in the configuration file!"
+		False -> ""
+	modalVM <- prepareModal (Primary "Save changes") pluginName "configEditTemplate" clickCallback modal vm
+ 	warningTextV ~> (warningText modalVM)
 	bootstrapModal modal
 
 hasPasswords :: PluginConfig -> Bool
@@ -213,18 +216,20 @@ data MainAction = Primary Text
 
 -- TODO remove the modal parameter,
 -- in the end all must be through knockout.
-prepareModal :: MainAction -> Text -> Text -> Fay () -> JQuery -> ConfigViewModel -> Fay ()
+prepareModal :: MainAction -> Text -> Text -> Fay () -> JQuery -> ConfigViewModel -> Fay ModalDialogVM
 prepareModal action title template clickCallback modal vm = do
-	ko_set (modalDialogVM vm) ModalDialogVM
+	let modalV = ModalDialogVM
 		{
 			modalTitle = title,
 			modalTemplate = template,
 			modalOkClick = clickCallback,
 			actionButtonClass = "btn btn-" ++ btnType,
 			actionButtonText = actionText,
-			errorText = ko_observable ""
+			errorText = ko_observable "",
+			warningText = ko_observable ""
 		}
-	return ()
+	modalV ~> (modalDialogVM vm)
+	return modalV
 	where
 		(btnType, actionText) = case action of
 			Primary x -> ("primary", x)

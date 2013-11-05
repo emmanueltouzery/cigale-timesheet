@@ -21,7 +21,6 @@ import qualified Config
 import qualified EventProviders
 import EventProvider
 import Event
-import qualified Settings
 import qualified FayAeson
 
 process :: T.Text -> IO BL.ByteString
@@ -68,7 +67,7 @@ processConfig monthStr config = do
 
 getGlobalSettings :: IO GlobalSettings
 getGlobalSettings = do
-	settingsFolder <- Settings.getSettingsFolder
+	settingsFolder <- Config.getSettingsFolder
 	return $ GlobalSettings { getSettingsFolder = settingsFolder }
 
 fetchProvider :: GlobalSettings -> Day -> EventProvider Value -> Value -> IO [Event]

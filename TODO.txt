@@ -45,24 +45,11 @@ activity view: popup instead of sidebar? that or a min-width on the body to ensu
 
 port to dom-selector 0.2
 
-somehow codify the dependency on fay, make cabal build the whole thing. there is a conflict with dependencies between rex and fay if you want both at the same time, too. Elm is building the files at request time, could be an option too for Fay... although I'd rather to pre-build.
-
 links broken in skype, see 2013-08-03
 
 i made my own system for configuration but i think this might document a similar and probably better approach? to check: https://www.fpcomplete.com/user/thoughtpolice/using-reflection http://www.reddit.com/r/haskell/comments/1l9qzw/reflecting_values_to_types_and_back/
 
 store passwords using gnome-keyring on linux?
-
-try to remove bootstrap and jquery-ui from my GIT and install them through npm instead? or maybe put only the zips in GIT and have cabal unzip them.
-
-very bad email display 2013-06-17 7:55
-
-"config.json" string duplicated in two files
-
-settings.hs and config.hs?? seriously???
-
-config: display the current config (read-only with edit buttons that
-make the popups appear)
 
 config: differenciate String and FilePath, browse button for FilePath
 
@@ -78,15 +65,6 @@ any folder.
 
 migrate to scotty instead of snap? https://github.com/xich/scotty
 
-rewrite client-side in elm?
-
-port to http-conduit with the new nice API i made.
-
-make relocatable so i can start it from any folder.
-
-for source version control, in the details show the diffstat; done for
-GIT, could still be done for SVN and HG.
-
 for emails, nice display if there is an attachment instead of dumping
 the base64. a download button would be groovy (or inline preview for
 images).
@@ -95,15 +73,7 @@ would be cool to make a nice API for bootstrap helper functions with monad param
 
 decent error message if the config file is corrupted?
 
-for emails check for a library, if there is none extract one from this
-app, make regression tests and so on.
-
-make a bootstrap-based GUI. at first allow the settings to be set in the
-GUI.
-
 HTML formatting in emails can spread to my pages: use an iframe
-
-čšž doesn't work in emails, example 2013-04-24 15:15
 
 links in skype chats don't work, example 2013-04-26 10:28 SO link
 

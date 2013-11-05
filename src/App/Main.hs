@@ -20,7 +20,6 @@ import System.Process (rawSystem)
 import Control.Monad (liftM)
 
 import qualified Timesheet
-import qualified Settings
 import Config (getConfigFileName, addPluginInConfig, updatePluginInConfig, deletePluginFromConfig)
 import Util (toStrict1)
 import Paths_cigale_timesheet

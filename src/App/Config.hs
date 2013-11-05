@@ -14,13 +14,19 @@ import qualified Data.ByteString as BS
 import qualified Data.Text.Encoding as TE
 import Control.Monad (liftM)
 
-import EventProvider
-import qualified Settings (getSettingsFolder)
+import EventProvider (EventProvider, getModuleName)
 import qualified EventProviders
 import qualified Util
 
+getSettingsFolder :: IO FilePath
+getSettingsFolder = do
+	home <- getHomeDirectory
+	let result = home ++ "/.timesheet/"
+	createDirectoryIfMissing False result
+	return result
+
 getConfigFileName :: IO String
-getConfigFileName = fmap (++"config.json") Settings.getSettingsFolder
+getConfigFileName = fmap (++"config.json") getSettingsFolder
 
 readConfig :: (FromJSON a, ToJSON a) => [EventProvider a] -> IO [(EventProvider a, a)]
 readConfig plugins = do

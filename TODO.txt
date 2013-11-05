@@ -1,3 +1,7 @@
+should be able to make parseDateTime in Hg.hs and surely elsewhere too nicer by using parsec's parseNatural:
+Text.Parsec.Token
+Also can get rid of Util.parsedToInteger and parsedToInt..
+
 bootstrap date picker instead of jquery-ui?
 
 try to get JS functions getKeys and toJsObject in my Utils.hs as inline in FFI to avoid to depend on the HTML source.
@@ -76,6 +80,8 @@ decent error message if the config file is corrupted?
 HTML formatting in emails can spread to my pages: use an iframe
 
 links in skype chats don't work, example 2013-04-26 10:28 SO link
+
+remove Util.toStrict1 once I can migrate to bytestring 0.10 (I think ghc 7.6)
 
 firefox google searches, maybe stackoverflow upvotes, dropbox subfolder
 activity, google docs?

@@ -17,6 +17,7 @@ import Data.Maybe (fromJust)
 import Text.Blaze.Html5
 import Text.Blaze.Html.Renderer.String
 import System.Process (rawSystem)
+import Control.Monad (liftM)
 
 import qualified Timesheet
 import qualified Settings
@@ -103,7 +104,7 @@ processConfigFromBody handler = do
 	pName <- getSingleParam "pluginName"
 	case pName of
 		Just _pName -> do
-			configJson <- getRequestBody >>= return . toStrict1
+			configJson <- liftM toStrict1 getRequestBody
 			(liftIO $ handler _pName configJson) >>= setResponse
 		_ -> setResponse $ Left "add config: pluginName not specified"
 

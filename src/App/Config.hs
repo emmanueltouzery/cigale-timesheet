@@ -100,10 +100,10 @@ updatePluginInConfig :: BS.ByteString -> BS.ByteString -> BS.ByteString -> IO (E
 updatePluginInConfig oldCfgItemStr (T.unpack . TE.decodeUtf8 -> pluginName) configJson = do
 	config <- readConfig EventProviders.plugins
 	let incomingInfo = do
-			nElt <- decodeIncomingConfigElt pluginName configJson
-			oldConfigItem <- Util.decodeStrict oldCfgItemStr
-			configWithoutElt <- checkRemoveFromConfig config pluginName oldConfigItem
-			return (nElt, configWithoutElt)
+		nElt <- decodeIncomingConfigElt pluginName configJson
+		oldConfigItem <- Util.decodeStrict oldCfgItemStr
+		configWithoutElt <- checkRemoveFromConfig config pluginName oldConfigItem
+		return (nElt, configWithoutElt)
 	case incomingInfo of
 		Nothing -> return $ Left $ BS.concat ["invalid new or old config info; new: [",
 							configJson, "], old: [", oldCfgItemStr, "]"]
@@ -116,6 +116,8 @@ isConfigItem pluginName oldConfig (provider, config)
 	| pluginName /= (getModuleName provider) = False
 	| otherwise = allValuesMatch oldConfig config
 
+-- Will return Nothing if removing from config failed,
+-- otherwise will return Just newConfig.
 checkRemoveFromConfig ::  [(EventProvider Value, Value)] -> String -> HashMap T.Text Value -> Maybe [(EventProvider Value, Value)]
 checkRemoveFromConfig config pluginName oldConfigItem =
 	let configWithoutThisSource = filter (not . isConfigItem pluginName oldConfigItem) config in

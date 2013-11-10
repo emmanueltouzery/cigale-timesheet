@@ -51,6 +51,7 @@ timesheet = do
     maybe (writeBS "must specify the month and year in URL, like so: /timesheet/2012-11")
           handleTimesheet tsparam
 
+handleTimesheet :: BS.ByteString -> Snap ()
 handleTimesheet tsparam = do
 	jsonData <- liftIO $ Timesheet.process $ TE.decodeUtf8 tsparam
 	liftIO $ putStrLn $ "OK i have all the json -- bytes: " ++ (show $ DBLC.length jsonData)

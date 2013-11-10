@@ -12,7 +12,7 @@ import Data.Maybe
 import Data.Aeson
 import Data.Aeson.TH (deriveJSON, mkToJSON, defaultOptions)
 
-import GHC.Exts
+import GHC.Exts (sortWith)
 
 import Control.Concurrent.Async
 
@@ -25,7 +25,6 @@ import qualified FayAeson
 
 process :: T.Text -> IO BL.ByteString
 process monthStr = do
-	putStrLn "process"
 	config <- Config.readConfig EventProviders.plugins
 	processConfig monthStr config
 

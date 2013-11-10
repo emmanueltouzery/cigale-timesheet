@@ -90,6 +90,8 @@ updateConfigEntry = do
 		Just _oldCfg -> processConfigFromBody (updatePluginInConfig _oldCfg)
 		_ -> setResponse $ Left "update config: pluginName not specified"
 
+-- rqParam returns an array in case one value is sent several times.
+-- My client won't send several times, get just the first value.
 getSingleParam :: BS.ByteString -> Snap (Maybe BS.ByteString)
 getSingleParam pName = do
 	rq <- getRequest 

@@ -2,6 +2,10 @@ should be able to make parseDateTime in Hg.hs and surely elsewhere too nicer by 
 Text.Parsec.Token
 Also can get rid of Util.parsedToInteger and parsedToInt..
 
+at least Svn is way too slow. make in base an option of storage (sqlite) to store and retrieve events. you ask svn to fetch one day, it will fetch two weeks before and after and store all. check but i think fetching a bigger interval won't really be slower.
+
+cancel button in the loading throbber. especially when we first launch the app, it starts fetching for today and i don't care about that, i want data for 1 month ago.. I'm waiting for nothing.
+
 bootstrap date picker instead of jquery-ui?
 
 try to get JS functions getKeys and toJsObject in my Utils.hs as inline in FFI to avoid to depend on the HTML source.

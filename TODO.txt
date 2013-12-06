@@ -1,6 +1,13 @@
+stop printing emails to STDOUT it can really slow down performance when there are big attachments
+
 should be able to make parseDateTime in Hg.hs and surely elsewhere too nicer by using parsec's parseNatural:
 Text.Parsec.Token
 Also can get rid of Util.parsedToInteger and parsedToInt..
+
+I avoided the problem of heteregenous lists by putting in the module data types the Value (IIRC) therefore tying me to Aeson.
+Here he talks about RankNTypes and foreach to achieve the same result:
+http://ocharles.org.uk/blog/posts/2013-07-26-a-comparison-between-perl-and-haskell.html
+Consider that solution instead.
 
 at least Svn is way too slow. make in base an option of storage (sqlite) to store and retrieve events. you ask svn to fetch one day, it will fetch two weeks before and after and store all. check but i think fetching a bigger interval won't really be slower.
 

@@ -1,16 +1,16 @@
-{-# LANGUAGE OverloadedStrings, ExistentialQuantification, TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings, ExistentialQuantification, TemplateHaskell, QuasiQuotes, ViewPatterns #-}
 module Timesheet where
 
 import qualified Data.Text as T
 import Data.Time.Calendar
 import qualified Data.Aeson as JSON
 import qualified Data.ByteString.Lazy.Char8 as BL
-import Data.Text.Read
 import Data.List
 import Data.Time
 import Data.Maybe
 import Data.Aeson
 import Data.Aeson.TH (deriveJSON, mkToJSON, defaultOptions)
+import Text.Regex.PCRE.Rex
 
 import GHC.Exts (sortWith)
 
@@ -33,8 +33,7 @@ processConfig monthStr config = do
 	-- TODO this will fail with cryptic error messages if not given
 	-- a string by the right format!
 	myTz <- getCurrentTimeZone
-	let ymd = map (Util.safePromise . decimal) (T.splitOn "-" monthStr)
-	let date = fromGregorian (toInteger $ head ymd) (ymd !! 1) (ymd !! 2)
+	let date = parseDate $ T.unpack monthStr
 
 	putStrLn "before the fetching..."
 	print config
@@ -63,6 +62,11 @@ processConfig monthStr config = do
 			return BL.empty
 	where
 		outOfRange start end time = time < (LocalTime start midnight) || time > (LocalTime end midnight)
+
+parseDate :: String -> Day
+parseDate [rex|^(?{read -> y}\d+)
+	-(?{read -> m}\d+)
+	-(?{read -> d}\d+)$|] = fromGregorian y m d
 
 getGlobalSettings :: IO GlobalSettings
 getGlobalSettings = do

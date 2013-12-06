@@ -506,6 +506,8 @@ testDifferentMessage = it "parses a different message" $ do
 			Content-Transfer-Encoding: 7bit
 			
 			Hi,
+
+			several lines.
 			
 			------=_NextPart_000_00CE_01CEE078.3CBC8C10
 			Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;
@@ -526,6 +528,6 @@ testDifferentMessage = it "parses a different message" $ do
 			to = "\"'C D'\" <c.d@e>",
 			cc = Nothing,
 			subject = "RE: FW: Test",
-			contents = "Hi,\n"
+			contents = "Hi,\n<br/>several lines.\n<br/>"
 		}
 	assertEqual "doesn't match" expected (parseMessage msg)

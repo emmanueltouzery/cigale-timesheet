@@ -104,7 +104,7 @@ parseMessage msg = do
 		_ -> Nothing
 	let emailContents = case multipartSeparator of
 			Just separator -> parseMultipartBody separator rawMessage
-			Nothing -> parseTextPlain rawMessage headers
+			Nothing -> parseTextPlain $ MultipartSection (Map.toList headers) rawMessage
 	Email emailDate toVal ccVal subjectVal emailContents
 	where
 		-- TODO ugly to re-encode in ByteString, now I do ByteString->Text->ByteString->Text
@@ -125,10 +125,8 @@ parseMessageParsec = do
 	body <- many anyChar
 	return (Map.fromList headers, BL.pack body)
 
-parseTextPlain :: BSL.ByteString -> Map.Map T.Text T.Text -> T.Text
-parseTextPlain bodyContents headers = T.replace "\n" "\n<br/>" (sectionFormattedContent section)
-	where
-		section = MultipartSection (Map.toList headers) bodyContents
+parseTextPlain :: MultipartSection -> T.Text
+parseTextPlain section = T.replace "\n" "\n<br/>" (sectionFormattedContent section)
 
 --textAfterHeaders :: T.Text -> T.Text
 --textAfterHeaders txt = snd $ T.breakOn "\n\n" $ T.replace "\r" "" txt
@@ -178,6 +176,7 @@ sectionTextContent :: MultipartSection -> T.Text
 sectionTextContent section
 	| "multipart/" `T.isInfixOf` sectionCType = -- multipart/alternative or multipart/related
 		parseMultipartBody mimeSeparator (sectionContent section)
+	| "text/plain" `T.isInfixOf` sectionCType = parseTextPlain section
 	| otherwise = sectionFormattedContent section
 	where
 		sectionCType = fromMaybe "" (sectionContentType section)

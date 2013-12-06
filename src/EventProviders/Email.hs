@@ -99,17 +99,25 @@ parseMessage msg = do
 	let ccVal = Map.lookup "CC" headers
 	let subjectVal = readHeader "Subject" headers
 	let contentType = Map.lookup "Content-Type" headers
-	let isMultipart = case contentType of
-		Nothing -> False
-		Just x -> "multipart/" `T.isInfixOf` x
-	let emailContents = if isMultipart
-			then parseMultipartBody rawMessage
-			else parseTextPlain rawMessage headers
+	let multipartSeparator = case contentType of
+		Just x | "multipart/" `T.isInfixOf` x -> Just $ getMultipartSeparator x
+		_ -> Nothing
+	let emailContents = case multipartSeparator of
+			Just separator -> parseMultipartBody separator rawMessage
+			Nothing -> parseTextPlain rawMessage headers
 	Email emailDate toVal ccVal subjectVal emailContents
 	where
 		-- TODO ugly to re-encode in ByteString, now I do ByteString->Text->ByteString->Text
 		-- pazi another top-level function is also named readHeader!!!
 		readHeader hName = decodeMime . encodeUtf8 . (Map.findWithDefault "missing" hName)
+
+getMultipartSeparator :: T.Text -> T.Text
+getMultipartSeparator contentType = case find
+			(T.isPrefixOf boundary)
+			(fmap T.stripStart $ T.splitOn ";" contentType) of
+		Just section -> T.dropAround (=='"') (T.drop (T.length boundary) section)
+		Nothing -> error $ "Invalid multipart content-type: " ++ (T.unpack contentType)
+	where boundary = "boundary="
 
 parseMessageParsec :: T.Parsec BSL.ByteString st (Map.Map T.Text T.Text, BSL.ByteString)
 parseMessageParsec = do
@@ -128,13 +136,14 @@ parseTextPlain bodyContents headers = T.replace "\n" "\n<br/>" (sectionFormatted
 getEmailDate :: MboxMessage BL.ByteString -> LocalTime
 getEmailDate = parseEmailDate . Util.toStrict1 . _mboxMsgTime
 
-parseMultipartBody :: BSL.ByteString -> T.Text
-parseMultipartBody body =
+parseMultipartBody :: T.Text -> BSL.ByteString -> T.Text
+parseMultipartBody separator body =
 		case sectionToConsider sections of
 			Nothing -> "no contents!"
 			Just s -> sectionTextContent s
 	where
-		sections = Util.parsecParse parseMultipartBodyParsec body
+		sections = Util.parsecParse (parseMultipartBodyParsec mimeSeparator) body
+		mimeSeparator = T.concat ["--", separator]
 
 -- pick a section containing text/html or as a second choice text/plain,
 -- and final choice multipart/alternative
@@ -153,13 +162,11 @@ sectionForMimeType mType secsByCt = liftM snd (find (keyContainsStr mType) secsB
 		keyContainsStr str (Nothing, _) = False
 		keyContainsStr str (Just x, _) = (T.isInfixOf str) $ x
 
-parseMultipartBodyParsec :: T.Parsec BSL.ByteString st [MultipartSection]
-parseMultipartBodyParsec = do
-	many eolBS
-	optional $ T.string "This is a multi-part message in MIME format."
-	optional eolBS
-	mimeSeparator <- readLineBS
-	manyTill (parseMultipartSection (decodeASCII $ toStrict1 mimeSeparator)) (T.try $ sectionsEnd)
+parseMultipartBodyParsec :: T.Text -> T.Parsec BSL.ByteString st [MultipartSection]
+parseMultipartBodyParsec mimeSeparator = do
+	manyTill readLineBS (T.try $ T.string $ T.unpack mimeSeparator)
+	readLineBS
+	manyTill (parseMultipartSection mimeSeparator) (T.try $ sectionsEnd)
 
 data MultipartSection = MultipartSection
 	{
@@ -170,10 +177,11 @@ data MultipartSection = MultipartSection
 sectionTextContent :: MultipartSection -> T.Text
 sectionTextContent section
 	| "multipart/" `T.isInfixOf` sectionCType = -- multipart/alternative or multipart/related
-		parseMultipartBody (sectionContent section)
+		parseMultipartBody mimeSeparator (sectionContent section)
 	| otherwise = sectionFormattedContent section
 	where
 		sectionCType = fromMaybe "" (sectionContentType section)
+		mimeSeparator = getMultipartSeparator sectionCType
 
 sectionFormattedContent :: MultipartSection -> T.Text
 sectionFormattedContent section
@@ -212,13 +220,13 @@ sectionHeaderValue headerName (MultipartSection headers _) = fmap snd $ find ((=
 parseMultipartSection :: T.Text -> T.Parsec BSL.ByteString st MultipartSection
 parseMultipartSection mimeSeparator = do
 	headers <- readHeaders
-	contents <- manyTill readLineBS (T.try $ T.string $ T.unpack $ mimeSeparator)
+	contents <- manyTill readLineBS (T.try $ T.string $ T.unpack mimeSeparator)
 	many eolBS
 	return $ MultipartSection headers (BSL.intercalate "\n" contents)
 
 readHeaders :: T.Parsec BSL.ByteString st [(T.Text, T.Text)]
 readHeaders = do
-	val <- manyTill readHeader (T.try $ do eolBS)
+	val <- manyTill readHeader (T.try $ eolBS)
 	return $ map (\(a,b) -> (decodeASCII $ toStrict1 $ BL.pack a, decodeASCII $ toStrict1 b)) val
 
 readHeader :: T.Parsec BSL.ByteString st (String, BSL.ByteString)

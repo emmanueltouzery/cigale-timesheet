@@ -37,6 +37,7 @@ runEmailTests = do
 	--testMboxMessage
 	testMboxMessageQP
 	testMboxMultipartMessage
+	testDifferentMessage
 
 testEmail1 :: Spec
 testEmail1 = it "parses a simple email structure" $ do
@@ -466,6 +467,56 @@ testMboxMultipartMessage = it "parses a multipart message from start to end" $ d
 			--------------040305040006080906090803--
 			
 			--------------090707030607080209050905--
+			|] -- warning I truncated the base64 picture attachments
+	let msg = MboxMessage "sender" "Jan 23 6:0:5 2013" source "file" 0
+	let expected = Email
+		{
+			date = LocalTime (fromGregorian 2013 1 23) (TimeOfDay 6 0 (fromIntegral 5)),
+			to = "c d <c@test.com>",
+			cc = Nothing,
+			subject = "Re: FW: Test",
+			contents = "<html>contents HTML\n</html>\n"
+		}
+	assertEqual "doesn't match" expected (parseMessage msg)
+
+testDifferentMessage :: Spec
+testDifferentMessage = it "parses a different message" $ do
+	let source = BL.pack $ T.unpack [strT|
+			From - Wed Nov 13 21:47:51 2013
+			X-Account-Key: account3
+			X-UIDL: 5772.NiG4Gf0oqFthpgYGWYC9gzRwsIxdwVaV3p4Jg11nyGk=
+			X-Mozilla-Status: 0011
+			X-Mozilla-Status2: 00000000
+			X-Mozilla-Keys:                                                                                 
+			From: "A B" <a.b@c>
+			To: "'C D'" <c.d@e>
+			Subject: RE: Performance test plan
+			Date: Wed, 13 Nov 2013 13:57:05 +0100
+			MIME-Version: 1.0
+			Content-Type: multipart/mixed;
+				boundary="----=_NextPart_000_00CE_01CEE078.3CBC8C10"
+			X-Mailer: Microsoft Outlook 15.0
+			
+			This is a multipart message in MIME format.
+			
+			------=_NextPart_000_00CE_01CEE078.3CBC8C10
+			Content-Type: text/plain;
+				charset="us-ascii"
+			Content-Transfer-Encoding: 7bit
+			
+			Hi,
+			
+			------=_NextPart_000_00CE_01CEE078.3CBC8C10
+			Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;
+				name="Test Cases Performance 010 11112013.xlsx"
+			Content-Transfer-Encoding: base64
+			Content-Disposition: attachment;
+				filename="Test Cases Performance 010 11112013.xlsx"
+			
+			UEsDBBQABgAIAAAAIQCq91ikeQEAABQGAAATAAgCW0NvbnRlbnRfVHlwZXNdLnhtbCCiBAIooAAC
+			ZG9jUHJvcHMvYXBwLnhtbFBLBQYAAAAAHwAfACEIAACQnBoAAAA=
+			
+			------=_NextPart_000_00CE_01CEE078.3CBC8C10--
 			|] -- warning I truncated the base64 picture attachments
 	let msg = MboxMessage "sender" "Jan 23 6:0:5 2013" source "file" 0
 	let expected = Email

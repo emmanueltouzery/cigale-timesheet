@@ -62,6 +62,14 @@ fetchDay viewModel dayStr = do
 	unhide shadow
 	unhide pleaseHold
 	myajax ("/timesheet/" ++ dayStr) (processResults viewModel pleaseHold shadow)
+		(handleError pleaseHold shadow)
+
+handleError :: JQuery -> JQuery -> JqXHR -> Text -> Text -> Fay ()
+handleError pleaseHold shadow jqXhr textStatus errorThrown = do
+	hide Instantly pleaseHold
+	hide Instantly shadow
+	alert $ T.concat ["Error! ", responseText jqXhr]
+	return ()
 
 processResults :: MainViewModel -> JQuery -> JQuery -> [Main.Event] -> Fay ()
 processResults viewModel pleaseHold shadow events = do
@@ -98,10 +106,18 @@ formatTime = ffi "formatTime(%1)"
 overwriteCss :: Fay ()
 overwriteCss = ffi "overwriteCss()"
 
+alert :: Text -> Fay ()
+alert = ffi "alert(%1)"
+
+data JqXHR
+
+responseText :: JqXHR -> Text
+responseText = ffi "%1.responseText"
+
 -- try to migrate to the ajax call from fay-jquery
 -- at least don't duplicate between FayApp and FayConfig!
-myajax :: Text -> (Automatic b -> Fay ()) -> Fay ()
-myajax = ffi "jQuery.ajax(%1, {'type': 'GET', contentType: 'text/json', processData: false, 'success' : %2 })"
+myajax :: Text -> (Automatic b -> Fay ()) -> (JqXHR -> Text -> Text -> Fay ()) -> Fay ()
+myajax = ffi "jQuery.ajax(%1, {'type': 'GET', contentType: 'text/json', processData: false, 'success' : %2, 'error': %3 })"
 
 setupDatepicker :: (Text -> Fay ()) -> Fay ()
 setupDatepicker = ffi "setupDatepicker(%1)"

@@ -1,7 +1,0 @@
-[Desktop Entry]
-Comment=
-Terminal=false
-Name=Cigale timesheet
-Exec=cigale-timesheet
-Type=Application
-Icon=cigale-timesheet

@@ -11,7 +11,6 @@ import System.Process
 import System.Exit
 import System.Directory
 import Data.ByteString.Lazy as LBS (readFile)
-import System.Process (rawSystem)
 
 -- probably message that you need zip-archive and fay and fay-jquery
 -- before attempting to build...
@@ -43,12 +42,6 @@ doPostBuild _ _ pkg_descr lbi = do
 	copyFile "lib/knockout-2.3.0.js" (appDataDir ++ "/knockout-2.3.0.js")
 	copyFile "src/App2/FayApp.html" (appDataDir ++ "/FayApp.html")
 	copyFile "src/App2/FayConfig.html" (appDataDir ++ "/FayConfig.html")
-	-- the following will only work on linux, don't check the return code as
-	-- it's expected to fail on other OSses.
-	rawSystem "xdg-icon-resource" ["install", "--size", "64", "cigale-timesheet-64.png", "cigale-timesheet"]
-	rawSystem "xdg-icon-resource" ["install", "--size", "96", "cigale-timesheet-96.png", "cigale-timesheet"]
-	rawSystem "xdg-desktop-menu" ["install", "cigale-timesheet.desktop"]
-	return ()
 
 compileFay :: String -> String -> String -> FilePath -> IO ()
 compileFay sourceFolder filename targetFilename appDataDir = do

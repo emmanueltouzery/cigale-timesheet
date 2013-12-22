@@ -186,8 +186,7 @@ cachedVersionDate settingsFolder = do
 	modifTime <- IOEx.tryIOError $ Dir.getModificationTime fname
 	case modifTime of
 		Left _ -> return Nothing
-		Right modif -> return $ Just $ utctDay $ posixSecondsToUTCTime $ clockTimeToEpoch modif
-		--Right modif -> return $ Just $ utctDay modif
+		Right modif -> return $ Just $ utctDay modif
 
 readFromCache :: String -> IO T.Text
 readFromCache settingsFolder = do

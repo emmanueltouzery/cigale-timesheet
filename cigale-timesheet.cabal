@@ -27,7 +27,7 @@ Library
     containers,
     MissingH,
     process,
-    directory,
+    directory >= 1.2.0.0,
     async,
     ghc-prim,
     attoparsec,

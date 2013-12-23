@@ -1,3 +1,5 @@
+Redmine.hs, parseTimeOfDay, change it to regex with ViewPattern?
+
 stop printing emails to STDOUT it can really slow down performance when there are big attachments
 
 should be able to make parseDateTime in Hg.hs and surely elsewhere too nicer by using parsec's parseNatural:

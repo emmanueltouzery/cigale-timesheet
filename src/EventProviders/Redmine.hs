@@ -140,6 +140,7 @@ parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) = if authorName ==
 parseBugNodes _ _ _ [] = []
 parseBugNodes _ _ _ [_] = error "parseBugNodes: invalid pattern!?"
 
+-- TODO maybe rewrite this with viewpatterns and regex using rex.
 parseTimeOfDay :: T.Text -> (Int, Int)
 parseTimeOfDay timeOfDayStr = (hours, mins)
 	where

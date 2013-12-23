@@ -73,7 +73,6 @@ toEvent timezone email = Event.Event
 		Event.fullContents = Just $ contents email
 	}
 
-
 getEmails :: String -> Day -> Day -> IO [Email]
 getEmails sent_mbox fromDate toDate = do
 	mbox <- parseMboxFile Backward sent_mbox
@@ -95,7 +94,7 @@ parseMessage msg = do
 	let msgBody = (trace $ "Parsing email " ++ (show emailDate))
 		Util.toStrict1 $ _mboxMsgBody msg
 	let (headers, rawMessage) = Util.parsecParse parseMessageParsec (_mboxMsgBody msg)
-	let toVal = (trace $ "raw message ==> " ++ (show rawMessage)) readHeader "To" headers
+	let toVal = readHeader "To" headers
 	let ccVal = Map.lookup "CC" headers
 	let subjectVal = readHeader "Subject" headers
 	let contentType = Map.lookup "Content-Type" headers
@@ -185,14 +184,14 @@ sectionTextContent section
 sectionFormattedContent :: MultipartSection -> T.Text
 sectionFormattedContent section
 	| sectionCTTransferEnc == "quoted-printable" =
-		decodeMimeContents encoding (decodeASCII $ toStrict1 $ sectionContent section)
+		decodeMimeContents encoding (decodeUtf8 $ toStrict1 $ sectionContent section)
 	| otherwise = iconvFuzzyText encoding (sectionContent section)
 	where
 		sectionCTTransferEnc = fromMaybe "" (sectionContentTransferEncoding section)
 		encoding = sectionCharset section
 
 charsetFromContentType :: T.Text -> String
-charsetFromContentType ct = (traceShow kvHash) T.unpack $ Map.findWithDefault "utf-8" "charset" kvHash
+charsetFromContentType ct = T.unpack $ Map.findWithDefault "utf-8" "charset" kvHash
 	where
 		kvHash = Map.fromList $ map (split2 "=" . T.strip) $
 			filter (T.isInfixOf "=") $ T.splitOn ";" ct
@@ -226,20 +225,20 @@ parseMultipartSection mimeSeparator = do
 readHeaders :: T.Parsec BSL.ByteString st [(T.Text, T.Text)]
 readHeaders = do
 	val <- manyTill readHeader (T.try $ eolBS)
-	return $ map (\(a,b) -> (decodeASCII $ toStrict1 $ BL.pack a, decodeASCII $ toStrict1 b)) val
+	return $ map (\(a,b) -> (decodeUtf8 $ toStrict1 $ BL.pack a, decodeUtf8 $ toStrict1 b)) val
 
 readHeader :: T.Parsec BSL.ByteString st (String, BSL.ByteString)
 readHeader = do
 	key <- T.many $ T.noneOf ":\n\r"
-	(trace key) T.string ":"
+	T.string ":"
 	many $ T.string " "
 	val <- readHeaderValue
-	(traceShow (BL.pack key, val)) return (key, val)
+	return (key, val)
 
 readHeaderValue :: T.Parsec BSL.ByteString st BSL.ByteString
 readHeaderValue = do
 	val <- T.many $ T.noneOf "\r\n"
-	(trace val) eolBS
+	eolBS
 	rest <- (do many1 $ oneOf " \t"; v <- readHeaderValue; return $ BSL.concat [" ", v])
 		<|> (return "")
 	return $ BSL.concat [BL.pack val, rest]

@@ -49,9 +49,6 @@ getRepoCommits config _ date = do
 			--return []
 		Right x -> finishGetRepoCommits x date date
 			(T.pack $ svnUser config)
-	where
-		-- TODO this is my best parsec parse error display yet.
-		-- share it with hg and ical
 
 finishGetRepoCommits :: [Commit] -> Day -> Day -> T.Text -> IO [Event.Event]
 finishGetRepoCommits commits startDate endDate username = do
@@ -60,7 +57,9 @@ finishGetRepoCommits commits startDate endDate username = do
 	-- returns me commits which are CLOSE to the dates I
 	-- requested, but not necessarily WITHIN the dates I
 	-- requested...
-	let myCommitsInInterval = filter ((\d -> d >= startDate && d <= endDate) . localDay . date) myCommits
+	let myCommitsInInterval = filter
+		((\d -> d >= startDate && d <= endDate) . localDay . date)
+		myCommits
 	timezone <- getCurrentTimeZone
 	return $ map (toEvent timezone) myCommitsInInterval
 

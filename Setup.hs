@@ -35,14 +35,14 @@ doPostBuild _ _ pkg_descr lbi = do
 	let appDataDir = datadir idt' ++ "/" ++ datasubdir idt' 
 	putStrLn appDataDir
 	createDirectoryIfMissing True appDataDir
-	compileFay "src/App2/" "FayApp.hs" "FayApp.js" appDataDir
-	compileFay "src/App2/" "FayConfig.hs" "FayConfig.js" appDataDir
+	compileFay "src/WebClient/" "FayApp.hs" "FayApp.js" appDataDir
+	compileFay "src/WebClient/" "FayConfig.hs" "FayConfig.js" appDataDir
 	unzipToTarget "lib/bootstrap-3.0.0-dist.zip" appDataDir
 	unzipToTarget "lib/jquery-ui-1.9.2.custom.zip" appDataDir
 	copyFile "lib/jquery-2.0.3.min.js" (appDataDir ++ "/jquery-2.0.3.min.js")
 	copyFile "lib/knockout-2.3.0.js" (appDataDir ++ "/knockout-2.3.0.js")
-	copyFile "src/App2/FayApp.html" (appDataDir ++ "/FayApp.html")
-	copyFile "src/App2/FayConfig.html" (appDataDir ++ "/FayConfig.html")
+	copyFile "src/WebClient/FayApp.html" (appDataDir ++ "/FayApp.html")
+	copyFile "src/WebClient/FayConfig.html" (appDataDir ++ "/FayConfig.html")
 	-- the following will only work on linux, don't check the return code as
 	-- it's expected to fail on other OSses.
 	rawSystem "xdg-icon-resource" ["install", "--size", "64", "cigale-timesheet-64.png", "cigale-timesheet"]

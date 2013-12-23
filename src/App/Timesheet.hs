@@ -40,7 +40,7 @@ processConfig monthStr config = do
 	putStrLn "after printing"
 	settings <- getGlobalSettings 
 	allEventsSeq <- sequence $ map (uncurry $ fetchProvider settings date) config
-	let allEvents = foldl (++) [] allEventsSeq
+	let allEvents = foldl' (++) [] allEventsSeq
 	let sortedEvents = sortWith Event.eventDate allEvents
 	--let noNullSortedEvents = map (\e -> e {
 	--	fullContents = Just $ maybe "" id (fullContents e),

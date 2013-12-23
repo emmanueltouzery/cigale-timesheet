@@ -2,8 +2,8 @@ Name:                cigale-timesheet
 Version:             0.1
 Synopsis:            Project Synopsis Here
 Description:         Project Description Here
-License:             AllRightsReserved
-Author:              Author
+License:             MIT
+Author:              Emmanuel Touzery
 Maintainer:          etouzery@gmail.com
 Stability:           Experimental
 Category:            Web

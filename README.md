@@ -1,11 +1,40 @@
-To install, run:
+# Cigale timesheet
 
-cabal install fay fay-jquery
+> "La Cigale, ayant chanté tout l'Été, se trouva fort dépourvue quand la bise fut venue."  
+>	-- Jean de la Fontaine, The ant and the grasshopper
 
-then in this folder:
+## Purpose
 
-cabal install
+If you need to give a timesheet of your activities in the previous month for your work, but you didn't collect the information of what you were doing, when (like the grasshopper in the tale, who didn't plan for winter), then this program may help you.
+
+It will look at traces of your past activity in your system. Here are the event sources that it will take into account:
+
+* The emails you sent (mbox format, for instance Thunderbird)
+* Ical sources (for instance Google calendar)
+* Source control activity (GIT, HG, SVN)
+* Skype chats
+* Redmine bug and wiki activity
+
+## Usage
+
+The application runs as a web application on your computer.
+
+## Installation
+
+As it's written in Haskell, it should run fine on linux, OSX and Windows, however I develop it on linux and I expect installing on Windows would be [painful][] because of dependencies.
+
+First you need to install the Haskell platform. Then to install, run:
+
+	cabal install
+
+Note that it will download and build quite some libraries so it'll run for a while.
 
 to run:
 
-timesheet (you should have ~/.cabal/bin in your path)
+	cigale-timesheet
+
+(you should have ~/.cabal/bin in your path)
+
+On linux systems you'll be able to start the app graphically from the menus.
+
+[painful]: https://plus.google.com/108801936173059193561/posts/PE3TiGMkUx2

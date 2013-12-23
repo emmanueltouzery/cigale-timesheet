@@ -1,7 +1,5 @@
 Redmine.hs, parseTimeOfDay, change it to regex with ViewPattern?
 
-stop printing emails to STDOUT it can really slow down performance when there are big attachments
-
 should be able to make parseDateTime in Hg.hs and surely elsewhere too nicer by using parsec's parseNatural:
 Text.Parsec.Token
 Also can get rid of Util.parsedToInteger and parsedToInt..
@@ -11,7 +9,7 @@ Here he talks about RankNTypes and foreach to achieve the same result:
 http://ocharles.org.uk/blog/posts/2013-07-26-a-comparison-between-perl-and-haskell.html
 Consider that solution instead.
 
-at least Svn is way too slow. make in base an option of storage (sqlite) to store and retrieve events. you ask svn to fetch one day, it will fetch two weeks before and after and store all. check but i think fetching a bigger interval won't really be slower.
+maybe use the async library to fetch from all sources concurrently instead of sequentially.
 
 cancel button in the loading throbber. especially when we first launch the app, it starts fetching for today and i don't care about that, i want data for 1 month ago.. I'm waiting for nothing.
 
@@ -40,24 +38,15 @@ for git, an optional diff would be nice too...
 
 could use the favicon to display progress when fetching, if i won't manage to speed up the fetching enough: https://github.com/tommoor/tinycon
 
-fetch from all providers in parrallel to speed up in particular the network-oriented ones. optional, defaults to true
-
 emails:
 display attachments list (name+mimetype) -> probably use this to return images: http://stackoverflow.com/a/10802497/516188 the server returns a JSON describing the data to display, with main HTML and image attachments directly in that JSON, then the client builds the display. But for that I must change the Event definition, to add the possibility of attachments...
 
-liftM2 instead of do block for Maybe
-
 so that the app stops when the browser tab is closed, have the client send periodical ping (heartbeat) and have the server commit suicide if not receiving it some time.
 
-"timesheet" is a link in FayApp, not so in FayConfig
-
-massive waste of vertical space due to the calendar. maybe move to read-only text containing the full date time (Tuesday, 10 September, 2013), and pop-calendar
-
-make a .desktop file for linux and an icon
-
-fix URLs, that we don't need anymore to go to /static/FayApp.html...
+waste of vertical space due to the calendar. maybe move to read-only text containing the full date time (Tuesday, 10 September, 2013), and pop-calendar
 
 special file picker entry?  http://stackoverflow.com/a/18676841/516188
+differenciate String and FilePath, browse button for FilePath
 
 activity view: popup instead of sidebar? that or a min-width on the body to ensure the sidebar is always visible or something.
 => maybe always visible+button to get display in a popup if there's too much data to fit in the sidebar.
@@ -67,8 +56,6 @@ links broken in skype, see 2013-08-03
 i made my own system for configuration but i think this might document a similar and probably better approach? to check: https://www.fpcomplete.com/user/thoughtpolice/using-reflection http://www.reddit.com/r/haskell/comments/1l9qzw/reflecting_values_to_types_and_back/
 
 store passwords using gnome-keyring on linux?
-
-config: differenciate String and FilePath, browse button for FilePath
 
 redmine: link to wiki diff
 redmine: make me a link to the bug, because I don't get the full info.
@@ -82,20 +69,10 @@ any folder.
 
 migrate to scotty instead of snap? https://github.com/xich/scotty
 
-for emails, nice display if there is an attachment instead of dumping
-the base64. a download button would be groovy (or inline preview for
-images).
-
-would be cool to make a nice API for bootstrap helper functions with monad parameter like http-streams, to specify extra html attributes
-
 decent error message if the config file is corrupted?
-
-HTML formatting in emails can spread to my pages: use an iframe
-
-links in skype chats don't work, example 2013-04-26 10:28 SO link
 
 remove Util.toStrict1 once I can migrate to bytestring 0.10 (I think ghc 7.6)
 
-firefox google searches, maybe stackoverflow upvotes, dropbox subfolder
+new sources: firefox google searches, maybe stackoverflow upvotes, dropbox subfolder
 activity, google docs?
 for firefox google searches: https://developer.mozilla.org/en-US/docs/The_Places_database

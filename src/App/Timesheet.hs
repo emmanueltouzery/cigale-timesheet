@@ -7,16 +7,12 @@ import qualified Data.Aeson as JSON
 import qualified Data.ByteString.Lazy.Char8 as BL
 import Data.List
 import Data.Time
-import Data.Maybe
 import Data.Aeson
-import Data.Aeson.TH (deriveJSON, mkToJSON, defaultOptions)
+import Data.Aeson.TH (mkToJSON, defaultOptions)
 import Text.Regex.PCRE.Rex
 
 import GHC.Exts (sortWith)
 
-import Control.Concurrent.Async
-
-import qualified Util
 import qualified Config
 import qualified EventProviders
 import EventProvider
@@ -67,6 +63,7 @@ parseDate :: String -> Day
 parseDate [rex|^(?{read -> y}\d+)
 	-(?{read -> m}\d+)
 	-(?{read -> d}\d+)$|] = fromGregorian y m d
+parseDate x@_ = error $ "Invalid date: " ++ x
 
 getGlobalSettings :: IO GlobalSettings
 getGlobalSettings = do

@@ -8,14 +8,8 @@ import Snap.Http.Server
 import Control.Monad.IO.Class
 import qualified Data.Text.Encoding as TE
 import System.Directory
-import System.IO
-import Data.ByteString.Lazy as LBS (hPut, fromChunks, concat)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy.Char8 as DBLC
-import qualified Data.Text as T
-import Data.Maybe (fromJust)
-import Text.Blaze.Html5
-import Text.Blaze.Html.Renderer.String
 import System.Process (rawSystem)
 import Control.Monad (liftM)
 
@@ -110,7 +104,7 @@ processConfigFromBody handler = do
 	pName <- getSingleParam "pluginName"
 	case pName of
 		Just _pName -> do
-			configJson <- liftM toStrict1 getRequestBody
+			configJson <- liftM toStrict1 (readRequestBody 65536)
 			(liftIO $ handler _pName configJson) >>= setResponse
 		_ -> setResponse $ Left "add config: pluginName not specified"
 

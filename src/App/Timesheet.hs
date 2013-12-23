@@ -32,8 +32,6 @@ processConfig monthStr config = do
 	let date = parseDate $ T.unpack monthStr
 
 	putStrLn "before the fetching..."
-	print config
-	putStrLn "after printing"
 	settings <- getGlobalSettings 
 	allEventsSeq <- sequence $ map (uncurry $ fetchProvider settings date) config
 	let allEvents = foldl' (++) [] allEventsSeq
@@ -73,7 +71,6 @@ getGlobalSettings = do
 fetchProvider :: GlobalSettings -> Day -> EventProvider Value -> Value -> IO [Event]
 fetchProvider settings day provider config = do
 	putStrLn $ "fetching from " ++ (getModuleName provider)
-	print config
 	events <- getEvents provider config settings day
 	putStrLn $ "found " ++ (show $ length events) ++ " events."
 	return events

@@ -28,7 +28,11 @@ main :: IO ()
 main = do
 	installPath <- Paths_cigale_timesheet.getDataFileName ""
 	rawSystem "xdg-open" ["http://localhost:8000"]
-	quickHttpServe (site installPath)
+	let snapConfig = setPort 8000 .
+		setAccessLog ConfigNoLog .
+		setErrorLog ConfigNoLog $
+		defaultConfig
+	httpServe snapConfig (site installPath)
 
 site :: FilePath -> Snap ()
 site installPath =

@@ -17,15 +17,6 @@ bootstrap date picker instead of jquery-ui?
 
 try to get JS functions getKeys and toJsObject in my Utils.hs as inline in FFI to avoid to depend on the HTML source.
 
-disable access+error log of snap
-http://hackage.haskell.org/package/snap-server-0.9.3.4/docs/src/Snap-Internal-Http-Server-Config.html
-    , Option [] ["no-access-log"]
-             (NoArg $ Just $ setConfig setAccessLog ConfigNoLog)
-             $ "don't have an access log"
-    , Option [] ["no-error-log"]
-             (NoArg $ Just $ setConfig setErrorLog ConfigNoLog)
-             $ "don't have an error log"
-
 knockout functions: inconsistent naming observable array/list
 
 redmine is almost useless, must show bug status change at the moment of the event.

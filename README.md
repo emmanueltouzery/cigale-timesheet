@@ -15,9 +15,14 @@ It will look at traces of your past activity in your system. Here are the event 
 * Skype chats
 * Redmine bug and wiki activity
 
+![Main view detail](https://raw.github.com/emmanueltouzery/cigale-timesheet/master/screenshots/main-crop.png)
+
 ## Usage
 
 The application runs as a web application on your computer.
+
+* [Main view screenshot][]
+* [Settings screenshot][]
 
 ## Installation
 
@@ -37,4 +42,6 @@ to run:
 
 On linux systems you'll be able to start the app graphically from the menus.
 
+[Main view screenshot]: https://raw.github.com/emmanueltouzery/cigale-timesheet/master/screenshots/main.png
+[Settings screenshot]: https://raw.github.com/emmanueltouzery/cigale-timesheet/master/screenshots/settings.png
 [painful]: https://plus.google.com/108801936173059193561/posts/PE3TiGMkUx2

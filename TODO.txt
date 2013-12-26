@@ -55,9 +55,6 @@ for the config, if I make some smart TH then let's also have it call the
 aeson json functions generations, and then modules are not directly tied
 to aeson anymore
 
-make cabal install needed files on cabal install so that it'll run from
-any folder.
-
 migrate to scotty instead of snap? https://github.com/xich/scotty
 
 decent error message if the config file is corrupted?

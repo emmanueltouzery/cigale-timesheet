@@ -70,7 +70,7 @@ Library
     Ical
 
 Executable cigale-timesheet
-  hs-source-dirs: src/App
+  hs-source-dirs: src/WebServer
   main-is: Main.hs
   Build-depends:
      base,

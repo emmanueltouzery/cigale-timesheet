@@ -12,21 +12,39 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy.Char8 as DBLC
 import System.Process (rawSystem)
 import Control.Monad (liftM)
+import Network.TCP (openTCPPort, Connection)
+import Network.Stream (close)
+import Control.Concurrent (forkIO)
+import Control.Exception (try, SomeException)
 
 import qualified Timesheet
 import Config (getConfigFileName, addPluginInConfig, updatePluginInConfig, deletePluginFromConfig)
 import Util (toStrict1)
 import Paths_cigale_timesheet
 
+appPort :: Int
+appPort = 8000
+
 main :: IO ()
 main = do
 	installPath <- Paths_cigale_timesheet.getDataFileName ""
-	rawSystem "xdg-open" ["http://localhost:8000"]
-	let snapConfig = setPort 8000 .
+	let snapConfig = setPort appPort .
 		setAccessLog ConfigNoLog .
 		setErrorLog ConfigNoLog $
 		defaultConfig
+	forkIO openInBrowser
 	httpServe snapConfig (site installPath)
+
+-- wait for the port to be opened then
+-- start the browser on the URL of the app.
+-- If we start right away the server may
+-- not be ready.
+openInBrowser :: IO ()
+openInBrowser = do
+	portOpen <- try (openTCPPort "127.0.0.1" appPort) :: IO (Either SomeException Connection)
+	case portOpen of
+		Left _ -> openInBrowser
+		Right port -> close port >> rawSystem "xdg-open" ["http://localhost:8000"] >> return ()
 
 site :: FilePath -> Snap ()
 site installPath =

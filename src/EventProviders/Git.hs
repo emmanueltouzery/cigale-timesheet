@@ -42,7 +42,7 @@ getRepoCommits (GitRecord _username _projectPath) _ date = do
 			"log", "--since", formatDate $ addDays (-1) date,
 			"--until", formatDate $ addDays 1 date,
 	--		"--author=\"" ++ username ++ "\"",
-			"--stat"])
+			"--stat", "--all"])
 		{
 			Process.std_out = Process.CreatePipe,
 			Process.cwd = Just projectPath

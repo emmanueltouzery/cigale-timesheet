@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
 module Main where
 
 import Control.Applicative
@@ -12,7 +12,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy.Char8 as DBLC
 import System.Process (rawSystem)
 import Control.Monad (liftM)
-import Network.TCP (openTCPPort, Connection)
+import Network.TCP (openTCPPort)
 import Network.Stream (close)
 import Control.Concurrent (forkIO)
 import Control.Exception (try, SomeException)
@@ -41,9 +41,9 @@ main = do
 -- not be ready.
 openInBrowser :: IO ()
 openInBrowser = do
-	portOpen <- try (openTCPPort "127.0.0.1" appPort) :: IO (Either SomeException Connection)
+	portOpen <- try (openTCPPort "127.0.0.1" appPort)
 	case portOpen of
-		Left _ -> openInBrowser
+		Left (_ :: SomeException) -> openInBrowser
 		Right conn -> close conn >> rawSystem "xdg-open" ["http://localhost:8000"] >> return ()
 
 site :: FilePath -> Snap ()

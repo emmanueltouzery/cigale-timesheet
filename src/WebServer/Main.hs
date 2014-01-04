@@ -44,7 +44,10 @@ openInBrowser = do
 	portOpen <- try (openTCPPort "127.0.0.1" appPort)
 	case portOpen of
 		Left (_ :: SomeException) -> openInBrowser
-		Right conn -> close conn >> rawSystem "xdg-open" ["http://localhost:8000"] >> return ()
+		Right conn -> do
+			close conn
+			rawSystem "xdg-open" ["http://localhost:" ++ (show appPort)]
+			return ()
 
 site :: FilePath -> Snap ()
 site installPath =

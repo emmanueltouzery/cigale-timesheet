@@ -13,6 +13,7 @@ import qualified Data.Text.IO as IO
 import Data.List (isInfixOf, intercalate)
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.Maybe
+import Control.Monad (liftM)
 
 import Event as Event
 import qualified Util
@@ -169,7 +170,7 @@ parseCommit = do
 		Nothing -> return ([], [])
 	optional eol
 	optional eol
-	return $ Commit
+	return Commit
 		{
 			commitDate = date,
 			commitDesc = fmap (T.strip . T.pack) summary,
@@ -211,27 +212,28 @@ parseFilesSummary = do
 
 parseDateTime :: T.GenParser st LocalTime
 parseDateTime = do
+	let parsedToIntM = liftM Util.parsedToInt
 	string "Date:"
 	many $ T.char ' '
 	count 3 T.anyChar -- day
 	T.char ' '
-	month <- count 3 T.anyChar
+	month <- liftM strToMonth (count 3 T.anyChar)
 	T.char ' '
-	dayOfMonth <- T.many1 $ T.noneOf " "
+	dayOfMonth <- parsedToIntM (T.many1 $ T.noneOf " ")
 	T.char ' '
-	hour <- count 2 digit
+	hour <- parsedToIntM (count 2 digit)
 	T.char ':'
-	mins <- count 2 digit
+	mins <- parsedToIntM (count 2 digit)
 	T.char ':'
-	seconds <- count 2 digit
+	seconds <- liftM fromIntegral $ parsedToIntM (count 2 digit)
 	T.char ' '
-	year <- count 4 digit
+	year <- liftM Util.parsedToInteger (count 4 digit)
 	T.char ' '
 	oneOf "-+"
 	count 4 digit
 	return $ LocalTime
-		(fromGregorian (Util.parsedToInteger year) (strToMonth month) (Util.parsedToInt dayOfMonth))
-		(TimeOfDay (Util.parsedToInt hour) (Util.parsedToInt mins) (fromIntegral $ Util.parsedToInt seconds))
+		(fromGregorian year month dayOfMonth)
+		(TimeOfDay hour mins seconds)
 
 strToMonth :: String -> Int
 strToMonth month = case month of

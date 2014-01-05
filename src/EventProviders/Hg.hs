@@ -11,6 +11,7 @@ import qualified Text.Parsec as T
 import qualified Data.Text as T
 import qualified Data.Text.IO as IO
 import Data.Aeson.TH (deriveJSON, defaultOptions)
+import Control.Monad (liftM)
 
 import Event as Event
 import qualified Util
@@ -104,22 +105,23 @@ parseFile = do
 
 parseDateTime :: T.GenParser st LocalTime
 parseDateTime = do
-	year <- count 4 digit
+	let parsedToIntM = liftM Util.parsedToInt
+	year <- liftM Util.parsedToInteger (count 4 digit)
 	T.char '-'
-	month <- count 2 digit
+	month <- parsedToIntM (count 2 digit)
 	T.char '-'
-	day <- count 2 digit
+	day <- parsedToIntM (count 2 digit)
 	T.char ' '
-	hour <- count 2 digit
+	hour <- parsedToIntM (count 2 digit)
 	T.char ':'
-	mins <- count 2 digit
+	mins <- parsedToIntM (count 2 digit)
 	T.char ' '
 	oneOf "-+"
 	count 4 digit
 	eol
 	return $ LocalTime
-		(fromGregorian (Util.parsedToInteger year) (Util.parsedToInt month) (Util.parsedToInt day))
-		(TimeOfDay (Util.parsedToInt hour) (Util.parsedToInt mins) 0)
+		(fromGregorian year month day)
+		(TimeOfDay hour mins 0)
 
 parseSummary :: T.GenParser st String
 parseSummary = manyTill anyChar (T.try $ string "--->>>")

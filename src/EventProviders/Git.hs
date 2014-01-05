@@ -56,11 +56,15 @@ getRepoCommits (GitRecord _username _projectPath) _ date = do
 			putStrLn $ "GIT: parse error: " ++ Util.displayErrors pe
 			error "GIT parse error, aborting"
 			--return []
-		Right x -> do
-			let myCommits = filter ((isInfixOf username) . commitAuthor) x
-			let myCommitsInInterval = filter (inRange . localDay . commitDate) myCommits
-			let myNonMergeCommitsInInterval = filter (not . commitIsMerge) myCommitsInInterval
-			return $ map (toEvent _projectPath timezone) myNonMergeCommitsInInterval
+		Right allCommits -> do
+			let relevantCommits = filter (isCommitRelevant date username) allCommits
+			return $ map (toEvent _projectPath timezone) relevantCommits
+
+isCommitRelevant :: Day -> String -> Commit -> Bool
+isCommitRelevant date username commit = and $ map ($ commit) [
+			(isInfixOf username) . commitAuthor,
+			inRange . localDay . commitDate,
+			not . commitIsMerge]
 	where
 		inRange tdate = (tdate >= date && tdate < (addDays 1 date))
 	

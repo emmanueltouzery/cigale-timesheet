@@ -121,7 +121,8 @@ getIssuesForDayNode config day timezone dayNode = parseBugNodes config day timez
 		(Just dlNode) = find (isElement . node) (following dayNode)
 
 parseBugNodes :: RedmineConfig -> Day -> TimeZone -> [Cursor] -> [Event]
-parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) = if authorName == redmineUserDisplay config
+parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) =
+		if authorName == redmineUserDisplay config
 		then Event
 			{
 				pluginName = getModuleName getRedmineProvider,
@@ -132,13 +133,13 @@ parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) = if authorName ==
 			} : (parseBugNodes config day timezone rest)
 		else parseBugNodes config day timezone rest
 	where
-		bugTitle = firstNodeInnerText $ queryT [jq|a|] bugInfo
+		bugTitle = firstNodeInnerText [jq|a|] bugInfo
 		localTime = LocalTime day (TimeOfDay hour mins 0)
 		(hour, mins) = parseTimeOfDay $ T.unpack timeOfDayStr
-		timeOfDayStr = firstNodeInnerText $ queryT [jq|span.time|] bugInfo
-		bugComment = firstNodeInnerText $ queryT [jq|span.description|] changeInfo
-		authorName = firstNodeInnerText $ queryT [jq|span.author a|] changeInfo
-		firstNodeInnerText = toStrict . innerText . node . head
+		timeOfDayStr = firstNodeInnerText [jq|span.time|] bugInfo
+		bugComment = firstNodeInnerText [jq|span.description|] changeInfo
+		authorName = firstNodeInnerText [jq|span.author a|] changeInfo
+		firstNodeInnerText q n = toStrict . innerText . node . head $ queryT q n
 parseBugNodes _ _ _ [] = []
 parseBugNodes _ _ _ [_] = error "parseBugNodes: invalid pattern!?"
 

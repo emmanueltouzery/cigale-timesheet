@@ -123,10 +123,13 @@ keyValuesToEvent records = Event.Event
 				fullContents = Nothing
 			}
 	where
-		descV = T.concat [T.pack $ fromLeaf $ records ! "DESCRIPTION",
-				 T.pack $ fromLeaf $ records ! "SUMMARY"]
-		startDate = parseDate $ fromLeaf $ records ! "DTSTART"
-		endDate = parseDate $ fromLeaf $ records ! "DTEND"
+		leafValue name = case Map.lookup name records of
+			Just value -> fromLeaf value
+			Nothing -> error $ "No leaf of name " ++ name
+		descV = T.concat [T.pack $ leafValue "DESCRIPTION",
+				 T.pack $ leafValue "SUMMARY"]
+		startDate = parseDate $ leafValue "DTSTART"
+		endDate = parseDate $ leafValue "DTEND"
 		extraInfoV = T.concat["End: ", utctDayTimeStr endDate,
 			"; duration: ", Util.formatDurationSec $ diffUTCTime endDate startDate]
 

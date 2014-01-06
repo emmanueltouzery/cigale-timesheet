@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, QuasiQuotes, TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings, QuasiQuotes, TemplateHaskell, ViewPatterns #-}
 
 module Redmine where
 
@@ -8,7 +8,7 @@ import Data.ByteString.Lazy (fromChunks)
 import System.IO.Streams (write)
 import Network.Http.Client
 import Data.Maybe
-import Data.Text as T (Text(..), splitOn, pack, span, take, drop)
+import Data.Text as T (Text(..), splitOn, pack, unpack, span, take, drop)
 import Data.Text.Read (decimal)
 import Data.Text.Encoding as TE
 import Text.Printf
@@ -30,6 +30,8 @@ import Text.HTML.DOM (parseLBS)
 import qualified Util as Util
 import Event
 import EventProvider
+
+import Text.Regex.PCRE.Rex
 
 type Password = ByteString
 
@@ -132,7 +134,7 @@ parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) = if authorName ==
 	where
 		bugTitle = firstNodeInnerText $ queryT [jq|a|] bugInfo
 		localTime = LocalTime day (TimeOfDay hour mins 0)
-		(hour, mins) = parseTimeOfDay timeOfDayStr
+		(hour, mins) = parseTimeOfDay $ T.unpack timeOfDayStr
 		timeOfDayStr = firstNodeInnerText $ queryT [jq|span.time|] bugInfo
 		bugComment = firstNodeInnerText $ queryT [jq|span.description|] changeInfo
 		authorName = firstNodeInnerText $ queryT [jq|span.author a|] changeInfo
@@ -140,15 +142,13 @@ parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) = if authorName ==
 parseBugNodes _ _ _ [] = []
 parseBugNodes _ _ _ [_] = error "parseBugNodes: invalid pattern!?"
 
--- TODO maybe rewrite this with viewpatterns and regex using rex.
-parseTimeOfDay :: T.Text -> (Int, Int)
-parseTimeOfDay timeOfDayStr = (hours, mins)
+parseTimeOfDay :: String -> (Int, Int)
+parseTimeOfDay [rex|(?{read -> hours}\d+)
+			:(?{read -> mins}\d+)
+			(?{ampm}am|pm)|] = (hours24, mins)
 	where
-		(_hoursStr:minsStr:[]) = T.splitOn ":" (T.take 5 timeOfDayStr)
-		(_hours:mins:[]) = fmap (Util.safePromise . decimal) [_hoursStr, minsStr]
-		hours = if (T.drop 6 timeOfDayStr == "pm") && (_hours < 12)
-			then _hours + 12
-			else _hours
+		hours24 = if (ampm == "pm") && (hours < 12)
+			then hours + 12 else hours
 
 isElement :: Node -> Bool
 isElement (NodeElement _) = True

@@ -32,6 +32,12 @@ runRedmineTests = do
 		mergeSuccessiveEvents [eventWithDesc "a (more)", eventWithDesc "a (extra)"]
 			`shouldBe` [eventWithDesc "a (more)"]
 
+	it "parses morning time" $ do
+		parseTimeOfDay "12:06am" `shouldBe` (12, 6)
+
+	it "parses afternoon time" $ do
+		parseTimeOfDay "2:28pm" `shouldBe` (14, 28)
+
 
 eventWithDesc :: T.Text -> Event
 eventWithDesc descVal = Event

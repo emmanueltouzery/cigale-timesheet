@@ -61,7 +61,7 @@ getRedmineEvents config _ day = do
 		http GET "/activity?show_wiki_edits=1&show_issues=1"
 		setHeader "Cookie" cookieValues
 	timezone <- getCurrentTimeZone
-	today <- date
+	today <- liftM utctDay getCurrentTime
 	return $ mergeSuccessiveEvents $ getIssues config response day today timezone
 
 mergeSuccessiveEvents :: [Event] -> [Event]
@@ -103,9 +103,6 @@ getIssues config html day today timezone = case maybeDayNode of
 		dayNodes = queryT [jq| div#content div#activity h3 |] doc
 		maybeDayNode = find (isDayTitle day today) dayNodes
 
-date :: IO Day
-date = liftM utctDay getCurrentTime
-
 isDayTitle :: Day -> Day -> Cursor -> Bool
 isDayTitle day today nod = dayTitle == (toStrict $ innerText (node nod))
 	where
@@ -118,7 +115,9 @@ getIssuesForDayNode :: RedmineConfig -> Day -> TimeZone -> Cursor -> [Event]
 getIssuesForDayNode config day timezone dayNode = parseBugNodes config day timezone bugNodes
 	where
 		bugNodes = filter (isElement . node) (child dlNode)
-		(Just dlNode) = find (isElement . node) (following dayNode)
+		dlNode = case find (isElement . node) (following dayNode) of
+			Just n -> n
+			Nothing -> error "can't find the DL node"
 
 parseBugNodes :: RedmineConfig -> Day -> TimeZone -> [Cursor] -> [Event]
 parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) =

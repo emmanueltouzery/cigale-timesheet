@@ -122,19 +122,18 @@ readCell = do
 
 parseDateTime :: T.GenParser st LocalTime
 parseDateTime = do
-	let parsedToIntM = liftM Util.parsedToInt
 	T.many $ T.char ' '
-	year <- liftM Util.parsedToInteger (count 4 digit)
+	year <- Util.parseNum 4
 	T.char '-'
-	month <- parsedToIntM (count 2 digit)
+	month <- Util.parseInt 2
 	T.char '-'
-	day <- parsedToIntM (count 2 digit)
+	day <- Util.parseInt 2
 	T.char ' '
-	hour <- parsedToIntM (count 2 digit)
+	hour <- Util.parseInt 2
 	T.char ':'
-	mins <- parsedToIntM (count 2 digit)
+	mins <- Util.parseInt 2
 	T.char ':'
-	seconds <- liftM fromIntegral $ parsedToIntM (count 2 digit)
+	seconds <- Util.parseNum 2
 	T.char ' '
 	oneOf "-+"
 	count 4 digit

@@ -23,6 +23,7 @@ import qualified OpenSSL.Session as SSL
 import qualified Data.Aeson as A
 import qualified Data.Attoparsec as AP
 import qualified Data.Functor.Identity as DFI
+import Control.Monad (liftM)
 
 import OpenSSL (withOpenSSL)
 
@@ -42,8 +43,14 @@ maybeHead (x:_) = Just x
 parsedToInt :: String -> Int
 parsedToInt digits = foldl ((+).(*10)) 0 (map digitToInt digits)
 
-parsedToInteger :: String -> Integer
-parsedToInteger = fromIntegral . parsedToInt
+parsedToNum :: Num a => String -> a
+parsedToNum = fromIntegral . parsedToInt
+
+parseInt :: Int -> T.GenParser st Int
+parseInt digitCount = liftM parsedToInt (count digitCount digit)
+
+parseNum :: Num a => Int -> T.GenParser st a
+parseNum digitCount = liftM parsedToNum (count digitCount digit)
 
 -- return the common prefix to all the files.
 -- http://www.haskell.org/pipermail/beginners/2011-April/006861.html

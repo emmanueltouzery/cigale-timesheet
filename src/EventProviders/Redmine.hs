@@ -144,11 +144,12 @@ parseBugNodes _ _ _ [_] = error "parseBugNodes: invalid pattern!?"
 
 parseTimeOfDay :: String -> (Int, Int)
 parseTimeOfDay [rex|(?{read -> hours}\d+)
-			:(?{read -> mins}\d+)
+			:(?{read -> mins}\d+)\s*
 			(?{ampm}am|pm)|] = (hours24, mins)
 	where
 		hours24 = if (ampm == "pm") && (hours < 12)
 			then hours + 12 else hours
+parseTimeOfDay x@_ = error $ "can't parse date " ++ x
 
 isElement :: Node -> Bool
 isElement (NodeElement _) = True

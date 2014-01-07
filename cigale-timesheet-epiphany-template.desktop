@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Cigale timesheet
+Exec=epiphany --application-mode --profile="$PROFILE_DIR" http://localhost:$APP_PORT/
+StartupNotify=true
+Terminal=false
+Type=Application
+Icon=cigale-timesheet
+NoDisplay=true

@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, DoAndIfThenElse #-}
 module Main where
 
 import Control.Applicative
@@ -16,6 +16,7 @@ import Network.TCP (openTCPPort)
 import Network.Stream (close)
 import Control.Concurrent (forkIO)
 import Control.Exception (try, SomeException)
+import Data.Maybe (isJust)
 
 import qualified Timesheet
 import Config (getConfigFileName, addPluginInConfig, updatePluginInConfig, deletePluginFromConfig)
@@ -44,10 +45,18 @@ openInBrowser = do
 	portOpen <- try (openTCPPort "127.0.0.1" appPort)
 	case portOpen of
 		Left (_ :: SomeException) -> openInBrowser
-		Right conn -> do
-			close conn
-			rawSystem "xdg-open" ["http://localhost:" ++ (show appPort)]
-			return ()
+		Right conn -> close conn >> openApp
+
+openApp :: IO ()
+openApp = do
+	epiphany <- hasProgram "epiphany"
+	if epiphany
+	then rawSystem "gtk-launch" ["cigale-timesheet-epiphany-computed"]
+	else rawSystem "xdg-open" ["http://localhost:" ++ (show appPort)]
+	return ()
+
+hasProgram :: String -> IO Bool
+hasProgram prog = liftM isJust (findExecutable prog)
 
 site :: FilePath -> Snap ()
 site installPath =

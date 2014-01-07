@@ -1,4 +1,5 @@
-#! /usr/bin/env runhaskell --user
+#! /usr/bin/env runhaskell --user -XOverloadedStrings
+{-# LANGUAGE OverloadedStrings #-}
 
 import Distribution.PackageDescription (PackageDescription(..))
 import Distribution.Simple
@@ -10,8 +11,13 @@ import System.IO
 import System.Process
 import System.Exit
 import System.Directory
-import Data.ByteString.Lazy as LBS (readFile)
+import qualified Data.ByteString.Lazy as LBS (readFile)
+import qualified Data.ByteString as BS (readFile, writeFile)
+import qualified Data.Text.Encoding as T
 import System.Process (rawSystem)
+import qualified Data.Text as T
+import Control.Monad (liftM)
+import System.FilePath
 
 -- probably message that you need zip-archive and fay and fay-jquery
 -- before attempting to build...
@@ -48,6 +54,19 @@ doPostBuild _ _ pkg_descr lbi = do
 	rawSystem "xdg-icon-resource" ["install", "--size", "64", "cigale-timesheet-64.png", "cigale-timesheet"]
 	rawSystem "xdg-icon-resource" ["install", "--size", "96", "cigale-timesheet-96.png", "cigale-timesheet"]
 	rawSystem "xdg-desktop-menu" ["install", "cigale-timesheet.desktop"]
+	prepareEpiphanySetup appDataDir
+
+prepareEpiphanySetup :: String -> IO ()
+prepareEpiphanySetup appDataDir = do
+	let profileDir = appDataDir ++ "/epiphany-profile-app-cigale-timesheet"
+	createDirectoryIfMissing True profileDir
+	desktopContents <- liftM T.decodeUtf8 (BS.readFile "cigale-timesheet-epiphany-template.desktop")
+	let computedContents = T.replace "$PROFILE_DIR" (T.pack profileDir)
+		$ T.replace "$APP_PORT" "8000" desktopContents -- TODO unhardcode the app port
+	let computedDesktopFile = profileDir ++ "/cigale-timesheet-epiphany-computed.desktop"
+	BS.writeFile computedDesktopFile (T.encodeUtf8 computedContents)
+	rawSystem "xdg-desktop-menu" ["install", computedDesktopFile]
+	copyFile "cigale-timesheet-96.png" (profileDir ++ "/app-icon.png")
 	return ()
 
 compileFay :: String -> String -> String -> FilePath -> IO ()

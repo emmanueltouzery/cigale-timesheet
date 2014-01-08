@@ -19,7 +19,7 @@ import Control.Exception (try, SomeException)
 import Data.Maybe (isJust)
 
 import qualified Timesheet
-import Config (getConfigFileName, addPluginInConfig, updatePluginInConfig, deletePluginFromConfig)
+import Config
 import Util (toStrict1)
 import Paths_cigale_timesheet
 
@@ -51,9 +51,15 @@ openApp :: IO ()
 openApp = do
 	epiphany <- hasProgram "epiphany"
 	if epiphany
-	then rawSystem "gtk-launch" ["cigale-timesheet-epiphany-computed"]
-	else rawSystem "xdg-open" ["http://localhost:" ++ (show appPort)]
+	then do
+		settingsFolder <- Config.getSettingsFolder
+		let profileDir = settingsFolder ++ "/epiphany-profile-app-cigale-timesheet"
+		createDirectoryIfMissing True profileDir
+		rawSystem "epiphany" ["--application-mode", "--profile=" ++ profileDir, url]
+	else rawSystem "xdg-open" [url]
 	return ()
+	where
+		url = "http://localhost:" ++ (show appPort)
 
 hasProgram :: String -> IO Bool
 hasProgram prog = liftM isJust (findExecutable prog)

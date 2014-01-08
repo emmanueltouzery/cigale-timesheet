@@ -54,19 +54,6 @@ doPostBuild _ _ pkg_descr lbi = do
 	rawSystem "xdg-icon-resource" ["install", "--size", "64", "cigale-timesheet-64.png", "cigale-timesheet"]
 	rawSystem "xdg-icon-resource" ["install", "--size", "96", "cigale-timesheet-96.png", "cigale-timesheet"]
 	rawSystem "xdg-desktop-menu" ["install", "cigale-timesheet.desktop"]
-	prepareEpiphanySetup appDataDir
-
-prepareEpiphanySetup :: String -> IO ()
-prepareEpiphanySetup appDataDir = do
-	let profileDir = appDataDir ++ "/epiphany-profile-app-cigale-timesheet"
-	createDirectoryIfMissing True profileDir
-	desktopContents <- liftM T.decodeUtf8 (BS.readFile "cigale-timesheet-epiphany-template.desktop")
-	let computedContents = T.replace "$PROFILE_DIR" (T.pack profileDir)
-		$ T.replace "$APP_PORT" "8000" desktopContents -- TODO unhardcode the app port
-	let computedDesktopFile = profileDir ++ "/cigale-timesheet-epiphany-computed.desktop"
-	BS.writeFile computedDesktopFile (T.encodeUtf8 computedContents)
-	rawSystem "xdg-desktop-menu" ["install", computedDesktopFile]
-	copyFile "cigale-timesheet-96.png" (profileDir ++ "/app-icon.png")
 	return ()
 
 compileFay :: String -> String -> String -> FilePath -> IO ()

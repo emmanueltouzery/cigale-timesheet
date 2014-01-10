@@ -22,6 +22,8 @@ runGitTests = do
 	testMultipleCommits
 	testMultipleCommitsFirstIsMerge
 	testNoMessageUsualCommitWithCommitAfter
+	testTag
+	testTopDecorate
 
 testMerge :: Spec
 testMerge = it "parses merge commits" $ do
@@ -41,7 +43,8 @@ testMerge = it "parses merge commits" $ do
 				commitFiles = [],
 				commitAuthor = "David <t@a>",
 				commitContents = "<pre></pre>",
-				commitIsMerge = True
+				commitIsMerge = True,
+				commitTags = []
 			}
 		testParsecExpectFirst source parseCommitsParsec expected
 
@@ -65,7 +68,9 @@ testUsualCommit = it "parses usual commits" $ do
 				commitFiles = ["test/src/main/users.js"],
 				commitAuthor = "David <t@a>",
 				commitContents = "<pre>test/src/main/users.js | 2 ++</pre>",
-				commitIsMerge = False
+				commitIsMerge = False,
+				commitTags = []
+
 			}
 		testParsecExpectFirst source parseCommitsParsec expected
 
@@ -100,7 +105,9 @@ testMultipleCommits = it "parses multiple commits" $ do
 					commitFiles = ["test/src/main/users.js"],
 					commitAuthor = "David <t@a>",
 					commitContents = "<pre>test/src/main/users.js | 2 ++</pre>",
-					commitIsMerge = False
+					commitIsMerge = False,
+					commitTags = []
+
 				},
 				Commit
 				{
@@ -109,7 +116,8 @@ testMultipleCommits = it "parses multiple commits" $ do
 					commitFiles = ["test/src/main/users.js"],
 					commitAuthor = "Emm <t@a>",
 					commitContents = "<pre>test/src/main/users.js | 2 ++</pre>",
-					commitIsMerge = False
+					commitIsMerge = False,
+					commitTags = []
 				}
 			]
 		testParsecExpectVal source parseCommitsParsec expected
@@ -132,7 +140,9 @@ testCommitWithoutMessage = it "parses commits without message" $ do
 				commitFiles = ["test/src/main/users.js"],
 				commitAuthor = "David <t@a>",
 				commitContents = "<pre>test/src/main/users.js | 2 ++</pre>",
-				commitIsMerge = False
+				commitIsMerge = False,
+				commitTags = []
+
 			}
 		testParsecExpectFirst source parseCommitsParsec expected
 
@@ -165,7 +175,9 @@ testMultipleCommitsFirstIsMerge = it "parses multiple commits first is merge" $ 
 				commitFiles = [],
 				commitAuthor = "David B <david@b>",
 				commitContents = "<pre></pre>",
-				commitIsMerge = True
+				commitIsMerge = True,
+				commitTags = []
+
 			},
 			Commit
 			{
@@ -174,7 +186,8 @@ testMultipleCommitsFirstIsMerge = it "parses multiple commits first is merge" $ 
 				commitFiles = ["t/README.md"],
 				commitAuthor = "Emmanuel Touzery <etouzery@gmail.com>",
 				commitContents = "<pre>t/README.md | 2 +-</pre>",
-				commitIsMerge = False
+				commitIsMerge = False,
+				commitTags = []
 			}
 			]
 
@@ -204,7 +217,8 @@ testNoMessageUsualCommitWithCommitAfter = it "parses no message usual commit wit
 				commitFiles = ["src/main/webapp/users.js"],
 				commitAuthor = "David <D@E>",
 				commitContents = "<pre>src/main/webapp/users.js | 2 ++</pre>",
-				commitIsMerge = False
+				commitIsMerge = False,
+				commitTags = []
 			},
 			Commit
 			{
@@ -213,6 +227,60 @@ testNoMessageUsualCommitWithCommitAfter = it "parses no message usual commit wit
 				commitFiles = [],
 				commitAuthor = "da <da@gmail.com>",
 				commitContents = "<pre></pre>",
-				commitIsMerge = True
+				commitIsMerge = True,
+				commitTags = []
+			}
+			]
+
+				--commit 5caac9d1df215e71173a35b008b79dbe86050783 (HEAD, origin/master, origin/HEAD, master)
+testTopDecorate :: Spec
+testTopDecorate = it "parses the top commit with decorate" $ do
+		let source = [strT|
+				commit 5caac9d1df215e71173a35b008b79dbe86050783 (HEAD, origin/master, origin/HEAD, master)
+				Author: Emmanuel Touzery <>
+				Date:   Fri Jan 10 15:13:28 2014 +0100
+				
+				    that code really needed fixing
+				
+				 .../project/folder/file.java   | 25 +++++++++++++---------
+				 1 file changed, 15 insertions(+), 10 deletions(-)
+				
+				|]
+		testParsecExpectVal source parseCommitsParsec [
+			Commit
+			{
+				commitDate = LocalTime (fromGregorian 2014 1 10) (TimeOfDay 15 13 28),
+				commitDesc = Just "that code really needed fixing",
+				commitFiles = [".../project/folder/file.java"],
+				commitAuthor = "Emmanuel Touzery <>",
+				commitContents = "<pre>.../project/folder/file.java   | 25 +++++++++++++---------</pre>",
+				commitIsMerge = False,
+				commitTags = []
+			}
+			]
+
+testTag :: Spec
+testTag = it "creates an event for a tag" $ do
+		let source= [strT|
+				commit c903dc999b30f2f2c7bb657e3785bf335d953e42 (tag: v13.12.2a)
+				Author: Emmanuel Touzery <>
+				Date:   Wed Dec 11 21:11:07 2013 +0100
+				
+				    last commit before release
+				
+				 .../project/folder/file.java      | 58 +++++++++++-----------
+				 1 file changed, 29 insertions(+), 29 deletions(-)
+				
+				|]
+		testParsecExpectVal source parseCommitsParsec [
+			Commit
+			{
+				commitDate = LocalTime (fromGregorian 2013 12 11) (TimeOfDay 21 11 07),
+				commitDesc = Just "last commit before release",
+				commitFiles = [".../project/folder/file.java"],
+				commitAuthor = "Emmanuel Touzery <>",
+				commitContents = "<pre>.../project/folder/file.java      | 58 +++++++++++-----------</pre>",
+				commitIsMerge = False,
+				commitTags = ["v13.12.2a"]
 			}
 			]

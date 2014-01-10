@@ -10,7 +10,7 @@ import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
 import qualified Data.Text as T
 import qualified Data.Text.IO as IO
-import Data.List (isInfixOf, intercalate)
+import Data.List (isInfixOf, intercalate, foldl')
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.Maybe
 import Control.Monad (liftM)
@@ -43,7 +43,7 @@ getRepoCommits (GitRecord _username _projectPath) _ date = do
 			"log", "--since", formatDate $ addDays (-1) date,
 			"--until", formatDate $ addDays 1 date,
 	--		"--author=\"" ++ username ++ "\"",
-			"--stat", "--all"])
+			"--stat", "--all", "--decorate"])
 		{
 			Process.std_out = Process.CreatePipe,
 			Process.cwd = Just projectPath
@@ -58,29 +58,50 @@ getRepoCommits (GitRecord _username _projectPath) _ date = do
 			error "GIT parse error, aborting"
 			--return []
 		Right allCommits -> do
-			let relevantCommits = filter (isCommitRelevant date username) allCommits
-			return $ map (toEvent _projectPath timezone) relevantCommits
+			let relevantCommits = filter (isRelevantCommit date username) allCommits
+			let commitsList = map (commitToEvent _projectPath timezone) relevantCommits
+			let tagCommits = filter (isRelevantTagCommit date) allCommits
+			let tagsList = map (tagToEvent _projectPath timezone) tagCommits
+			return $ commitsList ++ tagsList
 
-isCommitRelevant :: Day -> String -> Commit -> Bool
-isCommitRelevant date username commit = and $ map ($ commit) [
+isRelevantCommit :: Day -> String -> Commit -> Bool
+isRelevantCommit date username commit = and $ map ($ commit) [
 			(isInfixOf username) . commitAuthor,
-			inRange . localDay . commitDate,
+			commitInRange date,
 			not . commitIsMerge]
+
+isRelevantTagCommit :: Day -> Commit -> Bool
+isRelevantTagCommit date commit = and $ map ($ commit) [
+			commitInRange date,
+			not . null . commitTags]
+
+commitInRange :: Day -> Commit -> Bool
+commitInRange date = inRange . localDay . commitDate
 	where
 		inRange tdate = (tdate >= date && tdate < (addDays 1 date))
 	
-toEvent :: T.Text -> TimeZone -> Commit -> Event.Event
-toEvent gitFolderPath timezone commit =
-	Event.Event
+commitToEvent :: T.Text -> TimeZone -> Commit -> Event.Event
+commitToEvent gitFolderPath timezone commit = Event.Event
+			{
+				pluginName = getModuleName getGitProvider,
+				eventDate = (localTimeToUTC timezone (commitDate commit)),
+				desc = case commitDesc commit of
+				  	Nothing -> "no commit message"
+				  	Just x -> x,
+				extraInfo = getCommitExtraInfo commit gitFolderPath,
+				fullContents = Just $ T.pack $ commitContents commit
+			}
+
+tagToEvent :: T.Text -> TimeZone -> Commit -> Event.Event
+tagToEvent gitFolderPath timezone commit = baseEvent
 		{
-			pluginName = getModuleName getGitProvider,
-			eventDate = (localTimeToUTC timezone (commitDate commit)),
-			desc = case commitDesc commit of
-			  	Nothing -> "no commit message"
-			  	Just x -> x,
-			extraInfo = getCommitExtraInfo commit gitFolderPath,
-			fullContents = Just $ T.pack $ commitContents commit
+			desc = descVal,
+			extraInfo = "Tag applied",
+			fullContents = Nothing
 		}
+	where
+		baseEvent = commitToEvent gitFolderPath timezone commit
+		descVal = T.intercalate ", " $ map T.pack $ commitTags commit
 
 getCommitExtraInfo :: Commit -> T.Text -> T.Text
 getCommitExtraInfo commit gitFolderPath = if atRoot filesRoot then gitRepoName else filesRoot
@@ -105,7 +126,8 @@ data Commit = Commit
 		commitFiles :: [String],
 		commitAuthor :: String,
 		commitContents :: String,
-		commitIsMerge :: Bool
+		commitIsMerge :: Bool,
+		commitTags :: [String]
 	}
 	deriving (Eq, Show)
 
@@ -117,10 +139,42 @@ parseMerge = do
 	string "Merge: "
 	readLine
 
+parseDecoration :: T.GenParser st [String]
+parseDecoration = do
+	string " ("
+	decorationItems <- many1 $ do
+		val <- parseTag <|> parseParent
+		optional $ string ", "
+		return val
+	string ")"
+	return $ map (\(Tag a) -> a) $ filter isTag decorationItems
+
+data DecorationItem = Parent String
+	| Tag String
+	deriving Show
+
+isTag :: DecorationItem -> Bool
+isTag (Tag _) = True
+isTag _ = False
+
+parseTag :: T.GenParser st DecorationItem
+parseTag = do
+	string "tag: "
+	tag <- many1 (T.noneOf ",)")
+	return $ Tag tag
+
+parseParent :: T.GenParser st DecorationItem
+parseParent = do
+	parent <- many1 (T.noneOf ",)")
+	return $ Parent parent
+
 parseCommit :: T.GenParser st Commit
 parseCommit = do
 	string "commit "
-	commit <- readLine
+	commitSha <- many1 $ T.noneOf " \n\r"
+	tags <- option [] parseDecoration
+	many1 $ T.oneOf "\r\n"
+	
 	mergeInfo <- optionMaybe parseMerge
 	string "Author: "
 	author <- readLine
@@ -164,7 +218,8 @@ parseCommit = do
 			case parse parseFiles "" (T.pack $ fromJust filesText) of
 				Right cFiles -> return (fmap snd cFiles, fmap fst cFiles)
 				Left pe -> do
-					error $ "GIT file list parse error, aborting; commit is " ++ commit ++ " " ++ Util.displayErrors pe
+					error $ "GIT file list parse error, aborting; commit is "
+						++ commitSha ++ " " ++ Util.displayErrors pe
 					return ([],[])
 				
 		Nothing -> return ([], [])
@@ -177,7 +232,8 @@ parseCommit = do
 			commitFiles = cFileNames,
 			commitAuthor = T.unpack $ T.strip $ T.pack author,
 			commitContents = "<pre>" ++ intercalate "<br/>\n" cFilesDesc ++ "</pre>",
-			commitIsMerge = isJust mergeInfo
+			commitIsMerge = isJust mergeInfo,
+			commitTags = tags
 		}
 	where
 		isFiles = not . null . filter (== '\n')

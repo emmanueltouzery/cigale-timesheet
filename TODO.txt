@@ -1,5 +1,12 @@
 maybe move to a design where the list of events on the left doesn't have several columns but rather info is presented top-left, bottom-left, top-right with different font sizes like the github windows GUI:
 https://f.cloud.github.com/assets/634063/1312375/caa1f49a-3233-11e3-88d2-625850022752.png
+could use those icons:
+* skype -> glyphicon glyphicon-comment
+* git+svn+hg -> glyphicon glyphicon-cog
+* email -> glyphicon glyphicon-envelope
+* redmine bugs -> lyphicon glyphicon-tasks
+* redmine wiki -> glyphicon glyphicon-pencil
+* ical -> glyphicon glyphicon-calendar
 
 should be able to make parseDateTime in Hg.hs and surely elsewhere too nicer by using parsec's parseNatural:
 Text.Parsec.Token

@@ -1,3 +1,6 @@
+maybe move to a design where the list of events on the left doesn't have several columns but rather info is presented top-left, bottom-left, top-right with different font sizes like the github windows GUI:
+https://f.cloud.github.com/assets/634063/1312375/caa1f49a-3233-11e3-88d2-625850022752.png
+
 should be able to make parseDateTime in Hg.hs and surely elsewhere too nicer by using parsec's parseNatural:
 Text.Parsec.Token
 Also can get rid of Util.parsedToInteger and parsedToInt..
@@ -32,13 +35,11 @@ display attachments list (name+mimetype) -> probably use this to return images: 
 
 so that the app stops when the browser tab is closed, have the client send periodical ping (heartbeat) and have the server commit suicide if not receiving it some time.
 
-waste of vertical space due to the calendar. maybe move to read-only text containing the full date time (Tuesday, 10 September, 2013), and pop-calendar
+waste of vertical space due to the calendar. maybe move to read-only text containing the full date time (Tuesday, 10 September,
+2013), and pop-calendar, or use that space for statistics about the day (first event at: last event at: total duration: )
 
 special file picker entry?  http://stackoverflow.com/a/18676841/516188
 differenciate String and FilePath, browse button for FilePath
-
-activity view: popup instead of sidebar? that or a min-width on the body to ensure the sidebar is always visible or something.
-=> maybe always visible+button to get display in a popup if there's too much data to fit in the sidebar.
 
 links broken in skype, see 2013-08-03
 
@@ -59,6 +60,6 @@ decent error message if the config file is corrupted?
 
 remove Util.toStrict1 once I can migrate to bytestring 0.10 (I think ghc 7.6)
 
-new sources: firefox google searches, maybe stackoverflow upvotes, dropbox subfolder
+new sources: firefox google searches, maybe stackoverflow upvotes/questions, dropbox subfolder
 activity, google docs?
 for firefox google searches: https://developer.mozilla.org/en-US/docs/The_Places_database

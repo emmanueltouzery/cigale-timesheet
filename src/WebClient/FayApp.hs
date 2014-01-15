@@ -2,7 +2,7 @@
 
 import Prelude hiding ((++))
 import FFI
-import JQuery hiding (Event)
+import JQuery hiding (Event, not)
 import qualified Fay.Text as T
 import Fay.Text (fromString, Text)
 import Knockout
@@ -78,6 +78,7 @@ processResults viewModel pleaseHold shadow events = do
 	let eventsObsV =  eventsObs viewModel
 	ko_removeAllObservableArray eventsObsV
 	mapM_ (\e -> ko_pushObservableArray eventsObsV (evtFormatTime e)) events
+	when (not $ null events) $ showSidebarCb viewModel (evtFormatTime $ head events)
 	hide Instantly pleaseHold
 	hide Instantly shadow
 	return ()

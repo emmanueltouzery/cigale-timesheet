@@ -102,6 +102,7 @@ toEvent :: [ChatRecord] -> Event
 toEvent chatRecords = Event
 		{
 			pluginName = getModuleName getSkypeProvider,
+			eventIcon = "glyphicon-comment",
 			eventDate = messageTime (head chatRecords),
 			desc = participantsStr,
 			extraInfo = extraInfoVal,

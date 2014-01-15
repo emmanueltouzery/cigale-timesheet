@@ -67,6 +67,7 @@ toEvent :: TimeZone -> Email -> Event.Event
 toEvent timezone email = Event.Event
 	{
 		Event.pluginName = getModuleName getEmailProvider,
+		Event.eventIcon = "glyphicon-envelope",
 		Event.eventDate = localTimeToUTC timezone (date email),
 		Event.desc = subject email,
 		Event.extraInfo = T.concat["to: ", to email],

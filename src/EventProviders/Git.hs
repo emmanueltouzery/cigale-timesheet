@@ -84,6 +84,7 @@ commitToEvent :: T.Text -> TimeZone -> Commit -> Event.Event
 commitToEvent gitFolderPath timezone commit = Event.Event
 			{
 				pluginName = getModuleName getGitProvider,
+				eventIcon = "glyphicon-cog",
 				eventDate = (localTimeToUTC timezone (commitDate commit)),
 				desc = case commitDesc commit of
 				  	Nothing -> "no commit message"

@@ -12,6 +12,7 @@ import qualified FayAeson
 data Event = Event
 	{
 		pluginName :: String,
+		eventIcon :: String,
 		eventDate :: UTCTime,
 		desc :: T.Text,
 		extraInfo :: T.Text,

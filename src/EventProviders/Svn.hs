@@ -78,6 +78,7 @@ toEvent timezone (Commit dateVal _ commentVal cFiles) =
 	Event.Event
 		{
 			pluginName = getModuleName getSvnProvider,
+			eventIcon = "glyphicon-cog",
 			eventDate = localTimeToUTC timezone dateVal,
 			desc = commentVal,
 			extraInfo = T.pack $ Util.getFilesRoot cFilesStr,

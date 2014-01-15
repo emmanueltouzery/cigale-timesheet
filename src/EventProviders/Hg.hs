@@ -60,6 +60,7 @@ toEvent timezone commit =
 	Event.Event
 		{
 			pluginName = getModuleName getHgProvider,
+			eventIcon = "glyphicon-cog",
 			eventDate = localTimeToUTC timezone (commitDate commit),
 			desc = commitDesc commit,
 			extraInfo = T.pack $ Util.getFilesRoot $ commitFiles commit,

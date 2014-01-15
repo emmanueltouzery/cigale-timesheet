@@ -117,6 +117,7 @@ keyValuesToEvent :: Map String CalendarValue -> Event.Event
 keyValuesToEvent records = Event.Event
 			{
 				pluginName = getModuleName getIcalProvider,
+				eventIcon = "glyphicon-calendar",
 				eventDate = startDate,
 				desc = descV,
 				extraInfo = extraInfoV,

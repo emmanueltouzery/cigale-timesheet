@@ -10,13 +10,10 @@ import Utils
 
 (++) = T.append
 
--- TODO copy-pasted from Main.Event.hs for now...
--- I would prefer not to have the NullEvent constructor
--- and instead have "Nullable Event" in the viewmodel,
--- but it didn't work.
 data Event = Event
 	{
 		pluginName :: Text,
+		eventIcon :: Text,
 		eventDate :: Text,
 		desc :: Text,
 		extraInfo :: Text, 
@@ -26,6 +23,7 @@ data Event = Event
 -- I would prever to implement Eq for Event,
 -- but it didn't work.
 x === y = (eventDate x) == (eventDate y) &&
+		(eventIcon x) == (eventIcon y) &&
 		(pluginName x) == (pluginName y) &&
 		(desc x) == (desc y) &&
 		(extraInfo x) == (extraInfo y)
@@ -98,7 +96,7 @@ setSidebar :: Text -> Fay JQuery
 setSidebar text = select "#sidebar" >>= setScrollTop 0 >>= (setHtml $ text)
 
 evtFormatTime :: Main.Event -> Main.Event
-evtFormatTime event = event { eventDate = formatTime $ eventDate event}
+evtFormatTime event = event { eventDate = formatTime $ eventDate event }
 
 formatTime :: Text -> Text
 formatTime = ffi "formatTime(%1)"

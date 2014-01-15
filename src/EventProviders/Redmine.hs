@@ -125,6 +125,7 @@ parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) =
 		then Event
 			{
 				pluginName = getModuleName getRedmineProvider,
+				eventIcon = "glyphicon-tasks",
 				desc = bugTitle,
 				extraInfo =  bugComment,
 				fullContents = Nothing,

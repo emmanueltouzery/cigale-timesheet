@@ -84,6 +84,12 @@
 			display: block; /* needed for overflow
 			to work, http://stackoverflow.com/a/4457290/516188 */
 		}
+
+		.ellipsis {
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
 	</style>
 	<script type="text/javascript" src="/static/jquery-2.0.3.min.js"></script>
 	<script type='text/javascript' src='/static/jquery-ui-1.9.2.custom/js/jquery-ui-1.9.2.custom.min.js'></script>
@@ -159,23 +165,29 @@
 	<div id="pleasehold">Please hold...</div>
 
 	<div class="row vert_limited">
-		<div class="col-xs-7 fully_responsive">
+		<div class="col-xs-5 fully_responsive">
 		<table id="eventsTable" class="table">
 			<thead>
-			<tr><th>Time</th>
-				<th>Event type</th><th>Description</th><th>Extra info</th></tr>
+			<tr><th>Events</th>
 			</thead>
 			<tbody data-bind="foreach: eventsObs">
 				<tr data-bind="css: {active: $root.isActive($root, $data)}, click: function() {$root.showSidebar($root, $data);}">
-					<td data-bind="text: eventDate"></td>
-					<td data-bind="text: pluginName"></td>
-					<td data-bind="text: desc"></td>
-					<td data-bind="text: extraInfo"></td>
+					<td style="height:60px; width: 500px;">
+					<div style="position:relative;">
+						<span data-bind="attr: { 'class': 'glyphicon ' + eventIcon }" style="font-size: 2em; margin: 5px;"></span>
+						<div style="margin-left: 5px; display: inline; width: 100%">
+							<b><span data-bind="text: eventDate" style="position: absolute; top: 0px; font-size: 1.1em"></span></b>
+							<span data-bind="text: pluginName" style="position: absolute; top: 34px; left: 0px; color: gray; font-size: 0.8em; width:38px; text-align: center;"></span>
+							<span data-bind="text: desc" style="position: absolute; top: 20px; width: 400px;" class="ellipsis"></span>
+							<span data-bind="text: extraInfo" style="right: 0px; position: absolute; max-width: 350px;" class="ellipsis"></span>
+						</div>
+					</div>
+				</td>
 				</tr>
 			</tbody>
 		</table>
 		</div>
-		<div class="col-xs-5 fully_responsive">
+		<div class="col-xs-7 fully_responsive">
 			<div id="sidebar"></div>
 		</div>
 	</div>

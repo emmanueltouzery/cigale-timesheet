@@ -194,6 +194,10 @@
 		<div class="fully_responsive" style="position: relative; right: 0px; min-height: 1px; padding-left: 15px; padding-right: 15px;">
 			<div id="sidebar">
 			<!-- ko if: selectedEvent() !== null -->
+			<div class="page-header" style="margin-top: 0px;">
+				<h3 data-bind="text: selectedEvent().desc"></h3>
+				<h4 data-bind="text: selectedEvent().extraInfo"></h4>
+			</div>
 			<span data-bind="html: selectedEvent().fullContents"></span>
 			<!-- /ko -->
 			</div>

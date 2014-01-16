@@ -71,7 +71,6 @@ handleError pleaseHold shadow jqXhr textStatus errorThrown = do
 
 processResults :: MainViewModel -> JQuery -> JQuery -> [Main.Event] -> Fay ()
 processResults viewModel pleaseHold shadow events = do
-	setSidebar ""
 	table <- select "table#eventsTable tbody"
 	empty table
 	setScrollTop 0 table
@@ -86,15 +85,12 @@ processResults viewModel pleaseHold shadow events = do
 showSidebarCb :: MainViewModel -> Event -> Fay ()
 showSidebarCb vm event = do
 	ko_set (selectedEvent vm) event
-	setSidebar $ nullable "" id (fullContents event)
+	select "#sidebar" >>= setScrollTop 0
 	return ()
 
 nullable :: b -> (a->b) -> Nullable a -> b
 nullable b _ Null = b
 nullable _ f (Nullable x) = f x
-
-setSidebar :: Text -> Fay JQuery
-setSidebar text = select "#sidebar" >>= setScrollTop 0 >>= (setHtml $ text)
 
 evtFormatTime :: Main.Event -> Main.Event
 evtFormatTime event = event { eventDate = formatTime $ eventDate event }

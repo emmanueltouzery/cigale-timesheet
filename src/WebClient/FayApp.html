@@ -192,7 +192,11 @@
 		</table>
 		</div>
 		<div class="fully_responsive" style="position: relative; right: 0px; min-height: 1px; padding-left: 15px; padding-right: 15px;">
-			<div id="sidebar"></div>
+			<div id="sidebar">
+			<!-- ko if: selectedEvent() !== null -->
+			<span data-bind="html: selectedEvent().fullContents"></span>
+			<!-- /ko -->
+			</div>
 		</div>
 	</div>
   </body>

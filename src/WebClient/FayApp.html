@@ -130,12 +130,26 @@
 			}
 		}
 
+		function dateAddDays(days) {
+			var date2 = $('#datepicker').datepicker('getDate');
+			date2.setDate(date2.getDate()+days);
+			$('#datepicker').datepicker('setDate', date2);
+			// http://bugs.jqueryui.com/ticket/8066
+			$(".ui-datepicker-current-day").trigger("click");
+		}
+
 		function setupDatepicker(callback) {
-			$( "#datepicker" ).datepicker({
-				inline: true,
+			$("#datepicker").datepicker({
 				onSelect: callback,
 				firstDay: 1,
 				dateFormat: 'yy-mm-dd'
+			}).datepicker('setDate', '0');
+
+			$('#previousDay').click(function() {
+				dateAddDays(-1);
+			});
+			$('#nextDay').click(function() {
+				dateAddDays(1);
 			});
 		}
 	</script>
@@ -163,7 +177,17 @@
 		</div><!-- /.navbar-collapse -->
 	</nav>
 
-	<div id="datepicker"></div>
+	<p style="margin-left: 10px;">
+	Day to display:
+
+	<button id="previousDay" class="btn btn-default btn-xs" type="button">
+		<span class="glyphicon glyphicon-step-backward"></span>
+	</button>
+	<input id="datepicker" type="text" id="datepicker" size="10"></input>
+	<button id="nextDay" class="btn btn-default btn-xs" type="button">
+		<span class="glyphicon glyphicon-step-forward"></span>
+	</button>
+	</p>
 
 	<div id="shadow"></div> 
 	<div id="pleasehold">Please hold...</div>

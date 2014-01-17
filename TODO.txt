@@ -1,3 +1,5 @@
+remove lib/ folder and instead install JS dependencies using NPM.
+
 should be able to make parseDateTime in Hg.hs and surely elsewhere too nicer by using parsec's parseNatural:
 Text.Parsec.Token
 Also can get rid of Util.parsedToInteger and parsedToInt..

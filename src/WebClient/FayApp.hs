@@ -10,6 +10,8 @@ import Utils
 
 (++) = T.append
 
+data JDate
+
 data Event = Event
 	{
 		pluginName :: Text,
@@ -30,6 +32,7 @@ x === y = (eventDate x) == (eventDate y) &&
 
 data MainViewModel = MainViewModel
 	{
+		displayedDate :: Observable JDate,
 		eventsObs :: ObservableArray Event,
 		selectedEvent :: Observable Event,
 		showSidebar :: MainViewModel -> Event -> Fay (),
@@ -40,8 +43,10 @@ instance KnockoutModel MainViewModel
 main :: Fay ()
 main = ready $ do
 	eventsObsV <- ko_observableList []
+	jsDate <- getJsDate "1970-01-01"
 	let viewModel = MainViewModel
 		{
+			displayedDate = ko_observable jsDate,
 			eventsObs = eventsObsV,
 			showSidebar = showSidebarCb,
 			selectedEvent = ko_observable NullEvent,
@@ -55,12 +60,17 @@ main = ready $ do
 
 fetchDay :: MainViewModel -> Text -> Fay ()
 fetchDay viewModel dayStr = do
+	jdate <- getJsDate dayStr
+	ko_set (displayedDate viewModel) jdate
 	pleaseHold <- select "#pleasehold"
 	shadow <- select "#shadow"
 	unhide shadow
 	unhide pleaseHold
 	myajax ("/timesheet/" ++ dayStr) (processResults viewModel pleaseHold shadow)
 		(handleError pleaseHold shadow)
+
+getJsDate :: Text -> Fay JDate
+getJsDate = ffi "new Date(Date.parse(%1 + 'T00:00:00'))"
 
 handleError :: JQuery -> JQuery -> JqXHR -> Text -> Text -> Fay ()
 handleError pleaseHold shadow jqXhr textStatus errorThrown = do

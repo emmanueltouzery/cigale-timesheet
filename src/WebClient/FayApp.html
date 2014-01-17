@@ -102,6 +102,9 @@
 	<script src="/static/knockout-2.3.0.js"></script>
 	
 	<script type="text/javascript">
+		var weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday",
+				"Thursday", "Friday", "Saturday"];
+
 		function formatTime(dateString) {
 			var dateObj = new Date(dateString);
 			var mins = dateObj.getMinutes()
@@ -109,8 +112,7 @@
 		}
 
 		function todayServerDate() {
-			var now = new Date();
-			return now.getFullYear() + "-" + (now.getMonth()+1) + "-" + now.getDate();
+			return (new Date()).toISOString().slice(0, 10);
 		}
 
 		// http://stackoverflow.com/a/646631/516188
@@ -178,15 +180,24 @@
 	</nav>
 
 	<p style="margin-left: 10px;">
+	<table>
+	<tr><td>
 	Day to display:
-
-	<button id="previousDay" class="btn btn-default btn-xs" type="button">
+	</td><td>
+	<button id="previousDay" class="btn btn-default btn-sm" type="button">
 		<span class="glyphicon glyphicon-step-backward"></span>
 	</button>
-	<input id="datepicker" type="text" id="datepicker" size="10"></input>
-	<button id="nextDay" class="btn btn-default btn-xs" type="button">
+	</td><td>
+	<div class="input-group">
+		<!-- <span class="input-group-addon" data-bind="text: weekdays[displayedDate().getDay()]"></span> -->
+		<span class="input-group-addon" data-bind="text: weekdays[displayedDate().getDay()]"></span>
+		<input id="datepicker" type="text" class="form-control" size="10" style="width:auto;"></input>
+	</div>
+	</td><td>
+	<button id="nextDay" class="btn btn-default btn-sm" type="button">
 		<span class="glyphicon glyphicon-step-forward"></span>
 	</button>
+	</td></tr></table>
 	</p>
 
 	<div id="shadow"></div> 

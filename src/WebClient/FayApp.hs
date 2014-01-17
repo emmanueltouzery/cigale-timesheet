@@ -87,7 +87,9 @@ processResults viewModel pleaseHold shadow events = do
 	let eventsObsV =  eventsObs viewModel
 	ko_removeAllObservableArray eventsObsV
 	mapM_ (\e -> ko_pushObservableArray eventsObsV (evtFormatTime e)) events
-	when (not $ null events) $ showSidebarCb viewModel (evtFormatTime $ head events)
+	if (null events)
+		then showSidebarCb viewModel NullEvent
+		else showSidebarCb viewModel (evtFormatTime $ head events)
 	hide Instantly pleaseHold
 	hide Instantly shadow
 	return ()

@@ -122,12 +122,14 @@
 
 		function overwriteCss() {
 			// http://stackoverflow.com/questions/730048/how-to-change-remove-css-classes-definitions-at-runtime
+			// that's I think the most ugly code of the whole frontend...
+			// I'm absolutely certain there's a much better way to achieve this.
 			var rules = document.styleSheets[0].cssRules;
-			var calendarHeight = $('#datepicker').height();
+			var calendarHeight = $('table#datepickheader').height();
 			for (var i=0;i<rules.length;i++) {
 				if (startsWith(rules[i].cssText, '.vert_limited')) {
-					// add 15 for margins
-					rules[i].style.height = "calc(100% - " + (calendarHeight+15) + "px)";
+					// add 25 for margins
+					rules[i].style.height = "calc(100% - " + (calendarHeight+25) + "px)";
 				}
 			}
 		}
@@ -180,7 +182,7 @@
 	</nav>
 
 	<p style="margin-left: 10px;">
-	<table>
+	<table id="datepickheader">
 	<tr><td>
 	Day to display:
 	</td><td>

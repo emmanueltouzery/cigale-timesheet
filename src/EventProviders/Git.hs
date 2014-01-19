@@ -15,7 +15,7 @@ import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.Maybe
 import Control.Monad (liftM)
 
-import Event as Event
+import Event
 import qualified Util
 import EventProvider
 
@@ -65,30 +65,28 @@ getRepoCommits (GitRecord _username _projectPath) _ date = do
 			return $ commitsList ++ tagsList
 
 isRelevantCommit :: Day -> String -> Commit -> Bool
-isRelevantCommit date username commit = and $ map ($ commit) [
-			(isInfixOf username) . commitAuthor,
+isRelevantCommit date username commit = all ($ commit) [
+			isInfixOf username . commitAuthor,
 			commitInRange date,
 			not . commitIsMerge]
 
 isRelevantTagCommit :: Day -> Commit -> Bool
-isRelevantTagCommit date commit = and $ map ($ commit) [
+isRelevantTagCommit date commit = all ($ commit) [
 			commitInRange date,
 			not . null . commitTags]
 
 commitInRange :: Day -> Commit -> Bool
 commitInRange date = inRange . localDay . commitDate
 	where
-		inRange tdate = (tdate >= date && tdate < (addDays 1 date))
+		inRange tdate = tdate >= date && tdate < addDays 1 date
 	
 commitToEvent :: T.Text -> TimeZone -> Commit -> Event.Event
 commitToEvent gitFolderPath timezone commit = Event.Event
 			{
 				pluginName = getModuleName getGitProvider,
 				eventIcon = "glyphicon-cog",
-				eventDate = (localTimeToUTC timezone (commitDate commit)),
-				desc = case commitDesc commit of
-				  	Nothing -> "no commit message"
-				  	Just x -> x,
+				eventDate = localTimeToUTC timezone (commitDate commit),
+				desc = fromMaybe "no commit message" (commitDesc commit),
 				extraInfo = getCommitExtraInfo commit gitFolderPath,
 				fullContents = Just $ T.pack $ commitContents commit
 			}
@@ -113,7 +111,7 @@ getCommitExtraInfo commit gitFolderPath = if atRoot filesRoot then gitRepoName e
 
 formatDate :: Day -> String
 formatDate day =
-	(show year) ++ "-" ++ (show month) ++ "-" ++ (show dayOfMonth)
+	show year ++ "-" ++ show month ++ "-" ++ show dayOfMonth
 	where
 		(year, month, dayOfMonth) = toGregorian day
 
@@ -215,8 +213,7 @@ parseCommit = do
 	--traceShow (summary, filesText) (optional eol)
 
 	(cFileNames, cFilesDesc) <- case filesText of
-		Just filesContents -> do
-			case parse parseFiles "" (T.pack $ fromJust filesText) of
+		Just filesContents -> case parse parseFiles "" (T.pack $ fromJust filesText) of
 				Right cFiles -> return (fmap snd cFiles, fmap fst cFiles)
 				Left pe -> do
 					error $ "GIT file list parse error, aborting; commit is "
@@ -237,7 +234,7 @@ parseCommit = do
 			commitTags = tags
 		}
 	where
-		isFiles = not . null . filter (== '\n')
+		isFiles = any (== '\n')
 
 readLine :: T.GenParser st String
 readLine = do

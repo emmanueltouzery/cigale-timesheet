@@ -8,13 +8,12 @@ import Distribution.Simple.Setup (ConfigFlags, InstallFlags, BuildFlags)
 import Distribution.Simple.InstallDirs
 
 import System.IO
-import System.Process
 import System.Exit
 import System.Directory
 import qualified Data.ByteString.Lazy as LBS (readFile)
 import qualified Data.ByteString as BS (readFile, writeFile)
 import qualified Data.Text.Encoding as T
-import System.Process (rawSystem)
+import System.Process (runCommand, waitForProcess, rawSystem)
 import qualified Data.Text as T
 import Control.Monad (liftM)
 import System.FilePath
@@ -62,7 +61,7 @@ compileFay sourceFolder filename targetFilename appDataDir = do
 		++ sourceFolder ++ filename ++ " -o "
 		++ appDataDir ++ "/" ++ targetFilename ++ " --pretty"
 	putStrLn command
-	exitCode <- (runCommand command) >>= waitForProcess
+	exitCode <- runCommand command >>= waitForProcess
 	case exitCode of
 		ExitSuccess -> return ()
 		ExitFailure _ -> exitWith exitCode

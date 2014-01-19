@@ -63,7 +63,7 @@ testParseEmailDate :: Spec
 testParseEmailDate = it "parses email date" $
 	assertEqual "doesn't match" expected (parseEmailDate "Sep 27 20:46:35 2013")
 		where
-			expected = LocalTime (fromGregorian 2013 9 27) (TimeOfDay 20 46 (fromIntegral 35))
+			expected = LocalTime (fromGregorian 2013 9 27) (TimeOfDay 20 46 35)
 
 testParseMultipartBody :: Spec
 testParseMultipartBody = it "parses multipart body" $ do
@@ -372,7 +372,7 @@ testMboxMessage = it "parses a message from start to end" $ do
 	let msg = MboxMessage "sender" "Jan 23 6:0:5 2013" source "file" 0
 	let expected = Email
 		{
-			date = LocalTime (fromGregorian 2013 1 23) (TimeOfDay 6 0 (fromIntegral 5)),
+			date = LocalTime (fromGregorian 2013 1 23) (TimeOfDay 6 0 5),
 			to = "'a b' <a.b@test.com>",
 			cc = Nothing,
 			subject = "test",
@@ -405,7 +405,7 @@ testMboxMessageQP = it "parses a quoted-printable plain text message from start 
 	let msg = MboxMessage "sender" "Jan 23 6:0:5 2013" source "file" 0
 	let expected = Email
 		{
-			date = LocalTime (fromGregorian 2013 1 23) (TimeOfDay 6 0 (fromIntegral 5)),
+			date = LocalTime (fromGregorian 2013 1 23) (TimeOfDay 6 0 5),
 			to = "'a b' <a.b@test.com>",
 			cc = Nothing,
 			subject = "test",
@@ -472,7 +472,7 @@ testMboxMultipartMessage = it "parses a multipart message from start to end" $ d
 	let msg = MboxMessage "sender" "Jan 23 6:0:5 2013" source "file" 0
 	let expected = Email
 		{
-			date = LocalTime (fromGregorian 2013 1 23) (TimeOfDay 6 0 (fromIntegral 5)),
+			date = LocalTime (fromGregorian 2013 1 23) (TimeOfDay 6 0 5),
 			to = "c d <c@test.com>",
 			cc = Nothing,
 			subject = "Re: FW: Test",
@@ -524,7 +524,7 @@ testDifferentMessage = it "parses a different message" $ do
 	let msg = MboxMessage "sender" "Jan 23 6:0:5 2013" source "file" 0
 	let expected = Email
 		{
-			date = LocalTime (fromGregorian 2013 1 23) (TimeOfDay 6 0 (fromIntegral 5)),
+			date = LocalTime (fromGregorian 2013 1 23) (TimeOfDay 6 0 5),
 			to = "\"'C D'\" <c.d@e>",
 			cc = Nothing,
 			subject = "RE: FW: Test",

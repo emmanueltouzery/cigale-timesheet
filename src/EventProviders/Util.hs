@@ -67,16 +67,15 @@ zipLists :: [[a]] -> [[a]]
 zipLists list = takeWhile (\x -> length x == length list) $ transpose list
 
 parsecParse :: (Show a1, T.Stream a1 DFI.Identity t) => T.Parsec a1 () a -> a1 -> a
-parsecParse parser input = do
-	case parse parser "" input of
-		Left pe -> error $ "parse error: " ++ displayErrors pe ++ " >> input >> " ++ (show input)
+parsecParse parser input = case parse parser "" input of
+		Left pe -> error $ "parse error: " ++ displayErrors pe ++ " >> input >> " ++ show input
 		Right result -> result
 
 displayErrors :: ParseError -> String
 displayErrors pe = concat $ fmap messageString' (errorMessages pe) ++
 		["position: ", displayErrorPos $ errorPos pe]
 	where
-		displayErrorPos pos = (show $ sourceLine pos) ++ ":" ++ (show $ sourceColumn pos)
+		displayErrorPos pos = show (sourceLine pos) ++ ":" ++ show (sourceColumn pos)
 
 messageString' :: Message -> String
 messageString' msg

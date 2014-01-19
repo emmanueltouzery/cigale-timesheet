@@ -10,8 +10,7 @@ import EventProviderTests
 import EmailTests
 
 main :: IO ()
-main = do
-	hspec $ do
+main = hspec $ do
 	describe "Email tests" runEmailTests
 	describe "STR tests" runStrTests
 	describe "GIT tests" runGitTests

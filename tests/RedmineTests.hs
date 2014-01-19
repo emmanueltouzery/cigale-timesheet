@@ -15,28 +15,26 @@ import Redmine
 
 runRedmineTests :: Spec
 runRedmineTests = do
-	it "works ok with empty" $ do
+	it "works ok with empty" $
 		mergeSuccessiveEvents [] `shouldBe` []
 
-	it "works ok with single element" $ do
+	it "works ok with single element" $
 		mergeSuccessiveEvents [eventWithDesc "a"] `shouldBe` [eventWithDesc "a"]
 
-	it "does merge" $ do
+	it "does merge" $
 		mergeSuccessiveEvents [eventWithDesc "a", eventWithDesc "a"] `shouldBe` [eventWithDesc "a"]
 
-	it "does not merge too much" $ do
+	it "does not merge too much" $
 		mergeSuccessiveEvents [eventWithDesc "a", eventWithDesc "b"]
 			`shouldBe` [eventWithDesc "a", eventWithDesc "b"]
 
-	it "does merge also if titles differ a bit" $ do
+	it "does merge also if titles differ a bit" $
 		mergeSuccessiveEvents [eventWithDesc "a (more)", eventWithDesc "a (extra)"]
 			`shouldBe` [eventWithDesc "a (more)"]
 
-	it "parses morning time" $ do
-		parseTimeOfDay "12:06 am" `shouldBe` (12, 6)
+	it "parses morning time" $ parseTimeOfDay "12:06 am" `shouldBe` (12, 6)
 
-	it "parses afternoon time" $ do
-		parseTimeOfDay "2:28 pm" `shouldBe` (14, 28)
+	it "parses afternoon time" $ parseTimeOfDay "2:28 pm" `shouldBe` (14, 28)
 
 
 eventWithDesc :: T.Text -> Event

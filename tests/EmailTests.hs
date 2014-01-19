@@ -40,11 +40,11 @@ runEmailTests = do
 	testDifferentMessage
 
 testEmail1 :: Spec
-testEmail1 = it "parses a simple email structure" $ do
+testEmail1 = it "parses a simple email structure" $
 	assertEqual "doesn't match" "after headers" (parseMultipartBody "separator" "\n\nThis is a multi-part message in MIME format.\n--separator\nContent-Type: text/plain\n\nfirstpart\n--separator\nContent-Type: text/html\n\nafter headers\n--separator--")
 
 testEmail2 :: Spec
-testEmail2 = it "parses a simple email structure" $ do
+testEmail2 = it "parses a simple email structure" $
 	assertEqual "doesn't match" "firstpart" (parseMultipartBody "separator" "\n\n--separator\nContent-Type: text/html\n\nfirstpart\n--separator\n\nContent-Type: text/plain\n\nafter headers\n--separator--\n")
 
 testMimeNonUtf :: Spec

@@ -17,8 +17,7 @@ testParsecExpectFirst = testParsecExpectTransform head
 
 testParsecExpectTransform :: (Eq b, Show b) => (a->b) -> T.Text 
 		-> (T.Text -> Either ParseError a) -> b -> Assertion
-testParsecExpectTransform trans source parser expected = do
-	case parser source of
+testParsecExpectTransform trans source parser expected = case parser source of
 		(Right x) -> assertEqual "Parse succeeded, value doesn't match"
 			expected (trans x)
 		Left pe -> assertBool ("Parse failed" ++ displayErrors pe) False

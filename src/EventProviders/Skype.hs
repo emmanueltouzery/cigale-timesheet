@@ -81,7 +81,7 @@ splitChat = splitByCompare notTooFar
 -- TODO maybe unfoldr would make sense here...
 splitByCompare :: ((a,a)->Bool) -> [a] -> [[a]]
 splitByCompare _ [] = []
-splitByCompare notTooFar records = ((head records : firstSeries) : splitByCompare notTooFar remains)
+splitByCompare notTooFar records = (head records : firstSeries) : splitByCompare notTooFar remains
 	where
 		(firstSeries, remains) = sndOnly $ span notTooFar $ zip records (tail records)
 		sndOnly (a,b) = (fmap snd a, fmap snd b)
@@ -111,7 +111,7 @@ toEvent chatRecords = Event
 	where
 		participantsStr = T.intercalate ", " $ sort participants
 		participants = nub $ map messageAuthor chatRecords
-		extraInfoVal = T.pack $ (show $ length chatRecords) ++ " messages, lasted " ++ durationStr
+		extraInfoVal = T.pack $ show (length chatRecords) ++ " messages, lasted " ++ durationStr
 		durationStr = T.unpack $ Util.formatDurationSec $ diffUTCTime lastTime firstTime
 		lastTime = messageTime (last chatRecords)
 		firstTime = messageTime (head chatRecords)

@@ -234,7 +234,7 @@ parseCommit = do
 			commitTags = tags
 		}
 	where
-		isFiles = any (== '\n')
+		isFiles = elem '\n'
 
 readLine :: T.GenParser st String
 readLine = do

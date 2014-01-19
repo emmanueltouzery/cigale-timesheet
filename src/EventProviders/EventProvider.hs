@@ -6,7 +6,6 @@ module EventProvider (thGetTypeDesc,
 	ConfigDataType(..), ConfigDataInfo(..)) where
 
 import qualified Data.Text as T
---import Data.Map
 import Data.Time.Calendar
 import Data.Aeson
 import Language.Haskell.TH
@@ -25,7 +24,7 @@ data ConfigDataInfo = ConfigDataInfo
 $(deriveLift ''ConfigDataInfo)
 $(deriveFromJSON defaultOptions ''ConfigDataInfo)
 instance ToJSON ConfigDataInfo where
-     toJSON = (FayAeson.addInstance "ConfigDataInfo") . $(mkToJSON defaultOptions ''ConfigDataInfo)
+     toJSON = FayAeson.addInstance "ConfigDataInfo" . $(mkToJSON defaultOptions ''ConfigDataInfo)
 
 data ConfigDataType = ConfigDataType
 	{
@@ -35,11 +34,11 @@ data ConfigDataType = ConfigDataType
 
 $(deriveFromJSON defaultOptions ''ConfigDataType)
 instance ToJSON ConfigDataType where
-     toJSON = (FayAeson.addInstance "ConfigDataType") . $(mkToJSON defaultOptions ''ConfigDataType)
+     toJSON = FayAeson.addInstance "ConfigDataType" . $(mkToJSON defaultOptions ''ConfigDataType)
 
 formatTypeName :: Type -> String
 formatTypeName (ConT x) = nameBase x
-formatTypeName (AppT ListT x) = "[" ++ (formatTypeName x) ++ "]"
+formatTypeName (AppT ListT x) = "[" ++ formatTypeName x ++ "]"
 formatTypeName x@_ = "fallback " ++ show x
 
 showField :: (Name,Type) -> ConfigDataInfo
@@ -87,7 +86,7 @@ eventProviderWrap (EventProvider innerGetModName innerGetEvents innerGetConfigTy
 						Error msg -> error msg
 						Success a -> a
 				in
-				\value -> innerGetEvents (decodeVal value),
+				innerGetEvents . decodeVal,
 		getConfigType = innerGetConfigType
 	}
 

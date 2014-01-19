@@ -59,7 +59,7 @@ processConfigElement provider configValue =
 		(provider, (\(Success x) -> x) $ fromJSON configValue)
 
 writeConfiguration :: (FromJSON a, ToJSON a) => [(EventProvider a, a)] -> IO ()
-writeConfiguration config = getConfigFileName >>= (flip BL.writeFile) jsonToWrite
+writeConfiguration config = getConfigFileName >>= flip BL.writeFile jsonToWrite
 		where
 			jsonToWrite = encode $ groupByProvider config HashMap.empty
 
@@ -72,7 +72,7 @@ groupByProvider ((plugin, config):xs) result = groupByProvider xs (case HashMap.
 			moduleName = getModuleName plugin
 
 addPluginInConfig :: BS.ByteString -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)
-addPluginInConfig (T.unpack . TE.decodeUtf8 -> pluginName) configJson = do
+addPluginInConfig (T.unpack . TE.decodeUtf8 -> pluginName) configJson =
 	case decodeIncomingConfigElt pluginName configJson of
 		Nothing -> return $ Left $ BS.concat ["invalid new config info ", configJson]
 		Just newElt -> do
@@ -93,7 +93,7 @@ deletePluginFromConfig oldCfgItemStr (T.unpack . TE.decodeUtf8 -> pluginName) = 
 	case configWithoutItem of
 		Nothing -> return $ Left "Error removing"
 		Just configWithoutThisSource -> do
-			writeConfiguration $ configWithoutThisSource
+			writeConfiguration configWithoutThisSource
 			return $ Right ""
 
 updatePluginInConfig :: BS.ByteString -> BS.ByteString -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)
@@ -113,7 +113,7 @@ updatePluginInConfig oldCfgItemStr (T.unpack . TE.decodeUtf8 -> pluginName) conf
 
 isConfigItem :: String -> HashMap T.Text Value -> (EventProvider Value, Value) -> Bool
 isConfigItem pluginName oldConfig (provider, config)
-	| pluginName /= (getModuleName provider) = False
+	| pluginName /= getModuleName provider = False
 	| otherwise = allValuesMatch oldConfig config
 
 -- Will return Nothing if removing from config failed,

@@ -33,7 +33,7 @@ processConfig monthStr config = do
 
 	putStrLn "before the fetching..."
 	settings <- getGlobalSettings 
-	allEventsSeq <- sequence $ map (uncurry $ fetchProvider settings date) config
+	allEventsSeq <- mapM (uncurry $ fetchProvider settings date) config
 	let allEvents = foldl' (++) [] allEventsSeq
 	let sortedEvents = sortWith Event.eventDate allEvents
 	--let noNullSortedEvents = map (\e -> e {
@@ -55,7 +55,7 @@ processConfig monthStr config = do
 			print $ last sortedEvents
 			return BL.empty
 	where
-		outOfRange start end time = time < (LocalTime start midnight) || time > (LocalTime end midnight)
+		outOfRange start end time = time < LocalTime start midnight || time > LocalTime end midnight
 
 parseDate :: String -> Day
 parseDate [rex|^(?{read -> y}\d+)
@@ -66,13 +66,13 @@ parseDate x@_ = error $ "Invalid date: " ++ x
 getGlobalSettings :: IO GlobalSettings
 getGlobalSettings = do
 	settingsFolder <- Config.getSettingsFolder
-	return $ GlobalSettings { getSettingsFolder = settingsFolder }
+	return GlobalSettings { getSettingsFolder = settingsFolder }
 
 fetchProvider :: GlobalSettings -> Day -> EventProvider Value -> Value -> IO [Event]
 fetchProvider settings day provider config = do
-	putStrLn $ "fetching from " ++ (getModuleName provider)
+	putStrLn $ "fetching from " ++ getModuleName provider
 	events <- getEvents provider config settings day
-	putStrLn $ "found " ++ (show $ length events) ++ " events."
+	putStrLn $ "found " ++ show (length events) ++ " events."
 	return events
 
 data PluginConfig = PluginConfig
@@ -81,7 +81,7 @@ data PluginConfig = PluginConfig
 		cfgPluginConfig :: [ConfigDataInfo]
 	}
 instance ToJSON PluginConfig where
-    toJSON = (FayAeson.addInstance "PluginConfig") . $(mkToJSON defaultOptions ''PluginConfig)
+    toJSON = FayAeson.addInstance "PluginConfig" . $(mkToJSON defaultOptions ''PluginConfig)
 
 getEventProvidersConfig :: BL.ByteString
 getEventProvidersConfig = JSON.encode $ fmap getPluginConfig EventProviders.plugins

@@ -59,7 +59,7 @@ openApp = do
 	else rawSystem "xdg-open" [url]
 	return ()
 	where
-		url = "http://localhost:" ++ (show appPort)
+		url = "http://localhost:" ++ show appPort
 
 hasProgram :: String -> IO Bool
 hasProgram prog = liftM isJust (findExecutable prog)
@@ -88,7 +88,7 @@ timesheet = do
 handleTimesheet :: BS.ByteString -> Snap ()
 handleTimesheet tsparam = do
 	jsonData <- liftIO $ Timesheet.process $ TE.decodeUtf8 tsparam
-	liftIO $ putStrLn $ "OK i have all the json -- bytes: " ++ (show $ DBLC.length jsonData)
+	liftIO $ putStrLn $ "OK i have all the json -- bytes: " ++ show (DBLC.length jsonData)
 	writeLBS jsonData
 
 configdesc :: Snap ()
@@ -115,7 +115,7 @@ deleteConfigEntry = do
 	let mOldCfgPluginName = sequence [mOldCfg, mPluginName]
 	case mOldCfgPluginName of
 		Just (oldCfg:pName:[]) ->
-			(liftIO $ deletePluginFromConfig oldCfg pName) >>= setResponse
+			liftIO (deletePluginFromConfig oldCfg pName) >>= setResponse
 		_ -> setResponse $ Left "delete: parameters missing"
 
 updateConfigEntry :: Snap ()
@@ -141,7 +141,7 @@ processConfigFromBody handler = do
 	case pName of
 		Just _pName -> do
 			configJson <- liftM toStrict1 (readRequestBody 65536)
-			(liftIO $ handler _pName configJson) >>= setResponse
+			liftIO (handler _pName configJson) >>= setResponse
 		_ -> setResponse $ Left "add config: pluginName not specified"
 
 setResponse :: Either BS.ByteString BS.ByteString -> Snap ()

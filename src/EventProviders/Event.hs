@@ -21,4 +21,4 @@ data Event = Event
 	deriving (Eq, Show)
 
 instance ToJSON Event where
-     toJSON = (FayAeson.addInstance "Event") . $(mkToJSON defaultOptions ''Event)
+     toJSON = FayAeson.addInstance "Event" . $(mkToJSON defaultOptions ''Event)

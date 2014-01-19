@@ -24,11 +24,11 @@ data Event = Event
 
 -- I would prever to implement Eq for Event,
 -- but it didn't work.
-x === y = (eventDate x) == (eventDate y) &&
-		(eventIcon x) == (eventIcon y) &&
-		(pluginName x) == (pluginName y) &&
-		(desc x) == (desc y) &&
-		(extraInfo x) == (extraInfo y)
+x === y = eventDate x == eventDate y &&
+		eventIcon x == eventIcon y &&
+		pluginName x == pluginName y &&
+		desc x == desc y &&
+		extraInfo x == extraInfo y
 
 data MainViewModel = MainViewModel
 	{
@@ -56,7 +56,7 @@ main = ready $ do
 	ko_applyBindings viewModel
 	setupDatepicker (fetchDay viewModel)
 	overwriteCss
-	todayServerDate >>= (fetchDay viewModel)
+	todayServerDate >>= fetchDay viewModel
 
 fetchDay :: MainViewModel -> Text -> Fay ()
 fetchDay viewModel dayStr = do
@@ -86,17 +86,16 @@ processResults viewModel pleaseHold shadow events = do
 	setScrollTop 0 table
 	let eventsObsV =  eventsObs viewModel
 	ko_removeAllObservableArray eventsObsV
-	mapM_ (\e -> ko_pushObservableArray eventsObsV (evtFormatTime e)) events
-	if (null events)
-		then showSidebarCb viewModel NullEvent
-		else showSidebarCb viewModel (evtFormatTime $ head events)
+	mapM_ (ko_pushObservableArray eventsObsV . evtFormatTime) events
+	let eventToDisplay = if null events then NullEvent else evtFormatTime $ head events
+	showSidebarCb viewModel eventToDisplay
 	hide Instantly pleaseHold
 	hide Instantly shadow
 	return ()
 
 showSidebarCb :: MainViewModel -> Event -> Fay ()
 showSidebarCb vm event = do
-	ko_set (selectedEvent vm) event
+	event ~> selectedEvent vm
 	select "#sidebar" >>= setScrollTop 0
 	return ()
 

@@ -43,6 +43,7 @@ eventWithDesc :: T.Text -> Event
 eventWithDesc descVal = Event
 	{
 		pluginName = getModuleName getRedmineProvider,
+		eventIcon = "glyphicon-tasks",
 		eventDate = UTCTime (fromGregorian 2012 4 23) 0,
 		desc = descVal,
 		extraInfo = "",

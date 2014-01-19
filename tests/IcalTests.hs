@@ -44,6 +44,7 @@ testBasicEvent = it "parses basic ICAL event" $ do
 	let expected = Event
 		{
 			pluginName = getModuleName getIcalProvider,
+			eventIcon = "glyphicon-calendar",
 			eventDate = UTCTime (fromGregorian 2013 4 17)
 				(secondsToDiffTime $ 7*3600+30*60),
 			desc = "spent a lot of time researching bus tables for position records",

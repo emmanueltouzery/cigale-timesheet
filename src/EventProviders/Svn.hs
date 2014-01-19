@@ -14,7 +14,7 @@ import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Control.Monad (liftM)
 
 import qualified Util
-import Event as Event
+import Event
 import EventProvider
 
 import Text.Regex.PCRE.Rex
@@ -164,7 +164,7 @@ formatDateRange startDate endDate =
 
 formatDate :: Day -> String
 formatDate day =
-	"{" ++ (show year) ++ "-" ++ (show month) ++ "-" ++ (show dayOfMonth) ++ "}"
+	"{" ++ show year ++ "-" ++ show month ++ "-" ++ show dayOfMonth ++ "}"
 	where
 		(year, month, dayOfMonth) = toGregorian day
 

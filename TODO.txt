@@ -1,4 +1,6 @@
-remove lib/ folder and instead install JS dependencies using NPM.
+knockout functions: inconsistent naming observable array/list, also move to camelCase
+
+remove lib/ folder and instead install JS dependencies using NPM?
 
 should be able to make parseDateTime in Hg.hs and surely elsewhere too nicer by using parsec's parseNatural:
 Text.Parsec.Token
@@ -16,8 +18,6 @@ cancel button in the loading throbber. especially when we first launch the app, 
 bootstrap date picker instead of jquery-ui?
 
 try to get JS functions getKeys and toJsObject in my Utils.hs as inline in FFI to avoid to depend on the HTML source.
-
-knockout functions: inconsistent naming observable array/list
 
 redmine is almost useless, must show bug status change at the moment of the event.
 

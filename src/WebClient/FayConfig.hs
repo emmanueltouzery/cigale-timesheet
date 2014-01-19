@@ -49,7 +49,7 @@ jvAsTextHash = map (\(k,v) -> (k, jvGetString v)) . jvAsHash
 -- a phantom type and it has different
 -- semantics (notably I shouldn't evaluate it)
 jvHashVal :: Text -> JvHash -> Maybe (Text, JValue)
-jvHashVal key hash = find ((==key) . fst) hash -- >>= (Just . snd)
+jvHashVal key = find ((==key) . fst) -- >>= (Just . snd)
 
 jvGetString :: JValue -> Text
 jvGetString = ffi "%1 + ''"
@@ -176,9 +176,9 @@ getConfigSection configValue pluginConfigs = do
 	where
 		userSettingsList = jvArray $ snd configValue
 		mPluginConfig = find ((== fst configValue) . cfgPluginName) pluginConfigs
-		pluginConfig = case mPluginConfig of
-			Just x -> x
-			Nothing -> error $ "The app doesn't know about plugin type " ++ (fst configValue)
+		pluginConfig = fromMaybe
+			(error $ "The app doesn't know about plugin type " ++ fst configValue)
+			mPluginConfig
 
 -- hmm... doesn't the configsection include the jvalue?
 addEditModuleAction :: ConfigViewModel -> PluginConfig -> Maybe (ConfigSection, JValue) -> Fay ()
@@ -199,13 +199,13 @@ addEditModuleAction vm pluginConfig maybeConfigValue = do
 	let clickCallback = case maybeConfigValue of
 		Nothing -> addPluginConfig vm pluginConfig
 		Just (configSection, existingConfig) ->
-			(ko_get $ configurationOriginalValue cfgAddEditVm) >>=
+			ko_get (configurationOriginalValue cfgAddEditVm) >>=
 				updatePluginConfig vm configSection pluginName
-	let warningTextV = case hasPasswords pluginConfig of
-		True -> "Warning: passwords are stored in plain text in the configuration file!"
-		False -> ""
+	let warningTextV = if hasPasswords pluginConfig
+		then "Warning: passwords are stored in plain text in the configuration file!"
+		else ""
 	modalVM <- prepareModal (Primary "Save changes") pluginName "configEditTemplate" clickCallback modal vm
- 	warningTextV ~> (warningText modalVM)
+ 	warningTextV ~> warningText modalVM
 	bootstrapModal modal
 
 hasPasswords :: PluginConfig -> Bool
@@ -228,13 +228,13 @@ prepareModal action title template clickCallback modal vm = do
 			errorText = ko_observable "",
 			warningText = ko_observable ""
 		}
-	modalV ~> (modalDialogVM vm)
+	modalV ~> modalDialogVM vm
 	return modalV
 	where
 		(btnType, actionText) = case action of
 			Primary x -> ("primary", x)
 			Danger x -> ("danger", x)
-			_ -> error $ "Unknown action: " ++ (tshow action)
+			_ -> error $ "Unknown action: " ++ tshow action
 
 bootstrapModal :: JQuery -> Fay ()
 bootstrapModal = ffi "%1.modal('show')"
@@ -261,7 +261,7 @@ deleteConfigItemAction vm section userSetting = do
 		closePopup
 
 editConfigItemCb :: ConfigViewModel -> ConfigSection -> JValue -> Fay ()
-editConfigItemCb vm section userSetting = do
+editConfigItemCb vm section userSetting =
 	addEditModuleAction vm (pluginInfo section) (Just (section, userSetting))
 
 updatePluginConfig :: ConfigViewModel -> ConfigSection -> Text -> JValue -> Fay ()
@@ -269,8 +269,8 @@ updatePluginConfig vm configSection pluginName oldConfig = do
 	newConfigJValue <- ko_get (configurationBeingEdited $ configAddEditVM vm)
 	let newConfig = jvAsTextHash newConfigJValue
 	let newConfigObj = jvArrayToObject newConfig
-	let parm = jvGetString $ jqParam (tshow $ oldConfig)
-	let url = ("/config?pluginName=" ++ pluginName ++ "&oldVal=" ++ parm)
+	let parm = jvGetString $ jqParam (tshow oldConfig)
+	let url = "/config?pluginName=" ++ pluginName ++ "&oldVal=" ++ parm
 	ajxPut url newConfigObj (showError vm) $ do
 		ko_replaceElementObservableArray (userSettings configSection) oldConfig newConfigObj
 		closePopup
@@ -303,8 +303,7 @@ findOrCreateSection vm pluginConfig = do
 			return newSection
 
 closePopup :: Fay ()
-closePopup = do
-	select "#myModal" >>= bootstrapModalHide
+closePopup = select "#myModal" >>= bootstrapModalHide
 
 showError :: ConfigViewModel -> Fay ()
 showError vm = do
@@ -328,7 +327,7 @@ getPluginElementHtml :: JValue -> ConfigDataInfo -> Fay Text
 getPluginElementHtml config dataInfo = do
 	let memberNameV = memberName dataInfo
 	let memberValue = jvGetString (jvValue config memberNameV)
-	let memberValueDisplay = case (memberType dataInfo) of
+	let memberValueDisplay = case memberType dataInfo of
 		"Password" -> T.pack $ replicate (T.length memberValue) '*'
 		_ -> memberValue
 	return $ memberNameV ++ " " ++ memberValueDisplay

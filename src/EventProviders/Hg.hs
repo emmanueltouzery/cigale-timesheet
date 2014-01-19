@@ -13,7 +13,7 @@ import qualified Data.Text.IO as IO
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Control.Monad (liftM)
 
-import Event as Event
+import Event
 import qualified Util
 import EventProvider
 
@@ -69,7 +69,7 @@ toEvent timezone commit =
 
 formatDate :: Day -> String
 formatDate day =
-	(show year) ++ "-" ++ (show month) ++ "-" ++ (show dayOfMonth)
+	show year ++ "-" ++ show month ++ "-" ++ show dayOfMonth
 	where
 		(year, month, dayOfMonth) = toGregorian day
 

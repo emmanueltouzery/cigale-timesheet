@@ -7,7 +7,6 @@ import Data.ByteString.Char8 as Char8 (split, pack)
 import Data.ByteString.Lazy (fromChunks)
 import System.IO.Streams (write)
 import Network.Http.Client
-import Data.Maybe
 import Data.Text as T (Text(..), splitOn, pack, unpack, span, take, drop)
 import Data.Text.Read (decimal)
 import Data.Text.Encoding as TE
@@ -27,7 +26,7 @@ import Text.XML.Selector.TH
 import Text.XML.Scraping
 import Text.HTML.DOM (parseLBS)
 
-import qualified Util as Util
+import qualified Util
 import Event
 import EventProvider
 
@@ -55,7 +54,7 @@ getRedmineProvider = EventProvider
 getRedmineEvents :: RedmineConfig -> GlobalSettings -> Day -> IO [Event]
 getRedmineEvents config _ day = do
 	maybeCookie <- login config
-	let cookieValues = head $ (split ';') $ fromJust maybeCookie
+	let cookieValues = head $ split ';' $ fromJust maybeCookie
 	let activityUrl = prepareActivityUrl day
 	response <- Util.http activityUrl "" concatHandler $ do
 		http GET "/activity?show_wiki_edits=1&show_issues=1"
@@ -65,11 +64,11 @@ getRedmineEvents config _ day = do
 	return $ mergeSuccessiveEvents $ getIssues config response day today timezone
 
 mergeSuccessiveEvents :: [Event] -> [Event]
-mergeSuccessiveEvents (x:xs) = x : (mergeSuccessiveEvents $ dropWhile firstPartMatches xs)
+mergeSuccessiveEvents (x:xs) = x : mergeSuccessiveEvents (dropWhile firstPartMatches xs)
 	where
 		firstPartMatches y = firstPart y == firstPartX
 		firstPartX = firstPart x
-		firstPart = head . (T.splitOn "(") . desc
+		firstPart = head . T.splitOn "(" . desc
 mergeSuccessiveEvents [] = []
 
 -- mergeSuccessiveEvents :: [Event] -> [Event]
@@ -88,8 +87,7 @@ prepareActivityUrl day = BS.concat ["http://redmine/activity?from=", dayBeforeSt
 
 -- returns the cookie
 login :: RedmineConfig -> IO (Maybe ByteString)
-login config = do
-	postForm
+login config = postForm
 		(BS.concat [redmineUrl config, "login"])
 		[("username", redmineUsername config), ("password", redminePassword config)]
 		(\r _ -> return $ getHeader r "Set-Cookie")
@@ -104,7 +102,7 @@ getIssues config html day today timezone = case maybeDayNode of
 		maybeDayNode = find (isDayTitle day today) dayNodes
 
 isDayTitle :: Day -> Day -> Cursor -> Bool
-isDayTitle day today nod = dayTitle == (toStrict $ innerText (node nod))
+isDayTitle day today nod = dayTitle == toStrict (innerText (node nod))
 	where
 		(y, m, d) = toGregorian day
 		dayTitle = T.pack $ if day == today
@@ -115,9 +113,8 @@ getIssuesForDayNode :: RedmineConfig -> Day -> TimeZone -> Cursor -> [Event]
 getIssuesForDayNode config day timezone dayNode = parseBugNodes config day timezone bugNodes
 	where
 		bugNodes = filter (isElement . node) (child dlNode)
-		dlNode = case find (isElement . node) (following dayNode) of
-			Just n -> n
-			Nothing -> error "can't find the DL node"
+		dlNode = fromMaybe (error "can't find the DL node")
+				(find (isElement . node) (following dayNode))
 
 parseBugNodes :: RedmineConfig -> Day -> TimeZone -> [Cursor] -> [Event]
 parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) =
@@ -130,7 +127,7 @@ parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) =
 				extraInfo =  bugComment,
 				fullContents = Nothing,
 				eventDate = localTimeToUTC timezone localTime
-			} : (parseBugNodes config day timezone rest)
+			} : parseBugNodes config day timezone rest
 		else parseBugNodes config day timezone rest
 	where
 		bugTitle = firstNodeInnerText [jq|a|] bugInfo

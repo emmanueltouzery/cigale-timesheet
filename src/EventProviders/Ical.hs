@@ -65,8 +65,8 @@ getCalendarEvents (IcalRecord icalAddress) settings day = do
 		Left pe -> do
 			putStrLn $ "iCal: parse error: " ++ Util.displayErrors pe
 			putStrLn $ "line:col: " 
-				++ (show $ sourceLine $ errorPos pe) 
-				++ ":" ++ (show $ sourceColumn $ errorPos pe)
+				++ show (sourceLine $ errorPos pe) 
+				++ ":" ++ show (sourceColumn $ errorPos pe)
 			error "Ical parse error, aborting"
 			--return []
 		Right x -> return $ convertToEvents day x
@@ -82,8 +82,7 @@ readFromWWW :: B.ByteString -> String -> IO T.Text
 readFromWWW icalAddress settingsFolder = do
 	putStrLn "reading from WWW"
 	--icalData <- withSocketsDo $ Util.http icalAddress "" concatHandler $ do
-	icalData <- Util.http icalAddress "" concatHandler $ do
-		http GET icalAddress
+	icalData <- Util.http icalAddress "" concatHandler $ http GET icalAddress
 	putStrLn "read from WWW"
 	let icalText = TE.decodeUtf8 icalData
 	putInCache settingsFolder icalText
@@ -109,7 +108,7 @@ parseEvent :: T.GenParser st (Map String CalendarValue)
 parseEvent = do
 	parseBegin
 	keyValues <- manyTill
-		((T.try parseSubLevel) <|> (T.try parseKeyValue))
+		(T.try parseSubLevel <|> T.try parseKeyValue)
 		(T.try parseEnd)
 	return $ Map.fromList keyValues
 
@@ -178,15 +177,12 @@ hasCachedVersionForDay settingsFolder day = do
 		Nothing -> return False
 		Just cachedDate -> return $ day < cachedDate
 
-cacheFilename :: String -> IO String
-cacheFilename settingsFolder = do
-	--settingsFolder <- Settings.getSettingsFolder
-	return $ settingsFolder ++ "cached-calendar.ical"
-	--return "cached-calendar.ical"
+cacheFilename :: String -> String
+cacheFilename settingsFolder = settingsFolder ++ "cached-calendar.ical"
 
 cachedVersionDate :: String -> IO (Maybe Day)
 cachedVersionDate settingsFolder = do
-	fname <- cacheFilename settingsFolder
+	let fname = cacheFilename settingsFolder
 	modifTime <- IOEx.tryIOError $ Dir.getModificationTime fname
 	case modifTime of
 		Left _ -> return Nothing
@@ -195,13 +191,13 @@ cachedVersionDate settingsFolder = do
 readFromCache :: String -> IO T.Text
 readFromCache settingsFolder = do
 	putStrLn "reading calendar from cache!"
-	fname <- cacheFilename settingsFolder
+	let fname = cacheFilename settingsFolder
 	fmap T.pack (readFile fname)
 
 
 putInCache :: String -> T.Text -> IO ()
 putInCache settingsFolder text = do
-	fname <- cacheFilename settingsFolder
+	let fname = cacheFilename settingsFolder
 	fileH <- openFile fname WriteMode
 	T.hPutStr fileH text
 	hClose fileH

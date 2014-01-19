@@ -33,7 +33,7 @@ x === y = eventDate x == eventDate y &&
 data MainViewModel = MainViewModel
 	{
 		displayedDate :: Observable JDate,
-		eventsObs :: ObservableArray Event,
+		eventsObs :: ObservableList Event,
 		selectedEvent :: Observable Event,
 		showSidebar :: MainViewModel -> Event -> Fay (),
 		isActive :: MainViewModel -> Event -> Fay Bool
@@ -42,18 +42,18 @@ instance KnockoutModel MainViewModel
 
 main :: Fay ()
 main = ready $ do
-	eventsObsV <- ko_observableList []
+	eventsObsV <- koObservableList []
 	jsDate <- getJsDate "1970-01-01"
 	let viewModel = MainViewModel
 		{
-			displayedDate = ko_observable jsDate,
+			displayedDate = koObservable jsDate,
 			eventsObs = eventsObsV,
 			showSidebar = showSidebarCb,
-			selectedEvent = ko_observable NullEvent,
-			isActive = \vm event -> liftM (=== event) (ko_get $ selectedEvent vm)
+			selectedEvent = koObservable NullEvent,
+			isActive = \vm event -> liftM (=== event) (koGet $ selectedEvent vm)
 		}
 	
-	ko_applyBindings viewModel
+	koApplyBindings viewModel
 	setupDatepicker (fetchDay viewModel)
 	overwriteCss
 	todayServerDate >>= fetchDay viewModel
@@ -61,7 +61,7 @@ main = ready $ do
 fetchDay :: MainViewModel -> Text -> Fay ()
 fetchDay viewModel dayStr = do
 	jdate <- getJsDate dayStr
-	ko_set (displayedDate viewModel) jdate
+	koSet (displayedDate viewModel) jdate
 	pleaseHold <- select "#pleasehold"
 	shadow <- select "#shadow"
 	unhide shadow
@@ -85,8 +85,8 @@ processResults viewModel pleaseHold shadow events = do
 	empty table
 	setScrollTop 0 table
 	let eventsObsV =  eventsObs viewModel
-	ko_removeAllObservableArray eventsObsV
-	mapM_ (ko_pushObservableArray eventsObsV . evtFormatTime) events
+	koRemoveAllObservableList eventsObsV
+	mapM_ (koPushObservableList eventsObsV . evtFormatTime) events
 	let eventToDisplay = if null events then NullEvent else evtFormatTime $ head events
 	showSidebarCb viewModel eventToDisplay
 	hide Instantly pleaseHold

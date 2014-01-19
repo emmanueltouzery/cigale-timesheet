@@ -6,23 +6,23 @@
 
 module Knockout
   ( Observable
-  , ko_observable
-  , ko_computed
-  , ko_get
-  , ko_set
+  , koObservable
+  , koComputed
+  , koGet
+  , koSet
 
-  , ObservableArray
-  , ko_observableList
-  , ko_pushObservableArray
-  , ko_pushAllObservableArray
-  , ko_unwrapObservableArray
-  , ko_removeAllObservableArray
-  , ko_removeObservableArray
-  , ko_replaceElementObservableArray
+  , ObservableList
+  , koObservableList
+  , koPushObservableList
+  , koPushAllObservableList
+  , koUnwrapObservableList
+  , koRemoveAllObservableList
+  , koRemoveObservableList
+  , koReplaceElementObservableList
   , (~>)
 
   , KnockoutModel
-  , ko_applyBindings
+  , koApplyBindings
   ) where
 
 
@@ -34,46 +34,46 @@ import Fay.Text (fromString, Text)
 
 data Observable a
 
-ko_observable :: a -> Observable a
-ko_observable = ffi "ko.observable(%1)"
+koObservable :: a -> Observable a
+koObservable = ffi "ko.observable(%1)"
 
-ko_computed :: Fay a -> Observable a
-ko_computed = ffi "ko.computed(%1)"
+koComputed :: Fay a -> Observable a
+koComputed = ffi "ko.computed(%1)"
 
-ko_get :: Observable a -> Fay a
-ko_get = ffi "%1()"
+koGet :: Observable a -> Fay a
+koGet = ffi "%1()"
 
-ko_set :: Observable a -> Automatic a -> Fay ()
-ko_set = ffi "%1(%2)"
+koSet :: Observable a -> Automatic a -> Fay ()
+koSet = ffi "%1(%2)"
 
 (~>) :: Automatic a -> Observable a -> Fay ()
-(~>) = flip ko_set
+(~>) = flip koSet
 
-data ObservableArray a
+data ObservableList a
 
-ko_observableList :: [a] -> Fay (ObservableArray a)
-ko_observableList = ffi "ko.observableArray(%1)"
+koObservableList :: [a] -> Fay (ObservableList a)
+koObservableList = ffi "ko.observableArray(%1)"
 
-ko_pushObservableArray :: ObservableArray a -> Automatic a -> Fay ()
-ko_pushObservableArray = ffi "%1.push(%2)"
+koPushObservableList :: ObservableList a -> Automatic a -> Fay ()
+koPushObservableList = ffi "%1.push(%2)"
 
-ko_pushAllObservableArray :: ObservableArray a -> Automatic [a] -> Fay ()
-ko_pushAllObservableArray = foldM_ (\soFar x -> ko_pushObservableArray soFar x >> return soFar)
+koPushAllObservableList :: ObservableList a -> Automatic [a] -> Fay ()
+koPushAllObservableList = foldM_ (\soFar x -> koPushObservableList soFar x >> return soFar)
 
-ko_removeAllObservableArray :: ObservableArray a -> Fay ()
-ko_removeAllObservableArray = ffi "%1.removeAll()"
+koRemoveAllObservableList :: ObservableList a -> Fay ()
+koRemoveAllObservableList = ffi "%1.removeAll()"
 
-ko_unwrapObservableArray :: ObservableArray a -> Fay [a]
-ko_unwrapObservableArray = ffi "%1()"
+koUnwrapObservableList :: ObservableList a -> Fay [a]
+koUnwrapObservableList = ffi "%1()"
 
-ko_removeObservableArray :: ObservableArray a -> a -> Fay ()
-ko_removeObservableArray = ffi "%1.remove(%2)"
+koRemoveObservableList :: ObservableList a -> a -> Fay ()
+koRemoveObservableList = ffi "%1.remove(%2)"
 
-ko_replaceElementObservableArray :: ObservableArray a -> a -> a -> Fay ()
-ko_replaceElementObservableArray = ffi "%1.splice(%1.indexOf(%2), 1, %3)"
+koReplaceElementObservableList :: ObservableList a -> a -> a -> Fay ()
+koReplaceElementObservableList = ffi "%1.splice(%1.indexOf(%2), 1, %3)"
 
 class KnockoutModel m
 
-ko_applyBindings :: KnockoutModel m => Automatic m -> Fay ()
-ko_applyBindings = ffi "ko.applyBindings(%1)"
+koApplyBindings :: KnockoutModel m => Automatic m -> Fay ()
+koApplyBindings = ffi "ko.applyBindings(%1)"
 

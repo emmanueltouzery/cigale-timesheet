@@ -1,5 +1,3 @@
-knockout functions: inconsistent naming observable array/list, also move to camelCase
-
 remove lib/ folder and instead install JS dependencies using NPM?
 
 should be able to make parseDateTime in Hg.hs and surely elsewhere too nicer by using parsec's parseNatural:

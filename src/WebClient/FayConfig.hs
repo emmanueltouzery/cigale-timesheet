@@ -79,14 +79,14 @@ data PluginConfig =
 data ConfigSection = ConfigSection
 	{
 		pluginInfo :: PluginConfig,
-		userSettings :: ObservableArray JValue
+		userSettings :: ObservableList JValue
 	}
 
 -- TODO i don't like JValue in the view model
 data ConfigViewModel = ConfigViewModel
 	{
-		pluginTypes :: ObservableArray PluginConfig,
-		configSections :: ObservableArray ConfigSection,
+		pluginTypes :: ObservableList PluginConfig,
+		configSections :: ObservableList ConfigSection,
 		pluginContents :: PluginConfig -> JValue -> Fay Text,
 		addConfigItem :: ConfigViewModel -> PluginConfig -> Fay (),
 		deleteConfigItem :: ConfigSection -> JValue -> Fay (),
@@ -126,18 +126,18 @@ instance KnockoutModel ConfigViewModel
 
 main :: Fay ()
 main = ready $ do
-	sectionsObs <- ko_observableList []
-	pluginTypesObs <- ko_observableList []
+	sectionsObs <- koObservableList []
+	pluginTypesObs <- koObservableList []
 	let configAddEditVMV = ConfigAddEditDialogVM
 		{
-			pluginBeingEdited = ko_observable InvalidPluginConfig,
-			configurationOriginalValue = ko_observable jEmptyValue,
-			configurationBeingEdited = ko_observable jEmptyValue,
-			passwordType = ko_computed $ do
-				isShowPasswd <- ko_get $ showPasswords configAddEditVMV
+			pluginBeingEdited = koObservable InvalidPluginConfig,
+			configurationOriginalValue = koObservable jEmptyValue,
+			configurationBeingEdited = koObservable jEmptyValue,
+			passwordType = koComputed $ do
+				isShowPasswd <- koGet $ showPasswords configAddEditVMV
 				return $ if isShowPasswd then "text" else "password",
-			pluginBeingEditedHasPasswords = ko_observable False,
-			showPasswords = ko_observable False
+			pluginBeingEditedHasPasswords = koObservable False,
+			showPasswords = koObservable False
 		}
 	let viewModel = ConfigViewModel
 		{
@@ -147,10 +147,10 @@ main = ready $ do
 			addConfigItem = \vm cfg -> addEditModuleAction vm cfg Nothing,
 			deleteConfigItem = deleteConfigItemCb viewModel,
 			editConfigItem = editConfigItemCb,
-			modalDialogVM = ko_observable InvalidModalDialogVM,
+			modalDialogVM = koObservable InvalidModalDialogVM,
 			configAddEditVM = configAddEditVMV
 		}
-	ko_applyBindings viewModel
+	koApplyBindings viewModel
 	myajax2 "/configVal" "/configdesc" $ \val desc ->
 		handleValDesc viewModel (head val) (head desc)
 
@@ -160,14 +160,14 @@ handleValDesc vm configVal pluginConfigs = do
 	-- TODO probably need a proper Text comparison...
 	let sortedHash = sortBy (\(a, _) (b, _) -> strComp (T.unpack a) (T.unpack b)) hash
 	-- TODO too long line
-	foldM_ (\soFar configValue -> getConfigSection configValue pluginConfigs >>= ko_pushObservableArray soFar >> return soFar) (configSections vm) sortedHash
-	ko_pushAllObservableArray (pluginTypes vm) pluginConfigs
-	configSections <- ko_unwrapObservableArray (configSections vm)
+	foldM_ (\soFar configValue -> getConfigSection configValue pluginConfigs >>= koPushObservableList soFar >> return soFar) (configSections vm) sortedHash
+	koPushAllObservableList (pluginTypes vm) pluginConfigs
+	configSections <- koUnwrapObservableList (configSections vm)
 	return ()
 
 getConfigSection :: (Text, JValue) -> [PluginConfig] -> Fay ConfigSection
 getConfigSection configValue pluginConfigs = do
-		userSettingsL <- ko_observableList userSettingsList
+		userSettingsL <- koObservableList userSettingsList
 		return ConfigSection
 			{
 				pluginInfo = pluginConfig,
@@ -199,7 +199,7 @@ addEditModuleAction vm pluginConfig maybeConfigValue = do
 	let clickCallback = case maybeConfigValue of
 		Nothing -> addPluginConfig vm pluginConfig
 		Just (configSection, existingConfig) ->
-			ko_get (configurationOriginalValue cfgAddEditVm) >>=
+			koGet (configurationOriginalValue cfgAddEditVm) >>=
 				updatePluginConfig vm configSection pluginName
 	let warningTextV = if hasPasswords pluginConfig
 		then "Warning: passwords are stored in plain text in the configuration file!"
@@ -225,8 +225,8 @@ prepareModal action title template clickCallback modal vm = do
 			modalOkClick = clickCallback,
 			actionButtonClass = "btn btn-" ++ btnType,
 			actionButtonText = actionText,
-			errorText = ko_observable "",
-			warningText = ko_observable ""
+			errorText = koObservable "",
+			warningText = koObservable ""
 		}
 	modalV ~> modalDialogVM vm
 	return modalV
@@ -257,7 +257,7 @@ deleteConfigItemAction vm section userSetting = do
 	let parm = jvGetString $ jqParam (tshow userSetting)
 	let url = "/config?pluginName=" ++ pluginName ++ "&oldVal=" ++ parm
 	ajxDelete url (showError vm) $ do
-		ko_removeObservableArray (userSettings section) userSetting
+		koRemoveObservableList (userSettings section) userSetting
 		closePopup
 
 editConfigItemCb :: ConfigViewModel -> ConfigSection -> JValue -> Fay ()
@@ -266,18 +266,18 @@ editConfigItemCb vm section userSetting =
 
 updatePluginConfig :: ConfigViewModel -> ConfigSection -> Text -> JValue -> Fay ()
 updatePluginConfig vm configSection pluginName oldConfig = do
-	newConfigJValue <- ko_get (configurationBeingEdited $ configAddEditVM vm)
+	newConfigJValue <- koGet (configurationBeingEdited $ configAddEditVM vm)
 	let newConfig = jvAsTextHash newConfigJValue
 	let newConfigObj = jvArrayToObject newConfig
 	let parm = jvGetString $ jqParam (tshow oldConfig)
 	let url = "/config?pluginName=" ++ pluginName ++ "&oldVal=" ++ parm
 	ajxPut url newConfigObj (showError vm) $ do
-		ko_replaceElementObservableArray (userSettings configSection) oldConfig newConfigObj
+		koReplaceElementObservableList (userSettings configSection) oldConfig newConfigObj
 		closePopup
 
 addPluginConfig :: ConfigViewModel -> PluginConfig -> Fay ()
 addPluginConfig vm pluginConfig = do
-	newConfigJValue <- ko_get (configurationBeingEdited $ configAddEditVM vm)
+	newConfigJValue <- koGet (configurationBeingEdited $ configAddEditVM vm)
 	let newConfig = jvAsTextHash newConfigJValue
 	let pluginName = cfgPluginName pluginConfig
 	let newConfigObj = jvArrayToObject newConfig
@@ -287,19 +287,19 @@ addPluginConfig vm pluginConfig = do
 addPluginInVm :: ConfigViewModel -> PluginConfig -> [(Text,Text)] -> Fay ()
 addPluginInVm vm pluginConfig newConfig = do
 	section <- findOrCreateSection vm pluginConfig
-	ko_pushObservableArray (userSettings section) (jvArrayToObject newConfig)
+	koPushObservableList (userSettings section) (jvArrayToObject newConfig)
 
 findOrCreateSection :: ConfigViewModel -> PluginConfig -> Fay ConfigSection
 findOrCreateSection vm pluginConfig = do
-	sections <- ko_unwrapObservableArray (configSections vm)
+	sections <- koUnwrapObservableList (configSections vm)
 	let mSection = find ((==cfgPluginName pluginConfig) . cfgPluginName . pluginInfo) sections
 	case mSection of
 		Just section -> return section
 		Nothing -> do
 			-- no such section, create it.
-			userSettingsL <- ko_observableList []
+			userSettingsL <- koObservableList []
 			let newSection = ConfigSection {pluginInfo = pluginConfig, userSettings=userSettingsL}
-			ko_pushObservableArray (configSections vm) newSection
+			koPushObservableList (configSections vm) newSection
 			return newSection
 
 closePopup :: Fay ()
@@ -307,7 +307,7 @@ closePopup = select "#myModal" >>= bootstrapModalHide
 
 showError :: ConfigViewModel -> Fay ()
 showError vm = do
-	modalVM <- ko_get $ modalDialogVM vm
+	modalVM <- koGet $ modalDialogVM vm
 	"Error applying the change!" ~> errorText modalVM
 
 ajxPut :: Text -> JValue -> Fay () -> Fay () -> Fay ()

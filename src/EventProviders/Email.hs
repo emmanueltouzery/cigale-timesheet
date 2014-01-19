@@ -86,13 +86,13 @@ getEmails sent_mbox fromDate toDate = do
 	let messages1 = takeWhile isBefore (reverse messages)
 	return $ map parseMessage messages1
 	where
-		isAfter email = (localDay $ getEmailDate email) >= fromDate
-		isBefore email = (localDay $ getEmailDate email) <= toDate
+		isAfter email = localDay (getEmailDate email) >= fromDate
+		isBefore email = localDay (getEmailDate email) <= toDate
 
 parseMessage :: MboxMessage BL.ByteString -> Email
 parseMessage msg = do
 	let emailDate = getEmailDate msg
-	let msgBody = (trace $ "Parsing email " ++ (show emailDate))
+	let msgBody = (trace $ "Parsing email " ++ show emailDate)
 		Util.toStrict1 $ _mboxMsgBody msg
 	let (headers, rawMessage) = Util.parsecParse parseMessageParsec (_mboxMsgBody msg)
 	let toVal = readHeader "To" headers
@@ -109,14 +109,14 @@ parseMessage msg = do
 	where
 		-- TODO ugly to re-encode in ByteString, now I do ByteString->Text->ByteString->Text
 		-- pazi another top-level function is also named readHeader!!!
-		readHeader hName = decodeMime . encodeUtf8 . (Map.findWithDefault "missing" hName)
+		readHeader hName = decodeMime . encodeUtf8 . Map.findWithDefault "missing" hName
 
 getMultipartSeparator :: T.Text -> T.Text
 getMultipartSeparator contentType = case find
 			(T.isPrefixOf boundary)
 			(fmap T.stripStart $ T.splitOn ";" contentType) of
 		Just section -> T.dropAround (=='"') (T.drop (T.length boundary) section)
-		Nothing -> error $ "Invalid multipart content-type: " ++ (T.unpack contentType)
+		Nothing -> error $ "Invalid multipart content-type: " ++ T.unpack contentType
 	where boundary = "boundary="
 
 parseMessageParsec :: T.Parsec BSL.ByteString st (Map.Map T.Text T.Text, BSL.ByteString)
@@ -158,13 +158,13 @@ sectionForMimeType :: T.Text -> [(Maybe T.Text, MultipartSection)] -> Maybe Mult
 sectionForMimeType mType secsByCt = liftM snd (find (keyContainsStr mType) secsByCt)
 	where
 		keyContainsStr str (Nothing, _) = False
-		keyContainsStr str (Just x, _) = (T.isInfixOf str) $ x
+		keyContainsStr str (Just x, _) = str `T.isInfixOf` x
 
 parseMultipartBodyParsec :: T.Text -> T.Parsec BSL.ByteString st [MultipartSection]
 parseMultipartBodyParsec mimeSeparator = do
-	manyTill readLineBS (T.try $ T.string $ T.unpack mimeSeparator)
-	readLineBS
-	manyTill (parseMultipartSection mimeSeparator) (T.try $ sectionsEnd)
+	manyTill readLine (T.try $ T.string $ T.unpack mimeSeparator)
+	readLine
+	manyTill (parseMultipartSection mimeSeparator) (T.try sectionsEnd)
 
 data MultipartSection = MultipartSection
 	{
@@ -219,13 +219,13 @@ sectionHeaderValue headerName (MultipartSection headers _) = fmap snd $ find ((=
 parseMultipartSection :: T.Text -> T.Parsec BSL.ByteString st MultipartSection
 parseMultipartSection mimeSeparator = do
 	headers <- readHeaders
-	contents <- manyTill readLineBS (T.try $ T.string $ T.unpack mimeSeparator)
-	many eolBS
+	contents <- manyTill readLine (T.try $ T.string $ T.unpack mimeSeparator)
+	many eol
 	return $ MultipartSection headers (BSL.intercalate "\n" contents)
 
 readHeaders :: T.Parsec BSL.ByteString st [(T.Text, T.Text)]
 readHeaders = do
-	val <- manyTill readHeader (T.try $ eolBS)
+	val <- manyTill readHeader (T.try eol)
 	return $ map (\(a,b) -> (decodeUtf8 $ toStrict1 $ BL.pack a, decodeUtf8 $ toStrict1 b)) val
 
 readHeader :: T.Parsec BSL.ByteString st (String, BSL.ByteString)
@@ -239,34 +239,24 @@ readHeader = do
 readHeaderValue :: T.Parsec BSL.ByteString st BSL.ByteString
 readHeaderValue = do
 	val <- T.many $ T.noneOf "\r\n"
-	eolBS
+	eol
 	rest <- (do many1 $ oneOf " \t"; v <- readHeaderValue; return $ BSL.concat [" ", v])
-		<|> (return "")
+		<|> return ""
 	return $ BSL.concat [BL.pack val, rest]
 
 sectionsEnd :: T.Parsec BSL.ByteString st ()
 sectionsEnd = do
 	T.string "--"
-	(eolBS >> return ()) <|> eof
+	void eol <|> eof
 
-readLine :: TT.GenParser st T.Text
+readLine :: T.Parsec BSL.ByteString st BSL.ByteString
 readLine = do
-	val <- many $ noneOf "\r\n"
-	eol
-	return $ T.pack val
-
-readLineBS = do
-	--liftM BSL.concat (T.manyTill anyCharBS (try $ eolBS))
+	--liftM BSL.concat (T.manyTill anyCharBS (try $ eol))
 	val <- T.many $ noneOf "\r\n"
-	eolBS
+	eol
 	return $ BL.pack val
 
-eolBS = do
-	optional $ string "\r"
-	string "\n"
-	return "\n"
-
-eol :: TT.GenParser st T.Text
+eol :: T.Parsec BSL.ByteString st BSL.ByteString
 eol = do
 	optional $ string "\r"
 	string "\n"
@@ -297,8 +287,8 @@ parseEmailDate [brex|(?{month}\w+)\s+(?{readT -> day}\d+)\s+
 			"Oct" -> 10
 			"Nov" -> 11
 			"Dec" -> 12
-			_ -> error $ "Unknown month " ++ (B.unpack month)
-parseEmailDate v@_  = error $ "Invalid date format " ++ (T.unpack $ decUtf8IgnErrors v)
+			_ -> error $ "Unknown month " ++ B.unpack month
+parseEmailDate v@_  = error $ "Invalid date format " ++ T.unpack (decUtf8IgnErrors v)
 
 decUtf8IgnErrors :: B.ByteString -> T.Text
 decUtf8IgnErrors = decodeUtf8With (\str input -> Just ' ')
@@ -315,8 +305,7 @@ decodeMime [brex|=\?(?{T.unpack . decUtf8IgnErrors -> encoding}[\w\d-]+)
 		iconvFuzzyText encoding contentsBinary
 -- quoted printable
 decodeMime [brex|=\?(?{T.unpack . decUtf8IgnErrors -> encoding}[\w\d-]+)
-		\?Q\?(?{decUtf8IgnErrors -> contentsVal}.*)\?=|] = do
-		decodeMimeContents encoding contentsVal
+		\?Q\?(?{decUtf8IgnErrors -> contentsVal}.*)\?=|] = decodeMimeContents encoding contentsVal
 decodeMime s@_ = decUtf8IgnErrors s
 
 decodeMimeContents :: String -> T.Text -> T.Text
@@ -340,7 +329,7 @@ parseQuotedPrintable :: String -> Either ParseError [QuotedPrintableElement]
 parseQuotedPrintable = parse parseQPElements ""
 
 parseQPElements :: GenParser Char st [QuotedPrintableElement]
-parseQPElements = many $ parseAsciiSection <|> parseUnderscoreSpace <|> (try parseNonAsciiChars) <|> (try pqLineBreak)
+parseQPElements = many $ parseAsciiSection <|> parseUnderscoreSpace <|> try parseNonAsciiChars <|> try pqLineBreak
 
 pqLineBreak :: GenParser Char st QuotedPrintableElement
 pqLineBreak = do

@@ -38,8 +38,6 @@ waste of vertical space due to the calendar. maybe move to read-only text contai
 special file picker entry?  http://stackoverflow.com/a/18676841/516188
 differenciate String and FilePath, browse button for FilePath
 
-links broken in skype, see 2013-08-03
-
 i made my own system for configuration but i think this might document a similar and probably better approach? to check: https://www.fpcomplete.com/user/thoughtpolice/using-reflection http://www.reddit.com/r/haskell/comments/1l9qzw/reflecting_values_to_types_and_back/
 
 store passwords using gnome-keyring on linux?

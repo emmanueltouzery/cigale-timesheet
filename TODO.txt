@@ -17,8 +17,6 @@ bootstrap date picker instead of jquery-ui?
 
 try to get JS functions getKeys and toJsObject in my Utils.hs as inline in FFI to avoid to depend on the HTML source.
 
-redmine is almost useless, must show bug status change at the moment of the event.
-
 quoted-printable ==> _ should not be translated to space, that applies only to message subject!
 
 probably animated throbber.
@@ -41,9 +39,6 @@ differenciate String and FilePath, browse button for FilePath
 i made my own system for configuration but i think this might document a similar and probably better approach? to check: https://www.fpcomplete.com/user/thoughtpolice/using-reflection http://www.reddit.com/r/haskell/comments/1l9qzw/reflecting_values_to_types_and_back/
 
 store passwords using gnome-keyring on linux?
-
-redmine: link to wiki diff
-redmine: make me a link to the bug, because I don't get the full info.
 
 for the config, if I make some smart TH then let's also have it call the
 aeson json functions generations, and then modules are not directly tied

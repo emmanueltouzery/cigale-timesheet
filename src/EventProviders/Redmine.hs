@@ -7,7 +7,8 @@ import Data.ByteString.Char8 as Char8 (split, pack)
 import Data.ByteString.Lazy (fromChunks)
 import System.IO.Streams (write)
 import Network.Http.Client
-import Data.Text as T (Text(..), splitOn, pack, unpack, span, take, drop)
+import Data.Text as T (Text(..), splitOn, pack, unpack, span, take, drop, concat)
+import qualified Data.Map as Map
 import Data.Text.Read (decimal)
 import Data.Text.Encoding as TE
 import Text.Printf
@@ -19,8 +20,9 @@ import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.Maybe
 import Control.Monad (liftM)
 import Data.Text.Lazy (toStrict)
+import Data.Text.Encoding (decodeUtf8)
 
-import Text.XML (Node(..))
+import Text.XML (Node(..), elementAttributes)
 import Text.XML.Cursor
 import Text.XML.Selector.TH
 import Text.XML.Scraping
@@ -55,7 +57,7 @@ getRedmineEvents :: RedmineConfig -> GlobalSettings -> Day -> IO [Event]
 getRedmineEvents config _ day = do
 	maybeCookie <- login config
 	let cookieValues = head $ split ';' $ fromJust maybeCookie
-	let activityUrl = prepareActivityUrl day
+	let activityUrl = prepareActivityUrl config day
 	response <- Util.http activityUrl "" concatHandler $ do
 		http GET "/activity?show_wiki_edits=1&show_issues=1"
 		setHeader "Cookie" cookieValues
@@ -78,8 +80,8 @@ mergeSuccessiveEvents [] = []
 -- 	where firstPart = head . (T.splitOn "(") . desc
 -- mergeSuccessiveEvents whatever@_ = whatever
 
-prepareActivityUrl :: Day -> ByteString
-prepareActivityUrl day = BS.concat ["http://redmine/activity?from=", dayBeforeStr]
+prepareActivityUrl :: RedmineConfig -> Day -> ByteString
+prepareActivityUrl config day = BS.concat [redmineUrl config, "/activity?from=", dayBeforeStr]
 	where
 		dayBefore = addDays (-1) day
 		(y, m, d) = toGregorian dayBefore
@@ -125,12 +127,16 @@ parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) =
 				eventIcon = "glyphicon-tasks",
 				desc = bugTitle,
 				extraInfo =  bugComment,
-				fullContents = Nothing,
+				fullContents = fmap (\x -> T.concat ["<a href='",
+					decodeUtf8 $ redmineUrl config,
+					x, "'>More information</a>"]) (linkTarget linkNode),
 				eventDate = localTimeToUTC timezone localTime
 			} : parseBugNodes config day timezone rest
 		else parseBugNodes config day timezone rest
 	where
-		bugTitle = firstNodeInnerText [jq|a|] bugInfo
+		linkNode = node . head $ queryT [jq|a|] bugInfo
+		linkTarget (NodeElement elt) = Map.lookup "href" (elementAttributes elt)
+		bugTitle = toStrict $ innerText linkNode
 		localTime = LocalTime day (TimeOfDay hour mins 0)
 		(hour, mins) = parseTimeOfDay $ T.unpack timeOfDayStr
 		timeOfDayStr = firstNodeInnerText [jq|span.time|] bugInfo

@@ -94,8 +94,7 @@ commitToEvent gitFolderPath timezone commit = Event.Event
 tagToEvent :: T.Text -> TimeZone -> Commit -> Event.Event
 tagToEvent gitFolderPath timezone commit = baseEvent
 		{
-			desc = descVal,
-			extraInfo = "Tag applied",
+			desc = T.concat ["Tag applied: ", descVal],
 			fullContents = Nothing
 		}
 	where

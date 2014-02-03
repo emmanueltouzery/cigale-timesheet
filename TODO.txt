@@ -1,3 +1,6 @@
+the knockout API could be so. much. nicer... i think it needs operators and also a typeclass for Observable and ObservableList.
+Obviously for the typeclass, for now Fay doesn't support it...
+
 remove lib/ folder and instead install JS dependencies using NPM?
 
 should be able to make parseDateTime in Hg.hs and surely elsewhere too nicer by using parsec's parseNatural:

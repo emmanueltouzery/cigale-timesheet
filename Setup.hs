@@ -47,6 +47,7 @@ doPostBuild _ _ pkg_descr lbi = do
 	copyFile "lib/jquery-2.0.3.min.js" (appDataDir ++ "/jquery-2.0.3.min.js")
 	copyFile "lib/knockout-2.3.0.js" (appDataDir ++ "/knockout-2.3.0.js")
 	copyFile "src/WebClient/FayApp.html" (appDataDir ++ "/FayApp.html")
+	copyFile "src/WebClient/FilePickerModal.html"  (appDataDir ++ "/FilePickerModal.html")
 	copyFile "src/WebClient/FayConfig.html" (appDataDir ++ "/FayConfig.html")
 	-- the following will only work on linux, don't check the return code as
 	-- it's expected to fail on other OSses.

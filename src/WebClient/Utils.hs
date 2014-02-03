@@ -3,6 +3,43 @@
 module Utils where
 
 import Prelude
+import Fay.Text (Text, fromString)
+import qualified Fay.Text as T
+import FFI
+import JQuery hiding (on)
+
+bootstrapModal :: JQuery -> Fay ()
+bootstrapModal = ffi "%1.modal('show')"
+
+bootstrapModalHide :: JQuery -> Fay ()
+bootstrapModalHide = ffi "%1.modal('hide')"
+
+data JValue
+
+ajxPut :: Text -> JValue -> Fay () -> Fay () -> Fay ()
+ajxPut = ffi "jQuery.ajax({type:'PUT', url: %1, data: JSON.stringify(%2)}).success(%4).fail(%3)"
+
+ajxPost :: Text -> JValue -> Fay () -> Fay () -> Fay ()
+ajxPost = ffi "jQuery.ajax({type:'POST', url: %1, data: JSON.stringify(%2)}).success(%4).fail(%3)"
+
+ajxDelete :: Text -> Fay () -> Fay () -> Fay ()
+ajxDelete = ffi "jQuery.ajax({type:'DELETE', url: %1}).success(%3).fail(%2)"
+
+ajxGet :: Text -> Fay () -> (Automatic a -> Fay ()) -> Fay ()
+ajxGet = ffi "jQuery.ajax({type:'GET', url:%1}).success(%3).fail(%2)"
+
+jqParam :: Text -> JValue
+--jqParam = ffi "jQuery.param(%1)"
+jqParam = ffi "encodeURIComponent(%1)"
+
+first :: JQuery -> JQuery
+first = ffi "%1[0]"
+
+loadCb :: Text -> Text -> Fay () -> Fay ()
+loadCb = ffi "$(%1).load(%2, %3)"
+
+jsLength :: JQuery -> Fay Int
+jsLength = ffi "%1.length"
 
 -- http://stackoverflow.com/questions/18521821
 strComp :: String -> String -> Ordering
@@ -13,6 +50,9 @@ strComp (x:xs) (y:ys)
     | x < y = LT
     | x > y = GT
     | otherwise = strComp xs ys
+
+textComp :: Text -> Text -> Ordering
+textComp = strComp `on` T.unpack
 
 -- From Control.Monad
 -- The Control.Applicative stuff
@@ -90,3 +130,7 @@ foldM_ f a xs     = foldM f a xs >> return ()
 
 mapM :: (a -> Fay b) -> [a] -> Fay [b]
 mapM f as       =  sequence (map f as)
+
+-- from Data.Functions
+on :: (b -> b -> c) -> (a -> b) -> a -> a -> c
+(.*.) `on` f = \x y -> f x .*. f y

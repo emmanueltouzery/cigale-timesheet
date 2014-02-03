@@ -1,4 +1,4 @@
-{-# LANGUAGE NoImplicitPrelude, EmptyDataDecls, OverloadedStrings, RebindableSyntax #-}
+{-# LANGUAGE NoImplicitPrelude, OverloadedStrings, RebindableSyntax #-}
 
 import Fay.Text (Text, fromString)
 import qualified Fay.Text as T
@@ -9,8 +9,7 @@ import qualified Prelude as P
 import Knockout
 
 import Utils
-
-data JValue
+import FilePicker (getFolderContents, showFilePicker, FileInfo(..))
 
 (++) = T.append
 tshow = T.pack . show
@@ -28,6 +27,9 @@ jvArrayToObject = ffi "toJsObject(%1)"
 
 jvValue :: JValue -> Text -> JValue
 jvValue = ffi "%1[%2]"
+
+jvValueSet :: JValue -> Text -> Text -> Fay ()
+jvValueSet = ffi "%1[%2] = %3"
 
 jvArray :: JValue -> [JValue]
 jvArray = ffi "%1"
@@ -119,7 +121,8 @@ data ConfigAddEditDialogVM = ConfigAddEditDialogVM
 		configurationBeingEdited :: Observable JValue,
 		passwordType :: Observable Text,
 		pluginBeingEditedHasPasswords :: Observable Bool,
-		showPasswords :: Observable Bool
+		showPasswords :: Observable Bool,
+		showFilePickerCb :: Text -> Observable JValue -> Fay ()
 	}
 
 instance KnockoutModel ConfigViewModel
@@ -137,7 +140,8 @@ main = ready $ do
 				isShowPasswd <- koGet $ showPasswords configAddEditVMV
 				return $ if isShowPasswd then "text" else "password",
 			pluginBeingEditedHasPasswords = koObservable False,
-			showPasswords = koObservable False
+			showPasswords = koObservable False,
+			showFilePickerCb = showFilePickerCallback
 		}
 	let viewModel = ConfigViewModel
 		{
@@ -153,6 +157,13 @@ main = ready $ do
 	koApplyBindings viewModel
 	myajax2 "/configVal" "/configdesc" $ \val desc ->
 		handleValDesc viewModel (head val) (head desc)
+
+showFilePickerCallback :: Text -> Observable JValue -> Fay ()
+showFilePickerCallback memberName configurationBeingEdited = do
+	configurationBeingEditedV <- koGet configurationBeingEdited
+	let curPath = jvGetString $ jvValue configurationBeingEditedV memberName
+	print curPath
+	showFilePicker curPath (pickerFileChanged memberName configurationBeingEdited)
 
 handleValDesc :: ConfigViewModel -> JValue -> [PluginConfig] -> Fay ()
 handleValDesc vm configVal pluginConfigs = do
@@ -209,7 +220,10 @@ addEditModuleAction vm pluginConfig maybeConfigValue = do
 	bootstrapModal modal
 
 hasPasswords :: PluginConfig -> Bool
-hasPasswords pluginCfg = isJust $ find ((== "Password") . memberType) (cfgPluginConfig pluginCfg)
+hasPasswords = hasMemberType (== "Password")
+
+hasMemberType :: (Text -> Bool) -> PluginConfig -> Bool
+hasMemberType predicate pluginCfg = isJust $ find (predicate . memberType) (cfgPluginConfig pluginCfg)
 
 data MainAction = Primary Text
 		  | Danger Text
@@ -235,12 +249,6 @@ prepareModal action title template clickCallback modal vm = do
 			Primary x -> ("primary", x)
 			Danger x -> ("danger", x)
 			_ -> error $ "Unknown action: " ++ tshow action
-
-bootstrapModal :: JQuery -> Fay ()
-bootstrapModal = ffi "%1.modal('show')"
-
-bootstrapModalHide :: JQuery -> Fay ()
-bootstrapModalHide = ffi "%1.modal('hide')"
 
 deleteConfigItemCb :: ConfigViewModel -> ConfigSection -> JValue -> Fay ()
 deleteConfigItemCb vm section userSetting = do
@@ -310,19 +318,6 @@ showError vm = do
 	modalVM <- koGet $ modalDialogVM vm
 	"Error applying the change!" ~> errorText modalVM
 
-ajxPut :: Text -> JValue -> Fay () -> Fay () -> Fay ()
-ajxPut = ffi "jQuery.ajax({type:'PUT', url: %1, data: JSON.stringify(%2)}).success(%4).fail(%3)"
-
-ajxPost :: Text -> JValue -> Fay () -> Fay () -> Fay ()
-ajxPost = ffi "jQuery.ajax({type:'POST', url: %1, data: JSON.stringify(%2)}).success(%4).fail(%3)"
-
-ajxDelete :: Text -> Fay () -> Fay () -> Fay ()
-ajxDelete = ffi "jQuery.ajax({type:'DELETE', url: %1}).success(%3).fail(%2)"
-
-jqParam :: Text -> JValue
---jqParam = ffi "jQuery.param(%1)"
-jqParam = ffi "encodeURIComponent(%1)"
-
 getPluginElementHtml :: JValue -> ConfigDataInfo -> Fay Text
 getPluginElementHtml config dataInfo = do
 	let memberNameV = memberName dataInfo
@@ -336,6 +331,15 @@ pluginContentsCb :: PluginConfig -> JValue -> Fay Text
 pluginContentsCb pluginConfig configContents = do
 	htmlList <- mapM (getPluginElementHtml configContents) (cfgPluginConfig pluginConfig)
 	return $ "<div>" ++ T.intercalate "</div><div>" htmlList ++ "</div>"
+
+pickerFileChanged :: Text -> Observable JValue -> FileInfo -> Fay ()
+pickerFileChanged memberName configurationBeingEdited fileInfo = do
+	let path = filename fileInfo
+	putStrLn path
+	configurationBeingEditedV <- koGet configurationBeingEdited
+	jvValueSet configurationBeingEditedV memberName path
+	configurationBeingEditedV ~> configurationBeingEdited
+	
 
 -- http://stackoverflow.com/questions/18025474/multiple-ajax-queries-in-parrallel-with-fay
 myajax2 :: Text -> Text -> (Automatic b -> Automatic c -> Fay ()) -> Fay ()

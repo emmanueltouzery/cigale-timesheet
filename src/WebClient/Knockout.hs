@@ -12,6 +12,8 @@ module Knockout
   , koSet
 
   , ObservableList
+  , koComputedList
+  , koSetList
   , koObservableList
   , koPushObservableList
   , koPushAllObservableList
@@ -23,12 +25,14 @@ module Knockout
 
   , KnockoutModel
   , koApplyBindings
+  , koApplyBindingsSubTree
   ) where
 
 
 import Prelude
 import FFI
 import Utils
+import JQuery
 
 import Fay.Text (fromString, Text)
 
@@ -40,6 +44,9 @@ koObservable = ffi "ko.observable(%1)"
 koComputed :: Fay a -> Observable a
 koComputed = ffi "ko.computed(%1)"
 
+koComputedList :: Fay [a] -> ObservableList a
+koComputedList = ffi "ko.computed(%1)"
+
 koGet :: Observable a -> Fay a
 koGet = ffi "%1()"
 
@@ -50,6 +57,10 @@ koSet = ffi "%1(%2)"
 (~>) = flip koSet
 
 data ObservableList a
+
+-- TODO make a typeclass for Observable and ObservableList?
+koSetList :: ObservableList a -> Automatic [a] -> Fay ()
+koSetList = ffi "%1(%2)"
 
 koObservableList :: [a] -> Fay (ObservableList a)
 koObservableList = ffi "ko.observableArray(%1)"
@@ -77,3 +88,5 @@ class KnockoutModel m
 koApplyBindings :: KnockoutModel m => Automatic m -> Fay ()
 koApplyBindings = ffi "ko.applyBindings(%1)"
 
+koApplyBindingsSubTree :: KnockoutModel m => Automatic m -> JQuery -> Fay ()
+koApplyBindingsSubTree = ffi "ko.applyBindings(%1, %2)"

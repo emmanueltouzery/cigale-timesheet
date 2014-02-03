@@ -5,7 +5,7 @@ import Control.Applicative
 import Snap.Core
 import Snap.Util.FileServe
 import Snap.Http.Server
-import Control.Monad.IO.Class
+import Control.Monad.IO.Class (liftIO)
 import qualified Data.Text.Encoding as TE
 import System.Directory
 import qualified Data.ByteString as BS
@@ -22,6 +22,8 @@ import qualified Timesheet
 import Config
 import Util (toStrict1)
 import Paths_cigale_timesheet
+import FilePickerServer (browseFolder)
+import SnapUtil (getSingleParam, setResponse)
 
 appPort :: Int
 appPort = 8000
@@ -73,7 +75,8 @@ site installPath =
             ("configVal", configVal),
             ("config", method POST addConfigEntry),
             ("config", method PUT updateConfigEntry),
-            ("config", method DELETE deleteConfigEntry)
+            ("config", method DELETE deleteConfigEntry),
+            ("browseFolder", browseFolder)
           ] <|>
     dir "static" (serveDirectory installPath)
 
@@ -125,15 +128,6 @@ updateConfigEntry = do
 		Just _oldCfg -> processConfigFromBody (updatePluginInConfig _oldCfg)
 		_ -> setResponse $ Left "update config: pluginName not specified"
 
--- rqParam returns an array in case one value is sent several times.
--- My client won't send several times, get just the first value.
-getSingleParam :: BS.ByteString -> Snap (Maybe BS.ByteString)
-getSingleParam pName = do
-	rq <- getRequest 
-	case rqParam pName rq of
-		(Just (pVal:[])) -> return $ Just pVal
-		_ -> return Nothing
-
 processConfigFromBody :: (BS.ByteString -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)) ->
 		 Snap ()
 processConfigFromBody handler = do
@@ -143,7 +137,3 @@ processConfigFromBody handler = do
 			configJson <- liftM toStrict1 (readRequestBody 65536)
 			liftIO (handler _pName configJson) >>= setResponse
 		_ -> setResponse $ Left "add config: pluginName not specified"
-
-setResponse :: Either BS.ByteString BS.ByteString -> Snap ()
-setResponse (Left msg) = modifyResponse $ setResponseStatus 500 msg
-setResponse (Right val) = writeBS val

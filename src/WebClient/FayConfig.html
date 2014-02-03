@@ -37,6 +37,10 @@
 		}
 		return result;
 	}
+	function showFilePicker() {
+		$('#myModal').modal('hide');
+		$('#filePickerModal').modal('show');
+	}
 	</script>
 	<script type="text/javascript" src="/static/FayConfig.js"></script>
 	<link href="/static/bootstrap-3.0.0/css/bootstrap.min.css" rel="stylesheet">
@@ -44,12 +48,16 @@
 		<form role="form">
 			<div class="form-group" data-bind="foreach: configAddEditVM.pluginBeingEdited().cfgPluginConfig">
 				<label data-bind="text: memberName, attr: {for: memberName}"></label>
-				<!-- ko if: jQuery.inArray(memberType, ["String", "Text", "ByteString", "FilePath"]) >= 0 -->
+				<!-- ko if: jQuery.inArray(memberType, ["String", "Text", "ByteString"]) >= 0 -->
+					<input type="text" class="form-control" data-bind="value: $root.configAddEditVM.configurationBeingEdited()[memberName], attr: {id: memberName}" placeholder="Enter value" value=""/>
+				<!-- /ko -->
+				<!-- ko if: memberType === "FilePath" -->
+					<!-- <input type="text" class="form-control" data-bind="value: $root.configAddEditVM.configurationBeingEdited()[memberName], attr: {id: memberName}, click: function() { $root.configAddEditVM.showFilePickerCb(memberName, $root.configAddEditVM.configurationBeingEdited) }"
+placeholder="Enter value" value=""/>  -->
 					<input type="text" class="form-control" data-bind="value: $root.configAddEditVM.configurationBeingEdited()[memberName], attr: {id: memberName}" placeholder="Enter value" value=""/>
 				<!-- /ko -->
 				<!-- ko if: memberType === "Password" -->
-					<input class="form-control" data-bind="value:
-$root.configAddEditVM.configurationBeingEdited()[memberName], attr: {id: memberName, type: $root.configAddEditVM.passwordType}" placeholder="Enter value" value=""/>
+					<input class="form-control" data-bind="value: $root.configAddEditVM.configurationBeingEdited()[memberName], attr: {id: memberName, type: $root.configAddEditVM.passwordType}" placeholder="Enter value" value=""/>
 				<!-- /ko -->
 			</div>
 			<!-- ko if: $root.configAddEditVM.pluginBeingEditedHasPasswords -->

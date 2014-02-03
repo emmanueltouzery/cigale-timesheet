@@ -1,0 +1,26 @@
+<div class="modal fade" id="filePickerModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" style="z-index:5000">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+				<h4 class="modal-title">Choose a file</h4>
+			</div>
+			<div class="modal-body">
+				<div  style="overflow:auto; max-height: 150px; width: 100%">
+				<table data-bind="foreach: sortedFiles">
+				<!-- <table data-bind="foreach: files"> -->
+					<tr data-bind="click: function() {$root.selectFile($root, $data)}">
+						<td style="width:65%" data-bind="text: filename"></td>
+						<td style="width:35%" data-bind="text: filesize"></td>
+					</tr>
+				</table>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-primary"
+					data-bind="click:function(){ okClicked(selectedFile()); }">OK</button>
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</div><!-- /.modal-content -->
+	</div><!-- /.modal-dialog -->
+</div><!-- /.modal -->

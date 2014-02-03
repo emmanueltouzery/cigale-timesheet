@@ -11,6 +11,7 @@ import Data.Maybe (fromMaybe)
 import Control.Monad (liftM)
 import qualified Data.Text.Encoding as TE
 import Control.Monad.IO.Class (liftIO)
+import qualified Data.Text as T
 
 import Util (toStrict1)
 import SnapUtil (getSingleParam, setResponse)
@@ -32,11 +33,12 @@ instance ToJSON FileInfo
 
 browseFolder :: Snap ()
 browseFolder = do
+	let homeDir = "/home/emmanuel" -- TODO
 	modifyResponse $ setContentType "application/json"
-	curFolder <- liftM (TE.decodeUtf8 . (fromMaybe "")) (getSingleParam "path")
-	files <- liftIO $ getDirectoryContents "/home/emmanuel"
-	fileInfos <- liftIO $ mapM (fileInfo "/home/emmanuel") files
-	let response = BrowseResponse "/home/emmanuel" fileInfos
+	curFolder <- liftM (T.unpack . TE.decodeUtf8 . (fromMaybe homeDir)) (getSingleParam "path")
+	files <- liftIO $ getDirectoryContents curFolder
+	fileInfos <- liftIO $ mapM (fileInfo curFolder) files
+	let response = BrowseResponse curFolder fileInfos
 	setResponse $ Right $ toStrict1 $ encode response
 
 fileInfo :: String -> String -> IO FileInfo

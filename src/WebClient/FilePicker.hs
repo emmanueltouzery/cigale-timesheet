@@ -16,7 +16,10 @@ import JQuery (JQuery, select, append)
 putStrLn = P.putStrLn . T.unpack
 
 getFolderContents :: Text -> (BrowseResponse -> Fay ()) -> Fay ()
-getFolderContents path callback = ajxGet ("/browseFolder?path=" ++ path) (putStrLn "Error getting folder contents") callback
+getFolderContents path callback = ajxGet url (putStrLn "Error getting folder contents") callback
+	where url = case path of
+		"" -> "/browseFolder"
+		_ -> "/browseFolder?path=" ++ path
 
 data BrowseResponse = BrowseResponse
 	{
@@ -46,7 +49,7 @@ selectFileCb :: FilePickerViewModel -> FileInfo -> Fay ()
 selectFileCb filePickerVm fileInfo = if filesize fileInfo == -1
 		then do
 			curDisplayedFolder <- koGet $ displayedFolder filePickerVm
-			curDisplayedFolder ++ "/" ++ filename fileInfo ~> displayedFolder filePickerVm
+			(curDisplayedFolder ++ "/" ++ filename fileInfo) ~> displayedFolder filePickerVm
 			refresh filePickerVm
 		else do
 			fileInfo ~> selectedFile filePickerVm

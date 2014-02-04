@@ -9,12 +9,17 @@
 				<ol class="breadcrumb" data-bind="foreach: pathElems">
 					<li><a href="#" data-bind="text: pathElemName, click: function() {$root.goToFolder($root, fullPath)}"></a></li>
 				</ol>
-				<div  style="overflow:auto; max-height: 150px; width: 100%">
-				<table data-bind="foreach: sortedFiles">
-					<tr data-bind="click: function() {$root.selectFile($root, $data)}">
-						<td style="width:65%" data-bind="text: filename"></td>
-						<td style="width:35%" data-bind="text: filesize"></td>
-					</tr>
+				<div  style="overflow-y:auto; overflow-x: hidden; max-height: 150px; width: 100%">
+				<table class="table table-condensed">
+					<thead>
+						<tr><th>Filename</th><th>Size</th></tr>
+					</thead>
+					<tbody data-bind="foreach: sortedFiles">
+						<tr data-bind="css: {active: $root.isActive($root, $data)}, click: function() {$root.selectFile($root, $data)}">
+							<td style="width:65%" data-bind="text: filename"></td>
+							<td style="width:35%" data-bind="text: filesize"></td>
+						</tr>
+					</tbody>
 				</table>
 				</div>
 			</div>

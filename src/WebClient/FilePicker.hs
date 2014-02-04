@@ -32,7 +32,7 @@ data FileInfo = FileInfo
 		filename :: Text,
 		-- filesize will be -1 for a directory
 		filesize :: Int
-	}
+	} deriving Eq
 
 data FilePickerViewModel = FilePickerViewModel
 	{
@@ -41,6 +41,7 @@ data FilePickerViewModel = FilePickerViewModel
 		files :: ObservableList FileInfo,
 		sortedFiles :: ObservableList FileInfo,
 		selectedFile :: Observable FileInfo,
+		isActive :: FilePickerViewModel -> FileInfo -> Fay Bool,
 		selectFile :: FilePickerViewModel -> FileInfo -> Fay (),
 		goToFolder :: FilePickerViewModel -> Text -> Fay (),
 		okClicked :: FileInfo -> Fay ()
@@ -84,6 +85,7 @@ showFilePicker path callback = do
 				files = emptyFileList,
 				sortedFiles = koComputedList $ filesForDisplayCb filePickerVm,
 				selectedFile = koObservable $ FileInfo path 0,
+				isActive = \vm fileInfo -> liftM (fileInfo ==) (koGet $ selectedFile vm),
 				selectFile = selectFileCb,
 				goToFolder = goToFolderCb,
 				okClicked = \x -> callback x >> bootstrapModalHide filepickerRoot

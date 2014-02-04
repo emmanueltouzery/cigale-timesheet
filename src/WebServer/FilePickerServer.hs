@@ -2,7 +2,7 @@
 module FilePickerServer where
 
 import System.IO (withFile, IOMode(ReadMode), hFileSize)
-import System.Directory (doesFileExist, getDirectoryContents)
+import System.Directory (doesFileExist, getDirectoryContents, getHomeDirectory)
 import System.FilePath ((</>))
 import Data.Aeson (encode, ToJSON)
 import GHC.Generics
@@ -33,7 +33,7 @@ instance ToJSON FileInfo
 
 browseFolder :: Snap ()
 browseFolder = do
-	let homeDir = "/home/emmanuel" -- TODO
+	homeDir <- liftIO $ getHomeDirectory >>= return . TE.encodeUtf8 . T.pack
 	modifyResponse $ setContentType "application/json"
 	curFolder <- liftM (T.unpack . TE.decodeUtf8 . (fromMaybe homeDir)) (getSingleParam "path")
 	files <- liftIO $ getDirectoryContents curFolder

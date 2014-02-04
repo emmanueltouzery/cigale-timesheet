@@ -6,9 +6,11 @@
 				<h4 class="modal-title">Choose a file</h4>
 			</div>
 			<div class="modal-body">
+				<ol class="breadcrumb" data-bind="foreach: pathElems">
+					<li><a href="#" data-bind="text: pathElemName, click: function() {$root.goToFolder($root, fullPath)}"></a></li>
+				</ol>
 				<div  style="overflow:auto; max-height: 150px; width: 100%">
 				<table data-bind="foreach: sortedFiles">
-				<!-- <table data-bind="foreach: files"> -->
 					<tr data-bind="click: function() {$root.selectFile($root, $data)}">
 						<td style="width:65%" data-bind="text: filename"></td>
 						<td style="width:35%" data-bind="text: filesize"></td>

@@ -41,6 +41,9 @@ loadCb = ffi "$(%1).load(%2, %3)"
 jsLength :: JQuery -> Fay Int
 jsLength = ffi "%1.length"
 
+splitOn :: Text -> Text -> [Text]
+splitOn = ffi "%2.split(%1)"
+
 -- http://stackoverflow.com/questions/18521821
 strComp :: String -> String -> Ordering
 strComp (_:_) [] = GT
@@ -134,3 +137,9 @@ mapM f as       =  sequence (map f as)
 -- from Data.Functions
 on :: (b -> b -> c) -> (a -> b) -> a -> a -> c
 (.*.) `on` f = \x y -> f x .*. f y
+
+-- from Data.List
+inits                   :: [a] -> [[a]]
+inits xs                =  [] : case xs of
+                                  []      -> []
+                                  x : xs' -> map (x :) (inits xs')

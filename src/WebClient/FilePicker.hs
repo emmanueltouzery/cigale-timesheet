@@ -37,23 +37,35 @@ data FileInfo = FileInfo
 data FilePickerViewModel = FilePickerViewModel
 	{
 		displayedFolder :: Observable Text,
+		pathElems :: Observable [PathElem],
 		files :: ObservableList FileInfo,
 		sortedFiles :: ObservableList FileInfo,
 		selectedFile :: Observable FileInfo,
 		selectFile :: FilePickerViewModel -> FileInfo -> Fay (),
+		goToFolder :: FilePickerViewModel -> Text -> Fay (),
 		okClicked :: FileInfo -> Fay ()
 	}
 instance KnockoutModel FilePickerViewModel
+
+data PathElem = PathElem
+	{
+		pathElemName :: Text,
+		fullPath :: Text
+	}
 
 selectFileCb :: FilePickerViewModel -> FileInfo -> Fay ()
 selectFileCb filePickerVm fileInfo = if filesize fileInfo == -1
 		then do
 			curDisplayedFolder <- koGet $ displayedFolder filePickerVm
-			(curDisplayedFolder ++ "/" ++ filename fileInfo) ~> displayedFolder filePickerVm
-			refresh filePickerVm
+			goToFolderCb filePickerVm (curDisplayedFolder ++ "/" ++ filename fileInfo)
 		else do
 			fileInfo ~> selectedFile filePickerVm
 			print fileInfo
+
+goToFolderCb :: FilePickerViewModel -> Text -> Fay ()
+goToFolderCb filePickerVm path = do
+			path ~> displayedFolder filePickerVm
+			refresh filePickerVm
 
 showFilePicker :: Text -> (FileInfo -> Fay ()) -> Fay ()
 showFilePicker path callback = do
@@ -68,11 +80,13 @@ showFilePicker path callback = do
 		let filePickerVm = FilePickerViewModel
 			{
 				displayedFolder = koObservable "",
+				pathElems = koObservable [],
 				files = emptyFileList,
 				sortedFiles = koComputedList $ filesForDisplayCb filePickerVm,
 				selectedFile = koObservable $ FileInfo path 0,
-				okClicked = \x -> callback x >> bootstrapModalHide filepickerRoot,
-				selectFile = selectFileCb
+				selectFile = selectFileCb,
+				goToFolder = goToFolderCb,
+				okClicked = \x -> callback x >> bootstrapModalHide filepickerRoot
 			}
 		koApplyBindingsSubTree filePickerVm (first filepickerRoot)
 		bootstrapModal filepickerRoot
@@ -86,7 +100,15 @@ refresh filePickerVm = do
 readBrowseResponse :: FilePickerViewModel -> BrowseResponse -> Fay ()
 readBrowseResponse filePickerVm browseResponse = do
 	browseFolderPath browseResponse ~> displayedFolder filePickerVm
+	getPathElements (browseFolderPath browseResponse) ~> pathElems filePickerVm
 	koSetList (files filePickerVm) (browseFiles browseResponse)
+
+getPathElements :: Text -> [PathElem]
+getPathElements path = (PathElem "root" "/") :
+	map (\(name, path) -> PathElem name path) (zip pathElems paths)
+	where
+		paths = tail $ map ((T.cons '/') . T.intercalate "/") (inits pathElems)
+		pathElems = tail $ splitOn "/" path
 
 filesForDisplayCb :: FilePickerViewModel -> Fay [FileInfo]
 filesForDisplayCb vm = do

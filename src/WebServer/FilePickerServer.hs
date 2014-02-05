@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric, OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric, OverloadedStrings, ScopedTypeVariables #-}
 module FilePickerServer where
 
 import System.IO (withFile, IOMode(ReadMode), hFileSize)
@@ -9,6 +9,7 @@ import GHC.Generics
 import Snap.Core
 import Data.Maybe (fromMaybe)
 import Control.Monad (liftM)
+import Control.Exception (catch, SomeException)
 import qualified Data.Text.Encoding as TE
 import Control.Monad.IO.Class (liftIO)
 import qualified Data.Text as T
@@ -46,6 +47,7 @@ fileInfo folder fName = do
 	let fullPath = folder </> fName
 	isFile <- doesFileExist fullPath
 	fSize <- if isFile
-		then withFile fullPath ReadMode hFileSize
+		then catch (withFile fullPath ReadMode hFileSize)
+			(\(_ :: SomeException) -> return (-2))
 		else return (-1)
 	return FileInfo { filename = fName, filesize = fSize}

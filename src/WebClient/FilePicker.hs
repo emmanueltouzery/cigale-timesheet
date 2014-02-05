@@ -107,7 +107,7 @@ readBrowseResponse filePickerVm browseResponse = do
 
 getPathElements :: Text -> [PathElem]
 getPathElements path = (PathElem "root" "/") :
-	map (\(name, path) -> PathElem name path) (zip pathElems paths)
+	map (uncurry PathElem) (zip pathElems paths)
 	where
 		paths = tail $ map ((T.cons '/') . T.intercalate "/") (inits pathElems)
 		pathElems = tail $ splitOn "/" path

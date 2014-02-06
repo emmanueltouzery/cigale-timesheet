@@ -34,17 +34,23 @@ data FileInfo = FileInfo
 		filesize :: Int
 	} deriving Eq
 
+data ClientFileInfo = ClientFileInfo
+	{
+		serverInfo :: FileInfo,
+		filesizeDesc :: Text
+	} deriving Eq
+
 data FilePickerViewModel = FilePickerViewModel
 	{
 		displayedFolder :: Observable Text,
 		pathElems :: Observable [PathElem],
 		files :: ObservableList FileInfo,
-		sortedFiles :: ObservableList FileInfo,
-		selectedFile :: Observable FileInfo,
-		isActive :: FilePickerViewModel -> FileInfo -> Fay Bool,
-		selectFile :: FilePickerViewModel -> FileInfo -> Fay (),
+		sortedFiles :: ObservableList ClientFileInfo,
+		selectedFile :: Observable ClientFileInfo,
+		isActive :: FilePickerViewModel -> ClientFileInfo -> Fay Bool,
+		selectFile :: FilePickerViewModel -> ClientFileInfo -> Fay (),
 		goToFolder :: FilePickerViewModel -> Text -> Fay (),
-		okClicked :: FileInfo -> Fay ()
+		okClicked :: ClientFileInfo -> Fay ()
 	}
 instance KnockoutModel FilePickerViewModel
 
@@ -54,21 +60,43 @@ data PathElem = PathElem
 		fullPath :: Text
 	}
 
-selectFileCb :: FilePickerViewModel -> FileInfo -> Fay ()
-selectFileCb filePickerVm fileInfo = if filesize fileInfo == -1
+convertFileInfo :: FileInfo -> ClientFileInfo
+convertFileInfo serverInfoV = ClientFileInfo
+	{
+		serverInfo = serverInfoV,
+		filesizeDesc = getSizeDesc $ filesize serverInfoV
+	}
+
+sizeUnits :: [(Double, Text)]
+sizeUnits = reverse $ zip (map (1024**) [1..]) ["kb", "Mb", "Gb"]
+
+getSizeDesc :: Int -> Text
+getSizeDesc v | v == -1 = "-"
+getSizeDesc v | v == -2 = ""
+getSizeDesc v = case find (\s -> vDouble >= fst s) sizeUnits of
+	Just (mult, desc) -> formatDouble (vDouble / mult) 2 ++ desc
+	Nothing -> (T.pack $ show v) ++ " bytes"
+	where vDouble = fromIntegral v
+
+formatDouble :: Double -> Int -> Text
+formatDouble = ffi "%1.toFixed(%2)"
+
+selectFileCb :: FilePickerViewModel -> ClientFileInfo -> Fay ()
+selectFileCb filePickerVm fileInfo = if filesize serverInfoV == -1
 		then do
 			curDisplayedFolder <- koGet $ displayedFolder filePickerVm
-			goToFolderCb filePickerVm (curDisplayedFolder ++ "/" ++ filename fileInfo)
+			goToFolderCb filePickerVm (curDisplayedFolder ++ "/" ++ filename serverInfoV)
 		else do
 			fileInfo ~> selectedFile filePickerVm
-			print fileInfo
+		where
+			serverInfoV = serverInfo fileInfo
 
 goToFolderCb :: FilePickerViewModel -> Text -> Fay ()
 goToFolderCb filePickerVm path = do
 			path ~> displayedFolder filePickerVm
 			refresh filePickerVm
 
-showFilePicker :: Text -> (FileInfo -> Fay ()) -> Fay ()
+showFilePicker :: Text -> (ClientFileInfo -> Fay ()) -> Fay ()
 showFilePicker path callback = do
 	holderExists <- select "#filePickerModalHolder" >>= jsLength >>= return . (/= 0)
 	when (not holderExists) $ do
@@ -84,7 +112,7 @@ showFilePicker path callback = do
 				pathElems = koObservable [],
 				files = emptyFileList,
 				sortedFiles = koComputedList $ filesForDisplayCb filePickerVm,
-				selectedFile = koObservable $ FileInfo path 0,
+				selectedFile = koObservable $ ClientFileInfo (FileInfo path 0) "",
 				isActive = \vm fileInfo -> liftM (fileInfo ==) (koGet $ selectedFile vm),
 				selectFile = selectFileCb,
 				goToFolder = goToFolderCb,
@@ -112,15 +140,16 @@ getPathElements path = (PathElem "root" "/") :
 		paths = tail $ map ((T.cons '/') . T.intercalate "/") (inits pathElems)
 		pathElems = tail $ splitOn "/" path
 
-filesForDisplayCb :: FilePickerViewModel -> Fay [FileInfo]
+filesForDisplayCb :: FilePickerViewModel -> Fay [ClientFileInfo]
 filesForDisplayCb vm = do
 	filesList <- koUnwrapObservableList $ files vm
 	let filesListDisplay = filter (\fi -> not $ elem (filename fi) [".", ".."]) filesList
-	return $ sortBy filesSort filesListDisplay
+	return $ map convertFileInfo (sortBy filesSort filesListDisplay)
 
 filesSort :: FileInfo -> FileInfo -> Ordering
 filesSort a b
 	| filesize a == -1 && filesize b >= 0 = LT
 	| filesize a >= 0 && filesize b == -1 = GT
 	| otherwise = filenameComp a b
-		where filenameComp = textComp `on` filename
+		where
+			filenameComp = textComp `on` filename

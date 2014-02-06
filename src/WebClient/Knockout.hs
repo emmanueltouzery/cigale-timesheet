@@ -41,10 +41,10 @@ data Observable a
 koObservable :: a -> Observable a
 koObservable = ffi "ko.observable(%1)"
 
-koComputed :: Fay a -> Observable a
+koComputed :: Fay (Automatic a) -> Observable a
 koComputed = ffi "ko.computed(%1)"
 
-koComputedList :: Fay [a] -> ObservableList a
+koComputedList :: Fay [Automatic a] -> ObservableList a
 koComputedList = ffi "ko.computed(%1)"
 
 koGet :: Observable a -> Fay a

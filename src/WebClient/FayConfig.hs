@@ -9,7 +9,7 @@ import qualified Prelude as P
 import Knockout
 
 import Utils
-import FilePicker (getFolderContents, showFilePicker, FileInfo(..))
+import FilePicker (getFolderContents, showFilePicker, FileInfo(..), ClientFileInfo(..))
 
 (++) = T.append
 tshow = T.pack . show
@@ -332,9 +332,9 @@ pluginContentsCb pluginConfig configContents = do
 	htmlList <- mapM (getPluginElementHtml configContents) (cfgPluginConfig pluginConfig)
 	return $ "<div>" ++ T.intercalate "</div><div>" htmlList ++ "</div>"
 
-pickerFileChanged :: Text -> Observable JValue -> FileInfo -> Fay ()
+pickerFileChanged :: Text -> Observable JValue -> ClientFileInfo -> Fay ()
 pickerFileChanged memberName configurationBeingEdited fileInfo = do
-	let path = filename fileInfo
+	let path = filename $ serverInfo fileInfo
 	putStrLn path
 	configurationBeingEditedV <- koGet configurationBeingEdited
 	jvValueSet configurationBeingEditedV memberName path

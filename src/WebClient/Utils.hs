@@ -44,6 +44,9 @@ jsLength = ffi "%1.length"
 splitOn :: Text -> Text -> [Text]
 splitOn = ffi "%2.split(%1)"
 
+breakOnEnd :: Text -> Text -> (Text, Text)
+breakOnEnd = ffi "[%2.substring(0, %2.lastIndexOf(%1)+1), %2.substring(%2.lastIndexOf(%1)+1)]"
+
 -- http://stackoverflow.com/questions/18521821
 strComp :: String -> String -> Ordering
 strComp (_:_) [] = GT

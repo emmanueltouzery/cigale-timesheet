@@ -100,19 +100,20 @@ showFilePicker :: Text -> (Text -> Fay ()) -> Fay ()
 showFilePicker path callback = do
 	holderExists <- select "#filePickerModalHolder" >>= jsLength >>= return . (/= 0)
 	when (not holderExists) $ do
-		putStrLn "adding the holder"
 		select "body" >>= append "<div id='filePickerModalHolder'></div>"
-	putStrLn "preparing the modal"
 	loadCb "#filePickerModalHolder" "/static/FilePickerModal.html" $ do
 		emptyFileList <- koObservableList []
 		filepickerRoot <- select "#filePickerModal"
+		let (curFolder, curFile) = case path of
+			"" -> ("", "")
+			_ -> breakOnEnd "/" path
 		let filePickerVm = FilePickerViewModel
 			{
-				displayedFolder = koObservable "",
+				displayedFolder = koObservable curFolder,
 				pathElems = koObservable [],
 				files = emptyFileList,
 				sortedFiles = koComputedList $ filesForDisplayCb filePickerVm,
-				selectedFile = koObservable $ ClientFileInfo (FileInfo path 0) "",
+				selectedFile = koObservable $ ClientFileInfo (FileInfo path 0) curFile,
 				isActive = \vm fileInfo -> liftM (fileInfo ==) (koGet $ selectedFile vm),
 				selectFile = selectFileCb,
 				goToFolder = goToFolderCb,

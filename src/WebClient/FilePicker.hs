@@ -2,7 +2,7 @@
 
 module FilePicker where
 
-import Prelude hiding ((++), error, putStrLn)
+import Prelude hiding ((++), error, putStrLn, last)
 import qualified Prelude as P
 
 import Utils
@@ -138,7 +138,10 @@ okClickedCb :: FilePickerViewModel -> (Text -> Fay ()) -> JQuery -> Fay ()
 okClickedCb vm callback filepickerRoot = do
 	folder <- koGet $ displayedFolder vm
 	file <- koGet $ selectedFile vm
-	callback $ folder ++ "/" ++ (filename $ serverInfo file)
+	let folderSlash = case last folder of
+		'/' -> folder
+		_ -> folder ++ "/"
+	callback $ folderSlash ++ (filename $ serverInfo file)
 	bootstrapModalHide filepickerRoot
 
 readBrowseResponse :: FilePickerViewModel -> BrowseResponse -> Fay ()

@@ -52,9 +52,11 @@
 					<input type="text" class="form-control" data-bind="value: $root.configAddEditVM.configurationBeingEdited()[memberName], attr: {id: memberName}" placeholder="Enter value" value=""/>
 				<!-- /ko -->
 				<!-- ko if: memberType === "FilePath" -->
-					<!-- <input type="text" class="form-control" data-bind="value: $root.configAddEditVM.configurationBeingEdited()[memberName], attr: {id: memberName}, click: function() { $root.configAddEditVM.showFilePickerCb(memberName, $root.configAddEditVM.configurationBeingEdited) }"
-placeholder="Enter value" value=""/>  -->
-					<input type="text" class="form-control" data-bind="value: $root.configAddEditVM.configurationBeingEdited()[memberName], attr: {id: memberName}" placeholder="Enter value" value=""/>
+				<div class="input-group">
+					<input type="text" class="form-control" data-bind="value: $root.configAddEditVM.configurationBeingEdited()[memberName], attr: {id: memberName}"
+placeholder="Enter value" value=""/>
+					<span class="input-group-btn"><button class="btn btn-default" type="button" data-bind="click: function() { $root.configAddEditVM.showFilePickerCb(memberName, $root.configAddEditVM.configurationBeingEdited) }">Browse...</button></span>
+				</div>
 				<!-- /ko -->
 				<!-- ko if: memberType === "Password" -->
 					<input class="form-control" data-bind="value: $root.configAddEditVM.configurationBeingEdited()[memberName], attr: {id: memberName, type: $root.configAddEditVM.passwordType}" placeholder="Enter value" value=""/>

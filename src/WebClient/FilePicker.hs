@@ -50,7 +50,7 @@ data FilePickerViewModel = FilePickerViewModel
 		isActive :: FilePickerViewModel -> ClientFileInfo -> Fay Bool,
 		selectFile :: FilePickerViewModel -> ClientFileInfo -> Fay (),
 		goToFolder :: FilePickerViewModel -> Text -> Fay (),
-		okClicked :: ClientFileInfo -> Fay ()
+		okClicked :: Fay ()
 	}
 instance KnockoutModel FilePickerViewModel
 
@@ -96,7 +96,7 @@ goToFolderCb filePickerVm path = do
 			path ~> displayedFolder filePickerVm
 			refresh filePickerVm
 
-showFilePicker :: Text -> (ClientFileInfo -> Fay ()) -> Fay ()
+showFilePicker :: Text -> (Text -> Fay ()) -> Fay ()
 showFilePicker path callback = do
 	holderExists <- select "#filePickerModalHolder" >>= jsLength >>= return . (/= 0)
 	when (not holderExists) $ do
@@ -116,7 +116,7 @@ showFilePicker path callback = do
 				isActive = \vm fileInfo -> liftM (fileInfo ==) (koGet $ selectedFile vm),
 				selectFile = selectFileCb,
 				goToFolder = goToFolderCb,
-				okClicked = \x -> callback x >> bootstrapModalHide filepickerRoot
+				okClicked = okClickedCb filePickerVm callback filepickerRoot
 			}
 		koApplyBindingsSubTree filePickerVm (first filepickerRoot)
 		bootstrapModal filepickerRoot
@@ -126,6 +126,13 @@ refresh :: FilePickerViewModel -> Fay ()
 refresh filePickerVm = do
 	displayedFolderV <- koGet $ displayedFolder filePickerVm
 	getFolderContents displayedFolderV (readBrowseResponse filePickerVm)
+
+okClickedCb :: FilePickerViewModel -> (Text -> Fay ()) -> JQuery -> Fay ()
+okClickedCb vm callback filepickerRoot = do
+	folder <- koGet $ displayedFolder vm
+	file <- koGet $ selectedFile vm
+	callback $ folder ++ "/" ++ (filename $ serverInfo file)
+	bootstrapModalHide filepickerRoot
 
 readBrowseResponse :: FilePickerViewModel -> BrowseResponse -> Fay ()
 readBrowseResponse filePickerVm browseResponse = do

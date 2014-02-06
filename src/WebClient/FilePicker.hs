@@ -113,8 +113,8 @@ showFilePicker path callback = do
 				pathElems = koObservable [],
 				files = emptyFileList,
 				sortedFiles = koComputedList $ filesForDisplayCb filePickerVm,
-				selectedFile = koObservable $ ClientFileInfo (FileInfo path 0) curFile,
-				isActive = \vm fileInfo -> liftM (fileInfo ==) (koGet $ selectedFile vm),
+				selectedFile = koObservable $ ClientFileInfo (FileInfo curFile 0) "",
+				isActive = isActiveCb,
 				selectFile = selectFileCb,
 				goToFolder = goToFolderCb,
 				okClicked = okClickedCb filePickerVm callback filepickerRoot
@@ -122,6 +122,12 @@ showFilePicker path callback = do
 		koApplyBindingsSubTree filePickerVm (first filepickerRoot)
 		bootstrapModal filepickerRoot
 		refresh filePickerVm
+
+isActiveCb :: FilePickerViewModel -> ClientFileInfo -> Fay Bool
+isActiveCb vm fileInfo = do
+	selectedFileName <- koGet $ selectedFile vm
+	return $ fEquals fileInfo selectedFileName
+	where fEquals = (==) `on` (filename . serverInfo)
 
 refresh :: FilePickerViewModel -> Fay ()
 refresh filePickerVm = do

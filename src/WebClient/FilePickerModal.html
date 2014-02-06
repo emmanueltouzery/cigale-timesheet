@@ -1,5 +1,5 @@
 <div class="modal fade" id="filePickerModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" style="z-index:5000">
-	<div class="modal-dialog">
+	<div class="modal-dialog" style="width:750px;">
 		<div class="modal-content">
 			<div class="modal-header">
 				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
@@ -9,7 +9,7 @@
 				<ol class="breadcrumb" data-bind="foreach: pathElems">
 					<li><a href="#" data-bind="text: pathElemName, click: function() {$root.goToFolder($root, fullPath)}"></a></li>
 				</ol>
-				<div  style="overflow-y:auto; overflow-x: hidden; max-height: 150px; width: 100%">
+				<div  style="overflow-y:auto; overflow-x: hidden; max-height: 370px; width: 100%">
 				<table class="table table-condensed">
 					<thead>
 						<tr><th>Filename</th><th>Size</th></tr>

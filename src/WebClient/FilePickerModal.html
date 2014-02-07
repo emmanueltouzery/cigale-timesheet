@@ -16,7 +16,9 @@
 					</thead>
 					<tbody data-bind="foreach: sortedFiles">
 						<tr data-bind="css: {active: $root.isActive($root, $data)}, click: function() {$root.selectFile($root, $data)}">
-							<td style="width:65%" data-bind="text: serverInfo.filename"></td>
+							<td style="width:65%">
+								<span data-bind="attr: {'class': (serverInfo.filesize == -1) ? 'glyphicon glyphicon-folder-open' : 'glyphicon glyphicon-file' }" style="margin-right: 7px;"></span>
+								<span data-bind="text: serverInfo.filename"></span></td>
 							<td style="width:35%" data-bind="text: filesizeDesc"></td>
 						</tr>
 					</tbody>

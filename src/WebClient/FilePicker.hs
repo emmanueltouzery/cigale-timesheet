@@ -40,11 +40,12 @@ data ClientFileInfo = ClientFileInfo
 		filesizeDesc :: Text
 	} deriving Eq
 
-data OperationMode = PickFile | PickFolder
+data OperationMode = PickFile | PickFolder deriving Eq
 
 data FilePickerViewModel = FilePickerViewModel
 	{
 		operationMode :: OperationMode,
+		operationModeStr :: Observable Text,
 		displayedFolder :: Observable Text,
 		pathElems :: Observable [PathElem],
 		files :: ObservableList FileInfo,
@@ -115,6 +116,8 @@ showFilePicker path opMode callback = do
 		let filePickerVm = FilePickerViewModel
 			{
 				operationMode = opMode,
+				operationModeStr = koComputed $ return $ if opMode == PickFile
+					then "PickFile" else "PickFolder",
 				displayedFolder = koObservable curFolder,
 				pathElems = koObservable [],
 				files = emptyFileList,

@@ -79,7 +79,7 @@ getSizeDesc v | v == -1 = "-"
 getSizeDesc v | v == -2 = ""
 getSizeDesc v = case find (\s -> vDouble >= fst s) sizeUnits of
 	Just (mult, desc) -> formatDouble (vDouble / mult) 2 ++ desc
-	Nothing -> (T.pack $ show v) ++ " bytes"
+	Nothing -> T.pack (show v) ++ " bytes"
 	where vDouble = fromIntegral v
 
 formatDouble :: Double -> Int -> Text
@@ -90,8 +90,7 @@ selectFileCb filePickerVm fileInfo = if filesize serverInfoV == -1
 		then do
 			curDisplayedFolder <- koGet $ displayedFolder filePickerVm
 			goToFolderCb filePickerVm (curDisplayedFolder ++ "/" ++ filename serverInfoV)
-		else do
-			fileInfo ~> selectedFile filePickerVm
+		else fileInfo ~> selectedFile filePickerVm
 		where
 			serverInfoV = serverInfo fileInfo
 
@@ -102,9 +101,8 @@ goToFolderCb filePickerVm path = do
 
 showFilePicker :: Text -> OperationMode -> (Text -> Fay ()) -> Fay ()
 showFilePicker path opMode callback = do
-	holderExists <- select "#filePickerModalHolder" >>= jsLength >>= return . (/= 0)
-	when (not holderExists) $ do
-		select "body" >>= append "<div id='filePickerModalHolder'></div>"
+	holderExists <- liftM (/=0) (select "#filePickerModalHolder" >>= jsLength)
+	when (not holderExists) $ select "body" >>= append "<div id='filePickerModalHolder'></div>"
 	loadCb "#filePickerModalHolder" "/static/FilePickerModal.html" $ do
 		emptyFileList <- koObservableList []
 		filepickerRoot <- select "#filePickerModal"
@@ -151,8 +149,8 @@ okClickedCb vm callback filepickerRoot = do
 		'/' -> folder
 		_ -> folder ++ "/"
 	case operationMode vm of
-		PickFile -> callback $ folderSlash ++ (filename $ serverInfo file)
-		PickFolder -> callback $ folderSlash
+		PickFile -> callback $ folderSlash ++ filename (serverInfo file)
+		PickFolder -> callback folderSlash
 	bootstrapModalHide filepickerRoot
 
 readBrowseResponse :: FilePickerViewModel -> Automatic BrowseResponse -> Fay ()
@@ -166,16 +164,15 @@ readBrowseResponse filePickerVm browseResponse = do
 	koSetList (files filePickerVm) filesToDisplay
 
 getPathElements :: Text -> [PathElem]
-getPathElements path = (PathElem "root" "/") :
-	map (uncurry PathElem) (zip pathElems paths)
+getPathElements path = PathElem "root" "/" : zipWith PathElem pathElems paths
 	where
-		paths = tail $ map ((T.cons '/') . T.intercalate "/") (inits pathElems)
+		paths = tail $ map (T.cons '/' . T.intercalate "/") (inits pathElems)
 		pathElems = tail $ splitOn "/" path
 
 filesForDisplayCb :: FilePickerViewModel -> Fay [ClientFileInfo]
 filesForDisplayCb vm = do
 	filesList <- koUnwrapObservableList $ files vm
-	let filesListDisplay = filter (\fi -> not $ elem (filename fi) [".", ".."]) filesList
+	let filesListDisplay = filter (\fi -> notElem (filename fi) [".", ".."]) filesList
 	return $ map convertFileInfo (sortBy filesSort filesListDisplay)
 
 filesSort :: FileInfo -> FileInfo -> Ordering

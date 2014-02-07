@@ -51,11 +51,11 @@
 				<!-- ko if: jQuery.inArray(memberType, ["String", "Text", "ByteString"]) >= 0 -->
 					<input type="text" class="form-control" data-bind="value: $root.configAddEditVM.configurationBeingEdited()[memberName], attr: {id: memberName}" placeholder="Enter value" value=""/>
 				<!-- /ko -->
-				<!-- ko if: memberType === "FilePath" -->
+				<!-- ko if: jQuery.inArray(memberType, ["FilePath", "FolderPath"]) >= 0 -->
 				<div class="input-group">
-					<input type="text" class="form-control" data-bind="value: $root.configAddEditVM.configurationBeingEdited()[memberName], attr: {id: memberName}"
-placeholder="Enter value" value=""/>
-					<span class="input-group-btn"><button class="btn btn-default" type="button" data-bind="click: function() { $root.configAddEditVM.showFilePickerCb(memberName, $root.configAddEditVM.configurationBeingEdited) }">Browse...</button></span>
+					<input type="text" class="form-control" data-bind="value: $root.configAddEditVM.configurationBeingEdited()[memberName], attr: {id: memberName}" placeholder="Enter value" value=""/>
+					<span class="input-group-btn"><button class="btn btn-default" type="button"
+data-bind="click: function() { $root.configAddEditVM.showFilePickerCb($root.configAddEditVM.pluginBeingEdited(), $root.configAddEditVM.configurationBeingEdited, memberName) }">Browse...</button></span>
 				</div>
 				<!-- /ko -->
 				<!-- ko if: memberType === "Password" -->

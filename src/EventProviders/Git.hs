@@ -22,7 +22,7 @@ import EventProvider
 data GitRecord = GitRecord
 	{
 		gitUser :: T.Text,
-		gitRepo :: T.Text
+		gitRepo :: FolderPath
 	} deriving Show
 deriveJSON defaultOptions ''GitRecord
 
@@ -35,9 +35,8 @@ getGitProvider = EventProvider
 	}
 
 getRepoCommits :: GitRecord -> GlobalSettings -> Day -> IO [Event.Event]
-getRepoCommits (GitRecord _username _projectPath) _ date = do
+getRepoCommits (GitRecord _username projectPath) _ date = do
 	let username = T.unpack _username
-	let projectPath = T.unpack _projectPath
 	(inh, Just outh, errh, pid) <- Process.createProcess
 		(Process.proc "git" [
 			"log", "--since", formatDate $ addDays (-1) date,
@@ -59,9 +58,9 @@ getRepoCommits (GitRecord _username _projectPath) _ date = do
 			--return []
 		Right allCommits -> do
 			let relevantCommits = filter (isRelevantCommit date username) allCommits
-			let commitsList = map (commitToEvent _projectPath timezone) relevantCommits
+			let commitsList = map (commitToEvent projectPath timezone) relevantCommits
 			let tagCommits = filter (isRelevantTagCommit date) allCommits
-			let tagsList = map (tagToEvent _projectPath timezone) tagCommits
+			let tagsList = map (tagToEvent projectPath timezone) tagCommits
 			return $ commitsList ++ tagsList
 
 isRelevantCommit :: Day -> String -> Commit -> Bool
@@ -80,18 +79,18 @@ commitInRange date = inRange . localDay . commitDate
 	where
 		inRange tdate = tdate >= date && tdate < addDays 1 date
 	
-commitToEvent :: T.Text -> TimeZone -> Commit -> Event.Event
+commitToEvent :: FolderPath -> TimeZone -> Commit -> Event.Event
 commitToEvent gitFolderPath timezone commit = Event.Event
 			{
 				pluginName = getModuleName getGitProvider,
 				eventIcon = "glyphicon-cog",
 				eventDate = localTimeToUTC timezone (commitDate commit),
 				desc = fromMaybe "no commit message" (commitDesc commit),
-				extraInfo = getCommitExtraInfo commit gitFolderPath,
+				extraInfo = getCommitExtraInfo commit (T.pack gitFolderPath),
 				fullContents = Just $ T.pack $ commitContents commit
 			}
 
-tagToEvent :: T.Text -> TimeZone -> Commit -> Event.Event
+tagToEvent :: FolderPath -> TimeZone -> Commit -> Event.Event
 tagToEvent gitFolderPath timezone commit = baseEvent
 		{
 			desc = T.concat ["Tag applied: ", descVal],

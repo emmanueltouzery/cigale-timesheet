@@ -121,6 +121,10 @@ isJust _       = True
 fromMaybe     :: a -> Maybe a -> a
 fromMaybe d x = case x of {Nothing -> d;Just v  -> v}
 
+fromJust :: Maybe a -> a
+fromJust (Just x) = x
+fromJust Nothing = error "fromJust: got Nothing"
+
 -- | The 'maybe' function takes a default value, a function, and a 'Maybe'
 -- value.  If the 'Maybe' value is 'Nothing', the function returns the
 -- default value.  Otherwise, it applies the function to the value inside

@@ -15,7 +15,7 @@ import JQuery (JQuery, select, append)
 (++) = T.append
 putStrLn = P.putStrLn . T.unpack
 
-getFolderContents :: Text -> (BrowseResponse -> Fay ()) -> Fay ()
+getFolderContents :: Text -> (Automatic BrowseResponse -> Fay ()) -> Fay ()
 getFolderContents path callback = ajxGet url (putStrLn "Error getting folder contents") callback
 	where url = case path of
 		"" -> "/browseFolder"
@@ -40,8 +40,11 @@ data ClientFileInfo = ClientFileInfo
 		filesizeDesc :: Text
 	} deriving Eq
 
+data OperationMode = PickFile | PickFolder
+
 data FilePickerViewModel = FilePickerViewModel
 	{
+		operationMode :: OperationMode,
 		displayedFolder :: Observable Text,
 		pathElems :: Observable [PathElem],
 		files :: ObservableList FileInfo,
@@ -96,8 +99,8 @@ goToFolderCb filePickerVm path = do
 			path ~> displayedFolder filePickerVm
 			refresh filePickerVm
 
-showFilePicker :: Text -> (Text -> Fay ()) -> Fay ()
-showFilePicker path callback = do
+showFilePicker :: Text -> OperationMode -> (Text -> Fay ()) -> Fay ()
+showFilePicker path opMode callback = do
 	holderExists <- select "#filePickerModalHolder" >>= jsLength >>= return . (/= 0)
 	when (not holderExists) $ do
 		select "body" >>= append "<div id='filePickerModalHolder'></div>"
@@ -106,9 +109,12 @@ showFilePicker path callback = do
 		filepickerRoot <- select "#filePickerModal"
 		let (curFolder, curFile) = case path of
 			"" -> ("", "")
-			_ -> breakOnEnd "/" path
+			_ -> case opMode of
+				PickFile -> breakOnEnd "/" path
+				PickFolder -> (path, "")
 		let filePickerVm = FilePickerViewModel
 			{
+				operationMode = opMode,
 				displayedFolder = koObservable curFolder,
 				pathElems = koObservable [],
 				files = emptyFileList,
@@ -141,14 +147,20 @@ okClickedCb vm callback filepickerRoot = do
 	let folderSlash = case last folder of
 		'/' -> folder
 		_ -> folder ++ "/"
-	callback $ folderSlash ++ (filename $ serverInfo file)
+	case operationMode vm of
+		PickFile -> callback $ folderSlash ++ (filename $ serverInfo file)
+		PickFolder -> callback $ folderSlash
 	bootstrapModalHide filepickerRoot
 
-readBrowseResponse :: FilePickerViewModel -> BrowseResponse -> Fay ()
+readBrowseResponse :: FilePickerViewModel -> Automatic BrowseResponse -> Fay ()
 readBrowseResponse filePickerVm browseResponse = do
 	browseFolderPath browseResponse ~> displayedFolder filePickerVm
 	getPathElements (browseFolderPath browseResponse) ~> pathElems filePickerVm
-	koSetList (files filePickerVm) (browseFiles browseResponse)
+	let allFiles = browseFiles browseResponse
+	let filesToDisplay = case operationMode filePickerVm of
+		PickFile -> allFiles
+		PickFolder -> filter ((==(-1)) . filesize) allFiles
+	koSetList (files filePickerVm) filesToDisplay
 
 getPathElements :: Text -> [PathElem]
 getPathElements path = (PathElem "root" "/") :

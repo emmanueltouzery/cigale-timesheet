@@ -9,7 +9,7 @@ import qualified Prelude as P
 import Knockout
 
 import Utils
-import FilePicker (getFolderContents, showFilePicker)
+import FilePicker (getFolderContents, showFilePicker, OperationMode(..))
 
 (++) = T.append
 tshow = T.pack . show
@@ -122,7 +122,7 @@ data ConfigAddEditDialogVM = ConfigAddEditDialogVM
 		passwordType :: Observable Text,
 		pluginBeingEditedHasPasswords :: Observable Bool,
 		showPasswords :: Observable Bool,
-		showFilePickerCb :: Text -> Observable JValue -> Fay ()
+		showFilePickerCb :: PluginConfig -> Observable JValue -> Text -> Fay ()
 	}
 
 instance KnockoutModel ConfigViewModel
@@ -158,12 +158,16 @@ main = ready $ do
 	myajax2 "/configVal" "/configdesc" $ \val desc ->
 		handleValDesc viewModel (head val) (head desc)
 
-showFilePickerCallback :: Text -> Observable JValue -> Fay ()
-showFilePickerCallback memberName configurationBeingEdited = do
+showFilePickerCallback :: PluginConfig -> Observable JValue -> Text -> Fay ()
+showFilePickerCallback pluginCfg configurationBeingEdited memberNameV = do
+	let memberTypeV = memberType $ fromJust 
+		$ find ((==memberNameV) . memberName) (cfgPluginConfig pluginCfg)
 	configurationBeingEditedV <- koGet configurationBeingEdited
-	let curPath = jvGetString $ jvValue configurationBeingEditedV memberName
-	print curPath
-	showFilePicker curPath (pickerFileChanged memberName configurationBeingEdited)
+	let curPath = jvGetString $ jvValue configurationBeingEditedV memberNameV
+	let opMode = case memberTypeV of
+		"FilePath" -> PickFile
+		"FolderPath" -> PickFolder
+	showFilePicker curPath opMode (pickerFileChanged memberNameV configurationBeingEdited)
 
 handleValDesc :: ConfigViewModel -> JValue -> [PluginConfig] -> Fay ()
 handleValDesc vm configVal pluginConfigs = do

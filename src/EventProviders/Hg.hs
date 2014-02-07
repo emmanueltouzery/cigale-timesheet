@@ -20,7 +20,7 @@ import EventProvider
 data HgRecord = HgRecord
 	{
 		hgUser :: T.Text,
-		hgRepo :: T.Text
+		hgRepo :: FolderPath
 	} deriving Show
 deriveJSON defaultOptions ''HgRecord
 
@@ -33,9 +33,8 @@ getHgProvider = EventProvider
 	}
 
 getRepoCommits :: HgRecord -> GlobalSettings -> Day -> IO [Event.Event]
-getRepoCommits (HgRecord _username _projectPath) _ day = do
+getRepoCommits (HgRecord _username projectPath) _ day = do
 	let username = T.unpack _username
-	let projectPath = T.unpack _projectPath
 	let dateRange = formatDate day
 	(inh, Just outh, errh, pid) <- Process.createProcess
 		(Process.proc "hg" [

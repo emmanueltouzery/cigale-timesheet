@@ -3,7 +3,7 @@ module EventProvider (thGetTypeDesc,
 	GlobalSettings(GlobalSettings), EventProvider(EventProvider),
 	eventProviderWrap, getSettingsFolder,
 	getEvents, getModuleName, getConfigType,
-	ConfigDataType(..), ConfigDataInfo(..)) where
+	ConfigDataType(..), ConfigDataInfo(..), FolderPath) where
 
 import qualified Data.Text as T
 import Data.Time.Calendar
@@ -62,6 +62,8 @@ thGetTypeDesc name = do
 data GlobalSettings = GlobalSettings {
 	getSettingsFolder :: String
 }
+
+type FolderPath = String
 
 data EventProvider a = EventProvider {
 	getModuleName :: String,

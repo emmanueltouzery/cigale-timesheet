@@ -9,7 +9,7 @@
 				<ol class="breadcrumb" data-bind="foreach: pathElems">
 					<li><a href="#" data-bind="text: pathElemName, click: function() {$root.goToFolder($root, fullPath)}"></a></li>
 				</ol>
-				<div  style="overflow-y:auto; overflow-x: hidden; max-height: 370px; width: 100%">
+				<div  style="overflow-y:auto; overflow-x: hidden; min-height: 370px; max-height: 370px; width: 100%">
 				<table class="table table-condensed">
 					<thead>
 						<tr><th>Filename</th><th>Size</th></tr>

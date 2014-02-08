@@ -34,12 +34,12 @@ import EventProvider
 
 import Text.Regex.PCRE.Rex
 
-type Password = ByteString
+type Password = T.Text
 
 data RedmineConfig = RedmineConfig
 	{
-		redmineUrl :: ByteString,
-		redmineUsername :: ByteString,
+		redmineUrl :: T.Text,
+		redmineUsername :: T.Text,
 		redmineUserDisplay :: T.Text,
 		redminePassword :: Password
 	} deriving Show
@@ -57,7 +57,7 @@ getRedmineEvents :: RedmineConfig -> GlobalSettings -> Day -> IO [Event]
 getRedmineEvents config _ day = do
 	maybeCookie <- login config
 	let cookieValues = head $ split ';' $ fromJust maybeCookie
-	let activityUrl = prepareActivityUrl config day
+	let activityUrl = encodeUtf8 $ prepareActivityUrl config day
 	response <- Util.http activityUrl "" concatHandler $ do
 		http GET "/activity?show_wiki_edits=1&show_issues=1"
 		setHeader "Cookie" cookieValues
@@ -80,18 +80,19 @@ mergeSuccessiveEvents [] = []
 -- 	where firstPart = head . (T.splitOn "(") . desc
 -- mergeSuccessiveEvents whatever@_ = whatever
 
-prepareActivityUrl :: RedmineConfig -> Day -> ByteString
-prepareActivityUrl config day = BS.concat [redmineUrl config, "/activity?from=", dayBeforeStr]
+prepareActivityUrl :: RedmineConfig -> Day -> T.Text
+prepareActivityUrl config day = T.concat [redmineUrl config, "/activity?from=", dayBeforeStr]
 	where
 		dayBefore = addDays (-1) day
 		(y, m, d) = toGregorian dayBefore
-		dayBeforeStr = Char8.pack $ printf "%d-%02d-%02d" y m d
+		dayBeforeStr = T.pack $ printf "%d-%02d-%02d" y m d
 
 -- returns the cookie
 login :: RedmineConfig -> IO (Maybe ByteString)
 login config = postForm
-		(BS.concat [redmineUrl config, "login"])
-		[("username", redmineUsername config), ("password", redminePassword config)]
+		(BS.concat [encodeUtf8 $ redmineUrl config, "login"])
+		[("username", encodeUtf8 $ redmineUsername config), 
+			("password", encodeUtf8 $ redminePassword config)]
 		(\r _ -> return $ getHeader r "Set-Cookie")
 
 getIssues :: RedmineConfig -> ByteString -> Day -> Day -> TimeZone -> [Event]
@@ -128,7 +129,7 @@ parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) =
 				desc = bugTitle,
 				extraInfo =  bugComment,
 				fullContents = fmap (\x -> T.concat ["<a href='",
-					decodeUtf8 $ redmineUrl config,
+					redmineUrl config,
 					x, "'>More information</a>"]) (linkTarget linkNode),
 				eventDate = localTimeToUTC timezone localTime
 			} : parseBugNodes config day timezone rest

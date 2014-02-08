@@ -21,7 +21,9 @@ Library
     MonadCatchIO-transformers,
     mtl,
     aeson >= 0.6.2.0,
-    rex,
+    -- i don't use any rex 0.4 feature but it added a constraint on
+    -- the haskell-src-meta dependency which prevents cabal to pick too old versions
+    rex >= 0.4,
     codec-mbox,
     text,
     time,
@@ -51,7 +53,8 @@ Library
     unordered-containers,
     iconv,
 -- after this line are build/install dependencies, not runtime dependencies!
-    fay >= 0.18.0.4,
+    -- fay-base need mapM, unless
+    fay >= 0.19,
     fay-jquery,
     zip-archive >= 0.1.4
   exposed-modules:
@@ -88,7 +91,9 @@ Executable cigale-timesheet
      snap-core,
      snap-server,
      blaze-html,
-     rex,
+    -- i don't use any rex 0.4 feature but it added a constraint on
+    -- the haskell-src-meta dependency which prevents cabal to pick too old versions
+     rex >= 0.4,
      HTTP,
      filepath
 
@@ -110,7 +115,9 @@ test-suite        tests
     MonadCatchIO-transformers,
     mtl,
     aeson,
-    rex,
+    -- i don't use any rex 0.4 feature but it added a constraint on
+    -- the haskell-src-meta dependency which prevents cabal to pick too old versions
+    rex >= 0.4,
     codec-mbox,
     text,
     time,

@@ -102,7 +102,7 @@ goToFolderCb filePickerVm path = do
 showFilePicker :: Text -> OperationMode -> (Text -> Fay ()) -> Fay ()
 showFilePicker path opMode callback = do
 	holderExists <- liftM (/=0) (select "#filePickerModalHolder" >>= jsLength)
-	when (not holderExists) $ select "body" >>= append "<div id='filePickerModalHolder'></div>"
+	unless holderExists $ select "body" >>= append "<div id='filePickerModalHolder'></div>"
 	loadCb "#filePickerModalHolder" "/static/FilePickerModal.html" $ do
 		emptyFileList <- koObservableList []
 		filepickerRoot <- select "#filePickerModal"

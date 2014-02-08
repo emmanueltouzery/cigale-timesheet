@@ -141,9 +141,6 @@ foldM f a (x:xs)  =  f a x >>= \fax -> foldM f fax xs
 --foldM_            :: (Monad m) => (a -> b -> m a) -> a -> [b] -> m ()
 foldM_ f a xs     = foldM f a xs >> return ()
 
-mapM :: (a -> Fay b) -> [a] -> Fay [b]
-mapM f as       =  sequence (map f as)
-
 -- from Data.Functions
 on :: (b -> b -> c) -> (a -> b) -> a -> a -> c
 (.*.) `on` f = \x y -> f x .*. f y

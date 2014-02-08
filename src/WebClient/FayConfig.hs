@@ -9,7 +9,7 @@ import qualified Prelude as P
 import Knockout
 
 import Utils
-import FilePicker (getFolderContents, showFilePicker, OperationMode(..))
+import FilePicker
 
 (++) = T.append
 tshow = T.pack . show
@@ -170,7 +170,11 @@ showFilePickerCallback pluginCfg configurationBeingEdited memberNameV = do
 	let opMode = case memberTypeV of
 		"FilePath" -> PickFile
 		"FolderPath" -> PickFolder
-	showFilePicker curPath opMode (pickerFileChanged memberNameV configurationBeingEdited)
+	let pickerOptions = pickerDefaultOptions
+		{
+			pickerMode = opMode
+		}
+	showFilePicker curPath pickerOptions (pickerFileChanged memberNameV configurationBeingEdited)
 
 handleValDesc :: ConfigViewModel -> JValue -> [PluginConfig] -> Fay ()
 handleValDesc vm configVal pluginConfigs = do

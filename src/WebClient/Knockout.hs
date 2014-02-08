@@ -10,6 +10,7 @@ module Knockout
   , koComputed
   , koGet
   , koSet
+  , koSubscribe
 
   , ObservableList
   , koComputedList
@@ -38,7 +39,7 @@ import Fay.Text (fromString, Text)
 
 data Observable a
 
-koObservable :: a -> Observable a
+koObservable :: Automatic a -> Observable a
 koObservable = ffi "ko.observable(%1)"
 
 koComputed :: Fay (Automatic a) -> Observable a
@@ -52,6 +53,9 @@ koGet = ffi "%1()"
 
 koSet :: Observable a -> Automatic a -> Fay ()
 koSet = ffi "%1(%2)"
+
+koSubscribe :: Observable a -> (a -> Fay ()) -> Fay ()
+koSubscribe = ffi "%1.subscribe(%2)"
 
 (~>) :: Automatic a -> Observable a -> Fay ()
 (~>) = flip koSet

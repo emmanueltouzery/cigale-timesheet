@@ -181,4 +181,4 @@ filesSort a b
 	| filesize a >= 0 && filesize b == -1 = GT
 	| otherwise = filenameComp a b
 		where
-			filenameComp = textComp `on` filename
+			filenameComp = textComp `on` (toLower . filename)

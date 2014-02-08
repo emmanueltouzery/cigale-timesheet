@@ -50,6 +50,9 @@ breakOnEnd = ffi "[%2.substring(0, %2.lastIndexOf(%1)+1), %2.substring(%2.lastIn
 last :: Text -> Char
 last = ffi "%1.slice(-1)"
 
+toLower :: Text -> Text
+toLower = ffi "%1.toLowerCase()"
+
 -- http://stackoverflow.com/questions/18521821
 strComp :: String -> String -> Ordering
 strComp (_:_) [] = GT

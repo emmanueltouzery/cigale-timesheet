@@ -3,7 +3,7 @@
 > "La Cigale, ayant chanté tout l'Été, se trouva fort dépourvue quand la bise fut venue."  
 >	-- Jean de la Fontaine, The ant and the grasshopper
 
-[![Build Status](https://api.travis-ci.org/emmanueltouzery/cigale-timesheet.png?branch=master)](http://travis-ci.org/emmanueltouzery/cigale-timesheet)
+[![Build Status](https://travis-ci.org/emmanueltouzery/cigale-timesheet.png?branch=master)](https://travis-ci.org/emmanueltouzery/cigale-timesheet)
 
 ## Purpose
 

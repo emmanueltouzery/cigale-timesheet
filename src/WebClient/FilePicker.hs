@@ -162,15 +162,21 @@ refresh filePickerVm = do
 	displayedFolderV <- koGet $ displayedFolder filePickerVm
 	getFolderContents displayedFolderV (readBrowseResponse filePickerVm)
 
+alert :: Text -> Fay ()
+alert = ffi "alert(%1)"
+
 okClickedCb :: FilePickerViewModel -> (Text -> Fay ()) -> JQuery -> Fay ()
 okClickedCb vm callback filepickerRoot = do
 	folder <- koGet $ displayedFolder vm
 	file <- koGet $ selectedFile vm
-	let folderSlash = ensureEndSlash folder
-	case operationMode vm of
-		PickFile -> callback $ folderSlash ++ filename (serverInfo file)
-		PickFolder -> callback folderSlash
-	bootstrapModalHide filepickerRoot
+	if operationMode vm == PickFile && filename (serverInfo file) == ""
+		then alert "Please pick a file!"
+		else do
+			let folderSlash = ensureEndSlash folder
+			case operationMode vm of
+				PickFile -> callback $ folderSlash ++ filename (serverInfo file)
+				PickFolder -> callback folderSlash
+			bootstrapModalHide filepickerRoot
 
 ensureEndSlash :: Text -> Text
 ensureEndSlash path = case last path of

@@ -58,6 +58,7 @@ data FilePickerViewModel = FilePickerViewModel
 	{
 		operationMode :: OperationMode,
 		optShowHiddenFiles :: Observable Bool,
+		showThrobber :: Observable Bool,
 		operationModeStr :: Observable Text,
 		displayedFolder :: Observable Text,
 		pathElems :: Observable [PathElem],
@@ -130,6 +131,7 @@ showFilePicker path options callback = do
 			{
 				operationMode = opMode,
 				optShowHiddenFiles = koObservable $ showHiddenFiles options,
+				showThrobber = koObservable False,
 				operationModeStr = koComputed $ return $ if opMode == PickFile
 					then "PickFile" else "PickFolder",
 				displayedFolder = koObservable curFolder,
@@ -156,6 +158,7 @@ isActiveCb vm fileInfo = do
 
 refresh :: FilePickerViewModel -> Fay ()
 refresh filePickerVm = do
+	True ~> (showThrobber filePickerVm)
 	displayedFolderV <- koGet $ displayedFolder filePickerVm
 	getFolderContents displayedFolderV (readBrowseResponse filePickerVm)
 
@@ -187,6 +190,7 @@ readBrowseResponse filePickerVm browseResponse = do
 		then filesToDisplay
 		else filter ((/='.') . T.head . filename) filesToDisplay
 	koSetList (files filePickerVm) finalList
+	False ~> (showThrobber filePickerVm)
 
 getPathElements :: Text -> [PathElem]
 getPathElements path = PathElem "root" "/" : zipWith PathElem pathElems paths

@@ -89,7 +89,8 @@ selectFileCb :: FilePickerViewModel -> ClientFileInfo -> Fay ()
 selectFileCb filePickerVm fileInfo = if filesize serverInfoV == -1
 		then do
 			curDisplayedFolder <- koGet $ displayedFolder filePickerVm
-			goToFolderCb filePickerVm (curDisplayedFolder ++ "/" ++ filename serverInfoV)
+			goToFolderCb filePickerVm
+				(ensureEndSlash curDisplayedFolder ++ filename serverInfoV)
 		else fileInfo ~> selectedFile filePickerVm
 		where
 			serverInfoV = serverInfo fileInfo
@@ -145,13 +146,16 @@ okClickedCb :: FilePickerViewModel -> (Text -> Fay ()) -> JQuery -> Fay ()
 okClickedCb vm callback filepickerRoot = do
 	folder <- koGet $ displayedFolder vm
 	file <- koGet $ selectedFile vm
-	let folderSlash = case last folder of
-		'/' -> folder
-		_ -> folder ++ "/"
+	let folderSlash = ensureEndSlash folder
 	case operationMode vm of
 		PickFile -> callback $ folderSlash ++ filename (serverInfo file)
 		PickFolder -> callback folderSlash
 	bootstrapModalHide filepickerRoot
+
+ensureEndSlash :: Text -> Text
+ensureEndSlash path = case last path of
+	'/' -> path
+	_ -> path ++ "/"
 
 readBrowseResponse :: FilePickerViewModel -> Automatic BrowseResponse -> Fay ()
 readBrowseResponse filePickerVm browseResponse = do

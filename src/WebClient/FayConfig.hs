@@ -163,7 +163,10 @@ showFilePickerCallback pluginCfg configurationBeingEdited memberNameV = do
 	let memberTypeV = memberType $ fromJust 
 		$ find ((==memberNameV) . memberName) (cfgPluginConfig pluginCfg)
 	configurationBeingEditedV <- koGet configurationBeingEdited
-	let curPath = jvGetString $ jvValue configurationBeingEditedV memberNameV
+	let maybeCurPath = lookup memberNameV (jvAsHash configurationBeingEditedV)
+	let curPath = case maybeCurPath of
+		Just v -> jvGetString v
+		Nothing -> ""
 	let opMode = case memberTypeV of
 		"FilePath" -> PickFile
 		"FolderPath" -> PickFolder

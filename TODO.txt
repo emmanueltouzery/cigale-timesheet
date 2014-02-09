@@ -24,29 +24,21 @@ quoted-printable ==> _ should not be translated to space, that applies only to m
 
 probably animated throbber.
 
-for git, an optional diff would be nice too...
+for git, an optional diff would be nice too... would have to fetched later not immediately, too much data.
 
 could use the favicon to display progress when fetching, if i won't manage to speed up the fetching enough: https://github.com/tommoor/tinycon
 
 emails:
 display attachments list (name+mimetype) -> probably use this to return images: http://stackoverflow.com/a/10802497/516188 the server returns a JSON describing the data to display, with main HTML and image attachments directly in that JSON, then the client builds the display. But for that I must change the Event definition, to add the possibility of attachments...
 
-so that the app stops when the browser tab is closed, have the client send periodical ping (heartbeat) and have the server commit suicide if not receiving it some time.
-
-waste of vertical space due to the calendar. maybe move to read-only text containing the full date time (Tuesday, 10 September,
-2013), and pop-calendar, or use that space for statistics about the day (first event at: last event at: total duration: )
+have the server stop when the last client is closed, see bug #1
 
 i made my own system for configuration but i think this might document a similar and probably better approach? to check: https://www.fpcomplete.com/user/thoughtpolice/using-reflection http://www.reddit.com/r/haskell/comments/1l9qzw/reflecting_values_to_types_and_back/
+for the config, if I make some smart TH then let's also have it call the aeson json functions generations, and then modules are not directly tied to aeson anymore
 
 store passwords using gnome-keyring on linux?
 
-for the config, if I make some smart TH then let's also have it call the
-aeson json functions generations, and then modules are not directly tied
-to aeson anymore
-
 migrate to scotty instead of snap? https://github.com/xich/scotty
-
-decent error message if the config file is corrupted?
 
 remove Util.toStrict1 once I can migrate to bytestring 0.10 (I think ghc 7.6)
 

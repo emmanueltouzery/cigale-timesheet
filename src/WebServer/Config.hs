@@ -21,7 +21,7 @@ import qualified Util
 getSettingsFolder :: IO FilePath
 getSettingsFolder = do
 	home <- getHomeDirectory
-	let result = home ++ "/.timesheet/"
+	let result = home ++ "/.cigale-timesheet/"
 	createDirectoryIfMissing False result
 	return result
 

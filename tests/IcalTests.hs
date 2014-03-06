@@ -7,6 +7,7 @@ import Test.HUnit
 
 import qualified Data.Text as T
 import qualified Data.Map as Map
+import Data.Time.LocalTime
 import Data.Time.Clock
 import Data.Time.Calendar
 
@@ -21,12 +22,13 @@ import TestUtil
 
 runIcalTests :: Spec
 runIcalTests = do
-	testBasicEvent
-	testThroughMidnightEvent
-	testWholeDayEvent
+	let tz = utc
+	testBasicEvent tz
+	testThroughMidnightEvent tz
+	testWholeDayEvent tz
 
-testBasicEvent :: Spec
-testBasicEvent = it "parses basic ICAL event" $ do
+testBasicEvent :: TimeZone -> Spec
+testBasicEvent tz = it "parses basic ICAL event" $ do
 	let source = [strT|
 		BEGIN:VEVENT
 		DTSTART:20130417T073000Z
@@ -53,10 +55,10 @@ testBasicEvent = it "parses basic ICAL event" $ do
 			extraInfo = "End: 09:00; duration: 1:30",
 			fullContents = Nothing
 		}
-	testParsecExpectTransform (head . keyValuesToEvents . head) source parseEventsParsec expected
+	testParsecExpectTransform (head . (keyValuesToEvents tz) . head) source parseEventsParsec expected
 
-testThroughMidnightEvent :: Spec
-testThroughMidnightEvent = it "parses basic ICAL event through midnight" $ do
+testThroughMidnightEvent :: TimeZone -> Spec
+testThroughMidnightEvent tz = it "parses basic ICAL event through midnight" $ do
 	let source = [strT|
 		BEGIN:VEVENT
 		DTSTART:20130417T233000Z
@@ -81,7 +83,7 @@ testThroughMidnightEvent = it "parses basic ICAL event through midnight" $ do
 			eventDate = UTCTime (fromGregorian 2013 4 17)
 				(secondsToDiffTime $ 23*3600+30*60),
 			desc = "spent a lot of time researching bus tables for position records",
-			extraInfo = "End: 23:59; duration: 0:30",
+			extraInfo = "End: 23:59; duration: 0:29",
 			fullContents = Nothing
 		},
 		Event
@@ -94,10 +96,10 @@ testThroughMidnightEvent = it "parses basic ICAL event through midnight" $ do
 			extraInfo = "End: 00:30; duration: 0:30",
 			fullContents = Nothing
 		}]
-	testParsecExpectTransform (concatMap keyValuesToEvents) source parseEventsParsec expected
+	testParsecExpectTransform (concatMap (keyValuesToEvents tz)) source parseEventsParsec expected
 
-testWholeDayEvent :: Spec
-testWholeDayEvent = it "parses whole day ICAL event" $ do
+testWholeDayEvent :: TimeZone -> Spec
+testWholeDayEvent tz = it "parses whole day ICAL event" $ do
 	let source = [strT|
 		BEGIN:VEVENT
 		DTSTART;VALUE=DATE:20140331
@@ -122,7 +124,7 @@ testWholeDayEvent = it "parses whole day ICAL event" $ do
 			eventDate = UTCTime (fromGregorian 2014 3 31)
 				(secondsToDiffTime 0),
 			desc = "spent a lot of time researching bus tables for position records",
-			extraInfo = "End: 23:59; duration: 24:00",
+			extraInfo = "End: 23:59; duration: 23:59",
 			fullContents = Nothing
 		},
 		Event
@@ -132,7 +134,7 @@ testWholeDayEvent = it "parses whole day ICAL event" $ do
 			eventDate = UTCTime (fromGregorian 2014 4 1)
 				(secondsToDiffTime 0),
 			desc = "spent a lot of time researching bus tables for position records",
-			extraInfo = "End: 23:59; duration: 24:00",
+			extraInfo = "End: 23:59; duration: 23:59",
 			fullContents = Nothing
 		},
 		Event
@@ -142,8 +144,8 @@ testWholeDayEvent = it "parses whole day ICAL event" $ do
 			eventDate = UTCTime (fromGregorian 2014 4 2)
 				(secondsToDiffTime 0),
 			desc = "spent a lot of time researching bus tables for position records",
-			extraInfo = "End: 23:59; duration: 24:00",
+			extraInfo = "End: 23:59; duration: 23:59",
 			fullContents = Nothing
 		}
 		]
-	testParsecExpectTransform (concatMap keyValuesToEvents) source parseEventsParsec expected
+	testParsecExpectTransform (concatMap (keyValuesToEvents tz)) source parseEventsParsec expected

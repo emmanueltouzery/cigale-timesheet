@@ -1,3 +1,11 @@
+### I think it's broken for Event to use UTCTime, should have everything in LocalTime. One of the reasons is that I get the user timezone once, but if I look at dates in the future or the past, the timezone may be different (winter/summer time), offsetting everything by 1h... should have simply localtime!!
+
+interesting, 2014-02-05, 10:47, same mail present twice.
+
+ugly to in email, example 2014-02-04 15:38
+
+improve a couple of rex regexs with this trick? https://github.com/mgsloan/rex/issues/8
+
 the knockout API could be so. much. nicer... i think it needs operators and also a typeclass for Observable and ObservableList.
 Obviously for the typeclass, for now Fay doesn't support it...
 

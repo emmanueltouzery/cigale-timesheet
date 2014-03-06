@@ -3,6 +3,7 @@
 module Ical where
 
 import Data.Time.Clock
+import Data.Time.LocalTime
 import Data.Time.Calendar
 import Network.Socket
 import Network.Http.Client
@@ -55,6 +56,7 @@ fromLeaf _ = "Error: expected a leaf!"
 
 getCalendarEvents :: IcalRecord -> GlobalSettings -> Day -> IO [Event.Event]
 getCalendarEvents (IcalRecord icalAddress) settings day = do
+	timezone <- getCurrentTimeZone
 	hasCached <- hasCachedVersionForDay settingsFolder day
 	icalText <- if hasCached
 		then readFromCache settingsFolder
@@ -69,14 +71,14 @@ getCalendarEvents (IcalRecord icalAddress) settings day = do
 				++ ":" ++ show (sourceColumn $ errorPos pe)
 			error "Ical parse error, aborting"
 			--return []
-		Right x -> return $ convertToEvents day x
+		Right x -> return $ convertToEvents timezone day x
 	where
 		settingsFolder = getSettingsFolder settings
 
-convertToEvents :: Day -> [Map String CalendarValue] -> [Event.Event]
-convertToEvents day keyValues = filterDate day events
+convertToEvents :: TimeZone -> Day -> [Map String CalendarValue] -> [Event.Event]
+convertToEvents tz day keyValues = filterDate day events
 	where
-		events = concatMap keyValuesToEvents keyValues
+		events = concatMap (keyValuesToEvents tz) keyValues
 
 readFromWWW :: B.ByteString -> String -> IO T.Text
 readFromWWW icalAddress settingsFolder = do
@@ -112,24 +114,27 @@ parseEvent = do
 		(T.try parseEnd)
 	return $ Map.fromList keyValues
 
-makeEvents :: Event.Event -> UTCTime -> UTCTime -> [Event.Event]
-makeEvents base start end | utctDay end == utctDay start = [base
+makeEvents :: TimeZone -> Event.Event -> LocalTime -> LocalTime -> [Event.Event]
+makeEvents tz base start end | localDay end == localDay start = [base
 	{
-		eventDate = start,
-		extraInfo = T.concat["End: ", utctDayTimeStr end,
-			"; duration: ", Util.formatDurationSec $ diffUTCTime end start]
+		eventDate = startUtc,
+		extraInfo = T.concat["End: ", utctDayTimeStr endUtc,
+			"; duration: ", Util.formatDurationSec $ diffUTCTime endUtc startUtc]
 	}]
-makeEvents base start end = makeEvents base start (start {utctDayTime = 24*3600}) ++
-		makeEvents base (UTCTime (addDays 1 (utctDay start)) 0) end
+	where
+		startUtc = localTimeToUTC tz start
+		endUtc = localTimeToUTC tz end
+makeEvents tz base start end = makeEvents tz base start (start {localTimeOfDay = TimeOfDay 23 59 0}) ++
+		makeEvents tz base (LocalTime (addDays 1 (localDay start)) (TimeOfDay 0 0 0)) end
 
-keyValuesToEvents :: Map String CalendarValue -> [Event.Event]
-keyValuesToEvents records = makeEvents baseEvent startDate endDate
+keyValuesToEvents :: TimeZone -> Map String CalendarValue -> [Event.Event]
+keyValuesToEvents tz records = makeEvents tz baseEvent startDate endDate
 	where
 		baseEvent = Event.Event
 			{
 				pluginName = getModuleName getIcalProvider,
 				eventIcon = "glyphicon-calendar",
-				eventDate = startDate,
+				eventDate = localTimeToUTC tz startDate,
 				desc = descV,
 				extraInfo = "",
 				fullContents = Nothing
@@ -166,7 +171,7 @@ parseSubLevel = do
 	subcontents <- manyTill parseKeyValue (T.try (do string $ "END:" ++ value; eol))
 	return (value, SubLevel $ Map.fromList subcontents)
 
-parseDateNode :: String -> Map String CalendarValue -> UTCTime
+parseDateNode :: String -> Map String CalendarValue -> LocalTime
 parseDateNode key records = case Map.lookup key records of
 	Just value -> parseDateTime $ fromLeaf value
 	Nothing -> case Map.lookup (key ++ ";VALUE=DATE") records of
@@ -175,19 +180,17 @@ parseDateNode key records = case Map.lookup key records of
 	where
 		dayTime time = case key of
 			"DTSTART" -> time
-			"DTEND" -> time { utctDayTime = 24*3600 } -- end of the day
+			"DTEND" -> time { localTimeOfDay = TimeOfDay 23 59 59 } -- end of the day
 
-parseDate :: String -> UTCTime
+parseDate :: String -> LocalTime
 parseDate [rex|(?{read -> year}\d{4})(?{read -> month}\d\d)(?{read -> day}\d\d)|] =
-	UTCTime (fromGregorian year month day) (secondsToDiffTime 0)
+	LocalTime (fromGregorian year month day) (TimeOfDay 0 0 0)
 parseDate date@_ = error $ "unrecognized iCal date: " ++ date
 
-parseDateTime :: String -> UTCTime
+parseDateTime :: String -> LocalTime
 parseDateTime [rex|(?{read -> year}\d{4})(?{read -> month}\d\d)(?{read -> day}\d\d)T
 		(?{read -> hour}\d\d)(?{read -> mins}\d\d)(?{read -> sec}\d\d)|] =
-	UTCTime (fromGregorian year month day) (secondsToDiffTime secOfDay)
-	where
-		secOfDay = hour*3600 + mins*60 + sec
+	LocalTime (fromGregorian year month day) (TimeOfDay hour mins sec)
 parseDateTime date@_ = error $ "unrecognized iCal datetime: " ++ date
 
 parseEnd :: T.GenParser st ()

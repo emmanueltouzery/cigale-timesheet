@@ -76,7 +76,7 @@ getCalendarEvents (IcalRecord icalAddress) settings day = do
 convertToEvents :: Day -> [Map String CalendarValue] -> [Event.Event]
 convertToEvents day keyValues = filterDate day events
 	where
-		events = map keyValuesToEvent keyValues
+		events = concatMap keyValuesToEvents keyValues
 
 readFromWWW :: B.ByteString -> String -> IO T.Text
 readFromWWW icalAddress settingsFolder = do
@@ -112,17 +112,28 @@ parseEvent = do
 		(T.try parseEnd)
 	return $ Map.fromList keyValues
 
-keyValuesToEvent :: Map String CalendarValue -> Event.Event
-keyValuesToEvent records = Event.Event
+makeEvents :: Event.Event -> UTCTime -> UTCTime -> [Event.Event]
+makeEvents base start end | utctDay end == utctDay start = [base
+	{
+		eventDate = start,
+		extraInfo = T.concat["End: ", utctDayTimeStr end,
+			"; duration: ", Util.formatDurationSec $ diffUTCTime end start]
+	}]
+makeEvents base start end = makeEvents base start (start {utctDayTime = 24*3600}) ++
+		makeEvents base (UTCTime (addDays 1 (utctDay start)) 0) end
+
+keyValuesToEvents :: Map String CalendarValue -> [Event.Event]
+keyValuesToEvents records = makeEvents baseEvent startDate endDate
+	where
+		baseEvent = Event.Event
 			{
 				pluginName = getModuleName getIcalProvider,
 				eventIcon = "glyphicon-calendar",
 				eventDate = startDate,
 				desc = descV,
-				extraInfo = extraInfoV,
+				extraInfo = "",
 				fullContents = Nothing
 			}
-	where
 		leafValue name = case Map.lookup name records of
 			Just value -> fromLeaf value
 			Nothing -> error $ "No leaf of name " ++ name ++ " " ++ show records
@@ -130,8 +141,6 @@ keyValuesToEvent records = Event.Event
 				 T.pack $ leafValue "SUMMARY"]
 		startDate = parseDateNode "DTSTART" records
 		endDate = parseDateNode "DTEND" records
-		extraInfoV = T.concat["End: ", utctDayTimeStr endDate,
-			"; duration: ", Util.formatDurationSec $ diffUTCTime endDate startDate]
 
 utctDayTimeStr :: UTCTime -> T.Text
 utctDayTimeStr time = T.pack $ formatTime defaultTimeLocale "%R" time
@@ -161,8 +170,12 @@ parseDateNode :: String -> Map String CalendarValue -> UTCTime
 parseDateNode key records = case Map.lookup key records of
 	Just value -> parseDateTime $ fromLeaf value
 	Nothing -> case Map.lookup (key ++ ";VALUE=DATE") records of
-		Just value -> parseDate $ fromLeaf value
+		Just value -> dayTime $ parseDate $ fromLeaf value
 		Nothing -> error $ "Didn't find a leaf for the date " ++ key
+	where
+		dayTime time = case key of
+			"DTSTART" -> time
+			"DTEND" -> time { utctDayTime = 24*3600 } -- end of the day
 
 parseDate :: String -> UTCTime
 parseDate [rex|(?{read -> year}\d{4})(?{read -> month}\d\d)(?{read -> day}\d\d)|] =

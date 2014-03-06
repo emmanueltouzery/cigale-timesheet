@@ -22,6 +22,7 @@ import TestUtil
 runIcalTests :: Spec
 runIcalTests = do
 	testBasicEvent
+	testThroughMidnightEvent
 	testWholeDayEvent
 
 testBasicEvent :: Spec
@@ -52,14 +53,14 @@ testBasicEvent = it "parses basic ICAL event" $ do
 			extraInfo = "End: 09:00; duration: 1:30",
 			fullContents = Nothing
 		}
-	testParsecExpectTransform (keyValuesToEvent . head) source parseEventsParsec expected
+	testParsecExpectTransform (head . keyValuesToEvents . head) source parseEventsParsec expected
 
-testWholeDayEvent :: Spec
-testWholeDayEvent = it "parses whole day ICAL event" $ do
+testThroughMidnightEvent :: Spec
+testThroughMidnightEvent = it "parses basic ICAL event through midnight" $ do
 	let source = [strT|
 		BEGIN:VEVENT
-		DTSTART;VALUE=DATE:20140331
-		DTEND;VALUE=DATE:20140404
+		DTSTART:20130417T233000Z
+		DTEND:20130418T003000Z
 		DTSTAMP:20130419T192234Z
 		UID:d7anctkba3qoui0qcru9samr0o@google.com
 		CREATED:20130417T131454Z
@@ -72,14 +73,77 @@ testWholeDayEvent = it "parses whole day ICAL event" $ do
 		TRANSP:OPAQUE
 		END:VEVENT
 			|]
-	let expected = Event
+	let expected = [
+		Event
+		{
+			pluginName = getModuleName getIcalProvider,
+			eventIcon = "glyphicon-calendar",
+			eventDate = UTCTime (fromGregorian 2013 4 17)
+				(secondsToDiffTime $ 23*3600+30*60),
+			desc = "spent a lot of time researching bus tables for position records",
+			extraInfo = "End: 23:59; duration: 0:30",
+			fullContents = Nothing
+		},
+		Event
+		{
+			pluginName = getModuleName getIcalProvider,
+			eventIcon = "glyphicon-calendar",
+			eventDate = UTCTime (fromGregorian 2013 4 18)
+				(secondsToDiffTime 0),
+			desc = "spent a lot of time researching bus tables for position records",
+			extraInfo = "End: 00:30; duration: 0:30",
+			fullContents = Nothing
+		}]
+	testParsecExpectTransform (concatMap keyValuesToEvents) source parseEventsParsec expected
+
+testWholeDayEvent :: Spec
+testWholeDayEvent = it "parses whole day ICAL event" $ do
+	let source = [strT|
+		BEGIN:VEVENT
+		DTSTART;VALUE=DATE:20140331
+		DTEND;VALUE=DATE:20140402
+		DTSTAMP:20130419T192234Z
+		UID:d7anctkba3qoui0qcru9samr0o@google.com
+		CREATED:20130417T131454Z
+		DESCRIPTION:
+		LAST-MODIFIED:20130417T131454Z
+		LOCATION:
+		SEQUENCE:0
+		STATUS:CONFIRMED
+		SUMMARY:spent a lot of time researching bus tables for position records
+		TRANSP:OPAQUE
+		END:VEVENT
+			|]
+	let expected = [
+		Event
 		{
 			pluginName = getModuleName getIcalProvider,
 			eventIcon = "glyphicon-calendar",
 			eventDate = UTCTime (fromGregorian 2014 3 31)
 				(secondsToDiffTime 0),
 			desc = "spent a lot of time researching bus tables for position records",
-			extraInfo = "End: 00:00; duration: 96:00",
+			extraInfo = "End: 23:59; duration: 24:00",
+			fullContents = Nothing
+		},
+		Event
+		{
+			pluginName = getModuleName getIcalProvider,
+			eventIcon = "glyphicon-calendar",
+			eventDate = UTCTime (fromGregorian 2014 4 1)
+				(secondsToDiffTime 0),
+			desc = "spent a lot of time researching bus tables for position records",
+			extraInfo = "End: 23:59; duration: 24:00",
+			fullContents = Nothing
+		},
+		Event
+		{
+			pluginName = getModuleName getIcalProvider,
+			eventIcon = "glyphicon-calendar",
+			eventDate = UTCTime (fromGregorian 2014 4 2)
+				(secondsToDiffTime 0),
+			desc = "spent a lot of time researching bus tables for position records",
+			extraInfo = "End: 23:59; duration: 24:00",
 			fullContents = Nothing
 		}
-	testParsecExpectTransform (keyValuesToEvent . head) source parseEventsParsec expected
+		]
+	testParsecExpectTransform (concatMap keyValuesToEvents) source parseEventsParsec expected

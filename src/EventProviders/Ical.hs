@@ -125,11 +125,11 @@ keyValuesToEvent records = Event.Event
 	where
 		leafValue name = case Map.lookup name records of
 			Just value -> fromLeaf value
-			Nothing -> error $ "No leaf of name " ++ name
+			Nothing -> error $ "No leaf of name " ++ name ++ " " ++ show records
 		descV = T.concat [T.pack $ leafValue "DESCRIPTION",
 				 T.pack $ leafValue "SUMMARY"]
-		startDate = parseDate $ leafValue "DTSTART"
-		endDate = parseDate $ leafValue "DTEND"
+		startDate = parseDateNode "DTSTART" records
+		endDate = parseDateNode "DTEND" records
 		extraInfoV = T.concat["End: ", utctDayTimeStr endDate,
 			"; duration: ", Util.formatDurationSec $ diffUTCTime endDate startDate]
 
@@ -157,13 +157,25 @@ parseSubLevel = do
 	subcontents <- manyTill parseKeyValue (T.try (do string $ "END:" ++ value; eol))
 	return (value, SubLevel $ Map.fromList subcontents)
 
+parseDateNode :: String -> Map String CalendarValue -> UTCTime
+parseDateNode key records = case Map.lookup key records of
+	Just value -> parseDateTime $ fromLeaf value
+	Nothing -> case Map.lookup (key ++ ";VALUE=DATE") records of
+		Just value -> parseDate $ fromLeaf value
+		Nothing -> error $ "Didn't find a leaf for the date " ++ key
+
 parseDate :: String -> UTCTime
-parseDate [rex|(?{read -> year}\d{4})(?{read -> month}\d\d)(?{read -> day}\d\d)T
+parseDate [rex|(?{read -> year}\d{4})(?{read -> month}\d\d)(?{read -> day}\d\d)|] =
+	UTCTime (fromGregorian year month day) (secondsToDiffTime 0)
+parseDate date@_ = error $ "unrecognized iCal date: " ++ date
+
+parseDateTime :: String -> UTCTime
+parseDateTime [rex|(?{read -> year}\d{4})(?{read -> month}\d\d)(?{read -> day}\d\d)T
 		(?{read -> hour}\d\d)(?{read -> mins}\d\d)(?{read -> sec}\d\d)|] =
 	UTCTime (fromGregorian year month day) (secondsToDiffTime secOfDay)
 	where
 		secOfDay = hour*3600 + mins*60 + sec
-parseDate date@_ = error $ "unrecognized iCal date: " ++ date
+parseDateTime date@_ = error $ "unrecognized iCal datetime: " ++ date
 
 parseEnd :: T.GenParser st ()
 parseEnd = do

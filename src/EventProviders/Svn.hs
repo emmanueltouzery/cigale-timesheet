@@ -6,6 +6,7 @@ import qualified System.Process as Process
 import qualified Data.Text.IO as IO
 import Data.Time.Calendar
 import qualified Data.Text as T
+import Data.Time.Clock (UTCTime(..))
 import Data.Time.LocalTime
 import Text.ParserCombinators.Parsec
 import qualified Text.Parsec.Text as T
@@ -61,7 +62,7 @@ finishGetRepoCommits commits startDate endDate username = do
 	let myCommitsInInterval = filter
 		((\d -> d >= startDate && d <= endDate) . localDay . date)
 		myCommits
-	timezone <- getCurrentTimeZone
+	timezone <- getTimeZone (UTCTime startDate 0)
 	return $ map (toEvent timezone) myCommitsInInterval
 
 data Commit = Commit

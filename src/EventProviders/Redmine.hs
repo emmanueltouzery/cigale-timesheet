@@ -61,7 +61,7 @@ getRedmineEvents config _ day = do
 	response <- Util.http activityUrl "" concatHandler $ do
 		http GET "/activity?show_wiki_edits=1&show_issues=1"
 		setHeader "Cookie" cookieValues
-	timezone <- getCurrentTimeZone
+	timezone <- getTimeZone (UTCTime day 0)
 	today <- liftM utctDay getCurrentTime
 	return $ mergeSuccessiveEvents $ getIssues config response day today timezone
 

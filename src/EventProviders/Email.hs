@@ -5,6 +5,7 @@ module Email where
 import Codec.Mbox
 import Control.Monad
 import Data.Time.Calendar
+import Data.Time.Clock (UTCTime(..))
 import Data.Time.LocalTime
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.ByteString.Char8 as B
@@ -60,7 +61,7 @@ data Email = Email
 getEmailEvents :: EmailConfig -> GlobalSettings -> Day -> IO [Event.Event]
 getEmailEvents (EmailConfig mboxLocation) _ day = do
 	emails <- getEmails mboxLocation day day 
-	timezone <- getCurrentTimeZone
+	timezone <- getTimeZone (UTCTime day 0)
 	return $ map (toEvent timezone) emails
 
 toEvent :: TimeZone -> Email -> Event.Event

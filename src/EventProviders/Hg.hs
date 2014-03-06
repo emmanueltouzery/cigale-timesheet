@@ -4,6 +4,7 @@ module Hg where
 
 import qualified System.Process as Process
 import Data.Time.Calendar
+import Data.Time.Clock (UTCTime(..))
 import Data.Time.LocalTime
 import Text.ParserCombinators.Parsec
 import qualified Text.Parsec.Text as T
@@ -45,7 +46,7 @@ getRepoCommits (HgRecord _username projectPath) _ day = do
 			Process.cwd = Just projectPath
 		}
 	output <- IO.hGetContents outh
-	timezone <- getCurrentTimeZone
+	timezone <- getTimeZone (UTCTime day 0)
 	let parseResult = parseCommitsParsec output
 	case parseResult of
 		Left pe -> do

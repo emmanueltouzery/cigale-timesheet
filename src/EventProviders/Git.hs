@@ -5,6 +5,7 @@ module Git where
 import qualified System.Process as Process
 import Data.Time.Calendar
 import Data.Time.LocalTime
+import Data.Time.Clock (UTCTime(..))
 import Text.ParserCombinators.Parsec
 import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
@@ -48,7 +49,7 @@ getRepoCommits (GitRecord _username projectPath) _ date = do
 			Process.cwd = Just projectPath
 		}
 	output <- IO.hGetContents outh
-	timezone <- getCurrentTimeZone
+	timezone <- getTimeZone (UTCTime date 0)
 	let parseResult = parseCommitsParsec $ T.concat [output, "\n"]
 	case parseResult of
 		Left pe -> do

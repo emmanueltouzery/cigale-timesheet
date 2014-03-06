@@ -56,7 +56,7 @@ fromLeaf _ = "Error: expected a leaf!"
 
 getCalendarEvents :: IcalRecord -> GlobalSettings -> Day -> IO [Event.Event]
 getCalendarEvents (IcalRecord icalAddress) settings day = do
-	timezone <- getCurrentTimeZone
+	timezone <- getTimeZone (UTCTime day 0)
 	hasCached <- hasCachedVersionForDay settingsFolder day
 	icalText <- if hasCached
 		then readFromCache settingsFolder
@@ -118,7 +118,7 @@ makeEvents :: TimeZone -> Event.Event -> LocalTime -> LocalTime -> [Event.Event]
 makeEvents tz base start end | localDay end == localDay start = [base
 	{
 		eventDate = startUtc,
-		extraInfo = T.concat["End: ", utctDayTimeStr endUtc,
+		extraInfo = T.concat["End: ", T.pack $ formatTime defaultTimeLocale "%R" end,
 			"; duration: ", Util.formatDurationSec $ diffUTCTime endUtc startUtc]
 	}]
 	where
@@ -146,9 +146,6 @@ keyValuesToEvents tz records = makeEvents tz baseEvent startDate endDate
 				 T.pack $ leafValue "SUMMARY"]
 		startDate = parseDateNode "DTSTART" records
 		endDate = parseDateNode "DTEND" records
-
-utctDayTimeStr :: UTCTime -> T.Text
-utctDayTimeStr time = T.pack $ formatTime defaultTimeLocale "%R" time
 
 parseBegin :: T.GenParser st String
 parseBegin = do

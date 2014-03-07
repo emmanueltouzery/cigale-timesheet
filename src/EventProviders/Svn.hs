@@ -62,7 +62,7 @@ finishGetRepoCommits commits startDate endDate username = do
 	let myCommitsInInterval = filter
 		((\d -> d >= startDate && d <= endDate) . localDay . date)
 		myCommits
-	timezone <- getTimeZone (UTCTime startDate 0)
+	timezone <- getTimeZone (UTCTime startDate 8)
 	return $ map (toEvent timezone) myCommitsInInterval
 
 data Commit = Commit

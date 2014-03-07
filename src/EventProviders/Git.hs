@@ -49,7 +49,7 @@ getRepoCommits (GitRecord _username projectPath) _ date = do
 			Process.cwd = Just projectPath
 		}
 	output <- IO.hGetContents outh
-	timezone <- getTimeZone (UTCTime date 0)
+	timezone <- getTimeZone (UTCTime date 8)
 	let parseResult = parseCommitsParsec $ T.concat [output, "\n"]
 	case parseResult of
 		Left pe -> do

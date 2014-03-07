@@ -46,7 +46,7 @@ getRepoCommits (HgRecord _username projectPath) _ day = do
 			Process.cwd = Just projectPath
 		}
 	output <- IO.hGetContents outh
-	timezone <- getTimeZone (UTCTime day 0)
+	timezone <- getTimeZone (UTCTime day 8)
 	let parseResult = parseCommitsParsec output
 	case parseResult of
 		Left pe -> do

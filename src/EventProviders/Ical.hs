@@ -56,7 +56,7 @@ fromLeaf _ = "Error: expected a leaf!"
 
 getCalendarEvents :: IcalRecord -> GlobalSettings -> Day -> IO [Event.Event]
 getCalendarEvents (IcalRecord icalAddress) settings day = do
-	timezone <- getTimeZone (UTCTime day 0)
+	timezone <- getTimeZone (UTCTime day 8)
 	hasCached <- hasCachedVersionForDay settingsFolder day
 	icalText <- if hasCached
 		then readFromCache settingsFolder

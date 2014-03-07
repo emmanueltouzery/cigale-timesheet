@@ -61,7 +61,7 @@ data Email = Email
 getEmailEvents :: EmailConfig -> GlobalSettings -> Day -> IO [Event.Event]
 getEmailEvents (EmailConfig mboxLocation) _ day = do
 	emails <- getEmails mboxLocation day day 
-	timezone <- getTimeZone (UTCTime day 0)
+	timezone <- getTimeZone (UTCTime day 8)
 	return $ map (toEvent timezone) emails
 
 toEvent :: TimeZone -> Email -> Event.Event

@@ -25,11 +25,11 @@ process monthStr = do
 	processConfig monthStr config
 
 processConfig :: T.Text -> [(EventProvider Value, Value)] -> IO BL.ByteString
-processConfig monthStr config = do
+processConfig dayStr config = do
 	-- TODO this will fail with cryptic error messages if not given
 	-- a string by the right format!
-	myTz <- getCurrentTimeZone
-	let date = parseDate $ T.unpack monthStr
+	let date = parseDate $ T.unpack dayStr
+	myTz <- getTimeZone $ UTCTime date (secondsToDiffTime 8*3600)
 
 	putStrLn "before the fetching..."
 	settings <- getGlobalSettings 

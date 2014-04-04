@@ -40,17 +40,8 @@ maybeHead :: [a] -> Maybe a
 maybeHead [] = Nothing
 maybeHead (x:_) = Just x
 
-parsedToInt :: String -> Int
-parsedToInt digits = foldl ((+).(*10)) 0 (map digitToInt digits)
-
-parsedToNum :: Num a => String -> a
-parsedToNum = fromIntegral . parsedToInt
-
-parseInt :: Int -> T.GenParser st Int
-parseInt digitCount = liftM parsedToInt (count digitCount digit)
-
-parseNum :: Num a => Int -> T.GenParser st a
-parseNum digitCount = liftM parsedToNum (count digitCount digit)
+parseNum :: (Num a, Read a) => Int -> T.GenParser st a
+parseNum digitCount = liftM read (count digitCount digit)
 
 -- return the common prefix to all the files.
 -- http://www.haskell.org/pipermail/beginners/2011-April/006861.html

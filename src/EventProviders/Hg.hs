@@ -108,13 +108,13 @@ parseDateTime :: T.GenParser st LocalTime
 parseDateTime = do
 	year <- Util.parseNum 4
 	T.char '-'
-	month <- Util.parseInt 2
+	month <- Util.parseNum 2
 	T.char '-'
-	day <- Util.parseInt 2
+	day <- Util.parseNum 2
 	T.char ' '
-	hour <- Util.parseInt 2
+	hour <- Util.parseNum 2
 	T.char ':'
-	mins <- Util.parseInt 2
+	mins <- Util.parseNum 2
 	T.char ' '
 	oneOf "-+"
 	count 4 digit

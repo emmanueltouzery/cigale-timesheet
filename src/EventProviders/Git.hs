@@ -271,11 +271,11 @@ parseDateTime = do
 	T.char ' '
 	month <- liftM strToMonth (count 3 T.anyChar)
 	T.char ' '
-	dayOfMonth <- liftM Util.parsedToInt (T.many1 $ T.noneOf " ")
+	dayOfMonth <- liftM read (T.many1 $ T.noneOf " ")
 	T.char ' '
-	hour <- Util.parseInt 2
+	hour <- Util.parseNum 2
 	T.char ':'
-	mins <- Util.parseInt 2
+	mins <- Util.parseNum 2
 	T.char ':'
 	seconds <- Util.parseNum 2
 	T.char ' '

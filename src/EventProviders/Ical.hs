@@ -76,7 +76,7 @@ getCalendarEvents (IcalRecord icalAddress) settings day = do
 		settingsFolder = getSettingsFolder settings
 
 convertToEvents :: TimeZone -> Day -> [Map String CalendarValue] -> [Event.Event]
-convertToEvents tz day keyValues = filterDate day events
+convertToEvents tz day keyValues = filterDate tz day events
 	where
 		events = concatMap (keyValuesToEvents tz) keyValues
 
@@ -90,13 +90,13 @@ readFromWWW icalAddress settingsFolder = do
 	putInCache settingsFolder icalText
 	return icalText
 
-filterDate :: Day -> [Event.Event] -> [Event.Event]
-filterDate day = filter (eventInDateRange day)
+filterDate :: TimeZone -> Day -> [Event.Event] -> [Event.Event]
+filterDate tz day = filter (eventInDateRange tz day)
 
-eventInDateRange :: Day -> Event.Event -> Bool
-eventInDateRange day event =  eventDay >= day && eventDay <= day
+eventInDateRange :: TimeZone -> Day -> Event.Event -> Bool
+eventInDateRange tz day event =  eventDay >= day && eventDay <= day
 	where
-		eventDay = utctDay $ Event.eventDate event
+		eventDay = localDay $ utcToLocalTime tz (Event.eventDate event)
 
 parseEventsParsec :: T.Text -> Either ParseError [Map String CalendarValue]
 parseEventsParsec = parse parseEvents ""

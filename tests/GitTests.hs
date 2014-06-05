@@ -24,6 +24,7 @@ runGitTests = do
 	testNoMessageUsualCommitWithCommitAfter
 	testTag
 	testTopDecorate
+	testMergeConflict
 
 testMerge :: Spec
 testMerge = it "parses merge commits" $ do
@@ -68,6 +69,33 @@ testUsualCommit = it "parses usual commits" $ do
 				commitFiles = ["test/src/main/users.js"],
 				commitAuthor = "David <t@a>",
 				commitContents = "<pre>test/src/main/users.js | 2 ++</pre>",
+				commitIsMerge = False,
+				commitTags = []
+
+			}
+		testParsecExpectFirst source parseCommitsParsec expected
+
+testMergeConflict :: Spec
+testMergeConflict = it "parses merge conflict" $ do
+		let source = [strT|
+				commit c4305424787636da6743221256aae93d53d0f642
+				Author: Emmanuel Touzery <et@gmail.com>
+				Date:   Mon May 19 17:03:36 2014 +0200
+				
+				    Merge branch 'master'
+				    
+				    Conflicts:
+				        generic/src/main/webapp/app/module/maintenance/route/route-ctrl.js
+				        generic/src/main/webapp/app/resources.js
+				
+				|]
+		let expected = Commit
+			{
+				commitDate = LocalTime (fromGregorian 2014 5 19) (TimeOfDay 17 03 36),
+				commitDesc = Just "Merge branch 'master'\n    \n    Conflicts:\n        generic/src/main/webapp/app/module/maintenance/route/route-ctrl.js\n        generic/src/main/webapp/app/resources.js",
+				commitFiles = [],
+				commitAuthor = "Emmanuel Touzery <et@gmail.com>",
+				commitContents = "<pre></pre>",
 				commitIsMerge = False,
 				commitTags = []
 

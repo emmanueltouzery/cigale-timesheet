@@ -230,10 +230,7 @@ parseCommit = do
 		isFiles = elem '|'
 
 readLine :: T.GenParser st String
-readLine = do
-	result <- T.many $ T.noneOf "\r\n"
-	T.oneOf "\r\n"
-	return result
+readLine = (T.many $ T.noneOf "\r\n") <* T.oneOf "\r\n"
 
 parseFiles :: T.GenParser st [(String, String)]
 parseFiles = manyTill parseFile (T.try parseFilesSummary)

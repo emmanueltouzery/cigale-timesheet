@@ -258,20 +258,15 @@ parseDateTime :: T.GenParser st LocalTime
 parseDateTime = do
 	string "Date:"
 	many $ T.char ' '
-	count 3 T.anyChar -- day
-	T.char ' '
+	count 3 T.anyChar <* T.char ' ' -- day
 	month <- liftM strToMonth (count 3 T.anyChar)
 	T.char ' '
 	dayOfMonth <- liftM read (T.many1 $ T.noneOf " ")
 	T.char ' '
-	hour <- Util.parseNum 2
-	T.char ':'
-	mins <- Util.parseNum 2
-	T.char ':'
-	seconds <- Util.parseNum 2
-	T.char ' '
-	year <- Util.parseNum 4
-	T.char ' '
+	hour <- Util.parseNum 2 <* T.char ':'
+	mins <- Util.parseNum 2 <* T.char ':'
+	seconds <- Util.parseNum 2 <* T.char ' '
+	year <- Util.parseNum 4 <* T.char ' '
 	oneOf "-+"
 	count 4 digit
 	return $ LocalTime

@@ -46,6 +46,13 @@ On linux systems you'll be able to start the app graphically from the menus.
 
 If you're running linux and install the epiphany browser (gnome-web), the app will take advantage of it and start in its own window (web application mode).
 
+## Cabal sandbox
+
+If you wish to install it in a cabal sandbox, you'll need to be careful because the setup program wants to invoke `fay` to build the javascript, but if fay was built in the sandbox, you'll need to run commands like that before running `cabal install`:
+
+	export HASKELL_PACKAGE_SANDBOX=./.cabal-sandbox/x86_64-linux-ghc-7.6.3-packages.conf.d
+	export PATH=.cabal-sandbox/bin/:$PATH
+
 [Main view screenshot]: https://raw.github.com/wiki/emmanueltouzery/cigale-timesheet/main.png
 [Settings screenshot]: https://raw.github.com/wiki/emmanueltouzery/cigale-timesheet/settings.png
 [painful]: https://plus.google.com/108801936173059193561/posts/PE3TiGMkUx2

@@ -26,6 +26,7 @@ import Data.Aeson.TH (deriveJSON, defaultOptions)
 import qualified Codec.Text.IConv as IConv
 import Debug.Trace
 import qualified Data.Map as Map
+import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
 
 import Text.Regex.PCRE.Rex
 
@@ -246,22 +247,13 @@ readHeaderValue = do
 	return $ BSL.concat [BL.pack val, rest]
 
 sectionsEnd :: T.Parsec BSL.ByteString st ()
-sectionsEnd = do
-	T.string "--"
-	void eol <|> eof
+sectionsEnd = T.string "--" >> (eol <|> eof)
 
 readLine :: T.Parsec BSL.ByteString st BSL.ByteString
-readLine = do
-	--liftM BSL.concat (T.manyTill anyCharBS (try $ eol))
-	val <- T.many $ noneOf "\r\n"
-	eol
-	return $ BL.pack val
+readLine = BL.pack <$> T.many (noneOf "\r\n") <* eol
 
-eol :: T.Parsec BSL.ByteString st BSL.ByteString
-eol = do
-	optional $ string "\r"
-	string "\n"
-	return "\n"
+eol :: T.Parsec BSL.ByteString st ()
+eol = optional (string "\r") >> void (string "\n")
 
 readT :: B.ByteString -> Int
 readT = fst . fromJust . B.readInt
@@ -340,14 +332,10 @@ pqLineBreak = do
 	return LineBreak
 
 parseAsciiSection :: GenParser Char st QuotedPrintableElement
-parseAsciiSection = do
-	contentsVal <- many1 $ noneOf "=_"
-	return $ AsciiSection contentsVal
+parseAsciiSection = AsciiSection <$> many1 (noneOf "=_")
 
 parseNonAsciiChars :: GenParser Char st QuotedPrintableElement
-parseNonAsciiChars = do
-	chars <- many1 parseNonAsciiChar
-	return $ NonAsciiChars chars
+parseNonAsciiChars = NonAsciiChars <$> many1 parseNonAsciiChar
 
 parseNonAsciiChar :: GenParser Char st Word8
 parseNonAsciiChar = do
@@ -358,6 +346,4 @@ parseNonAsciiChar = do
 		_ -> error $ "internal error with hex string " ++ value
 
 parseUnderscoreSpace :: GenParser Char st QuotedPrintableElement
-parseUnderscoreSpace = do
-	char '_'
-	return $ AsciiSection " "
+parseUnderscoreSpace = char '_' >> return (AsciiSection " ")

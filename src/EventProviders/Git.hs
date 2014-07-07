@@ -15,6 +15,7 @@ import Data.List (isInfixOf, intercalate, foldl')
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.Maybe
 import Control.Monad (liftM)
+import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
 
 import Event
 import qualified Util
@@ -133,9 +134,7 @@ parseCommits :: T.GenParser st [Commit]
 parseCommits = many parseCommit --manyTill parseCommit (T.try eof)
 
 parseMerge :: T.GenParser st String
-parseMerge = do
-	string "Merge: "
-	readLine
+parseMerge = string "Merge: " *> readLine
 
 parseDecoration :: T.GenParser st [String]
 parseDecoration = do
@@ -156,15 +155,10 @@ isTag (Tag _) = True
 isTag _ = False
 
 parseTag :: T.GenParser st DecorationItem
-parseTag = do
-	string "tag: "
-	tag <- many1 (T.noneOf ",)")
-	return $ Tag tag
+parseTag = Tag <$> (string "tag: " *> many1 (T.noneOf ",)"))
 
 parseParent :: T.GenParser st DecorationItem
-parseParent = do
-	parent <- many1 (T.noneOf ",)")
-	return $ Parent parent
+parseParent = Parent <$> many1 (T.noneOf ",)")
 
 parseCommit :: T.GenParser st Commit
 parseCommit = do

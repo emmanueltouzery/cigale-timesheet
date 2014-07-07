@@ -13,6 +13,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as IO
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Control.Monad (liftM)
+import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
 
 import Event
 import qualified Util
@@ -99,23 +100,15 @@ parseFiles :: T.GenParser st [String]
 parseFiles = manyTill parseFile (T.try $ string "--->>>\n")
 
 parseFile :: T.GenParser st String
-parseFile = do
-	result <- T.many $ T.noneOf " \n"
-	T.oneOf " \n"
-	return result
+parseFile = T.many $ T.noneOf " \n" <* T.oneOf " \n"
 
 parseDateTime :: T.GenParser st LocalTime
 parseDateTime = do
-	year <- Util.parseNum 4
-	T.char '-'
-	month <- Util.parseNum 2
-	T.char '-'
-	day <- Util.parseNum 2
-	T.char ' '
-	hour <- Util.parseNum 2
-	T.char ':'
-	mins <- Util.parseNum 2
-	T.char ' '
+	year <- Util.parseNum 4 <* T.char '-'
+	month <- Util.parseNum 2 <* T.char '-'
+	day <- Util.parseNum 2 <* T.char ' '
+	hour <- Util.parseNum 2 <* T.char ':'
+	mins <- Util.parseNum 2 <* T.char ' '
 	oneOf "-+"
 	count 4 digit
 	eol

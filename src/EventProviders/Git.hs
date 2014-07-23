@@ -133,9 +133,7 @@ parseCommits :: T.GenParser st [Commit]
 parseCommits = many parseCommit --manyTill parseCommit (T.try eof)
 
 parseMerge :: T.GenParser st String
-parseMerge = do
-	string "Merge: "
-	readLine
+parseMerge = string "Merge: " *> readLine
 
 parseDecoration :: T.GenParser st [String]
 parseDecoration = do
@@ -159,9 +157,7 @@ parseTag :: T.GenParser st DecorationItem
 parseTag = Tag <$> (string "tag: " *> many1 (T.noneOf ",)"))
 
 parseParent :: T.GenParser st DecorationItem
-parseParent = do
-	parent <- many1 (T.noneOf ",)")
-	return $ Parent parent
+parseParent = Parent <$> many1 (T.noneOf ",)")
 
 parseCommit :: T.GenParser st Commit
 parseCommit = do
@@ -233,10 +229,7 @@ parseCommit = do
 		isFiles = elem '|'
 
 readLine :: T.GenParser st String
-readLine = do
-	result <- T.many $ T.noneOf "\r\n"
-	T.oneOf "\r\n"
-	return result
+readLine = (T.many $ T.noneOf "\r\n") <* T.oneOf "\r\n"
 
 parseFiles :: T.GenParser st [(String, String)]
 parseFiles = manyTill parseFile (T.try parseFilesSummary)
@@ -264,20 +257,15 @@ parseDateTime :: T.GenParser st LocalTime
 parseDateTime = do
 	string "Date:"
 	many $ T.char ' '
-	count 3 T.anyChar -- day
-	T.char ' '
+	count 3 T.anyChar <* T.char ' ' -- day
 	month <- strToMonth <$> count 3 T.anyChar
 	T.char ' '
 	dayOfMonth <- read <$> (T.many1 $ T.noneOf " ")
 	T.char ' '
-	hour <- Util.parseNum 2
-	T.char ':'
-	mins <- Util.parseNum 2
-	T.char ':'
-	seconds <- Util.parseNum 2
-	T.char ' '
-	year <- Util.parseNum 4
-	T.char ' '
+	hour <- Util.parseNum 2 <* T.char ':'
+	mins <- Util.parseNum 2 <* T.char ':'
+	seconds <- Util.parseNum 2 <* T.char ' '
+	year <- Util.parseNum 4 <* T.char ' '
 	oneOf "-+"
 	count 4 digit
 	return $ LocalTime

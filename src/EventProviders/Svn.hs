@@ -12,6 +12,7 @@ import Text.ParserCombinators.Parsec
 import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
 import Data.Aeson.TH (deriveJSON, defaultOptions)
+import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
 
 import qualified Util
 import Event
@@ -91,9 +92,7 @@ parseCommitsParsec :: T.Text -> Either ParseError [Commit]
 parseCommitsParsec = parse parseCommits ""
 
 parseCommits :: T.GenParser st [Commit]
-parseCommits = do
-	parseCommitHeader
-	many parseCommit
+parseCommits = parseCommitHeader >> many parseCommit
 
 parseCommit :: T.GenParser st Commit
 parseCommit = do
@@ -109,10 +108,7 @@ parseCommit = do
 	return $ Commit dateval (T.strip username) (T.pack summary) commitFileInfos
 
 parseCommitHeader :: T.GenParser st T.Text
-parseCommitHeader = do
-	header <- many $ T.char '-'
-	eol
-	return $ T.pack header
+parseCommitHeader = T.pack <$> many (T.char '-') <* eol
 
 readCell :: T.GenParser st T.Text
 readCell = do
@@ -124,18 +120,12 @@ readCell = do
 parseDateTime :: T.GenParser st LocalTime
 parseDateTime = do
 	T.many $ T.char ' '
-	year <- Util.parseNum 4
-	T.char '-'
-	month <- Util.parseNum 2
-	T.char '-'
-	day <- Util.parseNum 2
-	T.char ' '
-	hour <- Util.parseNum 2
-	T.char ':'
-	mins <- Util.parseNum 2
-	T.char ':'
-	seconds <- Util.parseNum 2
-	T.char ' '
+	year <- Util.parseNum 4 <* T.char '-'
+	month <- Util.parseNum 2 <* T.char '-'
+	day <- Util.parseNum 2 <* T.char ' '
+	hour <- Util.parseNum 2 <* T.char ':'
+	mins <- Util.parseNum 2 <* T.char ':'
+	seconds <- Util.parseNum 2 <* T.char ' '
 	oneOf "-+"
 	count 4 digit
 	eol

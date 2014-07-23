@@ -148,9 +148,7 @@ keyValuesToEvents tz records = makeEvents tz baseEvent startDate endDate
 		endDate = parseDateNode "DTEND" records
 
 parseBegin :: T.GenParser st String
-parseBegin = do
-	string "BEGIN:VEVENT"
-	eol
+parseBegin = string "BEGIN:VEVENT" >> eol
 
 parseKeyValue :: T.GenParser st (String, CalendarValue)
 parseKeyValue = do
@@ -190,10 +188,9 @@ parseDateTime [rex|(?{read -> year}\d{4})(?{read -> month}\d\d)(?{read -> day}\d
 	LocalTime (fromGregorian year month day) (TimeOfDay hour mins sec)
 parseDateTime date@_ = error $ "unrecognized iCal datetime: " ++ date
 
+-- at the end of the file there may not be a carriage return.
 parseEnd :: T.GenParser st ()
-parseEnd = do
-	string "END:VEVENT"
-	optional eol -- at the end of the file there may not be a carriage return.
+parseEnd = string "END:VEVENT" >> optional eol
 
 hasCachedVersionForDay :: String -> Day -> IO Bool
 hasCachedVersionForDay settingsFolder day = do

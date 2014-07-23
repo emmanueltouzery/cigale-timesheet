@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings, ScopedTypeVariables, DoAndIfThenElse #-}
 module Main where
 
-import Control.Applicative
 import Snap.Core
 import Snap.Util.FileServe
 import Snap.Http.Server
@@ -11,7 +10,7 @@ import System.Directory
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy.Char8 as DBLC
 import System.Process (rawSystem)
-import Control.Monad (liftM)
+import Control.Applicative
 import Network.TCP (openTCPPort)
 import Network.Stream (close)
 import Control.Concurrent (forkIO)
@@ -64,7 +63,7 @@ openApp = do
 		url = "http://localhost:" ++ show appPort
 
 hasProgram :: String -> IO Bool
-hasProgram prog = liftM isJust (findExecutable prog)
+hasProgram prog = isJust <$> findExecutable prog
 
 site :: FilePath -> Snap ()
 site installPath =
@@ -134,6 +133,6 @@ processConfigFromBody handler = do
 	pName <- getSingleParam "pluginName"
 	case pName of
 		Just _pName -> do
-			configJson <- liftM toStrict1 (readRequestBody 65536)
+			configJson <- toStrict1 <$> readRequestBody 65536
 			liftIO (handler _pName configJson) >>= setResponse
 		_ -> setResponse $ Left "add config: pluginName not specified"

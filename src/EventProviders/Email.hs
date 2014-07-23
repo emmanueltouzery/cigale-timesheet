@@ -26,6 +26,7 @@ import Data.Aeson.TH (deriveJSON, defaultOptions)
 import qualified Codec.Text.IConv as IConv
 import Debug.Trace
 import qualified Data.Map as Map
+import Control.Applicative ( (<$>) )
 
 import Text.Regex.PCRE.Rex
 
@@ -156,7 +157,7 @@ sectionToConsider sections =
 		sectionsByContentTypes = zip (fmap sectionContentType sections) sections
 
 sectionForMimeType :: T.Text -> [(Maybe T.Text, MultipartSection)] -> Maybe MultipartSection
-sectionForMimeType mType secsByCt = liftM snd (find (keyContainsStr mType) secsByCt)
+sectionForMimeType mType secsByCt = snd <$> find (keyContainsStr mType) secsByCt
 	where
 		keyContainsStr str (Nothing, _) = False
 		keyContainsStr str (Just x, _) = str `T.isInfixOf` x
@@ -252,7 +253,6 @@ sectionsEnd = do
 
 readLine :: T.Parsec BSL.ByteString st BSL.ByteString
 readLine = do
-	--liftM BSL.concat (T.manyTill anyCharBS (try $ eol))
 	val <- T.many $ noneOf "\r\n"
 	eol
 	return $ BL.pack val

@@ -12,7 +12,6 @@ import Text.ParserCombinators.Parsec
 import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
 import Data.Aeson.TH (deriveJSON, defaultOptions)
-import Control.Monad (liftM)
 
 import qualified Util
 import Event

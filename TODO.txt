@@ -1,3 +1,5 @@
+I think I can move quite some "case" to fromMaybe with applicative.
+
 interesting, 2014-02-05, 10:47, same mail present twice.
 
 ugly to in email, example 2014-02-04 15:38

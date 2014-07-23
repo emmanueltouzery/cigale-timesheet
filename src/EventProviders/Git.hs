@@ -14,7 +14,7 @@ import qualified Data.Text.IO as IO
 import Data.List (isInfixOf, intercalate, foldl')
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.Maybe
-import Control.Monad (liftM)
+import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
 
 import Event
 import qualified Util
@@ -156,10 +156,7 @@ isTag (Tag _) = True
 isTag _ = False
 
 parseTag :: T.GenParser st DecorationItem
-parseTag = do
-	string "tag: "
-	tag <- many1 (T.noneOf ",)")
-	return $ Tag tag
+parseTag = Tag <$> (string "tag: " *> many1 (T.noneOf ",)"))
 
 parseParent :: T.GenParser st DecorationItem
 parseParent = do
@@ -269,9 +266,9 @@ parseDateTime = do
 	many $ T.char ' '
 	count 3 T.anyChar -- day
 	T.char ' '
-	month <- liftM strToMonth (count 3 T.anyChar)
+	month <- strToMonth <$> count 3 T.anyChar
 	T.char ' '
-	dayOfMonth <- liftM read (T.many1 $ T.noneOf " ")
+	dayOfMonth <- read <$> (T.many1 $ T.noneOf " ")
 	T.char ' '
 	hour <- Util.parseNum 2
 	T.char ':'

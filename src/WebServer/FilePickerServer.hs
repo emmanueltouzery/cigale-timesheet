@@ -7,7 +7,7 @@ import System.FilePath ((</>))
 import GHC.Generics
 import Snap.Core
 import Data.Maybe (fromMaybe)
-import Control.Monad (liftM)
+import Control.Applicative
 import Control.Exception (catch, SomeException)
 import qualified Data.Text.Encoding as TE
 import Control.Monad.IO.Class (liftIO)
@@ -40,9 +40,9 @@ instance ToJSON BrowseResponse where
 
 browseFolder :: Snap ()
 browseFolder = do
-	homeDir <- liftIO $ liftM (TE.encodeUtf8 . T.pack) getHomeDirectory
+	homeDir <- liftIO $ TE.encodeUtf8 . T.pack <$> getHomeDirectory
 	modifyResponse $ setContentType "application/json"
-	curFolder <- liftM (T.unpack . TE.decodeUtf8 . fromMaybe homeDir) (getSingleParam "path")
+	curFolder <- T.unpack . TE.decodeUtf8 . fromMaybe homeDir <$> getSingleParam "path"
 	files <- liftIO $ getDirectoryContents curFolder
 	fileInfos <- liftIO $ mapM (fileInfo curFolder) files
 	let response = BrowseResponse curFolder fileInfos

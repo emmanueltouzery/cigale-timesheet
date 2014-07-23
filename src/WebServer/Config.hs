@@ -12,7 +12,7 @@ import Data.Maybe
 import System.Directory
 import qualified Data.ByteString as BS
 import qualified Data.Text.Encoding as TE
-import Control.Monad (liftM)
+import Control.Applicative
 
 import EventProvider (EventProvider, getModuleName)
 import qualified EventProviders
@@ -33,7 +33,7 @@ readConfig plugins = do
 	settingsFile <- getConfigFileName
 	isSettings <- doesFileExist settingsFile
 	if isSettings
-		then liftM (parseSettingsFile plugins) (BS.readFile settingsFile)
+		then parseSettingsFile plugins <$> BS.readFile settingsFile
 		else return []
 
 parseSettingsFile :: (FromJSON a, ToJSON a) => [EventProvider a] -> BS.ByteString -> [(EventProvider a, a)]
@@ -76,7 +76,7 @@ addPluginInConfig (T.unpack . TE.decodeUtf8 -> pluginName) configJson =
 	case decodeIncomingConfigElt pluginName configJson of
 		Nothing -> return $ Left $ BS.concat ["invalid new config info ", configJson]
 		Just newElt -> do
-			liftM (newElt:) (readConfig EventProviders.plugins) >>= writeConfiguration
+			(newElt:) <$> readConfig EventProviders.plugins >>= writeConfiguration
 			return $ Right ""
 
 decodeIncomingConfigElt :: String -> BS.ByteString -> Maybe (EventProvider Value, Value)

@@ -1,4 +1,18 @@
-interesting, 2014-02-05, 10:47, same mail present twice.
+src/EventProviders/Util.hs:24:1: Warning:
+Module `Data.Attoparsec' is deprecated:
+This module will be removed in the next major release.
+
+the git parser is ugly, it has a separate parser for list of files and heuristics whether to use it or not. Now that i have a decent test suite, consider refactoring it.
+
+would be nice to have duration of voice chats for skype example 2014-04-04.
+
+keyboard navigation would be nice.
+
+duplicated git logs when cherry-picking a commit on a branch, see 2014-03-04. Would be nice to display the branch but git doesn't tell me.
+
+when accepting an invitation the sent mail looks like crap. example 2014-02-21 15:55
+
+interesting, 2014-02-05, 10:47, same mail present twice. 2014-03-10 thrice!
 
 ugly to in email, example 2014-02-04 15:38
 

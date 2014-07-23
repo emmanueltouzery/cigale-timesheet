@@ -157,7 +157,7 @@ sectionToConsider sections =
 		sectionsByContentTypes = zip (fmap sectionContentType sections) sections
 
 sectionForMimeType :: T.Text -> [(Maybe T.Text, MultipartSection)] -> Maybe MultipartSection
-sectionForMimeType mType secsByCt = liftM snd (find (keyContainsStr mType) secsByCt)
+sectionForMimeType mType secsByCt = snd <$> find (keyContainsStr mType) secsByCt
 	where
 		keyContainsStr str (Nothing, _) = False
 		keyContainsStr str (Just x, _) = str `T.isInfixOf` x

@@ -15,7 +15,6 @@ import qualified Data.ByteString as BS (readFile, writeFile)
 import qualified Data.Text.Encoding as T
 import System.Process (runCommand, waitForProcess, rawSystem)
 import qualified Data.Text as T
-import Control.Monad (liftM)
 import System.FilePath
 
 -- probably message that you need zip-archive and fay and fay-jquery

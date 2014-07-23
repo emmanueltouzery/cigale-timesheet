@@ -1,3 +1,4 @@
+I think I can move quite some "case" to fromMaybe with applicative.
 src/EventProviders/Util.hs:24:1: Warning:
 Module `Data.Attoparsec' is deprecated:
 This module will be removed in the next major release.

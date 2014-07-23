@@ -14,7 +14,6 @@ import qualified Data.Text.IO as IO
 import Data.List (isInfixOf, intercalate, foldl')
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.Maybe
-import Control.Monad (liftM)
 import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
 
 import Event
@@ -259,9 +258,9 @@ parseDateTime = do
 	string "Date:"
 	many $ T.char ' '
 	count 3 T.anyChar <* T.char ' ' -- day
-	month <- liftM strToMonth (count 3 T.anyChar)
+	month <- strToMonth <$> count 3 T.anyChar
 	T.char ' '
-	dayOfMonth <- liftM read (T.many1 $ T.noneOf " ")
+	dayOfMonth <- read <$> (T.many1 $ T.noneOf " ")
 	T.char ' '
 	hour <- Util.parseNum 2 <* T.char ':'
 	mins <- Util.parseNum 2 <* T.char ':'

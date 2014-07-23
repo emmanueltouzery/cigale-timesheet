@@ -12,7 +12,6 @@ import qualified Text.Parsec as T
 import qualified Data.Text as T
 import qualified Data.Text.IO as IO
 import Data.Aeson.TH (deriveJSON, defaultOptions)
-import Control.Monad (liftM)
 import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
 
 import Event

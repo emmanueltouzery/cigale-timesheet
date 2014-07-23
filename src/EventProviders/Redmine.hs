@@ -18,7 +18,7 @@ import Data.Time.LocalTime
 import Data.List (find)
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.Maybe
-import Control.Monad (liftM)
+import Control.Applicative
 import Data.Text.Lazy (toStrict)
 import Data.Text.Encoding (decodeUtf8)
 
@@ -62,7 +62,7 @@ getRedmineEvents config _ day = do
 		http GET "/activity?show_wiki_edits=1&show_issues=1"
 		setHeader "Cookie" cookieValues
 	timezone <- getTimeZone (UTCTime day 8)
-	today <- liftM utctDay getCurrentTime
+	today <- utctDay <$> getCurrentTime
 	return $ mergeSuccessiveEvents $ getIssues config response day today timezone
 
 mergeSuccessiveEvents :: [Event] -> [Event]

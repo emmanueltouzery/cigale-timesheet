@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, DeriveGeneric, TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings, DeriveGeneric, TemplateHaskell, ViewPatterns #-}
 
 module Hg where
 
@@ -68,10 +68,8 @@ toEvent timezone commit =
 		}
 
 formatDate :: Day -> String
-formatDate day =
+formatDate (toGregorian -> (year, month, dayOfMonth)) =
 	show year ++ "-" ++ show month ++ "-" ++ show dayOfMonth
-	where
-		(year, month, dayOfMonth) = toGregorian day
 
 parseCommitsParsec :: T.Text -> Either ParseError [Commit]
 parseCommitsParsec = parse parseCommits ""

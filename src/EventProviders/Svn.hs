@@ -153,11 +153,8 @@ formatDateRange startDate endDate =
 	formatDate startDate ++ ":" ++ formatDate endDate
 
 formatDate :: Day -> String
-formatDate day =
+formatDate (toGregorian -> (year, month, dayOfMonth)) =
 	"{" ++ show year ++ "-" ++ show month ++ "-" ++ show dayOfMonth ++ "}"
-	where
-		(year, month, dayOfMonth) = toGregorian day
-
 
 parseSvnDate :: String -> LocalTime
 parseSvnDate [rex|(?{read -> year}\d+)-(?{read -> month}\d+)-

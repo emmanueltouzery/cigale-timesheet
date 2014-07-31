@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, DeriveGeneric, TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings, DeriveGeneric, TemplateHaskell, ViewPatterns #-}
 
 module Git where
 
@@ -109,10 +109,8 @@ getCommitExtraInfo commit gitFolderPath = if atRoot filesRoot then gitRepoName e
 		atRoot = T.all (`elem` "./")
 
 formatDate :: Day -> String
-formatDate day =
+formatDate (toGregorian -> (year, month, dayOfMonth)) =
 	show year ++ "-" ++ show month ++ "-" ++ show dayOfMonth
-	where
-		(year, month, dayOfMonth) = toGregorian day
 
 parseCommitsParsec :: T.Text -> Either ParseError [Commit]
 parseCommitsParsec = parse parseCommits ""

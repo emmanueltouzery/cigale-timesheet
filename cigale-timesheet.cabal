@@ -56,7 +56,8 @@ Library
     -- fay-base need mapM, unless
     fay >= 0.19,
     fay-jquery,
-    zip-archive >= 0.1.4
+    zip-archive >= 0.1.4,
+    errors
   exposed-modules:
     EventProviders,
     Event,
@@ -95,7 +96,9 @@ Executable cigale-timesheet
     -- the haskell-src-meta dependency which prevents cabal to pick too old versions
      rex >= 0.4,
      HTTP,
-     filepath
+     filepath,
+     parsec,
+     errors
 
   if impl(ghc >= 6.12.0)
     ghc-options: -threaded -Wall -funbox-strict-fields -O2
@@ -147,4 +150,5 @@ test-suite        tests
     template-haskell,
     transformers,
     th-lift,
-    iconv
+    iconv,
+    errors

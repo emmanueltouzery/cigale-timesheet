@@ -8,18 +8,20 @@ import Control.Monad.IO.Class (liftIO)
 import qualified Data.Text.Encoding as TE
 import System.Directory
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy.Char8 as DBLC
 import System.Process (rawSystem)
 import Control.Applicative
 import Network.TCP (openTCPPort)
 import Network.Stream (close)
 import Control.Concurrent (forkIO)
 import Control.Exception (try, SomeException)
-import Data.Maybe (isJust)
+import Control.Error
+import qualified Text.Parsec.Text as T
+import qualified Text.Parsec as T
+import Data.Time
 
 import qualified Timesheet
 import Config
-import Util (toStrict1)
+import Util (toStrict1, parse2, parseNum)
 import Paths_cigale_timesheet
 import FilePickerServer (browseFolder)
 import SnapUtil (getSingleParam, setResponse)
@@ -81,17 +83,20 @@ site installPath =
 
 timesheet :: Snap ()
 timesheet = do
-    modifyResponse $ setContentType "application/json"
-    setTimeout 3600
-    tsparam <- getParam "tsparam"
-    maybe (writeBS "must specify the month and year in URL, like so: /timesheet/2012-11")
-          handleTimesheet tsparam
+	modifyResponse $ setContentType "application/json"
+	setTimeout 3600
+	dateParam <- getParam "tsparam"
+	result <- liftIO $ runEitherT $ do
+		dateParamText <- fmapRT TE.decodeUtf8 $ dateParam ?? "Date parameter missing"
+		date <- hoistEither $ parse2 parseDate
+			"Invalid date format, expected yyyy-mm-dd" dateParamText
+		result <- liftIO $ Timesheet.process date
+		fmapRT toStrict1 $ right result
+	setResponse result
 
-handleTimesheet :: BS.ByteString -> Snap ()
-handleTimesheet tsparam = do
-	jsonData <- liftIO $ Timesheet.process $ TE.decodeUtf8 tsparam
-	liftIO $ putStrLn $ "OK i have all the json -- bytes: " ++ show (DBLC.length jsonData)
-	writeLBS jsonData
+parseDate :: T.GenParser st Day
+parseDate = fromGregorian <$> parseNum 4
+	<*> (T.char '-' >> parseNum 2) <*> (T.char '-' >> parseNum 2)
 
 configdesc :: Snap ()
 configdesc = do

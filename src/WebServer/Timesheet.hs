@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings, ExistentialQuantification, TemplateHaskell, QuasiQuotes, ViewPatterns #-}
 module Timesheet where
 
-import qualified Data.Text as T
 import Data.Time.Calendar
 import qualified Data.Aeson as JSON
 import qualified Data.ByteString.Lazy.Char8 as BL
@@ -9,7 +8,6 @@ import Data.List
 import Data.Time
 import Data.Aeson
 import Data.Aeson.TH (mkToJSON, defaultOptions)
-import Text.Regex.PCRE.Rex
 
 import GHC.Exts (sortWith)
 
@@ -19,16 +17,13 @@ import EventProvider
 import Event
 import qualified FayAeson
 
-process :: T.Text -> IO BL.ByteString
-process monthStr = do
+process :: Day -> IO BL.ByteString
+process month = do
 	config <- Config.readConfig EventProviders.plugins
-	processConfig monthStr config
+	processConfig month config
 
-processConfig :: T.Text -> [(EventProvider Value, Value)] -> IO BL.ByteString
-processConfig dayStr config = do
-	-- TODO this will fail with cryptic error messages if not given
-	-- a string by the right format!
-	let date = parseDate $ T.unpack dayStr
+processConfig :: Day -> [(EventProvider Value, Value)] -> IO BL.ByteString
+processConfig date config = do
 	myTz <- getTimeZone $ UTCTime date (secondsToDiffTime 8*3600)
 
 	putStrLn "before the fetching..."
@@ -56,12 +51,6 @@ processConfig dayStr config = do
 			return BL.empty
 	where
 		outOfRange start end time = time < LocalTime start midnight || time > LocalTime end midnight
-
-parseDate :: String -> Day
-parseDate [rex|^(?{read -> y}\d+)
-	-(?{read -> m}\d+)
-	-(?{read -> d}\d+)$|] = fromGregorian y m d
-parseDate x@_ = error $ "Invalid date: " ++ x
 
 getGlobalSettings :: IO GlobalSettings
 getGlobalSettings = do

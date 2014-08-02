@@ -10,7 +10,7 @@ import Network.Http.Client
 import qualified Data.Text.Encoding as TE
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
-import Text.ParserCombinators.Parsec
+import Text.ParserCombinators.Parsec hiding ((<|>))
 import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
 import qualified Data.ByteString.Char8 as B
@@ -23,6 +23,8 @@ import System.Time.Utils
 import Data.Time.Format
 import System.Locale
 import Data.Aeson.TH (deriveJSON, defaultOptions)
+import Control.Applicative ((<$>), (<|>))
+import Data.Maybe
 
 import Text.Regex.PCRE.Rex
 
@@ -167,11 +169,18 @@ parseSubLevel = do
 	return (value, SubLevel $ Map.fromList subcontents)
 
 parseDateNode :: String -> Map String CalendarValue -> LocalTime
-parseDateNode key records = case Map.lookup key records of
-	Just value -> parseDateTime $ fromLeaf value
-	Nothing -> case Map.lookup (key ++ ";VALUE=DATE") records of
-		Just value -> dayTime $ parseDate $ fromLeaf value
-		Nothing -> error $ "Didn't find a leaf for the date " ++ key
+parseDateNode key records = fromMaybe (error $ "Didn't find a leaf for the date " ++ key)
+	$ parseDateTimeNode key records <|> parseDateOnlyNode key records
+
+parseDateTimeNode :: String -> Map String CalendarValue -> Maybe LocalTime
+parseDateTimeNode key records = do
+	value <- fromLeaf <$> Map.lookup key records
+	return $ parseDateTime value
+
+parseDateOnlyNode :: String -> Map String CalendarValue -> Maybe LocalTime
+parseDateOnlyNode key records = do
+	value <- fromLeaf <$> Map.lookup (key ++ ";VALUE=DATE") records
+	return $ dayTime $ parseDate value
 	where
 		dayTime time = case key of
 			"DTSTART" -> time

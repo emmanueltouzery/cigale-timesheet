@@ -155,10 +155,3 @@ formatDateRange startDate endDate =
 formatDate :: Day -> String
 formatDate (toGregorian -> (year, month, dayOfMonth)) =
 	"{" ++ show year ++ "-" ++ show month ++ "-" ++ show dayOfMonth ++ "}"
-
-parseSvnDate :: String -> LocalTime
-parseSvnDate [rex|(?{read -> year}\d+)-(?{read -> month}\d+)-
-		(?{read -> day}\d+)\s(?{read -> hour}\d+):(?{read -> mins}\d+):
-		(?{read -> sec}\d+)|] =
-	LocalTime (fromGregorian year month day) (TimeOfDay hour mins sec)
-parseSvnDate v@_ = error $ "invalid date " ++ v

@@ -60,8 +60,11 @@ zipLists list = takeWhile (\x -> length x == length list) $ transpose list
 
 -- ability to fail with a user-provided error message,
 -- independant of the nature of the parse error.
-parse2 :: T.Stream s DFI.Identity t => T.Parsec s () a -> b -> s -> Either b a
-parse2 parser errorV = fmapL (const errorV) . parse parser ""
+parse2 :: (T.Stream s DFI.Identity t, Show s) => T.Parsec s () a -> String -> s -> Either String a
+parse2 parser errorV input = fmapL (const $ errorV ++ ": " ++ show input) $ parse parser "" input
+
+parseMaybe :: (T.Stream s DFI.Identity t) => T.Parsec s () a -> s -> Maybe a
+parseMaybe parser = hush . parse parser ""
 
 parsecParse :: (Show a1, T.Stream a1 DFI.Identity t) => T.Parsec a1 () a -> a1 -> a
 parsecParse parser input = case parse parser "" input of

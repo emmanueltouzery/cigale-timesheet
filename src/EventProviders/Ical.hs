@@ -31,6 +31,7 @@ import Text.Regex.PCRE.Rex
 import Event
 --import qualified Settings
 import qualified Util
+import Util (parseMaybe, parseNum)
 import EventProvider
 
 
@@ -169,33 +170,36 @@ parseSubLevel = do
 	return (value, SubLevel $ Map.fromList subcontents)
 
 parseDateNode :: String -> Map String CalendarValue -> LocalTime
-parseDateNode key records = fromMaybe (error $ "Didn't find a leaf for the date " ++ key)
+parseDateNode key records = fromMaybe (error $ "Didn't find a parseable leaf for the date " ++ key)
 	$ parseDateTimeNode key records <|> parseDateOnlyNode key records
 
 parseDateTimeNode :: String -> Map String CalendarValue -> Maybe LocalTime
-parseDateTimeNode key records = do
-	value <- fromLeaf <$> Map.lookup key records
-	return $ parseDateTime value
+parseDateTimeNode key records = fromLeaf <$> Map.lookup key records
+	>>= parseMaybe parseDateTime . T.pack
 
 parseDateOnlyNode :: String -> Map String CalendarValue -> Maybe LocalTime
 parseDateOnlyNode key records = do
-	value <- fromLeaf <$> Map.lookup (key ++ ";VALUE=DATE") records
-	return $ dayTime $ parseDate value
+	nodeText <- T.pack . fromLeaf <$> Map.lookup (key ++ ";VALUE=DATE") records
+	dayTime <$> parseMaybe parseDate nodeText
 	where
 		dayTime time = case key of
 			"DTSTART" -> time
 			"DTEND" -> time { localTimeOfDay = TimeOfDay 23 59 59 } -- end of the day
 
-parseDate :: String -> LocalTime
-parseDate [rex|(?{read -> year}\d{4})(?{read -> month}\d\d)(?{read -> day}\d\d)|] =
-	LocalTime (fromGregorian year month day) (TimeOfDay 0 0 0)
-parseDate date@_ = error $ "unrecognized iCal date: " ++ date
+parseDate :: T.GenParser st LocalTime
+parseDate = do
+	year <- parseNum 4
+	month <- parseNum 2
+	day <- parseNum 2
+	return $ LocalTime (fromGregorian year month day) (TimeOfDay 0 0 0)
 
-parseDateTime :: String -> LocalTime
-parseDateTime [rex|(?{read -> year}\d{4})(?{read -> month}\d\d)(?{read -> day}\d\d)T
-		(?{read -> hour}\d\d)(?{read -> mins}\d\d)(?{read -> sec}\d\d)|] =
-	LocalTime (fromGregorian year month day) (TimeOfDay hour mins sec)
-parseDateTime date@_ = error $ "unrecognized iCal datetime: " ++ date
+parseDateTime :: T.GenParser st LocalTime
+parseDateTime = do
+	date <- parseDate
+	hours <- char 'T' >> parseNum 2
+	mins <- parseNum 2
+	sec <- parseNum 2
+	return $ date { localTimeOfDay = TimeOfDay hours mins sec }
 
 -- at the end of the file there may not be a carriage return.
 parseEnd :: T.GenParser st ()

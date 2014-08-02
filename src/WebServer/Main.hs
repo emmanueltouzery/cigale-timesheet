@@ -8,6 +8,7 @@ import Control.Monad.IO.Class (liftIO)
 import qualified Data.Text.Encoding as TE
 import System.Directory
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BS8
 import System.Process (rawSystem)
 import Control.Applicative
 import Network.TCP (openTCPPort)
@@ -88,7 +89,7 @@ timesheet = do
 	dateParam <- getParam "tsparam"
 	result <- liftIO $ runEitherT $ do
 		dateParamText <- fmapRT TE.decodeUtf8 $ dateParam ?? "Date parameter missing"
-		date <- hoistEither $ parse2 parseDate
+		date <- hoistEither $ fmapL BS8.pack $ parse2 parseDate
 			"Invalid date format, expected yyyy-mm-dd" dateParamText
 		result <- liftIO $ Timesheet.process date
 		fmapRT toStrict1 $ right result

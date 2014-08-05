@@ -137,10 +137,8 @@ getEmailDate :: MboxMessage BL.ByteString -> LocalTime
 getEmailDate = parseEmailDate . Util.toStrict1 . _mboxMsgTime
 
 parseMultipartBody :: T.Text -> BSL.ByteString -> T.Text
-parseMultipartBody separator body =
-		case sectionToConsider sections of
-			Nothing -> "no contents!"
-			Just s -> sectionTextContent s
+parseMultipartBody separator body = maybe "no contents!" sectionTextContent
+		$ sectionToConsider sections
 	where
 		sections = Util.parsecParse (parseMultipartBodyParsec mimeSeparator) body
 		mimeSeparator = T.concat ["--", separator]

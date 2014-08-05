@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, QuasiQuotes, ViewPatterns, DeriveGeneric, TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings, QuasiQuotes, ViewPatterns, DeriveGeneric, TemplateHaskell, LambdaCase #-}
 
 module Ical where
 
@@ -64,9 +64,7 @@ getCalendarEvents (IcalRecord icalAddress) settings day = do
 	icalText <- if hasCached
 		then readFromCache settingsFolder
 		else readFromWWW (B.pack icalAddress) settingsFolder
-	let parseResult = parseEventsParsec icalText
-	--print parseResult
-	case parseResult of
+	case parseEventsParsec icalText of
 		Left pe -> do
 			putStrLn $ "iCal: parse error: " ++ Util.displayErrors pe
 			putStrLn $ "line:col: " 
@@ -207,8 +205,7 @@ parseEnd = string "END:VEVENT" >> optional eol
 
 hasCachedVersionForDay :: String -> Day -> IO Bool
 hasCachedVersionForDay settingsFolder day = do
-	cachedDateMaybe <- cachedVersionDate settingsFolder
-	case cachedDateMaybe of
+	cachedVersionDate settingsFolder >>= \case
 		Nothing -> return False
 		Just cachedDate -> return $ day < cachedDate
 

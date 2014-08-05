@@ -37,8 +37,7 @@ readConfig plugins = do
 		else return []
 
 parseSettingsFile :: (FromJSON a, ToJSON a) => [EventProvider a] -> BS.ByteString -> [(EventProvider a, a)]
-parseSettingsFile plugins input = let parsed = Util.decodeStrict input :: Maybe (HashMap String Array) in
-	case parsed of
+parseSettingsFile plugins input = case Util.decodeStrict input :: Maybe (HashMap String Array) of
 		Nothing -> error "config is NOT valid JSON"
 		Just configMap -> concatMap (processConfigItem providersByNameHash) (toList configMap)
 	where

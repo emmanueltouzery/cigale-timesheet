@@ -43,8 +43,7 @@ getRepoCommits config _ date = do
 				"-r", dateRange, "--verbose"])
 		{Process.std_out = Process.CreatePipe}
 	output <- IO.hGetContents outh
-	let parseResult = parseCommitsParsec output
-	case parseResult of
+	case parseCommitsParsec output of
 		Left pe -> do
 			putStrLn $ "SVN: parse error: " ++ Util.displayErrors pe
 			error "Svn parse error, aborting"

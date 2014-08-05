@@ -1,10 +1,9 @@
-{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, DoAndIfThenElse #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, DoAndIfThenElse, LambdaCase #-}
 module Main where
 
 import Snap.Core
 import Snap.Util.FileServe
 import Snap.Http.Server
-import Control.Monad.IO.Class (liftIO)
 import qualified Data.Text.Encoding as TE
 import System.Directory
 import qualified Data.ByteString as BS
@@ -19,13 +18,14 @@ import Control.Error
 import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
 import Data.Time
+import Control.Monad.Trans
 
 import qualified Timesheet
 import Config
 import Util (toStrict1, parse2, parseNum)
 import Paths_cigale_timesheet
 import FilePickerServer (browseFolder)
-import SnapUtil (getSingleParam, setResponse)
+import SnapUtil (setResponse, setActionResponse, hParam)
 
 appPort :: Int
 appPort = 8000
@@ -114,31 +114,23 @@ configVal = do
 		else writeLBS "{}"
 
 addConfigEntry :: Snap ()
-addConfigEntry = processConfigFromBody addPluginInConfig 
+addConfigEntry = setActionResponse $ processConfigFromBody addPluginInConfig
 
 deleteConfigEntry :: Snap ()
-deleteConfigEntry = do
-	mOldCfg <- getSingleParam "oldVal"
-	mPluginName <- getSingleParam "pluginName"
-	let mOldCfgPluginName = sequence [mOldCfg, mPluginName]
-	case mOldCfgPluginName of
-		Just (oldCfg:pName:[]) ->
-			liftIO (deletePluginFromConfig oldCfg pName) >>= setResponse
-		_ -> setResponse $ Left "delete: parameters missing"
+deleteConfigEntry = setActionResponse $ do
+	rq <- lift getRequest
+	oldCfg <- hParam "oldVal" rq
+	pluginName <- hParam "pluginName" rq
+	liftIO (deletePluginFromConfig oldCfg pluginName) >>= hoistEither
 
 updateConfigEntry :: Snap ()
-updateConfigEntry = do
-	oldCfg <- getSingleParam "oldVal"
-	case oldCfg of
-		Just _oldCfg -> processConfigFromBody (updatePluginInConfig _oldCfg)
-		_ -> setResponse $ Left "update config: pluginName not specified"
+updateConfigEntry = setActionResponse $ do
+	oldCfg <- lift getRequest >>= hParam "oldVal"
+	processConfigFromBody $ updatePluginInConfig oldCfg
 
 processConfigFromBody :: (BS.ByteString -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)) ->
-		 Snap ()
+		 EitherT BS.ByteString Snap BS.ByteString
 processConfigFromBody handler = do
-	pName <- getSingleParam "pluginName"
-	case pName of
-		Just _pName -> do
-			configJson <- toStrict1 <$> readRequestBody 65536
-			liftIO (handler _pName configJson) >>= setResponse
-		_ -> setResponse $ Left "add config: pluginName not specified"
+	configJson <- lift (toStrict1 <$> readRequestBody 65536)
+	pluginName <- lift getRequest >>= hParam "pluginName"
+	liftIO (handler pluginName configJson) >>= hoistEither

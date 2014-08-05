@@ -118,19 +118,18 @@ addConfigEntry = setActionResponse $ processConfigFromBody addPluginInConfig
 
 deleteConfigEntry :: Snap ()
 deleteConfigEntry = setActionResponse $ do
-	rq <- lift getRequest
-	oldCfg <- hParam "oldVal" rq
-	pluginName <- hParam "pluginName" rq
+	oldCfg <- hParam "oldVal"
+	pluginName <- hParam "pluginName"
 	liftIO (deletePluginFromConfig oldCfg pluginName) >>= hoistEither
 
 updateConfigEntry :: Snap ()
 updateConfigEntry = setActionResponse $ do
-	oldCfg <- lift getRequest >>= hParam "oldVal"
+	oldCfg <- hParam "oldVal"
 	processConfigFromBody $ updatePluginInConfig oldCfg
 
 processConfigFromBody :: (BS.ByteString -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)) ->
 		 EitherT BS.ByteString Snap BS.ByteString
 processConfigFromBody handler = do
 	configJson <- lift (toStrict1 <$> readRequestBody 65536)
-	pluginName <- lift getRequest >>= hParam "pluginName"
+	pluginName <- hParam "pluginName"
 	liftIO (handler pluginName configJson) >>= hoistEither

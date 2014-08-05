@@ -4,6 +4,8 @@ module SnapUtil where
 import Snap.Core
 import qualified Data.ByteString as BS
 import Control.Error
+import Control.Monad.Trans
+import Control.Applicative
 
 -- rqParam returns an array in case one value is sent several times.
 -- My client won't send several times, get just the first value.
@@ -21,8 +23,10 @@ setResponse (Right val) = writeBS val
 setActionResponse :: EitherT BS.ByteString Snap BS.ByteString -> Snap ()
 setActionResponse action = runEitherT action >>= setResponse
 
-hParam :: BS.ByteString -> Request -> EitherT BS.ByteString Snap BS.ByteString
-hParam t rq = hoistEither $ note (BS.append "Parameter missing: " t) (rqParam t rq) >>= eHead t
+hParam :: BS.ByteString -> EitherT BS.ByteString Snap BS.ByteString
+hParam t = do
+	param <- rqParam t <$> lift getRequest
+	hoistEither $ note (BS.append "Parameter missing: " t) param >>= eHead t
 
 eHead :: BS.ByteString -> [a] -> Either BS.ByteString a
 eHead _ (x:_) = Right x

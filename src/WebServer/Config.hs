@@ -20,13 +20,12 @@ import qualified Util
 
 getSettingsFolder :: IO FilePath
 getSettingsFolder = do
-	home <- getHomeDirectory
-	let result = home ++ "/.cigale-timesheet/"
+	result <- (++ "/.cigale-timesheet/") <$> getHomeDirectory
 	createDirectoryIfMissing False result
 	return result
 
 getConfigFileName :: IO String
-getConfigFileName = fmap (++"config.json") getSettingsFolder
+getConfigFileName = (++"config.json") <$> getSettingsFolder
 
 readConfig :: (FromJSON a, ToJSON a) => [EventProvider a] -> IO [(EventProvider a, a)]
 readConfig plugins = do
@@ -36,6 +35,7 @@ readConfig plugins = do
 		then parseSettingsFile plugins <$> BS.readFile settingsFile
 		else return []
 
+-- TODO this should return a Maybe...
 parseSettingsFile :: (FromJSON a, ToJSON a) => [EventProvider a] -> BS.ByteString -> [(EventProvider a, a)]
 parseSettingsFile plugins input = case Util.decodeStrict input :: Maybe (HashMap String Array) of
 		Nothing -> error "config is NOT valid JSON"
@@ -45,9 +45,9 @@ parseSettingsFile plugins input = case Util.decodeStrict input :: Maybe (HashMap
 
 processConfigItem :: (FromJSON a, ToJSON a) => HashMap String (EventProvider a) -> (String, Array) -> [(EventProvider a, a)]
 processConfigItem providersByNameHash (providerName, config) =
-		fmap (processConfigElement provider) (Vector.toList config)
+		processConfigElement provider <$> Vector.toList config
 		where
-			provider = fromJust $ HashMap.lookup providerName providersByNameHash
+			provider = fromJust $ Map.lookup providerName providersByNameHash
 
 providersByName :: (FromJSON a, ToJSON a) => [EventProvider a] -> HashMap String (EventProvider a)
 providersByName plugins = HashMap.fromList $ map (\p -> (getModuleName p, p)) plugins
@@ -81,7 +81,7 @@ addPluginInConfig (T.unpack . TE.decodeUtf8 -> pluginName) configJson =
 decodeIncomingConfigElt :: String -> BS.ByteString -> Maybe (EventProvider Value, Value)
 decodeIncomingConfigElt pluginName configJson = do
 	let providersByNameHash = providersByName EventProviders.plugins
-	provider <- HashMap.lookup pluginName providersByNameHash
+	provider <- Map.lookup pluginName providersByNameHash
 	configValue <- Util.decodeStrict configJson
 	return (provider, configValue)
 
@@ -107,7 +107,7 @@ updatePluginInConfig oldCfgItemStr (T.unpack . TE.decodeUtf8 -> pluginName) conf
 		Nothing -> return $ Left $ BS.concat ["invalid new or old config info; new: [",
 							configJson, "], old: [", oldCfgItemStr, "]"]
 		Just (newElt, configWithoutThisSource) -> do
-			writeConfiguration $ newElt:configWithoutThisSource
+			writeConfiguration (newElt:configWithoutThisSource)
 			return $ Right ""
 
 isConfigItem :: String -> HashMap T.Text Value -> (EventProvider Value, Value) -> Bool

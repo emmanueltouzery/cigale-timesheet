@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings, ViewPatterns, ScopedTypeVariables #-}
 
 module Config where
 
@@ -13,6 +13,7 @@ import System.Directory
 import qualified Data.ByteString as BS
 import qualified Data.Text.Encoding as TE
 import Control.Applicative
+import Control.Error
 
 import EventProvider (EventProvider, getModuleName)
 import qualified EventProviders
@@ -24,30 +25,26 @@ getSettingsFolder = do
 	createDirectoryIfMissing False result
 	return result
 
-getConfigFileName :: IO String
+getConfigFileName :: IO FilePath
 getConfigFileName = (++"config.json") <$> getSettingsFolder
 
 readConfig :: (FromJSON a, ToJSON a) => [EventProvider a] -> IO [(EventProvider a, a)]
 readConfig plugins = do
 	settingsFile <- getConfigFileName
-	isSettings <- doesFileExist settingsFile
-	if isSettings
-		then parseSettingsFile plugins <$> BS.readFile settingsFile
-		else return []
+	parsed <- runMaybeT $ parseSettingsFile plugins settingsFile
+	return $ fromMaybe [] parsed
 
--- TODO this should return a Maybe...
-parseSettingsFile :: (FromJSON a, ToJSON a) => [EventProvider a] -> BS.ByteString -> [(EventProvider a, a)]
-parseSettingsFile plugins input = case Util.decodeStrict input :: Maybe (HashMap String Array) of
-		Nothing -> error "config is NOT valid JSON"
-		Just configMap -> concatMap (processConfigItem providersByNameHash) (toList configMap)
-	where
-		providersByNameHash = providersByName plugins
+parseSettingsFile :: (FromJSON a, ToJSON a) => [EventProvider a] -> FilePath -> MaybeT IO [(EventProvider a, a)]
+parseSettingsFile plugins settingsFile = do
+	fileContents <- hushT $ EitherT $ (Util.tryS $ BS.readFile settingsFile)
+	(configMap :: HashMap String Array) <- hoistMaybe $ Util.decodeStrict fileContents
+	let providersByNameHash = providersByName plugins
+	hoistMaybe $ Util.concatMapM (processConfigItem providersByNameHash) (toList configMap)
 
-processConfigItem :: (FromJSON a, ToJSON a) => HashMap String (EventProvider a) -> (String, Array) -> [(EventProvider a, a)]
-processConfigItem providersByNameHash (providerName, config) =
-		processConfigElement provider <$> Vector.toList config
-		where
-			provider = fromJust $ Map.lookup providerName providersByNameHash
+processConfigItem :: (FromJSON a, ToJSON a) => HashMap String (EventProvider a) -> (String, Array) -> Maybe [(EventProvider a, a)]
+processConfigItem providersByNameHash (providerName, config) = do
+	provider <- Map.lookup providerName providersByNameHash
+	return $ processConfigElement provider <$> Vector.toList config
 
 providersByName :: (FromJSON a, ToJSON a) => [EventProvider a] -> HashMap String (EventProvider a)
 providersByName plugins = HashMap.fromList $ map (\p -> (getModuleName p, p)) plugins

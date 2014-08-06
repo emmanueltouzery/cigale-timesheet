@@ -25,6 +25,8 @@ import qualified Data.Attoparsec as AP
 import qualified Data.Functor.Identity as DFI
 import Control.Applicative
 import Control.Error
+import Control.Exception as Ex
+import Control.Monad (liftM)
 
 import OpenSSL (withOpenSSL)
 
@@ -123,3 +125,11 @@ decodeStrict bs =
                        _            -> Nothing
       _           -> Nothing
 
+-- | The 'concatMapM' function generalizes 'concatMap' to arbitrary monads.
+concatMapM        :: (Monad m) => (a -> m [b]) -> [a] -> m [b]
+concatMapM f xs   =  liftM concat (mapM f xs)
+
+-- 99% when using try, i want to catch all, so SomeException.
+-- save myself the ScopedTypeVariables and typing there.
+tryS :: IO a -> IO (Either SomeException a)
+tryS = Ex.try

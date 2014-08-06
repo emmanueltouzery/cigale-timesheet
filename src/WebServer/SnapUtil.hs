@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 module SnapUtil where
 
 import Snap.Core
@@ -14,6 +14,4 @@ setActionResponse :: EitherT BS.ByteString Snap BS.ByteString -> Snap ()
 setActionResponse action = runEitherT action >>= setResponse
 
 hParam :: BS.ByteString -> EitherT BS.ByteString Snap BS.ByteString
-hParam t = do
-	param <- lift $ getParam t
-	hoistEither $ note (BS.append "Parameter missing: " t) param
+hParam t = lift (getParam t) >>= hoistEither . note (BS.append "Parameter missing: " t)

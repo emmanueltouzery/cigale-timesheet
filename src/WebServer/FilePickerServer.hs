@@ -16,9 +16,6 @@ import Data.Aeson (encode, ToJSON, ToJSON(..))
 import Data.Aeson.TH (deriveFromJSON, mkToJSON, defaultOptions)
 import qualified FayAeson
 
-import Util (toStrict1)
-import SnapUtil (setResponse)
-
 data FileInfo = FileInfo
 	{
 		filename :: String,
@@ -46,7 +43,7 @@ browseFolder = do
 	files <- liftIO $ getDirectoryContents curFolder
 	fileInfos <- liftIO $ mapM (fileInfo curFolder) files
 	let response = BrowseResponse curFolder fileInfos
-	setResponse $ Right $ toStrict1 $ encode response
+	writeLBS $ encode response
 
 fileInfo :: String -> String -> IO FileInfo
 fileInfo folder fName = do

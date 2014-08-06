@@ -17,7 +17,7 @@ import Data.Aeson.TH (deriveFromJSON, mkToJSON, defaultOptions)
 import qualified FayAeson
 
 import Util (toStrict1)
-import SnapUtil (getSingleParam, setResponse)
+import SnapUtil (setResponse)
 
 data FileInfo = FileInfo
 	{
@@ -42,7 +42,7 @@ browseFolder :: Snap ()
 browseFolder = do
 	homeDir <- liftIO $ TE.encodeUtf8 . T.pack <$> getHomeDirectory
 	modifyResponse $ setContentType "application/json"
-	curFolder <- T.unpack . TE.decodeUtf8 . fromMaybe homeDir <$> getSingleParam "path"
+	curFolder <- T.unpack . TE.decodeUtf8 . fromMaybe homeDir <$> getParam "path"
 	files <- liftIO $ getDirectoryContents curFolder
 	fileInfos <- liftIO $ mapM (fileInfo curFolder) files
 	let response = BrowseResponse curFolder fileInfos

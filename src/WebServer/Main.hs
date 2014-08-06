@@ -25,7 +25,7 @@ import Config
 import Util (toStrict1, parse2, parseNum)
 import Paths_cigale_timesheet
 import FilePickerServer (browseFolder)
-import SnapUtil (setResponse, setActionResponse, hParam)
+import SnapUtil (setActionResponse, hParam)
 
 appPort :: Int
 appPort = 8000
@@ -83,17 +83,14 @@ site installPath =
     dir "static" (serveDirectory installPath)
 
 timesheet :: Snap ()
-timesheet = do
-	modifyResponse $ setContentType "application/json"
-	setTimeout 3600
-	dateParam <- getParam "tsparam"
-	result <- liftIO $ runEitherT $ do
-		dateParamText <- fmapRT TE.decodeUtf8 $ dateParam ?? "Date parameter missing"
-		date <- hoistEither $ fmapL BS8.pack $ parse2 parseDate
-			"Invalid date format, expected yyyy-mm-dd" dateParamText
-		result <- liftIO $ Timesheet.process date
-		fmapRT toStrict1 $ right result
-	setResponse result
+timesheet = setActionResponse $ do
+	lift $ do
+		modifyResponse $ setContentType "application/json"
+		setTimeout 3600
+	dateParamText <- TE.decodeUtf8 <$> hParam "tsparam"
+	date <- hoistEither $ fmapL BS8.pack $ parse2 parseDate
+		"Invalid date format, expected yyyy-mm-dd" dateParamText
+	liftIO (toStrict1 <$> Timesheet.process date)
 
 parseDate :: T.GenParser st Day
 parseDate = fromGregorian <$> parseNum 4

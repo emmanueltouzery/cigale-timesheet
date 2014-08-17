@@ -89,12 +89,13 @@ sizeUnits :: [(Double, Text)]
 sizeUnits = reverse $ zip (map (1024**) [1..]) ["kb", "Mb", "Gb"]
 
 getSizeDesc :: Int -> Text
-getSizeDesc v | v == -1 = "-"
-getSizeDesc v | v == -2 = ""
-getSizeDesc v = case find (\s -> vDouble >= fst s) sizeUnits of
-	Just (mult, desc) -> formatDouble (vDouble / mult) 2 ++ desc
-	Nothing -> T.pack (show v) ++ " bytes"
-	where vDouble = fromIntegral v
+getSizeDesc v
+	| v == -1 = "-"
+	| v == -2 = ""
+	| otherwise = case find (\s -> vDouble >= fst s) sizeUnits of
+		Just (mult, desc) -> formatDouble (vDouble / mult) 2 ++ desc
+		Nothing -> T.pack (show v) ++ " bytes"
+		where vDouble = fromIntegral v
 
 formatDouble :: Double -> Int -> Text
 formatDouble = ffi "%1.toFixed(%2)"

@@ -27,6 +27,7 @@ import qualified Codec.Text.IConv as IConv
 import Debug.Trace
 import qualified Data.Map as Map
 import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
+import Control.Arrow ( (***) )
 
 import Text.Regex.PCRE.Rex
 
@@ -226,11 +227,11 @@ parseMultipartSection mimeSeparator = do
 readHeaders :: T.Parsec BSL.ByteString st [(T.Text, T.Text)]
 readHeaders = do
 	val <- manyTill readHeader (T.try eol)
-	return $ map (\(a,b) -> (decodeUtf8 $ toStrict1 $ BL.pack a, decodeUtf8 $ toStrict1 b)) val
+	return $ join (***) (decodeUtf8 . toStrict1) <$> val
 
-readHeader :: T.Parsec BSL.ByteString st (String, BSL.ByteString)
+readHeader :: T.Parsec BSL.ByteString st (BSL.ByteString, BSL.ByteString)
 readHeader = do
-	key <- T.many $ T.noneOf ":\n\r"
+	key <- BL.pack <$> (T.many $ T.noneOf ":\n\r")
 	T.string ":"
 	many $ T.string " "
 	val <- readHeaderValue

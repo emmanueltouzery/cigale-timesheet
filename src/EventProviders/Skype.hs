@@ -11,6 +11,8 @@ import qualified Data.Map as Map
 import Data.List
 import System.Directory
 import Data.Aeson.TH (deriveJSON, defaultOptions)
+import Control.Monad (join)
+import Control.Arrow ( (***) )
 
 import Database.HDBC
 import Database.HDBC.Sqlite3
@@ -84,7 +86,7 @@ splitByCompare _ [] = []
 splitByCompare notTooFar records = (head records : firstSeries) : splitByCompare notTooFar remains
 	where
 		(firstSeries, remains) = sndOnly $ span notTooFar $ zip records (tail records)
-		sndOnly (a,b) = (fmap snd a, fmap snd b)
+		sndOnly = join (***) (fmap snd)
 
 -- in reality the list in the second position
 -- of the pair will always have one element.

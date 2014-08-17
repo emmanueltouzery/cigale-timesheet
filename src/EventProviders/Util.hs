@@ -30,10 +30,6 @@ import Control.Monad (liftM)
 
 import OpenSSL (withOpenSSL)
 
-safePromise :: Either a (b,c) -> b
-safePromise (Right (v,_)) = v
-safePromise _ = error "safePromise got Left"
-
 -- http://stackoverflow.com/questions/7815402/convert-a-lazy-bytestring-to-a-strict-bytestring/13632110#comment19162473_13632110
 -- to replace to toStrict when upgrading to a recent enough haskell...
 toStrict1 :: BL.ByteString -> B.ByteString

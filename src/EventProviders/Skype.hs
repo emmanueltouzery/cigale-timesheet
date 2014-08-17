@@ -91,12 +91,13 @@ splitByCompare notTooFar records = (head records : firstSeries) : splitByCompare
 -- it's made like that to easier later call 
 -- Map.fromListWith
 messageByChatInfo :: [SqlValue] -> (String, [ChatRecord])
-messageByChatInfo dbRow = (fromSql $ head dbRow,
-		[ChatRecord {
-			messageAuthor = fromSql $ dbRow !! 1,
-			messageTime = posixSecondsToUTCTime $ fromSql $ dbRow !! 2,
-			messageText = fromSql $ dbRow !! 3
-		}])
+messageByChatInfo (chatname:author:time:text:[]) = (fromSql chatname,
+        [ChatRecord {
+            messageAuthor = fromSql author,
+            messageTime = posixSecondsToUTCTime $ fromSql time,
+            messageText = fromSql text
+        }])
+messageByChatInfo x@_ = error $ "messageByChatInfo: invalid SQL query results" ++ show x
 
 toEvent :: [ChatRecord] -> Event
 toEvent chatRecords = Event

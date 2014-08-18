@@ -7,7 +7,7 @@ import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Vector as Vector
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
-import Data.HashMap.Strict as Map hiding (map, filter)
+import Data.HashMap.Strict as Map hiding (map, filter, foldr)
 import Data.Maybe
 import System.Directory
 import qualified Data.ByteString as BS
@@ -56,16 +56,11 @@ processConfigElement provider configValue =
 
 writeConfiguration :: (FromJSON a, ToJSON a) => [(EventProvider a, a)] -> IO ()
 writeConfiguration config = getConfigFileName >>= flip BL.writeFile jsonToWrite
-		where
-			jsonToWrite = encode $ groupByProvider config HashMap.empty
+	where jsonToWrite = encode $ groupByProvider config
 
-groupByProvider :: [(EventProvider a, a)] -> HashMap String [a] -> HashMap String [a]
-groupByProvider [] result = result
-groupByProvider ((plugin, config):xs) result = groupByProvider xs (case HashMap.lookup moduleName result of
-						Nothing -> HashMap.insert moduleName [config] result
-						Just array -> HashMap.insert moduleName (config:array) result)
-		where
-			moduleName = getModuleName plugin
+groupByProvider :: [(EventProvider a, a)] -> HashMap String [a]
+groupByProvider = foldr mapAdd HashMap.empty
+	where mapAdd (prov, cfg) = HashMap.insertWith (++) (getModuleName prov) [cfg]
 
 addPluginInConfig :: BS.ByteString -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)
 addPluginInConfig (T.unpack . TE.decodeUtf8 -> pluginName) configJson =

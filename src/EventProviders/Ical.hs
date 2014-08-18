@@ -25,6 +25,7 @@ import System.Locale
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Control.Applicative ((<$>), (<|>))
 import Data.Maybe
+import Control.Error
 
 import Text.Regex.PCRE.Rex
 
@@ -204,7 +205,7 @@ parseEnd :: T.GenParser st ()
 parseEnd = string "END:VEVENT" >> optional eol
 
 hasCachedVersionForDay :: String -> Day -> IO Bool
-hasCachedVersionForDay settingsFolder day = do
+hasCachedVersionForDay settingsFolder day =
 	cachedVersionDate settingsFolder >>= \case
 		Nothing -> return False
 		Just cachedDate -> return $ day < cachedDate
@@ -216,16 +217,12 @@ cachedVersionDate :: String -> IO (Maybe Day)
 cachedVersionDate settingsFolder = do
 	let fname = cacheFilename settingsFolder
 	modifTime <- IOEx.tryIOError $ Dir.getModificationTime fname
-	case modifTime of
-		Left _ -> return Nothing
-		Right modif -> return $ Just $ utctDay modif
+	return $ utctDay <$> hush modifTime
 
 readFromCache :: String -> IO T.Text
 readFromCache settingsFolder = do
 	putStrLn "reading calendar from cache!"
-	let fname = cacheFilename settingsFolder
-	fmap T.pack (readFile fname)
-
+	T.pack <$> (readFile $ cacheFilename settingsFolder)
 
 putInCache :: String -> T.Text -> IO ()
 putInCache settingsFolder text = do

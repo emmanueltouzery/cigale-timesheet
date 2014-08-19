@@ -189,8 +189,6 @@ parseCommit = do
 			commitIsMerge = isJust mergeInfo,
 			commitTags = tags
 		}
-	where
-		isFiles = elem '|'
 
 readLine :: T.GenParser st String
 readLine = (T.many $ T.noneOf "\r\n") <* T.oneOf "\r\n"

@@ -34,7 +34,7 @@ testMerge = it "parses merge commits" $ do
 				Author: David <t@a>
 				Date:   Mon Apr 8 18:50:43 2013 +0200
 				
-				 Did merge.
+				    Did merge.
 				
 				|]
 		let expected = Commit
@@ -56,7 +56,7 @@ testUsualCommit = it "parses usual commits" $ do
 				Author: David <t@a>
 				Date:   Mon Apr 8 18:50:43 2013 +0200
 				
-				 Did commit.
+				    Did commit.
 				
 				 test/src/main/users.js | 2 ++
 				 1 file changed, 2 insertions(+)
@@ -109,7 +109,7 @@ testMultipleCommits = it "parses multiple commits" $ do
 				Author: David <t@a>
 				Date:   Mon Apr 8 18:50:43 2013 +0200
 				
-				 Did commit.
+				    Did commit.
 				
 				 test/src/main/users.js | 2 ++
 				 1 file changed, 2 insertions(+)
@@ -118,7 +118,7 @@ testMultipleCommits = it "parses multiple commits" $ do
 				Author: Emm <t@a>
 				Date:   Mon Apr 8 18:50:43 2013 +0200
 				
-				 Did commit.
+				    Did commit.
 				
 				 test/src/main/users.js | 2 ++
 				 1 file changed, 2 insertions(+)

@@ -171,46 +171,12 @@ parseCommit = do
 	eol
 	eol
 
-	--sections <- many parseSection
-	_sections0 <- optionMaybe parseSection
-	_sections1 <- if isNothing mergeInfo
-		then optionMaybe parseSection
-		else return Nothing
+	summary <- optionMaybe parseCommitComment
+	filesInfo <- optionMaybe parseFiles
 
-	-- TODO this filter not null is ugly.. the parseSection
-	-- should just return Nothing :-(
-	let sections = fmap fromJust $ filter isJust [_sections0, _sections1]
+	let cFilesDesc = maybe [] (fmap fst) filesInfo
+	let cFileNames = maybe [] (fmap snd) filesInfo
 
-	--traceShow sections (optional eol)
-
-	-- these sections can be either comment or
-	-- list of files that were changed by the commit.
-	-- if this is a merge, there will not be files
-	-- and i expect only one section to exist
-	let (summary, filesText) = if isJust mergeInfo
-			then (Util.maybeHead sections, Nothing)
-			else case length sections of
-				2 -> (Just $ head sections, Just $ sections !! 1)
-				1 ->	-- is that section comment or files??
-					if isFiles $ head sections
-						then (Nothing, Just $ head sections)
-						else (Just $ head sections, Nothing)
-				0 -> (Nothing, Nothing)
-			     -- if there is one in sections need to find
-			     -- out, is that files or comment
-			     -- no sections then no summary
-
-	--traceShow (summary, filesText) (optional eol)
-
-	(cFileNames, cFilesDesc) <- case filesText of
-		Just filesContents -> case parse parseFiles "" (T.pack $ fromJust filesText) of
-				Right cFiles -> return (fmap snd cFiles, fmap fst cFiles)
-				Left pe -> do
-					error $ "GIT file list parse error, aborting; commit is "
-						++ commitSha ++ " " ++ Util.displayErrors pe
-					return ([],[])
-				
-		Nothing -> return ([], [])
 	optional eol
 	optional eol
 	return Commit
@@ -234,10 +200,7 @@ parseFiles = manyTill parseFile (T.try parseFilesSummary)
 
 parseFile :: T.GenParser st (String, String)
 parseFile = do
-	optional $ char ' ' -- optional because it won't occur on the first line.
-			    -- that's because we eat it to make sure
-			    -- it's not already the next commit. On
-			    -- subsequent lines we don't eat it.
+	char ' '
 	result <- T.many $ T.noneOf "|"
 	rest <- T.many $ T.noneOf "\n"
 	eol
@@ -286,11 +249,9 @@ strToMonth month = case month of
 	"Dec" -> 12
 	_ -> error $ "Unknown month " ++ month
 
-parseSection :: T.GenParser st String
-parseSection = do
-	string " " -- the sections are indented by one character.
-		   -- I need this so i don't think the beginning of the next
-		   -- commit is a section of the current commit.
+parseCommitComment :: T.GenParser st String
+parseCommitComment = do
+	T.try $ string "    "
 	summary <- manyTill anyChar (T.try $ string "\n\n" <|> string "\r\n\r\n")
 	count 2 eol
 	return summary

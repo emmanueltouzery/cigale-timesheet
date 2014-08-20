@@ -65,23 +65,10 @@ parse2 parser errorV input = fmapL (const $ errorV ++ ": " ++ show input) $ pars
 parseMaybe :: (T.Stream s DFI.Identity t) => T.Parsec s () a -> s -> Maybe a
 parseMaybe parser = hush . parse parser ""
 
-parsecParse :: (Show a1, T.Stream a1 DFI.Identity t) => T.Parsec a1 () a -> a1 -> a
-parsecParse parser input = case parse parser "" input of
-		Left pe -> error $ "parse error: " ++ displayErrors pe ++ " >> input >> " ++ show input
-		Right result -> result
-
-displayErrors :: ParseError -> String
-displayErrors pe = concat $ fmap messageString' (errorMessages pe) ++
-		["position: ", displayErrorPos $ errorPos pe]
-	where
-		displayErrorPos pos = show (sourceLine pos) ++ ":" ++ show (sourceColumn pos)
-
-messageString' :: Message -> String
-messageString' msg
-    = case msg of SysUnExpect s -> "sys unexpect " ++ s
-                  UnExpect s    -> "unexpect " ++ s
-                  Expect s      -> "expect " ++ s
-                  Message s     -> "message" ++ s  
+parsecError :: (T.Stream s DFI.Identity t, Show s) => T.Parsec s () a -> String -> s -> a
+parsecError parser errorText input = case parse parser "" input of
+	Left a -> error $ errorText ++ show a
+	Right x -> x
 
 formatDurationSec :: NominalDiffTime -> T.Text
 formatDurationSec (round -> seconds :: Int) = T.pack $ printf "%d:%02d" hours minutes

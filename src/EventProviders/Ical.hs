@@ -65,15 +65,8 @@ getCalendarEvents (IcalRecord icalAddress) settings day = do
 	icalText <- if hasCached
 		then readFromCache settingsFolder
 		else readFromWWW (B.pack icalAddress) settingsFolder
-	case parseEventsParsec icalText of
-		Left pe -> do
-			putStrLn $ "iCal: parse error: " ++ Util.displayErrors pe
-			putStrLn $ "line:col: " 
-				++ show (sourceLine $ errorPos pe) 
-				++ ":" ++ show (sourceColumn $ errorPos pe)
-			error "Ical parse error, aborting"
-			--return []
-		Right x -> return $ convertToEvents timezone day x
+	return $ convertToEvents timezone day
+		$ Util.parsecError parseEvents "Ical.getCalendarEvents" icalText
 	where
 		settingsFolder = getSettingsFolder settings
 
@@ -99,9 +92,6 @@ eventInDateRange :: TimeZone -> Day -> Event.Event -> Bool
 eventInDateRange tz day event =  eventDay >= day && eventDay <= day
 	where
 		eventDay = localDay $ utcToLocalTime tz (Event.eventDate event)
-
-parseEventsParsec :: T.Text -> Either ParseError [Map String CalendarValue]
-parseEventsParsec = parse parseEvents ""
 
 parseEvents :: T.GenParser st [Map String CalendarValue]
 parseEvents = do

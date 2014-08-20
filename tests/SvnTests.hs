@@ -41,4 +41,4 @@ testBasicCommit = it "parses a basic SVN commit" $ do
 					"/EAndroid/trunk/res/drawable-mdpi/ic_launcher.png",
 					"/EAndroid/trunk/res/drawable-xhdpi/ic_launcher.png"]
 			}
-		testParsecExpectFirst source parseCommitsParsec expected
+		testParsecExpectFirst source parseCommits expected

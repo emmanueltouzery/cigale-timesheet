@@ -50,19 +50,12 @@ getRepoCommits (GitRecord _username projectPath) _ date = do
 		}
 	output <- IO.hGetContents outh
 	timezone <- getTimeZone (UTCTime date 8)
-	let parseResult = parseCommitsParsec $ T.concat [output, "\n"]
-	case parseResult of
-		Left pe -> do
-			print $ T.unpack output
-			putStrLn $ "GIT: parse error: " ++ Util.displayErrors pe
-			error "GIT parse error, aborting"
-			--return []
-		Right allCommits -> do
-			let relevantCommits = filter (isRelevantCommit date username) allCommits
-			let commitsList = map (commitToEvent projectPath timezone) relevantCommits
-			let tagCommits = filter (isRelevantTagCommit date) allCommits
-			let tagsList = map (tagToEvent projectPath timezone) tagCommits
-			return $ commitsList ++ tagsList
+	let allCommits = Util.parsecError parseCommits "Git.getRepoCommits" $ T.concat [output, "\n"]
+	let relevantCommits = filter (isRelevantCommit date username) allCommits
+	let commitsList = map (commitToEvent projectPath timezone) relevantCommits
+	let tagCommits = filter (isRelevantTagCommit date) allCommits
+	let tagsList = map (tagToEvent projectPath timezone) tagCommits
+	return $ commitsList ++ tagsList
 
 isRelevantCommit :: Day -> String -> Commit -> Bool
 isRelevantCommit date username commit = all ($ commit) [
@@ -111,9 +104,6 @@ getCommitExtraInfo commit gitFolderPath = if atRoot filesRoot then gitRepoName e
 formatDate :: Day -> String
 formatDate (toGregorian -> (year, month, dayOfMonth)) =
 	show year ++ "-" ++ show month ++ "-" ++ show dayOfMonth
-
-parseCommitsParsec :: T.Text -> Either ParseError [Commit]
-parseCommitsParsec = parse parseCommits ""
 
 data Commit = Commit
 	{

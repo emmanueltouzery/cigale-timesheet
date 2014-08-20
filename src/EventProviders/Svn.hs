@@ -43,16 +43,11 @@ getRepoCommits config _ date = do
 				"-r", dateRange, "--verbose"])
 		{Process.std_out = Process.CreatePipe}
 	output <- IO.hGetContents outh
-	case parseCommitsParsec output of
-		Left pe -> do
-			putStrLn $ "SVN: parse error: " ++ Util.displayErrors pe
-			error "Svn parse error, aborting"
-			--return []
-		Right x -> finishGetRepoCommits x date date
-			(T.pack $ svnUser config)
+	finishGetRepoCommits date date (T.pack $ svnUser config)
+		$ Util.parsecError parseCommits "Svn.getRepoCommits" output
 
-finishGetRepoCommits :: [Commit] -> Day -> Day -> T.Text -> IO [Event.Event]
-finishGetRepoCommits commits startDate endDate username = do
+finishGetRepoCommits :: Day -> Day -> T.Text -> [Commit] -> IO [Event.Event]
+finishGetRepoCommits startDate endDate username commits = do
 	let myCommits = filter ((==username) . user) commits
 	-- need to filter again by date, because SVN obviously
 	-- returns me commits which are CLOSE to the dates I
@@ -86,9 +81,6 @@ toEvent timezone (Commit dateVal _ commentVal cFiles) =
 		}
 	where
 		cFilesStr = map T.unpack cFiles
-
-parseCommitsParsec :: T.Text -> Either ParseError [Commit]
-parseCommitsParsec = parse parseCommits ""
 
 parseCommits :: T.GenParser st [Commit]
 parseCommits = parseCommitHeader >> many parseCommit

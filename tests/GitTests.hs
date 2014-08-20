@@ -47,7 +47,7 @@ testMerge = it "parses merge commits" $ do
 				commitIsMerge = True,
 				commitTags = []
 			}
-		testParsecExpectFirst source parseCommitsParsec expected
+		testParsecExpectFirst source parseCommits expected
 
 testUsualCommit :: Spec
 testUsualCommit = it "parses usual commits" $ do
@@ -73,7 +73,7 @@ testUsualCommit = it "parses usual commits" $ do
 				commitTags = []
 
 			}
-		testParsecExpectFirst source parseCommitsParsec expected
+		testParsecExpectFirst source parseCommits expected
 
 testMergeConflict :: Spec
 testMergeConflict = it "parses merge conflict" $ do
@@ -100,7 +100,7 @@ testMergeConflict = it "parses merge conflict" $ do
 				commitTags = []
 
 			}
-		testParsecExpectFirst source parseCommitsParsec expected
+		testParsecExpectFirst source parseCommits expected
 
 testMultipleCommits :: Spec
 testMultipleCommits = it "parses multiple commits" $ do
@@ -148,7 +148,7 @@ testMultipleCommits = it "parses multiple commits" $ do
 					commitTags = []
 				}
 			]
-		testParsecExpectVal source parseCommitsParsec expected
+		testParsecExpectVal source parseCommits expected
 
 testCommitWithoutMessage :: Spec
 testCommitWithoutMessage = it "parses commits without message" $ do
@@ -172,7 +172,7 @@ testCommitWithoutMessage = it "parses commits without message" $ do
 				commitTags = []
 
 			}
-		testParsecExpectFirst source parseCommitsParsec expected
+		testParsecExpectFirst source parseCommits expected
 
 
 testMultipleCommitsFirstIsMerge :: Spec
@@ -195,7 +195,7 @@ testMultipleCommitsFirstIsMerge = it "parses multiple commits first is merge" $ 
 				 1 file changed, 1 insertion(+), 1 deletion(-)
 				
 				|]
-		testParsecExpectVal source parseCommitsParsec [
+		testParsecExpectVal source parseCommits [
 			Commit
 			{
 				commitDate = LocalTime (fromGregorian 2013 4 3) (TimeOfDay 16 54 39),
@@ -237,7 +237,7 @@ testNoMessageUsualCommitWithCommitAfter = it "parses no message usual commit wit
 				    Merge branch 'master'
 				
 				|]
-		testParsecExpectVal source parseCommitsParsec [
+		testParsecExpectVal source parseCommits [
 			Commit
 			{
 				commitDate = LocalTime (fromGregorian 2013 4 8) (TimeOfDay 18 50 43),
@@ -274,7 +274,7 @@ testTopDecorate = it "parses the top commit with decorate" $ do
 				 1 file changed, 15 insertions(+), 10 deletions(-)
 				
 				|]
-		testParsecExpectVal source parseCommitsParsec [
+		testParsecExpectVal source parseCommits [
 			Commit
 			{
 				commitDate = LocalTime (fromGregorian 2014 1 10) (TimeOfDay 15 13 28),
@@ -300,7 +300,7 @@ testTag = it "creates an event for a tag" $ do
 				 1 file changed, 29 insertions(+), 29 deletions(-)
 				
 				|]
-		testParsecExpectVal source parseCommitsParsec [
+		testParsecExpectVal source parseCommits [
 			Commit
 			{
 				commitDate = LocalTime (fromGregorian 2013 12 11) (TimeOfDay 21 11 07),

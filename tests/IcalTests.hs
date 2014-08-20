@@ -55,7 +55,7 @@ testBasicEvent tz = it "parses basic ICAL event" $ do
 			extraInfo = "End: 09:00; duration: 1:30",
 			fullContents = Nothing
 		}
-	testParsecExpectTransform (head . (keyValuesToEvents tz) . head) source parseEventsParsec expected
+	testParsecExpectTransform (head . (keyValuesToEvents tz) . head) source parseEvents expected
 
 testThroughMidnightEvent :: TimeZone -> Spec
 testThroughMidnightEvent tz = it "parses basic ICAL event through midnight" $ do
@@ -96,7 +96,7 @@ testThroughMidnightEvent tz = it "parses basic ICAL event through midnight" $ do
 			extraInfo = "End: 00:30; duration: 0:30",
 			fullContents = Nothing
 		}]
-	testParsecExpectTransform (concatMap (keyValuesToEvents tz)) source parseEventsParsec expected
+	testParsecExpectTransform (concatMap (keyValuesToEvents tz)) source parseEvents expected
 
 testWholeDayEvent :: TimeZone -> Spec
 testWholeDayEvent tz = it "parses whole day ICAL event" $ do
@@ -148,4 +148,4 @@ testWholeDayEvent tz = it "parses whole day ICAL event" $ do
 			fullContents = Nothing
 		}
 		]
-	testParsecExpectTransform (concatMap (keyValuesToEvents tz)) source parseEventsParsec expected
+	testParsecExpectTransform (concatMap (keyValuesToEvents tz)) source parseEvents expected

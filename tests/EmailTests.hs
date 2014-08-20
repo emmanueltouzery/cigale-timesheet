@@ -343,7 +343,7 @@ testHeadersParse = it "parses headers" $ do
 		("X-Spam-Status", "No, score=-3.054 tests=[ALL_TRUSTED=-1, T_NOT_A_PERSON=-0.01]"),
 		("Received",
 		   "from www.google.com ([127.0.0.1]) by localhost (www.google.com [127.0.0.1])")] 
-		(Util.parsecParse readHeaders source)
+		(Util.parsecError readHeaders "testHeadersParse" source)
 
 testCharsetFromContenType :: Spec
 testCharsetFromContenType = it "parses charset for content type" $ do

@@ -97,7 +97,8 @@ parseMessage msg = do
 	let emailDate = getEmailDate msg
 	let msgBody = (trace $ "Parsing email " ++ show emailDate)
 		Util.toStrict1 $ _mboxMsgBody msg
-	let (headers, rawMessage) = Util.parsecParse parseMessageParsec (_mboxMsgBody msg)
+	let (headers, rawMessage) = Util.parsecError parseMessageParsec "Email.parseMessage error: "
+		(_mboxMsgBody msg)
 	let toVal = readHeader "To" headers
 	let ccVal = Map.lookup "CC" headers
 	let subjectVal = readHeader "Subject" headers
@@ -141,7 +142,8 @@ parseMultipartBody :: T.Text -> BSL.ByteString -> T.Text
 parseMultipartBody separator body = maybe "no contents!" sectionTextContent
 		$ sectionToConsider sections
 	where
-		sections = Util.parsecParse (parseMultipartBodyParsec mimeSeparator) body
+		sections = Util.parsecError (parseMultipartBodyParsec mimeSeparator)
+			"Email.multipartBody error" body
 		mimeSeparator = T.concat ["--", separator]
 
 -- pick a section containing text/html or as a second choice text/plain,

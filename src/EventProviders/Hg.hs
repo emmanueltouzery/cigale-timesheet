@@ -47,12 +47,7 @@ getRepoCommits (HgRecord _username projectPath) _ day = do
 		}
 	output <- IO.hGetContents outh
 	timezone <- getTimeZone (UTCTime day 8)
-	case parseCommitsParsec output of
-		Left pe -> do
-			putStrLn $ "HG: parse error: " ++ Util.displayErrors pe
-			error "Hg parse error, aborting"
-			--return []
-		Right x -> return $ map (toEvent timezone) x
+	return $ map (toEvent timezone) $ Util.parsecError parseCommits "Hg.getRepoCommits" output
 	
 toEvent :: TimeZone -> Commit -> Event.Event
 toEvent timezone commit =
@@ -69,9 +64,6 @@ toEvent timezone commit =
 formatDate :: Day -> String
 formatDate (toGregorian -> (year, month, dayOfMonth)) =
 	show year ++ "-" ++ show month ++ "-" ++ show dayOfMonth
-
-parseCommitsParsec :: T.Text -> Either ParseError [Commit]
-parseCommitsParsec = parse parseCommits ""
 
 data Commit = Commit
 	{

@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings, FlexibleContexts, ViewPatterns, ScopedTypeVariables #-}
 
 module Util where
 
@@ -27,6 +27,7 @@ import Control.Applicative
 import Control.Error
 import Control.Exception as Ex
 import Control.Monad (liftM)
+import Text.Printf (printf)
 
 import OpenSSL (withOpenSSL)
 
@@ -83,12 +84,10 @@ messageString' msg
                   Message s     -> "message" ++ s  
 
 formatDurationSec :: NominalDiffTime -> T.Text
-formatDurationSec seconds = T.concat [T.pack hours, ":", 
-				T.justifyRight 2 '0' $ T.pack minutes]
+formatDurationSec (round -> seconds :: Int) = T.pack $ printf "%d:%02d" hours minutes
 	where
-		secondsI = round seconds :: Int
-		hours = show $ secondsI `div` 3600
-		minutes = show $ (secondsI `mod` 3600) `div` 60
+		hours = seconds `div` 3600
+		minutes = (seconds `mod` 3600) `div` 60
 
 fixSslContext :: IO ()
 fixSslContext = do

@@ -107,12 +107,11 @@ toEvent chatRecords = Event
 			pluginName = getModuleName getSkypeProvider,
 			eventIcon = "glyphicon-comment",
 			eventDate = messageTime (head chatRecords),
-			desc = participantsStr,
+			desc = T.intercalate ", " $ sort participants,
 			extraInfo = extraInfoVal,
 			fullContents = Just fullLog
 		}
 	where
-		participantsStr = T.intercalate ", " $ sort participants
 		participants = nub $ map messageAuthor chatRecords
 		extraInfoVal = T.pack $ show (length chatRecords) ++ " messages, lasted " ++ durationStr
 		durationStr = T.unpack $ Util.formatDurationSec $ diffUTCTime lastTime firstTime

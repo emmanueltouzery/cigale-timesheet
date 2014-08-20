@@ -68,8 +68,7 @@ getRedmineEvents config _ day = do
 mergeSuccessiveEvents :: [Event] -> [Event]
 mergeSuccessiveEvents (x:xs) = x : mergeSuccessiveEvents (dropWhile firstPartMatches xs)
 	where
-		firstPartMatches y = firstPart y == firstPartX
-		firstPartX = firstPart x
+		firstPartMatches y = firstPart y == firstPart x
 		firstPart = head . T.splitOn "(" . desc
 mergeSuccessiveEvents [] = []
 

@@ -50,8 +50,6 @@ getIcalProvider = EventProvider
 		getConfigType = members $(thGetTypeDesc ''IcalRecord)
 	}
 
---eventsTxt = "crap\r\nBEGIN:VEVENT\r\nDTSTART:20121220T113000Z\r\nDTEND:20121220T123000Z\r\nDTSTAMP:20121222T202323Z\r\nUID:libdtse87aoci8tar144sctm7g@google.com\r\nCREATED:20121221T102110Z\r\nDESCRIPTION:test\r\nLAST-MODIFIED:20121221T102116Z\r\nLOCATION:\r\nSEQUENCE:2\r\nSTATUS:CONFIRMED\r\nSUMMARY:sestanek Matej\r\nTRANSP:OPAQUE\r\nEND:VEVENT"
-
 data CalendarValue = Leaf String | SubLevel (Map String CalendarValue) deriving (Show, Eq)
 
 fromLeaf :: CalendarValue -> String
@@ -107,17 +105,19 @@ parseEvent = do
 	return $ Map.fromList keyValues
 
 makeEvents :: TimeZone -> Event.Event -> LocalTime -> LocalTime -> [Event.Event]
-makeEvents tz base start end | localDay end == localDay start = [base
-	{
-		eventDate = startUtc,
-		extraInfo = T.concat["End: ", T.pack $ formatTime defaultTimeLocale "%R" end,
-			"; duration: ", Util.formatDurationSec $ diffUTCTime endUtc startUtc]
-	}]
+makeEvents tz base start end
+	| localDay end == localDay start =
+		[base
+		{
+			eventDate = startUtc,
+			extraInfo = T.concat["End: ", T.pack $ formatTime defaultTimeLocale "%R" end,
+				"; duration: ", Util.formatDurationSec $ diffUTCTime endUtc startUtc]
+		}]
+	| otherwise = makeEvents tz base start (start {localTimeOfDay = TimeOfDay 23 59 0}) ++
+		makeEvents tz base (LocalTime (addDays 1 (localDay start)) (TimeOfDay 0 0 0)) end
 	where
 		startUtc = localTimeToUTC tz start
 		endUtc = localTimeToUTC tz end
-makeEvents tz base start end = makeEvents tz base start (start {localTimeOfDay = TimeOfDay 23 59 0}) ++
-		makeEvents tz base (LocalTime (addDays 1 (localDay start)) (TimeOfDay 0 0 0)) end
 
 keyValuesToEvents :: TimeZone -> Map String CalendarValue -> [Event.Event]
 keyValuesToEvents tz records = makeEvents tz baseEvent startDate endDate
@@ -205,8 +205,8 @@ cacheFilename settingsFolder = settingsFolder ++ "cached-calendar.ical"
 
 cachedVersionDate :: String -> IO (Maybe Day)
 cachedVersionDate settingsFolder = do
-	let fname = cacheFilename settingsFolder
-	modifTime <- IOEx.tryIOError $ Dir.getModificationTime fname
+	modifTime <- IOEx.tryIOError $ Dir.getModificationTime
+		$ cacheFilename settingsFolder
 	return $ utctDay <$> hush modifTime
 
 readFromCache :: String -> IO T.Text
@@ -215,11 +215,8 @@ readFromCache settingsFolder = do
 	T.pack <$> (readFile $ cacheFilename settingsFolder)
 
 putInCache :: String -> T.Text -> IO ()
-putInCache settingsFolder text = do
-	let fname = cacheFilename settingsFolder
-	fileH <- openFile fname WriteMode
-	T.hPutStr fileH text
-	hClose fileH
+putInCache settingsFolder text = withFile (cacheFilename settingsFolder) WriteMode
+	(\h -> T.hPutStr h text)
 
 eol :: T.GenParser st String
 eol = many1 $ oneOf "\r\n"

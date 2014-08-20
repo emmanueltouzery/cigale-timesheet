@@ -76,21 +76,10 @@ formatDurationSec (round -> seconds :: Int) = T.pack $ printf "%d:%02d" hours mi
 		hours = seconds `div` 3600
 		minutes = (seconds `mod` 3600) `div` 60
 
-fixSslContext :: IO ()
-fixSslContext = do
-	ctx <- baselineContextSSL
-	if Sysinfo.os == "linux"
-		then do
-			SSL.contextSetCAFile ctx "/etc/ssl/certs/ca-bundle.crt"
-			modifyContextSSL (\_ -> return ctx)
-		else
-			putStrLn "windows, no SSL checking"
-
 http :: B.ByteString -> B.ByteString 
 		-> (Response -> InputStream B.ByteString -> IO B.ByteString) 
 		-> RequestBuilder a ->  IO B.ByteString
 http url contents responseProcessor requestSpec = withOpenSSL $ do
-	fixSslContext
 	c <- establishConnection url
 	q <- buildRequest requestSpec
 	sendRequest c q $ Streams.write (Just $ Builder.fromByteString contents)

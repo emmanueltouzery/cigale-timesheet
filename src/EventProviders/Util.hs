@@ -87,15 +87,6 @@ http url contents responseProcessor requestSpec = withOpenSSL $ do
 	closeConnection c
 	return result
 
--- https://github.com/bos/aeson/issues/99
-decodeStrict :: A.FromJSON a => B.ByteString -> Maybe a
-decodeStrict bs = 
-    case AP.parse A.json' bs of
-      AP.Done _ v -> case A.fromJSON v of
-                       A.Success a -> Just a
-                       _            -> Nothing
-      _           -> Nothing
-
 -- | The 'concatMapM' function generalizes 'concatMap' to arbitrary monads.
 concatMapM        :: (Monad m) => (a -> m [b]) -> [a] -> m [b]
 concatMapM f xs   =  liftM concat (mapM f xs)

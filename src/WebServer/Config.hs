@@ -37,7 +37,7 @@ readConfig plugins = do
 parseSettingsFile :: (FromJSON a, ToJSON a) => [EventProvider a] -> FilePath -> MaybeT IO [(EventProvider a, a)]
 parseSettingsFile plugins settingsFile = do
 	fileContents <- hushT $ EitherT $ (Util.tryS $ BS.readFile settingsFile)
-	(configMap :: HashMap String Array) <- hoistMaybe $ Util.decodeStrict fileContents
+	(configMap :: HashMap String Array) <- hoistMaybe $ decodeStrict' fileContents
 	let providersByNameHash = providersByName plugins
 	hoistMaybe $ Util.concatMapM (processConfigItem providersByNameHash) (toList configMap)
 
@@ -74,13 +74,13 @@ decodeIncomingConfigElt :: String -> BS.ByteString -> Maybe (EventProvider Value
 decodeIncomingConfigElt pluginName configJson = do
 	let providersByNameHash = providersByName EventProviders.plugins
 	provider <- Map.lookup pluginName providersByNameHash
-	configValue <- Util.decodeStrict configJson
+	configValue <- decodeStrict' configJson
 	return (provider, configValue)
 
 deletePluginFromConfig :: BS.ByteString -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)
 deletePluginFromConfig oldCfgItemStr (T.unpack . TE.decodeUtf8 -> pluginName) = do
 	config <- readConfig EventProviders.plugins
-	let configWithoutItem = Util.decodeStrict oldCfgItemStr >>= checkRemoveFromConfig config pluginName
+	let configWithoutItem = decodeStrict' oldCfgItemStr >>= checkRemoveFromConfig config pluginName
 	case configWithoutItem of
 		Nothing -> return $ Left "Error removing"
 		Just configWithoutThisSource -> do
@@ -92,7 +92,7 @@ updatePluginInConfig oldCfgItemStr (T.unpack . TE.decodeUtf8 -> pluginName) conf
 	config <- readConfig EventProviders.plugins
 	let incomingInfo = do
 		nElt <- decodeIncomingConfigElt pluginName configJson
-		oldConfigItem <- Util.decodeStrict oldCfgItemStr
+		oldConfigItem <- decodeStrict' oldCfgItemStr
 		configWithoutElt <- checkRemoveFromConfig config pluginName oldConfigItem
 		return (nElt, configWithoutElt)
 	case incomingInfo of

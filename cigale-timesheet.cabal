@@ -20,7 +20,7 @@ Library
     bytestring,
     MonadCatchIO-transformers,
     mtl,
-    aeson >= 0.6.2.0,
+    aeson >= 0.7.0.0,
     -- i don't use any rex 0.4 feature but it added a constraint on
     -- the haskell-src-meta dependency which prevents cabal to pick too old versions
     rex >= 0.4,
@@ -85,7 +85,7 @@ Executable cigale-timesheet
      bytestring,
      vector,
      unordered-containers,
-     aeson >= 0.6.2.0,
+     aeson >= 0.7.0.0,
      async,
      time,
      transformers,
@@ -119,7 +119,7 @@ test-suite        tests
     bytestring,
     MonadCatchIO-transformers,
     mtl,
-    aeson,
+    aeson >= 0.7.0.0,
     -- i don't use any rex 0.4 feature but it added a constraint on
     -- the haskell-src-meta dependency which prevents cabal to pick too old versions
     rex >= 0.4,

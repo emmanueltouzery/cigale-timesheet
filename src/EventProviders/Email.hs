@@ -95,8 +95,7 @@ getEmails sent_mbox fromDate toDate = do
 parseMessage :: MboxMessage BL.ByteString -> Email
 parseMessage msg = do
 	let emailDate = getEmailDate msg
-	let msgBody = (trace $ "Parsing email " ++ show emailDate)
-		Util.toStrict1 $ _mboxMsgBody msg
+	let msgBody = BSL.toStrict $ _mboxMsgBody msg
 	let (headers, rawMessage) = Util.parsecError parseMessageParsec "Email.parseMessage error: "
 		(_mboxMsgBody msg)
 	let toVal = readHeader "To" headers
@@ -136,7 +135,7 @@ parseTextPlain section = T.replace "\n" "\n<br/>" (sectionFormattedContent secti
 --textAfterHeaders txt = snd $ T.breakOn "\n\n" $ T.replace "\r" "" txt
 
 getEmailDate :: MboxMessage BL.ByteString -> LocalTime
-getEmailDate = parseEmailDate . Util.toStrict1 . _mboxMsgTime
+getEmailDate = parseEmailDate . BSL.toStrict . _mboxMsgTime
 
 parseMultipartBody :: T.Text -> BSL.ByteString -> T.Text
 parseMultipartBody separator body = maybe "no contents!" sectionTextContent
@@ -188,7 +187,7 @@ sectionTextContent section
 sectionFormattedContent :: MultipartSection -> T.Text
 sectionFormattedContent section
 	| sectionCTTransferEnc == "quoted-printable" =
-		decodeMimeContents encoding (decodeUtf8 $ toStrict1 $ sectionContent section)
+		decodeMimeContents encoding (decodeUtf8 $ BSL.toStrict $ sectionContent section)
 	| otherwise = iconvFuzzyText encoding (sectionContent section)
 	where
 		sectionCTTransferEnc = fromMaybe "" (sectionContentTransferEncoding section)
@@ -229,7 +228,7 @@ parseMultipartSection mimeSeparator = do
 readHeaders :: T.Parsec BSL.ByteString st [(T.Text, T.Text)]
 readHeaders = do
 	val <- manyTill readHeader (T.try eol)
-	return $ join (***) (decodeUtf8 . toStrict1) <$> val
+	return $ join (***) (decodeUtf8 . BSL.toStrict) <$> val
 
 readHeader :: T.Parsec BSL.ByteString st (BSL.ByteString, BSL.ByteString)
 readHeader = do
@@ -288,7 +287,7 @@ decUtf8IgnErrors :: B.ByteString -> T.Text
 decUtf8IgnErrors = decodeUtf8With (\str input -> Just ' ')
 
 iconvFuzzyText :: String -> BL.ByteString -> T.Text
-iconvFuzzyText encoding input = decodeUtf8 $ toStrict1 lbsResult
+iconvFuzzyText encoding input = decodeUtf8 $ BSL.toStrict lbsResult
 	where lbsResult = IConv.convertFuzzy IConv.Transliterate encoding "utf8" input
 
 decodeMime :: B.ByteString -> T.Text

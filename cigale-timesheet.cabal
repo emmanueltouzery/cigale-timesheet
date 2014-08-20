@@ -17,7 +17,7 @@ Library
   hs-source-dirs: src/EventProviders
   Build-Depends:
     base,
-    bytestring,
+    bytestring >= 0.10.0.0,
     MonadCatchIO-transformers,
     mtl,
     aeson >= 0.7.0.0,
@@ -82,7 +82,7 @@ Executable cigale-timesheet
      process,
      directory,
      text,
-     bytestring,
+     bytestring >= 0.10.0.0,
      vector,
      unordered-containers,
      aeson >= 0.7.0.0,
@@ -116,7 +116,7 @@ test-suite        tests
 
   Build-depends:
     base,
-    bytestring,
+    bytestring >= 0.10.0.0,
     MonadCatchIO-transformers,
     mtl,
     aeson >= 0.7.0.0,

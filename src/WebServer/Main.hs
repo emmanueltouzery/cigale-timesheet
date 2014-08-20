@@ -6,6 +6,7 @@ import Snap.Util.FileServe
 import Snap.Http.Server
 import qualified Data.Text.Encoding as TE
 import System.Directory
+import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import System.Process (rawSystem)
@@ -22,7 +23,7 @@ import Control.Monad.Trans
 
 import qualified Timesheet
 import Config
-import Util (toStrict1, parse2, parseNum)
+import Util (parse2, parseNum)
 import Paths_cigale_timesheet
 import FilePickerServer (browseFolder)
 import SnapUtil (setActionResponse, hParam)
@@ -90,7 +91,7 @@ timesheet = setActionResponse $ do
 	dateParamText <- TE.decodeUtf8 <$> hParam "tsparam"
 	date <- hoistEither $ fmapL BS8.pack $ parse2 parseDate
 		"Invalid date format, expected yyyy-mm-dd" dateParamText
-	liftIO (toStrict1 <$> Timesheet.process date)
+	liftIO (BSL.toStrict <$> Timesheet.process date)
 
 parseDate :: T.GenParser st Day
 parseDate = fromGregorian <$> parseNum 4
@@ -127,6 +128,6 @@ updateConfigEntry = setActionResponse $ do
 processConfigFromBody :: (BS.ByteString -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)) ->
 		 EitherT BS.ByteString Snap BS.ByteString
 processConfigFromBody handler = do
-	configJson <- lift (toStrict1 <$> readRequestBody 65536)
+	configJson <- lift (BSL.toStrict <$> readRequestBody 65536)
 	pluginName <- hParam "pluginName"
 	liftIO (handler pluginName configJson) >>= hoistEither

@@ -125,7 +125,7 @@ parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) =
 			{
 				pluginName = getModuleName getRedmineProvider,
 				eventIcon = "glyphicon-tasks",
-				desc = bugTitle,
+				desc = toStrict $ innerText linkNode,
 				extraInfo =  bugComment,
 				fullContents = fmap (\x -> T.concat ["<a href='",
 					redmineUrl config,
@@ -136,9 +136,7 @@ parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) =
 	where
 		linkNode = node . head $ queryT [jq|a|] bugInfo
 		linkTarget (NodeElement elt) = Map.lookup "href" (elementAttributes elt)
-		bugTitle = toStrict $ innerText linkNode
-		localTime = LocalTime day (TimeOfDay hour mins 0)
-		(hour, mins) = parseTimeOfDay $ T.unpack timeOfDayStr
+		localTime = parseTimeOfDay day $ T.unpack timeOfDayStr
 		timeOfDayStr = firstNodeInnerText [jq|span.time|] bugInfo
 		bugComment = firstNodeInnerText [jq|span.description|] changeInfo
 		authorName = firstNodeInnerText [jq|span.author a|] changeInfo
@@ -146,14 +144,14 @@ parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) =
 parseBugNodes _ _ _ [] = []
 parseBugNodes _ _ _ [_] = error "parseBugNodes: invalid pattern!?"
 
-parseTimeOfDay :: String -> (Int, Int)
-parseTimeOfDay [rex|(?{read -> hours}\d+)
+parseTimeOfDay :: Day -> String -> LocalTime
+parseTimeOfDay day [rex|(?{read -> hours}\d+)
 			:(?{read -> mins}\d+)\s*
-			(?{ampm}am|pm)|] = (hours24, mins)
+			(?{ampm}am|pm)|] = LocalTime day (TimeOfDay hours24 mins 0)
 	where
 		hours24 = if (ampm == "pm") && (hours < 12)
 			then hours + 12 else hours
-parseTimeOfDay x@_ = error $ "can't parse date " ++ x
+parseTimeOfDay _ x@_ = error $ "can't parse date " ++ x
 
 isElement :: Node -> Bool
 isElement (NodeElement _) = True

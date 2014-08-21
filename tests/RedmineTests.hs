@@ -6,6 +6,7 @@ import Test.Hspec
 
 import Data.Time.Clock
 import Data.Time.Calendar
+import Data.Time.LocalTime
 
 import qualified Data.Text as T
 import Event
@@ -32,9 +33,13 @@ runRedmineTests = do
 		mergeSuccessiveEvents [eventWithDesc "a (more)", eventWithDesc "a (extra)"]
 			`shouldBe` [eventWithDesc "a (more)"]
 
-	it "parses morning time" $ parseTimeOfDay "12:06 am" `shouldBe` (12, 6)
+	let day = fromGregorian 2014 8 21
 
-	it "parses afternoon time" $ parseTimeOfDay "2:28 pm" `shouldBe` (14, 28)
+	it "parses morning time" $ parseTimeOfDay day "12:06 am" `shouldBe`
+		LocalTime day (TimeOfDay 12  6 0)
+
+	it "parses afternoon time" $ parseTimeOfDay day "2:28 pm" `shouldBe`
+		LocalTime day (TimeOfDay 14 28 0)
 
 
 eventWithDesc :: T.Text -> Event

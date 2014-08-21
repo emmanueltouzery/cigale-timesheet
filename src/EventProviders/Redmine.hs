@@ -126,7 +126,7 @@ parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) =
 				pluginName = getModuleName getRedmineProvider,
 				eventIcon = "glyphicon-tasks",
 				desc = toStrict $ innerText linkNode,
-				extraInfo =  bugComment,
+				extraInfo =  changeInfo >@> [jq|span.description|],
 				fullContents = fmap (\x -> T.concat ["<a href='",
 					redmineUrl config,
 					x, "'>More information</a>"]) (linkTarget linkNode),
@@ -136,11 +136,9 @@ parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) =
 	where
 		linkNode = node . head $ queryT [jq|a|] bugInfo
 		linkTarget (NodeElement elt) = Map.lookup "href" (elementAttributes elt)
-		localTime = parseTimeOfDay day $ T.unpack timeOfDayStr
-		timeOfDayStr = firstNodeInnerText [jq|span.time|] bugInfo
-		bugComment = firstNodeInnerText [jq|span.description|] changeInfo
-		authorName = firstNodeInnerText [jq|span.author a|] changeInfo
-		firstNodeInnerText q n = toStrict . innerText . node . head $ queryT q n
+		localTime = parseTimeOfDay day $ T.unpack $ bugInfo >@> [jq|span.time|]
+		authorName = changeInfo >@> [jq|span.author a|]
+		n >@> q = toStrict . innerText . node . head $ queryT q n
 parseBugNodes _ _ _ [] = []
 parseBugNodes _ _ _ [_] = error "parseBugNodes: invalid pattern!?"
 

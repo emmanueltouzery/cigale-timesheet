@@ -40,8 +40,7 @@ processConfig date config = do
 	-- well would be faster to just check the first and last
 	-- element... but it's actually shorter to code like this..
 	let outOfRangeData = filter (outOfRange date (addDays 1 date)) eventDatesLocal
-	let ok = null outOfRangeData
-	if ok
+	if null outOfRangeData
 		then return $ JSON.encode sortedEvents --noNullSortedEvents
 		else do
 			putStrLn "*** SOME EVENTS ARE NOT IN TIME RANGE"

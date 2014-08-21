@@ -20,6 +20,7 @@ import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
 import Data.Time
 import Control.Monad.Trans
+import Control.Monad (void)
 
 import qualified Timesheet
 import Config
@@ -55,14 +56,13 @@ openInBrowser = do
 openApp :: IO ()
 openApp = do
 	epiphany <- hasProgram "epiphany"
-	if epiphany
+	void $ if epiphany
 	then do
 		settingsFolder <- Config.getSettingsFolder
 		let profileDir = settingsFolder ++ "/epiphany-profile-app-cigale-timesheet"
 		createDirectoryIfMissing True profileDir
 		rawSystem "epiphany" ["--application-mode", "--profile=" ++ profileDir, url]
 	else rawSystem "xdg-open" [url]
-	return ()
 	where
 		url = "http://localhost:" ++ show appPort
 

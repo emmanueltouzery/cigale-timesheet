@@ -77,7 +77,6 @@ handleError pleaseHold shadow jqXhr textStatus errorThrown = do
 	hide Instantly pleaseHold
 	hide Instantly shadow
 	alert $ T.concat ["Error! ", responseText jqXhr]
-	return ()
 
 processResults :: MainViewModel -> JQuery -> JQuery -> [Main.Event] -> Fay ()
 processResults viewModel pleaseHold shadow events = do
@@ -90,14 +89,12 @@ processResults viewModel pleaseHold shadow events = do
 	let eventToDisplay = if null events then NullEvent else evtFormatTime $ head events
 	showSidebarCb viewModel eventToDisplay
 	hide Instantly pleaseHold
-	hide Instantly shadow
-	return ()
+	void $ hide Instantly shadow
 
 showSidebarCb :: MainViewModel -> Event -> Fay ()
 showSidebarCb vm event = do
 	event ~> selectedEvent vm
-	select "#sidebar" >>= setScrollTop 0
-	return ()
+	void $ select "#sidebar" >>= setScrollTop 0
 
 nullable :: b -> (a->b) -> Nullable a -> b
 nullable b _ Null = b

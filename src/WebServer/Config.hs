@@ -14,10 +14,14 @@ import qualified Data.ByteString as BS
 import qualified Data.Text.Encoding as TE
 import Control.Applicative
 import Control.Error
+import Control.Monad.Trans (liftIO)
 
 import EventProvider (EventProvider, getModuleName)
 import qualified EventProviders
 import qualified Util
+
+(+++) :: BS.ByteString -> BS.ByteString -> BS.ByteString
+(+++) = BS.append
 
 getSettingsFolder :: IO FilePath
 getSettingsFolder = do
@@ -63,12 +67,11 @@ groupByProvider = foldr mapAdd HashMap.empty
 	where mapAdd (prov, cfg) = HashMap.insertWith (++) (getModuleName prov) [cfg]
 
 addPluginInConfig :: BS.ByteString -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)
-addPluginInConfig (T.unpack . TE.decodeUtf8 -> pluginName) configJson =
-	case decodeIncomingConfigElt pluginName configJson of
-		Nothing -> return $ Left $ BS.concat ["invalid new config info ", configJson]
-		Just newElt -> do
-			(newElt:) <$> readConfig EventProviders.plugins >>= writeConfiguration
-			return $ Right ""
+addPluginInConfig (T.unpack . TE.decodeUtf8 -> pluginName) configJson = runEitherT $ do
+	newElt <- noteT ("invalid new config info " +++ configJson)
+		$ hoistMaybe $ decodeIncomingConfigElt pluginName configJson
+	liftIO $ (newElt:) <$> readConfig EventProviders.plugins >>= writeConfiguration
+	return ""
 
 decodeIncomingConfigElt :: String -> BS.ByteString -> Maybe (EventProvider Value, Value)
 decodeIncomingConfigElt pluginName configJson = do
@@ -78,29 +81,25 @@ decodeIncomingConfigElt pluginName configJson = do
 	return (provider, configValue)
 
 deletePluginFromConfig :: BS.ByteString -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)
-deletePluginFromConfig oldCfgItemStr (T.unpack . TE.decodeUtf8 -> pluginName) = do
-	config <- readConfig EventProviders.plugins
-	let configWithoutItem = decodeStrict' oldCfgItemStr >>= checkRemoveFromConfig config pluginName
-	case configWithoutItem of
-		Nothing -> return $ Left "Error removing"
-		Just configWithoutThisSource -> do
-			writeConfiguration configWithoutThisSource
-			return $ Right ""
+deletePluginFromConfig oldCfgItemStr (T.unpack . TE.decodeUtf8 -> pluginName) = runEitherT $ do
+	config <- liftIO $ readConfig EventProviders.plugins
+	configWithoutItem <- noteT ("Error removing") $
+		hoistMaybe $ decodeStrict' oldCfgItemStr >>= checkRemoveFromConfig config pluginName
+	liftIO $ writeConfiguration configWithoutItem
+	return ""
 
 updatePluginInConfig :: BS.ByteString -> BS.ByteString -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)
-updatePluginInConfig oldCfgItemStr (T.unpack . TE.decodeUtf8 -> pluginName) configJson = do
-	config <- readConfig EventProviders.plugins
-	let incomingInfo = do
+updatePluginInConfig oldCfgItemStr (T.unpack . TE.decodeUtf8 -> pluginName) configJson = runEitherT $ do
+	config <- liftIO $ readConfig EventProviders.plugins
+	let errorMsg = "invalid new or old config info; new: [" +++ configJson
+		+++ "], old: [" +++ oldCfgItemStr +++ "]"
+	(newElt, configWithoutThisSource) <- noteT errorMsg $ hoistMaybe $ do
 		nElt <- decodeIncomingConfigElt pluginName configJson
 		oldConfigItem <- decodeStrict' oldCfgItemStr
 		configWithoutElt <- checkRemoveFromConfig config pluginName oldConfigItem
 		return (nElt, configWithoutElt)
-	case incomingInfo of
-		Nothing -> return $ Left $ BS.concat ["invalid new or old config info; new: [",
-							configJson, "], old: [", oldCfgItemStr, "]"]
-		Just (newElt, configWithoutThisSource) -> do
-			writeConfiguration (newElt:configWithoutThisSource)
-			return $ Right ""
+	liftIO $ writeConfiguration (newElt:configWithoutThisSource)
+	return ""
 
 isConfigItem :: String -> HashMap T.Text Value -> (EventProvider Value, Value) -> Bool
 isConfigItem pluginName oldConfig (provider, config)

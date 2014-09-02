@@ -67,26 +67,26 @@ data GlobalSettings = GlobalSettings {
 type FolderPath = String
 type ContentType = String
 
-data EventProvider a = EventProvider {
+data EventProvider a b = EventProvider {
 	getModuleName :: String,
 	getEvents :: a -> GlobalSettings -> Day -> IO [Event],
 	getConfigType :: [ConfigDataInfo],
-	getExtraData :: Maybe (a -> GlobalSettings -> String -> IO (Maybe (ContentType, ByteString)))
+	getExtraData :: Maybe (a -> GlobalSettings -> b -> IO (Maybe (ContentType, ByteString)))
 }
 
-instance Show (EventProvider a) where show = getModuleName
+instance Show (EventProvider a b) where show = getModuleName
 
 decodeVal :: FromJSON a => Value -> a
 decodeVal value = case fromJSON value of
 	Error msg -> error msg
 	Success a -> a
 
-eventProviderWrap :: (FromJSON a, ToJSON a) =>  EventProvider a -> EventProvider Value
+eventProviderWrap :: (FromJSON a, ToJSON a, FromJSON b, ToJSON b) =>  EventProvider a b -> EventProvider Value Value
 eventProviderWrap (EventProvider innerGetModName innerGetEvents
 		innerGetConfigType innerGetExtraData) = EventProvider
 	{
 		getModuleName = innerGetModName,
 		getEvents = innerGetEvents . decodeVal,
 		getConfigType = innerGetConfigType,
-		getExtraData = innerGetExtraData >>= \x -> Just $ x . decodeVal
+		getExtraData = innerGetExtraData >>= \decoder -> Just $ \cfg s k -> decoder (decodeVal cfg) s (decodeVal k)
 	}

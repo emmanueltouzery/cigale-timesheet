@@ -30,7 +30,7 @@ data SkypeConfig = SkypeConfig
 	} deriving Show
 deriveJSON defaultOptions ''SkypeConfig
 
-getSkypeProvider :: EventProvider SkypeConfig
+getSkypeProvider :: EventProvider SkypeConfig ()
 getSkypeProvider = EventProvider
 	{
 		getModuleName = "Skype",

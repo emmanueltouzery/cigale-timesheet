@@ -27,7 +27,7 @@ data GitRecord = GitRecord
 	} deriving Show
 deriveJSON defaultOptions ''GitRecord
 
-getGitProvider :: EventProvider GitRecord
+getGitProvider :: EventProvider GitRecord ()
 getGitProvider = EventProvider
 	{
 		getModuleName = "Git",

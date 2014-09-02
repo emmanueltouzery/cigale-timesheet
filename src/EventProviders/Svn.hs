@@ -27,7 +27,7 @@ data SvnConfigRecord = SvnConfigRecord
 	} deriving Show
 deriveJSON defaultOptions ''SvnConfigRecord
 
-getSvnProvider :: EventProvider SvnConfigRecord
+getSvnProvider :: EventProvider SvnConfigRecord ()
 getSvnProvider = EventProvider
 	{
 		getModuleName = "Svn",

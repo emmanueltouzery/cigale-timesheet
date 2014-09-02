@@ -45,7 +45,7 @@ data RedmineConfig = RedmineConfig
 	} deriving Show
 deriveJSON defaultOptions ''RedmineConfig
 
-getRedmineProvider :: EventProvider RedmineConfig
+getRedmineProvider :: EventProvider RedmineConfig ()
 getRedmineProvider = EventProvider
 	{
 		getModuleName = "Redmine",

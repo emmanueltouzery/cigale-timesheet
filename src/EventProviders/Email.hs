@@ -44,7 +44,14 @@ data EmailConfig = EmailConfig
 	} deriving Show
 deriveJSON defaultOptions ''EmailConfig
 
-getEmailProvider :: EventProvider EmailConfig
+data AttachmentKey = AttachmentKey
+	{
+		mailId :: String,
+		attachmentIndex :: Int
+	} deriving Show
+deriveJSON defaultOptions ''AttachmentKey
+
+getEmailProvider :: EventProvider EmailConfig AttachmentKey
 getEmailProvider = EventProvider
 	{
 		getModuleName = "Email",
@@ -354,9 +361,9 @@ parseNonAsciiChar = do
 parseUnderscoreSpace :: GenParser Char st QuotedPrintableElement
 parseUnderscoreSpace = char '_' >> return (AsciiSection " ")
 
-getMailAttachment :: EmailConfig -> GlobalSettings -> String -> IO (Maybe (ContentType, BS.ByteString))
-getMailAttachment (EmailConfig mboxLocation) _ emailId =
-	extractMailAttachment emailId  0 <$> parseMboxFile Backward mboxLocation -- TODO unhardcode the attach index!
+getMailAttachment :: EmailConfig -> GlobalSettings -> AttachmentKey -> IO (Maybe (ContentType, BS.ByteString))
+getMailAttachment (EmailConfig mboxLocation) _ (AttachmentKey emailId idx) =
+	extractMailAttachment emailId  idx <$> parseMboxFile Backward mboxLocation
 
 getMessageId :: MboxMessage BL.ByteString -> Maybe String
 getMessageId msg = T.unpack <$> (Map.lookup "MessageId" $ fst $ parseMessage msg)

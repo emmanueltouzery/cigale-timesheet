@@ -42,7 +42,7 @@ data IcalRecord = IcalRecord
 	} deriving Show
 deriveJSON defaultOptions ''IcalRecord
 
-getIcalProvider :: EventProvider IcalRecord
+getIcalProvider :: EventProvider IcalRecord ()
 getIcalProvider = EventProvider
 	{
 		getModuleName = "Ical",

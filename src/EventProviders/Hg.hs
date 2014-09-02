@@ -25,7 +25,7 @@ data HgRecord = HgRecord
 	} deriving Show
 deriveJSON defaultOptions ''HgRecord
 
-getHgProvider :: EventProvider HgRecord
+getHgProvider :: EventProvider HgRecord ()
 getHgProvider = EventProvider
 	{
 		getModuleName = "Hg",

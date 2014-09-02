@@ -31,10 +31,6 @@ import Text.Printf (printf)
 
 import OpenSSL (withOpenSSL)
 
-maybeHead :: [a] -> Maybe a
-maybeHead [] = Nothing
-maybeHead (x:_) = Just x
-
 parseNum :: (Num a, Read a) => Int -> T.GenParser st a
 parseNum digitCount = read <$> count digitCount digit
 

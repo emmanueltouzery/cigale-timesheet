@@ -1,9 +1,8 @@
 {-# LANGUAGE TemplateHaskell, FlexibleInstances, OverloadedStrings #-}
 module EventProvider (thGetTypeDesc,
-	GlobalSettings(GlobalSettings), EventProvider(EventProvider),
+	GlobalSettings(GlobalSettings), EventProvider(..),
 	eventProviderWrap, getSettingsFolder,
-	getEvents, getModuleName, getConfigType,
-	ConfigDataType(..), ConfigDataInfo(..), FolderPath) where
+	ConfigDataType(..), ConfigDataInfo(..), FolderPath, ContentType) where
 
 import qualified Data.Text as T
 import Data.Time.Calendar
@@ -11,8 +10,10 @@ import Data.Aeson
 import Language.Haskell.TH
 import Language.Haskell.TH.Lift
 import Language.Haskell.TH.Syntax
+import Data.ByteString (ByteString)
 import Data.Aeson.TH (deriveJSON, deriveFromJSON, mkToJSON, defaultOptions)
 import qualified FayAeson
+import Control.Applicative
 
 import Event
 
@@ -64,31 +65,28 @@ data GlobalSettings = GlobalSettings {
 }
 
 type FolderPath = String
+type ContentType = String
 
 data EventProvider a = EventProvider {
 	getModuleName :: String,
 	getEvents :: a -> GlobalSettings -> Day -> IO [Event],
-	getConfigType :: [ConfigDataInfo]
-	
-	-- i could derive the ConfigSpec from the data using
-	-- template haskell or maybe sth like that:
-	-- http://stackoverflow.com/questions/8457876/get-a-haskell-records-field-names-as-a-list-of-strings
-	--getConfigRequirements :: ConfigSpec
+	getConfigType :: [ConfigDataInfo],
+	getExtraData :: Maybe (a -> GlobalSettings -> String -> IO (Maybe (ContentType, ByteString)))
 }
 
-instance Show (EventProvider a) where
-	show (EventProvider modName _ _) = show modName
+instance Show (EventProvider a) where show = getModuleName
+
+decodeVal :: FromJSON a => Value -> a
+decodeVal value = case fromJSON value of
+	Error msg -> error msg
+	Success a -> a
 
 eventProviderWrap :: (FromJSON a, ToJSON a) =>  EventProvider a -> EventProvider Value
-eventProviderWrap (EventProvider innerGetModName innerGetEvents innerGetConfigType) = EventProvider
+eventProviderWrap (EventProvider innerGetModName innerGetEvents
+		innerGetConfigType innerGetExtraData) = EventProvider
 	{
 		getModuleName = innerGetModName,
-		getEvents = 	let
-				decodeVal value = case fromJSON value of
-						Error msg -> error msg
-						Success a -> a
-				in
-				innerGetEvents . decodeVal,
-		getConfigType = innerGetConfigType
+		getEvents = innerGetEvents . decodeVal,
+		getConfigType = innerGetConfigType,
+		getExtraData = innerGetExtraData >>= \x -> Just $ x . decodeVal
 	}
-

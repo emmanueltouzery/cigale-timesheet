@@ -26,8 +26,10 @@ import Data.Aeson.TH (deriveJSON, defaultOptions)
 import qualified Codec.Text.IConv as IConv
 import Debug.Trace
 import qualified Data.Map as Map
+import Data.Map (Map)
 import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
 import Control.Arrow ( (***) )
+import Control.Error
 
 import Text.Regex.PCRE.Rex
 
@@ -47,7 +49,8 @@ getEmailProvider = EventProvider
 	{
 		getModuleName = "Email",
 		getEvents = getEmailEvents,
-		getConfigType = members $(thGetTypeDesc ''EmailConfig)
+		getConfigType = members $(thGetTypeDesc ''EmailConfig),
+		getExtraData = Just getMailAttachment
 	}
 
 data Email = Email
@@ -87,32 +90,36 @@ getEmails sent_mbox fromDate toDate = do
 	-- now we remove the messages that are newer than end date
 	-- need to reverse messages because i'm reading from the end.
 	let messages1 = takeWhile isBefore (reverse messages)
-	return $ map parseMessage messages1
+	return $ map messageToEmail messages1
 	where
-		isAfter email = localDay (getEmailDate email) >= fromDate
-		isBefore email = localDay (getEmailDate email) <= toDate
+		dateMatches predicate email = predicate $ localDay (getEmailDate email)
+		isAfter = dateMatches (>= fromDate)
+		isBefore = dateMatches (<= toDate)
 
-parseMessage :: MboxMessage BL.ByteString -> Email
-parseMessage msg = do
+messageToEmail :: MboxMessage BL.ByteString -> Email
+messageToEmail msg = do
 	let emailDate = getEmailDate msg
 	let msgBody = BSL.toStrict $ _mboxMsgBody msg
-	let (headers, rawMessage) = Util.parsecError parseMessageParsec "Email.parseMessage error: "
-		(_mboxMsgBody msg)
+	let (headers, rawMessage) = parseMessage msg
 	let toVal = readHeader "To" headers
 	let ccVal = Map.lookup "CC" headers
 	let subjectVal = readHeader "Subject" headers
-	let contentType = Map.lookup "Content-Type" headers
-	let multipartSeparator = case contentType of
-		Just x | "multipart/" `T.isInfixOf` x -> Just $ getMultipartSeparator x
-		_ -> Nothing
-	let emailContents = case multipartSeparator of
-			Just separator -> parseMultipartBody separator rawMessage
-			Nothing -> parseTextPlain $ MultipartSection (Map.toList headers) rawMessage
+	let emailContents = case parseMultipartSections headers rawMessage of
+			Just sections -> fromMaybe "no contents!" $ sectionTextContent <$> sectionToConsider sections
+			Nothing -> parseTextPlain $ MultipartSection headers rawMessage
 	Email emailDate toVal ccVal subjectVal emailContents
 	where
 		-- TODO ugly to re-encode in ByteString, now I do ByteString->Text->ByteString->Text
 		-- pazi another top-level function is also named readHeader!!!
 		readHeader hName = decodeMime . encodeUtf8 . Map.findWithDefault "missing" hName
+
+parseMultipartSections :: Map T.Text T.Text -> BSL.ByteString -> Maybe [MultipartSection]
+parseMultipartSections headers rawMessage = do
+	contentType <- Map.lookup "Content-Type" headers
+	separator <- if "multipart/" `T.isInfixOf` contentType
+		then Just $ getMultipartSeparator contentType
+		else Nothing
+	parseMultipartBody separator rawMessage
 
 getMultipartSeparator :: T.Text -> T.Text
 getMultipartSeparator contentType = case find
@@ -122,7 +129,11 @@ getMultipartSeparator contentType = case find
 		Nothing -> error $ "Invalid multipart content-type: " ++ T.unpack contentType
 	where boundary = "boundary="
 
-parseMessageParsec :: T.Parsec BSL.ByteString st (Map.Map T.Text T.Text, BSL.ByteString)
+parseMessage :: MboxMessage BL.ByteString -> (Map T.Text T.Text, BSL.ByteString)
+parseMessage msg = Util.parsecError parseMessageParsec "Email.parseMessage error: "
+		(_mboxMsgBody msg)
+
+parseMessageParsec :: T.Parsec BSL.ByteString st (Map T.Text T.Text, BSL.ByteString)
 parseMessageParsec = do
 	headers <- readHeaders
 	body <- many anyChar
@@ -137,13 +148,9 @@ parseTextPlain section = T.replace "\n" "\n<br/>" (sectionFormattedContent secti
 getEmailDate :: MboxMessage BL.ByteString -> LocalTime
 getEmailDate = parseEmailDate . BSL.toStrict . _mboxMsgTime
 
-parseMultipartBody :: T.Text -> BSL.ByteString -> T.Text
-parseMultipartBody separator body = maybe "no contents!" sectionTextContent
-		$ sectionToConsider sections
-	where
-		sections = Util.parsecError (parseMultipartBodyParsec mimeSeparator)
-			"Email.multipartBody error" body
-		mimeSeparator = T.concat ["--", separator]
+parseMultipartBody :: T.Text -> BSL.ByteString -> Maybe [MultipartSection]
+parseMultipartBody separator body = Util.parseMaybe (parseMultipartBodyParsec mimeSeparator) body
+	where mimeSeparator = T.concat ["--", separator]
 
 -- pick a section containing text/html or as a second choice text/plain,
 -- and final choice multipart/alternative
@@ -170,17 +177,19 @@ parseMultipartBodyParsec mimeSeparator = do
 
 data MultipartSection = MultipartSection
 	{
-		sectionHeaders :: [(T.Text, T.Text)],
+		sectionHeaders :: Map T.Text T.Text,
 		sectionContent :: BSL.ByteString
 	} deriving Show
 
 sectionTextContent :: MultipartSection -> T.Text
 sectionTextContent section
 	| "multipart/" `T.isInfixOf` sectionCType = -- multipart/alternative or multipart/related
-		parseMultipartBody mimeSeparator (sectionContent section)
+		fromMaybe (error "Email.multipartBody error")
+			$ sectionTextContent <$> (parsedSections >>= sectionToConsider)
 	| "text/plain" `T.isInfixOf` sectionCType = parseTextPlain section
 	| otherwise = sectionFormattedContent section
 	where
+		parsedSections = parseMultipartBody mimeSeparator (sectionContent section)
 		sectionCType = fromMaybe "" (sectionContentType section)
 		mimeSeparator = getMultipartSeparator sectionCType
 
@@ -210,17 +219,14 @@ split2 a b = (x, T.concat xs)
 		(x:xs) = T.splitOn a b
 
 sectionContentType :: MultipartSection -> Maybe T.Text
-sectionContentType = sectionHeaderValue "Content-Type"
+sectionContentType = Map.lookup "Content-Type" . sectionHeaders
 
 sectionContentTransferEncoding :: MultipartSection -> Maybe T.Text
-sectionContentTransferEncoding = sectionHeaderValue "Content-Transfer-Encoding"
-
-sectionHeaderValue :: T.Text -> MultipartSection -> Maybe T.Text
-sectionHeaderValue headerName (MultipartSection headers _) = fmap snd $ find ((==headerName) . fst) headers
+sectionContentTransferEncoding = Map.lookup "Content-Transfer-Encoding" . sectionHeaders
 
 parseMultipartSection :: T.Text -> T.Parsec BSL.ByteString st MultipartSection
 parseMultipartSection mimeSeparator = do
-	headers <- readHeaders
+	headers <- Map.fromList <$> readHeaders
 	contents <- manyTill readLine (T.try $ T.string $ T.unpack mimeSeparator)
 	many eol
 	return $ MultipartSection headers (BSL.intercalate "\n" contents)
@@ -347,3 +353,18 @@ parseNonAsciiChar = do
 
 parseUnderscoreSpace :: GenParser Char st QuotedPrintableElement
 parseUnderscoreSpace = char '_' >> return (AsciiSection " ")
+
+getMailAttachment :: EmailConfig -> GlobalSettings -> String -> IO (Maybe (ContentType, BS.ByteString))
+getMailAttachment (EmailConfig mboxLocation) _ emailId =
+	extractMailAttachment emailId  0 <$> parseMboxFile Backward mboxLocation -- TODO unhardcode the attach index!
+
+getMessageId :: MboxMessage BL.ByteString -> Maybe String
+getMessageId msg = T.unpack <$> (Map.lookup "MessageId" $ fst $ parseMessage msg)
+
+extractMailAttachment :: String -> Int -> Mbox BL.ByteString -> Maybe (ContentType, BS.ByteString)
+extractMailAttachment emailId index mbox = do
+	msg <- find ((==Just emailId) . getMessageId) $ mboxMessages mbox
+	let (headers, rawMessage) = parseMessage msg
+	section <- parseMultipartSections headers rawMessage >>= flip atMay index
+	contentType <- sectionContentType section
+	return (T.unpack contentType, BSL.toStrict $ sectionContent section)

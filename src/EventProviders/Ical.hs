@@ -47,7 +47,8 @@ getIcalProvider = EventProvider
 	{
 		getModuleName = "Ical",
 		getEvents = getCalendarEvents,
-		getConfigType = members $(thGetTypeDesc ''IcalRecord)
+		getConfigType = members $(thGetTypeDesc ''IcalRecord),
+		getExtraData = Nothing
 	}
 
 data CalendarValue = Leaf String | SubLevel (Map String CalendarValue) deriving (Show, Eq)

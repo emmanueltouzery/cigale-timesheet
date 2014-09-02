@@ -22,7 +22,7 @@ process month = do
 	config <- Config.readConfig EventProviders.plugins
 	processConfig month config
 
-processConfig :: Day -> [(EventProvider Value, Value)] -> IO BL.ByteString
+processConfig :: Day -> [(EventProvider Value b, Value)] -> IO BL.ByteString
 processConfig date config = do
 	myTz <- getTimeZone $ UTCTime date (secondsToDiffTime 8*3600)
 
@@ -56,7 +56,7 @@ getGlobalSettings = do
 	settingsFolder <- Config.getSettingsFolder
 	return GlobalSettings { getSettingsFolder = settingsFolder }
 
-fetchProvider :: GlobalSettings -> Day -> EventProvider Value -> Value -> IO [Event]
+fetchProvider :: GlobalSettings -> Day -> EventProvider Value b -> Value -> IO [Event]
 fetchProvider settings day provider config = do
 	putStrLn $ "fetching from " ++ getModuleName provider
 	events <- getEvents provider config settings day
@@ -74,7 +74,7 @@ instance ToJSON PluginConfig where
 getEventProvidersConfig :: BL.ByteString
 getEventProvidersConfig = JSON.encode $ fmap getPluginConfig EventProviders.plugins
 
-getPluginConfig :: EventProvider a -> PluginConfig
+getPluginConfig :: EventProvider a b -> PluginConfig
 getPluginConfig plugin = PluginConfig
 	{
 		cfgPluginName = getModuleName plugin,

@@ -32,37 +32,37 @@ getSettingsFolder = do
 getConfigFileName :: IO FilePath
 getConfigFileName = (++"config.json") <$> getSettingsFolder
 
-readConfig :: (FromJSON a, ToJSON a) => [EventProvider a] -> IO [(EventProvider a, a)]
+readConfig :: (FromJSON a, ToJSON a) => [EventProvider a b] -> IO [(EventProvider a b, a)]
 readConfig plugins = do
 	settingsFile <- getConfigFileName
 	parsed <- runMaybeT $ parseSettingsFile plugins settingsFile
 	return $ fromMaybe [] parsed
 
-parseSettingsFile :: (FromJSON a, ToJSON a) => [EventProvider a] -> FilePath -> MaybeT IO [(EventProvider a, a)]
+parseSettingsFile :: (FromJSON a, ToJSON a) => [EventProvider a b] -> FilePath -> MaybeT IO [(EventProvider a b, a)]
 parseSettingsFile plugins settingsFile = do
 	fileContents <- hushT $ EitherT $ (Util.tryS $ BS.readFile settingsFile)
 	(configMap :: HashMap String Array) <- hoistMaybe $ decodeStrict' fileContents
 	let providersByNameHash = providersByName plugins
 	hoistMaybe $ Util.concatMapM (processConfigItem providersByNameHash) (toList configMap)
 
-processConfigItem :: (FromJSON a, ToJSON a) => HashMap String (EventProvider a) -> (String, Array) -> Maybe [(EventProvider a, a)]
+processConfigItem :: (FromJSON a, ToJSON a) => HashMap String (EventProvider a b) -> (String, Array) -> Maybe [(EventProvider a b, a)]
 processConfigItem providersByNameHash (providerName, config) = do
 	provider <- Map.lookup providerName providersByNameHash
 	return $ processConfigElement provider <$> Vector.toList config
 
-providersByName :: (FromJSON a, ToJSON a) => [EventProvider a] -> HashMap String (EventProvider a)
+providersByName :: (FromJSON a, ToJSON a) => [EventProvider a b] -> HashMap String (EventProvider a b)
 providersByName plugins = HashMap.fromList $ map (\p -> (getModuleName p, p)) plugins
 
-processConfigElement :: FromJSON a => EventProvider a
-				      -> Value -> (EventProvider a, a)
+processConfigElement :: FromJSON a => EventProvider a b
+				      -> Value -> (EventProvider a b, a)
 processConfigElement provider configValue =
 		(provider, (\(Success x) -> x) $ fromJSON configValue)
 
-writeConfiguration :: (FromJSON a, ToJSON a) => [(EventProvider a, a)] -> IO ()
+writeConfiguration :: (FromJSON a, ToJSON a) => [(EventProvider a b, a)] -> IO ()
 writeConfiguration config = getConfigFileName >>= flip BL.writeFile jsonToWrite
 	where jsonToWrite = encode $ groupByProvider config
 
-groupByProvider :: [(EventProvider a, a)] -> HashMap String [a]
+groupByProvider :: [(EventProvider a b, a)] -> HashMap String [a]
 groupByProvider = foldr mapAdd HashMap.empty
 	where mapAdd (prov, cfg) = HashMap.insertWith (++) (getModuleName prov) [cfg]
 
@@ -73,7 +73,7 @@ addPluginInConfig (T.unpack . TE.decodeUtf8 -> pluginName) configJson = runEithe
 	liftIO $ (newElt:) <$> readConfig EventProviders.plugins >>= writeConfiguration
 	return ""
 
-decodeIncomingConfigElt :: String -> BS.ByteString -> Maybe (EventProvider Value, Value)
+decodeIncomingConfigElt :: String -> BS.ByteString -> Maybe (EventProvider Value Value, Value)
 decodeIncomingConfigElt pluginName configJson = do
 	let providersByNameHash = providersByName EventProviders.plugins
 	provider <- Map.lookup pluginName providersByNameHash
@@ -101,14 +101,14 @@ updatePluginInConfig oldCfgItemStr (T.unpack . TE.decodeUtf8 -> pluginName) conf
 	liftIO $ writeConfiguration (newElt:configWithoutThisSource)
 	return ""
 
-isConfigItem :: String -> HashMap T.Text Value -> (EventProvider Value, Value) -> Bool
+isConfigItem :: String -> HashMap T.Text Value -> (EventProvider Value b, Value) -> Bool
 isConfigItem pluginName oldConfig (provider, config)
 	| pluginName /= getModuleName provider = False
 	| otherwise = allValuesMatch oldConfig config
 
 -- Will return Nothing if removing from config failed,
 -- otherwise will return Just newConfig.
-checkRemoveFromConfig ::  [(EventProvider Value, Value)] -> String -> HashMap T.Text Value -> Maybe [(EventProvider Value, Value)]
+checkRemoveFromConfig ::  [(EventProvider Value b, Value)] -> String -> HashMap T.Text Value -> Maybe [(EventProvider Value b, Value)]
 checkRemoveFromConfig config pluginName oldConfigItem =
 	let configWithoutThisSource = filter (not . isConfigItem pluginName oldConfigItem) config in
 	if length configWithoutThisSource == length config

@@ -12,6 +12,8 @@ import Data.Time.LocalTime
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.ByteString.Lazy.Char8 as BL
+import Data.Maybe
+import Control.Applicative
 
 import Str
 import Util
@@ -41,11 +43,11 @@ runEmailTests = do
 
 testEmail1 :: Spec
 testEmail1 = it "parses a simple email structure" $
-	assertEqual "doesn't match" "after headers" (parseMultipartBody "separator" "\n\nThis is a multi-part message in MIME format.\n--separator\nContent-Type: text/plain\n\nfirstpart\n--separator\nContent-Type: text/html\n\nafter headers\n--separator--")
+	assertEqual "doesn't match" "after headers" (getMultipartBodyText "separator" "\n\nThis is a multi-part message in MIME format.\n--separator\nContent-Type: text/plain\n\nfirstpart\n--separator\nContent-Type: text/html\n\nafter headers\n--separator--")
 
 testEmail2 :: Spec
 testEmail2 = it "parses a simple email structure" $
-	assertEqual "doesn't match" "firstpart" (parseMultipartBody "separator" "\n\n--separator\nContent-Type: text/html\n\nfirstpart\n--separator\n\nContent-Type: text/plain\n\nafter headers\n--separator--\n")
+	assertEqual "doesn't match" "firstpart" (getMultipartBodyText "separator" "\n\n--separator\nContent-Type: text/html\n\nfirstpart\n--separator\n\nContent-Type: text/plain\n\nafter headers\n--separator--\n")
 
 testMimeNonUtf :: Spec
 testMimeNonUtf = it "parses simple quoted printable" $
@@ -129,7 +131,7 @@ testParseMultipartBody = it "parses multipart body" $ do
 			--047d7bfeb46643324304e617c30e--
 			|]
 	assertEqual "doesn't match" "message body, but html"
-		(parseMultipartBody "047d7bfeb46643323d04e617c30c" source) 
+		(getMultipartBodyText "047d7bfeb46643323d04e617c30c" source) 
 
 testParseMultipartBodyTextPlainAttach :: Spec
 testParseMultipartBodyTextPlainAttach = it "parse multipart body text/plain plus attach" $ do
@@ -195,7 +197,7 @@ testParseMultipartBodyTextPlainAttach = it "parse multipart body text/plain plus
 			CkVORDpWRVZFTlQNCkVORDpWQ0FMRU5EQVINCg==
 			--047d7bfeb46643324304e617c30e--
 			|] 
-	assertEqual "doesn't match" "UG92YWJsamVuaSBzdGUgYmlsaSBuYSB0YSBkb2dvZGVrLg0KDQpOYXppdjogWm9ibmkgcmVudGdl\nBiBMYXJhDQpab2JuaSByZW50Z2VuIExhcmENCktkYWo6IHBldCA0LiBva3QgMjAxMyAwNzoxMCAt\nIDA4OjEwIE9zcmVkbmppIGV2cm9wc2tpIOhhcyAtIEJlb2dyYWQNCktqZTogWkQgVmnoDQpLb2xl\nZGFyOiBldG91emVyeUBnbWFpbC5jb20NCktkbzoNCiAgICAgKiBTaW1vbmEgSHZhbGnoIFRvdXpl\nCnktIG9yZ2FuaXphdG9yDQogICAgICogRW1tYW51ZWwgVG91emVyeQ0KDQpQb2Ryb2Jub3N0aSBk\nB2dvZGthOiAgDQpodHRwczovL3d3dy5nb29nbGUuY29tL2NhbGVuZGFyL2V2ZW50P2FjdGlvbj1W\nSUVXJmVpZD1aR3R4T1dWck1tazRNbkp0Y21SelozUmtkVEF5Tm1aek16QWdaWFJ2ZFhwbGNubEFi\nUSZ0b2s9TXpFamMybHRiMjVoTG1oMllXeHBZeTUwYjNWNlpYSjVRR2R0WVdsc0xtTnZiV1JsT0Rn\nD1pUWm1Oemd5T1RobFltVTNPREl3TVdSaVlqVTBNR0U1TVRjNE1UTmlZbVF6TmpjJmN0ej1FdXJv\nCGUvQmVsZ3JhZGUmaGw9c2wNCg0KVmFiaWxvIGl6IEdvb2dsZSBLb2xlZGFyamE6IGh0dHBzOi8v\nD3d3Lmdvb2dsZS5jb20vY2FsZW5kYXIvDQoNClRvIGUtcG+5dG8gcHJlamVtYXRlIG5hIHJh6HVu\nIGV0b3V6ZXJ5QGdtYWlsLmNvbSwga2VyIHN0ZSBuYXJv6GVuaSBuYSAgDQpwb3ZhYmlsYSB2IGtv\nBGVkYXJqdSBldG91emVyeUBnbWFpbC5jb20uDQoNCshlIG5lIL5lbGl0ZSB2ZeggcHJlamVtYXRp\nIG9idmVzdGlsLCBzZSBwcmlqYXZpdGUgdiAgDQpodHRwczovL3d3dy5nb29nbGUuY29tL2NhbGVu\nZGFyLyBpbiBzcHJlbWVuaXRlIG5hc3Rhdml0dmUgb2J2ZXN0aWwgemEgdGEgIA0Ka29sZWRhci4N\nCg==" (parseMultipartBody "047d7bfeb46643323d04e617c30c" source)
+	assertEqual "doesn't match" "UG92YWJsamVuaSBzdGUgYmlsaSBuYSB0YSBkb2dvZGVrLg0KDQpOYXppdjogWm9ibmkgcmVudGdl\nBiBMYXJhDQpab2JuaSByZW50Z2VuIExhcmENCktkYWo6IHBldCA0LiBva3QgMjAxMyAwNzoxMCAt\nIDA4OjEwIE9zcmVkbmppIGV2cm9wc2tpIOhhcyAtIEJlb2dyYWQNCktqZTogWkQgVmnoDQpLb2xl\nZGFyOiBldG91emVyeUBnbWFpbC5jb20NCktkbzoNCiAgICAgKiBTaW1vbmEgSHZhbGnoIFRvdXpl\nCnktIG9yZ2FuaXphdG9yDQogICAgICogRW1tYW51ZWwgVG91emVyeQ0KDQpQb2Ryb2Jub3N0aSBk\nB2dvZGthOiAgDQpodHRwczovL3d3dy5nb29nbGUuY29tL2NhbGVuZGFyL2V2ZW50P2FjdGlvbj1W\nSUVXJmVpZD1aR3R4T1dWck1tazRNbkp0Y21SelozUmtkVEF5Tm1aek16QWdaWFJ2ZFhwbGNubEFi\nUSZ0b2s9TXpFamMybHRiMjVoTG1oMllXeHBZeTUwYjNWNlpYSjVRR2R0WVdsc0xtTnZiV1JsT0Rn\nD1pUWm1Oemd5T1RobFltVTNPREl3TVdSaVlqVTBNR0U1TVRjNE1UTmlZbVF6TmpjJmN0ej1FdXJv\nCGUvQmVsZ3JhZGUmaGw9c2wNCg0KVmFiaWxvIGl6IEdvb2dsZSBLb2xlZGFyamE6IGh0dHBzOi8v\nD3d3Lmdvb2dsZS5jb20vY2FsZW5kYXIvDQoNClRvIGUtcG+5dG8gcHJlamVtYXRlIG5hIHJh6HVu\nIGV0b3V6ZXJ5QGdtYWlsLmNvbSwga2VyIHN0ZSBuYXJv6GVuaSBuYSAgDQpwb3ZhYmlsYSB2IGtv\nBGVkYXJqdSBldG91emVyeUBnbWFpbC5jb20uDQoNCshlIG5lIL5lbGl0ZSB2ZeggcHJlamVtYXRp\nIG9idmVzdGlsLCBzZSBwcmlqYXZpdGUgdiAgDQpodHRwczovL3d3dy5nb29nbGUuY29tL2NhbGVu\nZGFyLyBpbiBzcHJlbWVuaXRlIG5hc3Rhdml0dmUgb2J2ZXN0aWwgemEgdGEgIA0Ka29sZWRhci4N\nCg==" (getMultipartBodyText "047d7bfeb46643323d04e617c30c" source)
 
 testMultipartAlternative :: Spec
 testMultipartAlternative = it "parse multipart alternative body plus attach" $ do
@@ -236,7 +238,7 @@ testMultipartAlternative = it "parse multipart alternative body plus attach" $ d
 			MC43MjAwMCA0NzMuMDQwMDAgNjU1IF0KL0NvbnRlbnRzIFsxNDcyIDAgUiAxNDc1IDAgUiAx
 			--------------070503040503000700050104--
 			|] -- WARNING i truncated the base64!!
-	assertEqual "doesn't match" "html version\n" (parseMultipartBody "------------070503040503000700050104" source)
+	assertEqual "doesn't match" "html version\n" (getMultipartBodyText "------------070503040503000700050104" source)
 
 testMultipartRelated :: Spec
 testMultipartRelated = it "parse multipart related body plus attach" $ do
@@ -276,7 +278,7 @@ testMultipartRelated = it "parse multipart related body plus attach" $ do
 			
 			--------------080701080400090206090002--
 			|] -- WARNING i truncated the base64!!!
-	assertEqual "doesn't match" "html content\n<img id=\"Picture_x0020_2\" src=\"cid:part20.08050508.06050608@test.com\" alt=\"cid:image002.jpg@01CEAF06.B364DF00\" border=\"0\" height=\"562\" width=\"601\">\n" (parseMultipartBody "------------080701080400090206090002" source)
+	assertEqual "doesn't match" "html content\n<img id=\"Picture_x0020_2\" src=\"cid:part20.08050508.06050608@test.com\" alt=\"cid:image002.jpg@01CEAF06.B364DF00\" border=\"0\" height=\"562\" width=\"601\">\n" (getMultipartBodyText "------------080701080400090206090002" source)
 
 testMultipartProblem :: Spec
 testMultipartProblem = it "parse multipart problem body" $ do
@@ -326,7 +328,7 @@ testMultipartProblem = it "parse multipart problem body" $ do
 			bXBvcnQgb3JnLmpzb24uSlNPTkFycmF5OwppbXBvcnQgb3JnLmpzb24uSlNPTkV4Y2VwdGlvbjsK
 			------=_Part_261520_1752112592.1379489229611--
 			|] -- TODO truncated base64!!
-	assertEqual "doesn't match" "<html> smo se znašli v položaju se NOČEŠ najti" (parseMultipartBody "----=_Part_261520_1752112592.1379489229611" source)
+	assertEqual "doesn't match" "<html> smo se znašli v položaju se NOČEŠ najti" (getMultipartBodyText "----=_Part_261520_1752112592.1379489229611" source)
 
 testHeadersParse :: Spec
 testHeadersParse = it "parses headers" $ do
@@ -378,7 +380,7 @@ testMboxMessage = it "parses a message from start to end" $ do
 			subject = "test",
 			contents = "Živjo\n<br/>"
 		}
-	assertEqual "doesn't match" expected (parseMessage msg)
+	assertEqual "doesn't match" expected (messageToEmail msg)
 
 testMboxMessageQP :: Spec
 testMboxMessageQP = it "parses a quoted-printable plain text message from start to end" $ do
@@ -411,7 +413,7 @@ testMboxMessageQP = it "parses a quoted-printable plain text message from start 
 			subject = "test",
 			contents = "Živjo,\n<br/>Lep pozdrav,\n<br/>Emmanuel\n<br/>"
 		}
-	assertEqual "doesn't match" expected (parseMessage msg)
+	assertEqual "doesn't match" expected (messageToEmail msg)
 
 testMboxMultipartMessage :: Spec
 testMboxMultipartMessage = it "parses a multipart message from start to end" $ do
@@ -478,7 +480,7 @@ testMboxMultipartMessage = it "parses a multipart message from start to end" $ d
 			subject = "Re: FW: Test",
 			contents = "<html>contents HTML\n</html>\n"
 		}
-	assertEqual "doesn't match" expected (parseMessage msg)
+	assertEqual "doesn't match" expected (messageToEmail msg)
 
 testDifferentMessage :: Spec
 testDifferentMessage = it "parses a different message" $ do
@@ -530,4 +532,8 @@ testDifferentMessage = it "parses a different message" $ do
 			subject = "RE: FW: Test",
 			contents = "Hi,\n<br/>several lines.\n<br/>"
 		}
-	assertEqual "doesn't match" expected (parseMessage msg)
+	assertEqual "doesn't match" expected (messageToEmail msg)
+
+getMultipartBodyText :: T.Text -> BL.ByteString -> T.Text
+getMultipartBodyText sep bdy = fromMaybe "no body!" 
+	$ (sectionTextContent <$> (parseMultipartBody sep bdy >>= sectionToConsider))

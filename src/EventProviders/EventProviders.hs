@@ -14,7 +14,7 @@ import Ical
 import Skype
 import Redmine
 
-plugins :: [EventProvider Value]
+plugins :: [EventProvider Value Value]
 plugins = [
 	eventProviderWrap getEmailProvider,
 	eventProviderWrap getGitProvider,

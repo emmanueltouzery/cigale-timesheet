@@ -21,13 +21,18 @@ import qualified Text.Parsec as T
 import Data.Time
 import Control.Monad.Trans
 import Control.Monad (void)
+import Data.List
+import Data.Aeson
+import Data.Char (ord)
 
 import qualified Timesheet
 import Config
 import Util (parse2, parseNum)
 import Paths_cigale_timesheet
 import FilePickerServer (browseFolder)
-import SnapUtil (setActionResponse, hParam)
+import SnapUtil (setActionResponse, hParam, noteET)
+import qualified EventProviders (plugins)
+import EventProvider
 
 appPort :: Int
 appPort = 8000
@@ -79,7 +84,8 @@ site installPath =
             ("config", method POST addConfigEntry),
             ("config", method PUT updateConfigEntry),
             ("config", method DELETE deleteConfigEntry),
-            ("browseFolder", browseFolder)
+            ("browseFolder", browseFolder),
+	    ("getExtraData", httpGetExtraData)
           ] <|>
     dir "static" (serveDirectory installPath)
 
@@ -131,3 +137,19 @@ processConfigFromBody handler = do
 	configJson <- lift (BSL.toStrict <$> readRequestBody 65536)
 	pluginName <- hParam "pluginName"
 	liftIO (handler pluginName configJson) >>= hoistEither
+
+httpGetExtraData :: Snap ()
+httpGetExtraData = setActionResponse $ do
+	pluginName <- hParam "pluginName"
+	pluginConfig <- hParam "pluginConfig" -- TODO it's not OK to serialize the full config in the URL!! could include passwords!!
+	queryParams <- hParam "queryParams"
+	provider <- noteET ("Unknown plugin: " `BS.append` pluginName)
+		$ find ((==pluginName) . BS8.pack . getModuleName) EventProviders.plugins
+	extraData <- noteET "No extra data" $ getExtraData provider
+	decodedParam <- noteET "Error decoding queryParams" $ decodeStrict' queryParams
+	decodedConfig <- noteET "Error decoding pluginConfig" $ decodeStrict' pluginConfig
+	settings <- liftIO Timesheet.getGlobalSettings
+	extraDataResult <- liftIO $ extraData decodedConfig settings decodedParam
+	(contentType, contents) <- noteET "No extra data retrieved" extraDataResult
+	lift $ modifyResponse $ setContentType $ BS.pack $ (fromIntegral . ord) <$> contentType
+	return contents

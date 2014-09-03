@@ -15,3 +15,6 @@ setActionResponse action = runEitherT action >>= setResponse
 
 hParam :: BS.ByteString -> EitherT BS.ByteString Snap BS.ByteString
 hParam t = lift (getParam t) >>= hoistEither . note (BS.append "Parameter missing: " t)
+
+noteET :: a -> Maybe b -> EitherT a Snap b
+noteET l = hoistEither . note l

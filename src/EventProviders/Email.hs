@@ -129,8 +129,12 @@ messageToEmail emailConfig msg = do
 
 getAttachmentBar :: EmailConfig -> String -> [MultipartSection] -> T.Text
 getAttachmentBar emailConfig messageId sections = foldr (\(section,idx) -> T.append (T.pack $
-	printf "<p><a href='%s'>Attachment</a></p>" (formatAttachmentUrl emailConfig messageId section idx))) ""
+	printf "<p><a href='%s'>Attachment: %s</a></p>"
+		(formatAttachmentUrl emailConfig messageId section idx) (getAttachmentName section))) ""
 	$ attachmentSections sections
+
+getAttachmentName :: MultipartSection -> String
+getAttachmentName (sectionCTDisposition -> disp) = T.unpack $ fromMaybe "" $ headerGetComponent "filename" disp
 
 -- filters attachment sections only. Gives the section index too.
 attachmentSections :: [MultipartSection] -> [(MultipartSection, Int)]
@@ -151,12 +155,14 @@ parseMultipartSections headers rawMessage = do
 	parseMultipartBody separator rawMessage
 
 getMultipartSeparator :: T.Text -> T.Text
-getMultipartSeparator contentType = case find
-			(T.isPrefixOf boundary)
-			(fmap T.stripStart $ T.splitOn ";" contentType) of
-		Just section -> T.dropAround (=='"') (T.drop (T.length boundary) section)
-		Nothing -> error $ "Invalid multipart content-type: " ++ T.unpack contentType
-	where boundary = "boundary="
+getMultipartSeparator = fromMaybe "" . headerGetComponent "boundary"
+
+headerGetComponent :: T.Text -> T.Text -> Maybe T.Text
+headerGetComponent _componentName headerValue = do
+	let componentName = _componentName `T.append` "="
+	subElt <- find (T.isPrefixOf componentName)
+		(T.stripStart <$> T.splitOn ";" headerValue)
+	return $ T.dropAround (=='"') (T.drop (T.length componentName) subElt)
 
 parseMessage :: MboxMessage BL.ByteString -> (Map T.Text T.Text, BSL.ByteString)
 parseMessage msg = Util.parsecError parseMessageParsec "Email.parseMessage error: "

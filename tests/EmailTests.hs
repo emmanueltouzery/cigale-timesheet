@@ -380,7 +380,7 @@ testMboxMessage = it "parses a message from start to end" $ do
 			subject = "test",
 			contents = "Živjo\n<br/>"
 		}
-	assertEqual "doesn't match" expected (messageToEmail msg)
+	assertEqual "doesn't match" expected (messageToEmail' msg)
 
 testMboxMessageQP :: Spec
 testMboxMessageQP = it "parses a quoted-printable plain text message from start to end" $ do
@@ -413,7 +413,7 @@ testMboxMessageQP = it "parses a quoted-printable plain text message from start 
 			subject = "test",
 			contents = "Živjo,\n<br/>Lep pozdrav,\n<br/>Emmanuel\n<br/>"
 		}
-	assertEqual "doesn't match" expected (messageToEmail msg)
+	assertEqual "doesn't match" expected (messageToEmail' msg)
 
 testMboxMultipartMessage :: Spec
 testMboxMultipartMessage = it "parses a multipart message from start to end" $ do
@@ -480,7 +480,7 @@ testMboxMultipartMessage = it "parses a multipart message from start to end" $ d
 			subject = "Re: FW: Test",
 			contents = "<html>contents HTML\n</html>\n"
 		}
-	assertEqual "doesn't match" expected (messageToEmail msg)
+	assertEqual "doesn't match" expected (messageToEmail' msg)
 
 testDifferentMessage :: Spec
 testDifferentMessage = it "parses a different message" $ do
@@ -530,10 +530,13 @@ testDifferentMessage = it "parses a different message" $ do
 			to = "\"'C D'\" <c.d@e>",
 			cc = Nothing,
 			subject = "RE: FW: Test",
-			contents = "Hi,\n<br/>several lines.\n<br/>"
+			contents = "Hi,\n<br/>several lines.\n<br/><p><a href='/getExtraData?pluginName=Email&pluginConfig=%7B%22emailPath%22%3A%22test%22%7D&queryParams=%7B%22attachmentIndex%22%3A1%2C%22mailId%22%3A%22%22%7D'>Attachment: Test Cases Performance 010 11112013.xlsx</a></p>"
 		}
-	assertEqual "doesn't match" expected (messageToEmail msg)
+	assertEqual "doesn't match" expected (messageToEmail' msg)
 
 getMultipartBodyText :: T.Text -> BL.ByteString -> T.Text
 getMultipartBodyText sep bdy = fromMaybe "no body!" 
 	$ (sectionTextContent <$> (parseMultipartBody sep bdy >>= sectionToConsider))
+
+messageToEmail' :: MboxMessage BL.ByteString -> Email
+messageToEmail' = messageToEmail (EmailConfig "test")

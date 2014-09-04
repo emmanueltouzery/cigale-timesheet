@@ -190,24 +190,30 @@ data MultipartSection = MultipartSection
 
 sectionTextContent :: MultipartSection -> T.Text
 sectionTextContent section
-	| "multipart/" `T.isInfixOf` sectionCType = -- multipart/alternative or multipart/related
+	| "multipart/" `T.isInfixOf` (sectionCType section) = -- multipart/alternative or multipart/related
 		fromMaybe (error "Email.multipartBody error")
 			$ sectionTextContent <$> (parsedSections >>= sectionToConsider)
-	| "text/plain" `T.isInfixOf` sectionCType = parseTextPlain section
+	| "text/plain" `T.isInfixOf` (sectionCType section) = parseTextPlain section
 	| otherwise = sectionFormattedContent section
 	where
 		parsedSections = parseMultipartBody mimeSeparator (sectionContent section)
-		sectionCType = fromMaybe "" (sectionContentType section)
-		mimeSeparator = getMultipartSeparator sectionCType
+		mimeSeparator = getMultipartSeparator $ sectionCType section
 
 sectionFormattedContent :: MultipartSection -> T.Text
 sectionFormattedContent section
-	| sectionCTTransferEnc == "quoted-printable" =
+	| sectionCTTransferEnc section == "quoted-printable" =
 		decodeMimeContents encoding (decodeUtf8 $ BSL.toStrict $ sectionContent section)
 	| otherwise = iconvFuzzyText encoding (sectionContent section)
 	where
-		sectionCTTransferEnc = fromMaybe "" (sectionContentTransferEncoding section)
 		encoding = sectionCharset section
+
+-- for saving the email. Could be text or binary.
+sectionDecodedContents :: MultipartSection -> BS.ByteString
+sectionDecodedContents section
+	| "text/" `T.isPrefixOf` (sectionCType section) = encodeUtf8 $ sectionFormattedContent section
+	| sectionCTTransferEnc section == "base64" = Base64.decodeLenient contents
+	| otherwise = contents
+	where contents = BSL.toStrict $ sectionContent section
 
 charsetFromContentType :: T.Text -> String
 charsetFromContentType ct = T.unpack $ Map.findWithDefault "utf-8" "charset" kvHash
@@ -215,10 +221,14 @@ charsetFromContentType ct = T.unpack $ Map.findWithDefault "utf-8" "charset" kvH
 		kvHash = Map.fromList $ map (split2 "=" . T.strip) $
 			filter (T.isInfixOf "=") $ T.splitOn ";" ct
 
+sectionCType :: MultipartSection -> T.Text
+sectionCType section = fromMaybe "" (sectionContentType section)
+
+sectionCTTransferEnc :: MultipartSection -> T.Text
+sectionCTTransferEnc section = fromMaybe "" (sectionContentTransferEncoding section)
+
 sectionCharset :: MultipartSection -> String
-sectionCharset section = charsetFromContentType contentType
-	where
-		contentType = fromMaybe "" (sectionContentType section)
+sectionCharset = charsetFromContentType . sectionCType
 
 split2 :: T.Text -> T.Text -> (T.Text, T.Text)
 split2 a b = (x, T.concat xs)
@@ -366,7 +376,7 @@ getMailAttachment (EmailConfig mboxLocation) _ (AttachmentKey emailId idx) =
 	extractMailAttachment emailId  idx <$> parseMboxFile Backward mboxLocation
 
 getMessageId :: MboxMessage BL.ByteString -> Maybe String
-getMessageId msg = T.unpack <$> (Map.lookup "MessageId" $ fst $ parseMessage msg)
+getMessageId msg = T.unpack <$> (Map.lookup "Message-ID" $ fst $ parseMessage msg)
 
 extractMailAttachment :: String -> Int -> Mbox BL.ByteString -> Maybe (ContentType, BS.ByteString)
 extractMailAttachment emailId index mbox = do
@@ -374,4 +384,4 @@ extractMailAttachment emailId index mbox = do
 	let (headers, rawMessage) = parseMessage msg
 	section <- parseMultipartSections headers rawMessage >>= flip atMay index
 	contentType <- sectionContentType section
-	return (T.unpack contentType, BSL.toStrict $ sectionContent section)
+	return (T.unpack contentType, sectionDecodedContents section)

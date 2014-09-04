@@ -129,7 +129,12 @@ messageToEmail emailConfig msg = do
 
 getAttachmentBar :: EmailConfig -> String -> [MultipartSection] -> T.Text
 getAttachmentBar emailConfig messageId sections = foldr (\(section,idx) -> T.append (T.pack $
-	printf "<p><a href='%s'>Attachment</a></p>" (formatAttachmentUrl emailConfig messageId section idx))) "" $ zip sections [0..]
+	printf "<p><a href='%s'>Attachment</a></p>" (formatAttachmentUrl emailConfig messageId section idx))) ""
+	$ attachmentSections sections
+
+-- filters attachment sections only. Gives the section index too.
+attachmentSections :: [MultipartSection] -> [(MultipartSection, Int)]
+attachmentSections sections = filter (("attachment" `T.isInfixOf`) . sectionCTDisposition . fst) $ zip sections [0..]
 
 -- TODO encoding the plugin config in the URL is broken. but that's the way it's done right now.
 formatAttachmentUrl :: EmailConfig -> String -> MultipartSection -> Int -> String
@@ -243,6 +248,9 @@ sectionCType section = fromMaybe "" (sectionContentType section)
 
 sectionCTTransferEnc :: MultipartSection -> T.Text
 sectionCTTransferEnc section = fromMaybe "" (sectionContentTransferEncoding section)
+
+sectionCTDisposition :: MultipartSection -> T.Text
+sectionCTDisposition section = fromMaybe "" $ Map.lookup "Content-Disposition" $ sectionHeaders section
 
 sectionCharset :: MultipartSection -> String
 sectionCharset = charsetFromContentType . sectionCType

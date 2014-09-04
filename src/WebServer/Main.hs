@@ -140,11 +140,11 @@ processConfigFromBody handler = do
 
 httpGetExtraData :: Snap ()
 httpGetExtraData = setActionResponse $ do
-	pluginName <- hParam "pluginName"
+	pluginName <- BS8.unpack <$> hParam "pluginName"
 	pluginConfig <- hParam "pluginConfig" -- TODO it's not OK to serialize the full config in the URL!! could include passwords!!
 	queryParams <- hParam "queryParams"
-	provider <- noteET ("Unknown plugin: " `BS.append` pluginName)
-		$ find ((==pluginName) . BS8.pack . getModuleName) EventProviders.plugins
+	provider <- noteET (BS8.pack $ "Unknown plugin: " ++ pluginName)
+		$ find ((==pluginName) . getModuleName) EventProviders.plugins
 	extraData <- noteET "No extra data" $ getExtraData provider
 	decodedParam <- noteET "Error decoding queryParams" $ decodeStrict' queryParams
 	decodedConfig <- noteET "Error decoding pluginConfig" $ decodeStrict' pluginConfig

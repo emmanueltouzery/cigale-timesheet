@@ -23,6 +23,7 @@ import qualified Text.Parsec.ByteString as T
 import qualified Text.Parsec.Text as TT
 import qualified Text.Parsec as T
 import Data.Aeson.TH (deriveJSON, defaultOptions)
+import qualified Data.Aeson as Aeson
 import qualified Codec.Text.IConv as IConv
 import Debug.Trace
 import qualified Data.Map as Map
@@ -30,6 +31,9 @@ import Data.Map (Map)
 import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
 import Control.Arrow ( (***) )
 import Control.Error
+import Network.HTTP.Types.URI (urlEncode)
+import Data.Char (chr)
+import Text.Printf
 
 import Text.Regex.PCRE.Rex
 
@@ -71,8 +75,8 @@ data Email = Email
 	deriving (Eq, Show)
 
 getEmailEvents :: EmailConfig -> GlobalSettings -> Day -> IO [Event.Event]
-getEmailEvents (EmailConfig mboxLocation) _ day = do
-	emails <- getEmails mboxLocation day day 
+getEmailEvents cfg@(EmailConfig mboxLocation) _ day = do
+	emails <- getEmails cfg mboxLocation day day 
 	timezone <- getTimeZone (UTCTime day 8)
 	return $ map (toEvent timezone) emails
 
@@ -87,8 +91,8 @@ toEvent timezone email = Event.Event
 		Event.fullContents = Just $ contents email
 	}
 
-getEmails :: String -> Day -> Day -> IO [Email]
-getEmails sent_mbox fromDate toDate = do
+getEmails :: EmailConfig -> String -> Day -> Day -> IO [Email]
+getEmails emailConfig sent_mbox fromDate toDate = do
 	mbox <- parseMboxFile Backward sent_mbox
 	-- going from the end, stop at the first message which
 	-- is older than my start date.
@@ -97,28 +101,41 @@ getEmails sent_mbox fromDate toDate = do
 	-- now we remove the messages that are newer than end date
 	-- need to reverse messages because i'm reading from the end.
 	let messages1 = takeWhile isBefore (reverse messages)
-	return $ map messageToEmail messages1
+	return $ map (messageToEmail emailConfig) messages1
 	where
 		dateMatches predicate email = predicate $ localDay (getEmailDate email)
 		isAfter = dateMatches (>= fromDate)
 		isBefore = dateMatches (<= toDate)
 
-messageToEmail :: MboxMessage BL.ByteString -> Email
-messageToEmail msg = do
+messageToEmail :: EmailConfig -> MboxMessage BL.ByteString -> Email
+messageToEmail emailConfig msg = do
 	let emailDate = getEmailDate msg
 	let msgBody = BSL.toStrict $ _mboxMsgBody msg
 	let (headers, rawMessage) = parseMessage msg
 	let toVal = readHeader "To" headers
 	let ccVal = Map.lookup "CC" headers
 	let subjectVal = readHeader "Subject" headers
+	let messageId = fromMaybe "" $ getMessageId msg
 	let emailContents = case parseMultipartSections headers rawMessage of
-			Just sections -> fromMaybe "no contents!" $ sectionTextContent <$> sectionToConsider sections
+			Just sections -> T.concat
+				[fromMaybe "no contents!" $ sectionTextContent <$> sectionToConsider sections,
+				getAttachmentBar emailConfig messageId sections]
 			Nothing -> parseTextPlain $ MultipartSection headers rawMessage
 	Email emailDate toVal ccVal subjectVal emailContents
 	where
 		-- TODO ugly to re-encode in ByteString, now I do ByteString->Text->ByteString->Text
 		-- pazi another top-level function is also named readHeader!!!
 		readHeader hName = decodeMime . encodeUtf8 . Map.findWithDefault "missing" hName
+
+getAttachmentBar :: EmailConfig -> String -> [MultipartSection] -> T.Text
+getAttachmentBar emailConfig messageId sections = foldr (\(section,idx) -> T.append (T.pack $
+	printf "<p><a href='%s'>Attachment</a></p>" (formatAttachmentUrl emailConfig messageId section idx))) "" $ zip sections [0..]
+
+-- TODO encoding the plugin config in the URL is broken. but that's the way it's done right now.
+formatAttachmentUrl :: EmailConfig -> String -> MultipartSection -> Int -> String
+formatAttachmentUrl emailConfig messageId section idx = printf "/getExtraData?pluginName=Email&pluginConfig=%s&queryParams=%s"
+	(urlAeson emailConfig) (urlAeson $ AttachmentKey messageId idx)
+	where urlAeson x = (chr . fromIntegral) <$> (BS.unpack $ urlEncode True $ BSL.toStrict $ Aeson.encode x)
 
 parseMultipartSections :: Map T.Text T.Text -> BSL.ByteString -> Maybe [MultipartSection]
 parseMultipartSections headers rawMessage = do

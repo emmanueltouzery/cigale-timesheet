@@ -57,7 +57,8 @@ Library
     fay >= 0.19,
     fay-jquery,
     zip-archive >= 0.1.4,
-    errors
+    errors,
+    http-types
   exposed-modules:
     EventProviders,
     Event,

@@ -21,7 +21,6 @@ import qualified Blaze.ByteString.Builder as Builder
 import qualified System.Info as Sysinfo
 import qualified OpenSSL.Session as SSL
 import qualified Data.Aeson as A
-import qualified Data.Attoparsec as AP
 import qualified Data.Functor.Identity as DFI
 import Control.Applicative
 import Control.Error

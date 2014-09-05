@@ -535,7 +535,10 @@ testDifferentMessage = it "parses a different message" $ do
 	-- also cover the alternate order of parameters in the json... ugly but will do for now.
 	let expected2 = expected { contents = "Hi,\n<br/>several lines.\n<br/><p><a href='/getExtraData?pluginName=Email&pluginConfig=%7B%22emailPath%22%3A%22test%22%7D&queryParams=%7B%22attachmentIndex%22%3A1%2C%22mailId%22%3A%22%22%7D'>Attachment: Test Cases Performance 010 11112013.xlsx</a></p>" }
 	let parsed = messageToEmail' msg
-	assertBool "doesn't match" (parsed == expected || parsed == expected2)
+	assertBool ("doesn't match; parsed: "
+		++ show parsed
+		++ " expected:" ++ show expected
+		++ " or " ++ show expected2) (parsed == expected || parsed == expected2)
 
 getMultipartBodyText :: T.Text -> BL.ByteString -> T.Text
 getMultipartBodyText sep bdy = fromMaybe "no body!" 

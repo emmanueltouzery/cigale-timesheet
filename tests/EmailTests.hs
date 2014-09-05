@@ -478,7 +478,7 @@ testMboxMultipartMessage = it "parses a multipart message from start to end" $ d
 			to = "c d <c@test.com>",
 			cc = Nothing,
 			subject = "Re: FW: Test",
-			contents = "<html>contents HTML\n</html>\n"
+			contents = "<html>contents HTML\n</html>\n<hr/>"
 		}
 	assertEqual "doesn't match" expected (messageToEmail' msg)
 
@@ -530,7 +530,7 @@ testDifferentMessage = it "parses a different message" $ do
 			to = "\"'C D'\" <c.d@e>",
 			cc = Nothing,
 			subject = "RE: FW: Test",
-			contents = "Hi,\n<br/>several lines.\n<br/><p><a href='/getExtraData?pluginName=Email&pluginConfig=%7B%22emailPath%22%3A%22test%22%7D&queryParams=%7B%22attachmentIndex%22%3A1%2C%22mailId%22%3A%22%22%7D'>Attachment: Test Cases Performance 010 11112013.xlsx</a></p>"
+			contents = "Hi,\n<br/>several lines.\n<br/><hr/><p><a href='/getExtraData?pluginName=Email&pluginConfig=%7B%22emailPath%22%3A%22test%22%7D&queryParams=%7B%22attachmentIndex%22%3A1%2C%22mailId%22%3A%22%22%7D' class='btn btn-default' role='button'><span class='glyphicon glyphicon-paperclip'></span>Test Cases Performance 010 11112013.xlsx</a></p>"
 		}
 	assertEqual "doesn't match" expected (messageToEmail' msg)
 

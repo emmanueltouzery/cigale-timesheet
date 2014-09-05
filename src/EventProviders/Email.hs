@@ -119,7 +119,7 @@ messageToEmail emailConfig msg = do
 	let emailContents = case parseMultipartSections headers rawMessage of
 			Just sections -> T.concat
 				[fromMaybe "no contents!" $ sectionTextContent <$> sectionToConsider sections,
-				getAttachmentBar emailConfig messageId sections]
+				"<hr/>", getAttachmentBar emailConfig messageId sections]
 			Nothing -> parseTextPlain $ MultipartSection headers rawMessage
 	Email emailDate toVal ccVal subjectVal emailContents
 	where
@@ -129,7 +129,8 @@ messageToEmail emailConfig msg = do
 
 getAttachmentBar :: EmailConfig -> String -> [MultipartSection] -> T.Text
 getAttachmentBar emailConfig messageId sections = foldr (\(section,idx) -> T.append (T.pack $
-	printf "<p><a href='%s'>Attachment: %s</a></p>"
+	printf ("<p><a href='%s' class='btn btn-default' role='button'>"
+			++ "<span class='glyphicon glyphicon-paperclip'></span>%s</a></p>")
 		(formatAttachmentUrl emailConfig messageId section idx) (getAttachmentName section))) ""
 	$ attachmentSections sections
 

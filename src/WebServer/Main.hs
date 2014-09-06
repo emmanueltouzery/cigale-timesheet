@@ -1,11 +1,14 @@
-{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, DoAndIfThenElse, LambdaCase #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, DoAndIfThenElse, LambdaCase, ViewPatterns #-}
 module Main where
 
 import Snap.Core
 import Snap.Util.FileServe
 import Snap.Http.Server
 import qualified Data.Text.Encoding as TE
+import qualified Data.Text as T
 import System.Directory
+import System.FilePath ((</>))
+import System.IO
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
@@ -14,20 +17,23 @@ import Control.Applicative
 import Network.TCP (openTCPPort)
 import Network.Stream (close)
 import Control.Concurrent (forkIO)
-import Control.Exception (try, SomeException)
+import Control.Exception
 import Control.Error
+import System.IO.Error
 import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
 import Data.Time
 import Control.Monad.Trans
-import Control.Monad (void)
+import Control.Monad
 import Data.List
 import Data.Aeson
 import Data.Char (ord)
+import System.Environment (getArgs)
+import Text.Printf
 
 import qualified Timesheet
 import Config
-import Util (parse2, parseNum)
+import Util (parse2, parseNum, parseMaybe)
 import Paths_cigale_timesheet
 import FilePickerServer (browseFolder)
 import SnapUtil (setActionResponse, hParam, noteET)
@@ -39,6 +45,53 @@ appPort = 8000
 
 main :: IO ()
 main = do
+	args <- getArgs
+	if args == ["--prefetch"]
+		then doPrefetch
+		else startWebApp
+
+doPrefetch :: IO ()
+doPrefetch = do
+	prefetchFolder <- getPrefetchFolder
+	createDirectoryIfMissing True prefetchFolder
+	today <- (localDay . zonedTimeToLocalTime) <$> getZonedTime
+	-- fetch from the first day of the previous month
+	let prefetchStart = addGregorianMonthsClip (-1)
+		$ (\(y,m,_) -> fromGregorian y m 1) $ toGregorian today
+	-- remove obsolete prefetch files, that means from
+	-- let's say 3 months ago.
+	let oldestAccepted = addGregorianMonthsClip (-3) today
+	getDirectoryContents prefetchFolder >>= mapM_ (removeIfOlderThan oldestAccepted prefetchFolder)
+	-- now fetch from oldestAccepted to yesterday, if needed.
+	prefetch prefetchFolder prefetchStart (addDays (-1) today)
+	
+prefetch :: FilePath -> Day -> Day -> IO ()
+prefetch folder curDay maxDay
+	| curDay > maxDay = return ()
+	| otherwise = unlessM (doesFileExist fname) $ do
+		fetchTimesheetAndStore curDay fname
+		prefetch folder (addDays 1 curDay) maxDay
+	where
+		fname = folder </> getPrefetchFilename curDay
+		unlessM s r = not <$> s >>= flip when r
+
+getPrefetchFolder :: IO FilePath
+getPrefetchFolder = (++ "/prefetch") <$> Config.getSettingsFolder
+
+getPrefetchFilename :: Day -> FilePath
+getPrefetchFilename (toGregorian -> (y,m,d)) = printf "%d-%02d-%02d.json" y m d
+
+removeIfOlderThan :: Day -> FilePath -> FilePath -> IO ()
+removeIfOlderThan date folder filename = do
+	case parseMaybe parsePrefetchFilename (T.pack filename) of
+		Nothing -> return () -- not a prefetch file.
+		Just fileDate -> when (fileDate < date) $ removeFile $ folder </> filename
+
+parsePrefetchFilename :: T.GenParser st Day
+parsePrefetchFilename = parseDate <* T.string ".json"
+
+startWebApp :: IO ()
+startWebApp = do
 	installPath <- Paths_cigale_timesheet.getDataFileName ""
 	let snapConfig = setPort appPort .
 		setAccessLog ConfigNoLog .
@@ -97,7 +150,21 @@ timesheet = setActionResponse $ do
 	dateParamText <- TE.decodeUtf8 <$> hParam "tsparam"
 	date <- hoistEither $ fmapL BS8.pack $ parse2 parseDate
 		"Invalid date format, expected yyyy-mm-dd" dateParamText
-	liftIO (BSL.toStrict <$> Timesheet.process date)
+	pFname <- (</> getPrefetchFilename date) <$> liftIO getPrefetchFolder
+	-- first try to read from prefetch, if it fails, exception, calculate.
+	liftIO $ BS.readFile pFname `catch` handleError date pFname
+	where handleError date pFname e
+		| isDoesNotExistError e = fetchTimesheetAndStore date pFname
+		| otherwise = throwIO e
+
+fetchTimesheetAndStore :: Day -> FilePath -> IO BS.ByteString
+fetchTimesheetAndStore date fname = do
+	contents <- Timesheet.process date
+	today <- (localDay . zonedTimeToLocalTime) <$> getZonedTime
+	-- only cache past dates
+	when (date < today)
+		$ withFile fname WriteMode $ \h -> BSL.hPut h contents
+	return $ BSL.toStrict contents
 
 parseDate :: T.GenParser st Day
 parseDate = fromGregorian <$> parseNum 4

@@ -46,6 +46,7 @@ appPort = 8000
 main :: IO ()
 main = do
 	args <- getArgs
+	getPrefetchFolder >>= createDirectoryIfMissing True
 	if args == ["--prefetch"]
 		then doPrefetch
 		else startWebApp
@@ -53,7 +54,6 @@ main = do
 doPrefetch :: IO ()
 doPrefetch = do
 	prefetchFolder <- getPrefetchFolder
-	createDirectoryIfMissing True prefetchFolder
 	today <- (localDay . zonedTimeToLocalTime) <$> getZonedTime
 	-- fetch from the first day of the previous month
 	let prefetchStart = addGregorianMonthsClip (-1)
@@ -152,10 +152,11 @@ timesheet = setActionResponse $ do
 		"Invalid date format, expected yyyy-mm-dd" dateParamText
 	pFname <- (</> getPrefetchFilename date) <$> liftIO getPrefetchFolder
 	-- first try to read from prefetch, if it fails, exception, calculate.
+	liftIO $ print pFname
 	liftIO $ BS.readFile pFname `catch` handleError date pFname
 	where handleError date pFname e
 		| isDoesNotExistError e = fetchTimesheetAndStore date pFname
-		| otherwise = throwIO e
+		| otherwise = print e >> throwIO e
 
 fetchTimesheetAndStore :: Day -> FilePath -> IO BS.ByteString
 fetchTimesheetAndStore date fname = do

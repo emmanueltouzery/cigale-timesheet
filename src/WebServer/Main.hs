@@ -152,7 +152,6 @@ timesheet = setActionResponse $ do
 		"Invalid date format, expected yyyy-mm-dd" dateParamText
 	pFname <- (</> getPrefetchFilename date) <$> liftIO getPrefetchFolder
 	-- first try to read from prefetch, if it fails, exception, calculate.
-	liftIO $ print pFname
 	liftIO $ BS.readFile pFname `catch` handleError date pFname
 	where handleError date pFname e
 		| isDoesNotExistError e = fetchTimesheetAndStore date pFname

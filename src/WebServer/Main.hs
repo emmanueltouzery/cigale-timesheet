@@ -47,6 +47,7 @@ main :: IO ()
 main = do
 	args <- getArgs
 	getPrefetchFolder >>= createDirectoryIfMissing True
+	removeObsoletePrefetch
 	if args == ["--prefetch"]
 		then doPrefetch
 		else startWebApp
@@ -54,16 +55,23 @@ main = do
 doPrefetch :: IO ()
 doPrefetch = do
 	prefetchFolder <- getPrefetchFolder
-	today <- (localDay . zonedTimeToLocalTime) <$> getZonedTime
+	today <- getToday
 	-- fetch from the first day of the previous month
 	let prefetchStart = addGregorianMonthsClip (-1)
 		$ (\(y,m,_) -> fromGregorian y m 1) $ toGregorian today
-	-- remove obsolete prefetch files, that means from
-	-- let's say 3 months ago.
-	let oldestAccepted = addGregorianMonthsClip (-3) today
-	getDirectoryContents prefetchFolder >>= mapM_ (removeIfOlderThan oldestAccepted prefetchFolder)
 	-- now fetch from oldestAccepted to yesterday, if needed.
 	prefetch prefetchFolder prefetchStart (addDays (-1) today)
+
+getToday :: IO Day
+getToday = (localDay . zonedTimeToLocalTime) <$> getZonedTime
+
+removeObsoletePrefetch :: IO ()
+removeObsoletePrefetch = do
+	-- remove obsolete prefetch files, that means from
+	-- let's say 3 months ago.
+	oldestAccepted <- addGregorianMonthsClip (-3) <$> getToday
+	prefetchFolder <- getPrefetchFolder
+	getDirectoryContents prefetchFolder >>= mapM_ (removeIfOlderThan oldestAccepted prefetchFolder)
 	
 prefetch :: FilePath -> Day -> Day -> IO ()
 prefetch folder curDay maxDay
@@ -160,7 +168,7 @@ timesheet = setActionResponse $ do
 fetchTimesheetAndStore :: Day -> FilePath -> IO BS.ByteString
 fetchTimesheetAndStore date fname = do
 	contents <- Timesheet.process date
-	today <- (localDay . zonedTimeToLocalTime) <$> getZonedTime
+	today <- getToday
 	-- only cache past dates
 	when (date < today)
 		$ withFile fname WriteMode $ \h -> BSL.hPut h contents

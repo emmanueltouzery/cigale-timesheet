@@ -542,7 +542,7 @@ testDifferentMessage = it "parses a different message" $ do
 
 getMultipartBodyText :: T.Text -> BL.ByteString -> T.Text
 getMultipartBodyText sep bdy = fromMaybe "no body!" 
-	$ (sectionTextContent <$> (parseMultipartBody sep bdy >>= sectionToConsider))
+	(sectionTextContent <$> (parseMultipartBody sep bdy >>= sectionToConsider))
 
 messageToEmail' :: MboxMessage BL.ByteString -> Email
 messageToEmail' = messageToEmail (EmailConfig "test")

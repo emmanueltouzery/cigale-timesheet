@@ -90,7 +90,7 @@ getPrefetchFilename :: Day -> FilePath
 getPrefetchFilename (toGregorian -> (y,m,d)) = printf "%d-%02d-%02d.json" y m d
 
 removeIfOlderThan :: Day -> FilePath -> FilePath -> IO ()
-removeIfOlderThan date folder filename = do
+removeIfOlderThan date folder filename =
 	case parseMaybe parsePrefetchFilename (T.pack filename) of
 		Nothing -> return () -- not a prefetch file.
 		Just fileDate -> when (fileDate < date) $ removeFile $ folder </> filename

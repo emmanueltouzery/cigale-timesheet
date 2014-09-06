@@ -40,7 +40,7 @@ readConfig plugins = do
 
 parseSettingsFile :: (FromJSON a, ToJSON a) => [EventProvider a b] -> FilePath -> MaybeT IO [(EventProvider a b, a)]
 parseSettingsFile plugins settingsFile = do
-	fileContents <- hushT $ EitherT $ (Util.tryS $ BS.readFile settingsFile)
+	fileContents <- hushT $ EitherT $ Util.tryS (BS.readFile settingsFile)
 	(configMap :: HashMap String Array) <- hoistMaybe $ decodeStrict' fileContents
 	let providersByNameHash = providersByName plugins
 	hoistMaybe $ Util.concatMapM (processConfigItem providersByNameHash) (toList configMap)
@@ -83,7 +83,7 @@ decodeIncomingConfigElt pluginName configJson = do
 deletePluginFromConfig :: BS.ByteString -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)
 deletePluginFromConfig oldCfgItemStr (T.unpack . TE.decodeUtf8 -> pluginName) = runEitherT $ do
 	config <- liftIO $ readConfig EventProviders.plugins
-	configWithoutItem <- noteT ("Error removing") $
+	configWithoutItem <- noteT "Error removing" $
 		hoistMaybe $ decodeStrict' oldCfgItemStr >>= checkRemoveFromConfig config pluginName
 	liftIO $ writeConfiguration configWithoutItem
 	return ""

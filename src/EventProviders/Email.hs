@@ -151,7 +151,7 @@ attachmentSections sections = filter (("attachment" `T.isInfixOf`) . sectionCTDi
 formatAttachmentUrl :: EmailConfig -> String -> MultipartSection -> Int -> String
 formatAttachmentUrl emailConfig messageId section idx = printf "/getExtraData?pluginName=Email&pluginConfig=%s&queryParams=%s"
 	(urlAeson emailConfig) (urlAeson $ AttachmentKey messageId idx)
-	where urlAeson x = (chr . fromIntegral) <$> (BS.unpack $ urlEncode True $ BSL.toStrict $ Aeson.encode x)
+	where urlAeson x = (chr . fromIntegral) <$> BS.unpack (urlEncode True $ BSL.toStrict $ Aeson.encode x)
 
 parseMultipartSections :: Map T.Text T.Text -> BSL.ByteString -> Maybe [MultipartSection]
 parseMultipartSections headers rawMessage = do
@@ -191,7 +191,7 @@ getEmailDate :: MboxMessage BL.ByteString -> LocalTime
 getEmailDate = parseEmailDate . BSL.toStrict . _mboxMsgTime
 
 parseMultipartBody :: T.Text -> BSL.ByteString -> Maybe [MultipartSection]
-parseMultipartBody separator body = Util.parseMaybe (parseMultipartBodyParsec mimeSeparator) body
+parseMultipartBody separator = Util.parseMaybe (parseMultipartBodyParsec mimeSeparator)
 	where mimeSeparator = T.concat ["--", separator]
 
 -- pick a section containing text/html or as a second choice text/plain,
@@ -225,10 +225,10 @@ data MultipartSection = MultipartSection
 
 sectionTextContent :: MultipartSection -> T.Text
 sectionTextContent section
-	| "multipart/" `T.isInfixOf` (sectionCType section) = -- multipart/alternative or multipart/related
+	| "multipart/" `T.isInfixOf` sectionCType section = -- multipart/alternative or multipart/related
 		fromMaybe (error "Email.multipartBody error")
 			$ sectionTextContent <$> (parsedSections >>= sectionToConsider)
-	| "text/plain" `T.isInfixOf` (sectionCType section) = parseTextPlain section
+	| "text/plain" `T.isInfixOf` sectionCType section = parseTextPlain section
 	| otherwise = sectionFormattedContent section
 	where
 		parsedSections = parseMultipartBody mimeSeparator (sectionContent section)
@@ -245,7 +245,7 @@ sectionFormattedContent section
 -- for saving the email. Could be text or binary.
 sectionDecodedContents :: MultipartSection -> BS.ByteString
 sectionDecodedContents section
-	| "text/" `T.isPrefixOf` (sectionCType section) = encodeUtf8 $ sectionFormattedContent section
+	| "text/" `T.isPrefixOf` sectionCType section = encodeUtf8 $ sectionFormattedContent section
 	| sectionCTTransferEnc section == "base64" = Base64.decodeLenient contents
 	| otherwise = contents
 	where contents = BSL.toStrict $ sectionContent section
@@ -293,7 +293,7 @@ readHeaders = do
 
 readHeader :: T.Parsec BSL.ByteString st (BSL.ByteString, BSL.ByteString)
 readHeader = do
-	key <- BL.pack <$> (T.many $ T.noneOf ":\n\r")
+	key <- BL.pack <$> T.many (T.noneOf ":\n\r")
 	T.string ":"
 	many $ T.string " "
 	val <- readHeaderValue
@@ -414,7 +414,7 @@ getMailAttachment (EmailConfig mboxLocation) _ (AttachmentKey emailId idx) =
 	extractMailAttachment emailId  idx <$> parseMboxFile Backward mboxLocation
 
 getMessageId :: MboxMessage BL.ByteString -> Maybe String
-getMessageId msg = T.unpack <$> (Map.lookup "Message-ID" $ fst $ parseMessage msg)
+getMessageId msg = T.unpack <$> Map.lookup "Message-ID" (fst $ parseMessage msg)
 
 extractMailAttachment :: String -> Int -> Mbox BL.ByteString -> Maybe (ContentType, BS.ByteString)
 extractMailAttachment emailId index mbox = do

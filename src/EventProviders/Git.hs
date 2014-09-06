@@ -182,7 +182,7 @@ parseCommit = do
 		}
 
 readLine :: T.GenParser st String
-readLine = (T.many $ T.noneOf "\r\n") <* T.oneOf "\r\n"
+readLine = T.many (T.noneOf "\r\n") <* T.oneOf "\r\n"
 
 parseFiles :: T.GenParser st [(String, String)]
 parseFiles = manyTill parseFile (T.try parseFilesSummary)
@@ -210,7 +210,7 @@ parseDateTime = do
 	count 3 T.anyChar <* T.char ' ' -- day
 	month <- strToMonth <$> count 3 T.anyChar
 	T.char ' '
-	dayOfMonth <- read <$> (T.many1 $ T.noneOf " ")
+	dayOfMonth <- read <$> T.many1 (T.noneOf " ")
 	T.char ' '
 	hour <- Util.parseNum 2 <* T.char ':'
 	mins <- Util.parseNum 2 <* T.char ':'

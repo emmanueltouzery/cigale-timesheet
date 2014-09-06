@@ -55,7 +55,7 @@ testBasicEvent tz = it "parses basic ICAL event" $ do
 			extraInfo = "End: 09:00; duration: 1:30",
 			fullContents = Nothing
 		}
-	testParsecExpectTransform (head . (keyValuesToEvents tz) . head) source parseEvents expected
+	testParsecExpectTransform (head . keyValuesToEvents tz . head) source parseEvents expected
 
 testThroughMidnightEvent :: TimeZone -> Spec
 testThroughMidnightEvent tz = it "parses basic ICAL event through midnight" $ do

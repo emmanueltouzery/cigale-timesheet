@@ -129,10 +129,16 @@ messageToEmail emailConfig msg = do
 
 getAttachmentBar :: EmailConfig -> String -> [MultipartSection] -> T.Text
 getAttachmentBar emailConfig messageId sections = foldr (\(section,idx) -> T.append (T.pack $
-	printf ("<p><a href='%s' class='btn btn-default' role='button'>"
-			++ "<span class='glyphicon glyphicon-paperclip'></span>%s</a></p>")
-		(formatAttachmentUrl emailConfig messageId section idx) (getAttachmentName section))) ""
+		formatAttachmentDisplay section $ link section idx)) ""
 	$ attachmentSections sections
+	where link = formatAttachmentUrl emailConfig messageId
+
+formatAttachmentDisplay :: MultipartSection -> String -> String
+formatAttachmentDisplay section link
+	| "image/" `T.isPrefixOf` sectionCType section = printf "<p><img width='70%%' src='%s'><br/>%s</p>" link name
+	| otherwise = printf ("<p><a href='%s' class='btn btn-default' role='button'>"
+			++ "<span class='glyphicon glyphicon-paperclip'></span>%s</a></p>") link name
+	where name = getAttachmentName section
 
 getAttachmentName :: MultipartSection -> String
 getAttachmentName (sectionCTDisposition -> disp) = T.unpack $ fromMaybe "" $ headerGetComponent "filename" disp

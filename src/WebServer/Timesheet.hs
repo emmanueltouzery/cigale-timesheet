@@ -11,6 +11,7 @@ import Data.Aeson.TH (mkToJSON, defaultOptions)
 import Control.Error hiding (err)
 import Data.List.Utils (mergeBy)
 import Data.Function (on)
+import Control.Applicative
 
 import qualified Config
 import qualified EventProviders

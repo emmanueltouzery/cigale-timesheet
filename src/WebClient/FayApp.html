@@ -180,6 +180,15 @@
 			</ul>
 		</div><!-- /.navbar-collapse -->
 	</nav>
+	
+	<div class="alert alert-warning alert-dismissible" role="alert" 
+		style="width: 65%; margin-left: auto; margin-right: auto"
+		data-bind="visible: warningText().length>0">
+		<button type="button" class="close" data-dismiss="alert">
+			<span aria-hidden="true">&times;</span><span class="sr-only">Close</span>
+		</button>
+		<strong>Warning!</strong> <span data-bind="text: warningText"></span>
+	</div>
 
 	<p style="margin-left: 10px;">
 	<table id="datepickheader">

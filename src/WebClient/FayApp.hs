@@ -15,7 +15,7 @@ data JDate
 data FetchResponse = FetchResponse
 	{
 		fetchedEvents :: [Event],
-		fetchErrors :: [String]
+		fetchErrors :: [Text]
 	}
 
 data Event = Event
@@ -42,7 +42,8 @@ data MainViewModel = MainViewModel
 		eventsObs :: ObservableList Event,
 		selectedEvent :: Observable Event,
 		showSidebar :: MainViewModel -> Event -> Fay (),
-		isActive :: MainViewModel -> Event -> Fay Bool
+		isActive :: MainViewModel -> Event -> Fay Bool,
+		warningText :: Observable Text
 	}
 instance KnockoutModel MainViewModel
 
@@ -56,7 +57,8 @@ main = ready $ do
 			eventsObs = eventsObsV,
 			showSidebar = showSidebarCb,
 			selectedEvent = koObservable NullEvent,
-			isActive = \vm event -> liftM (=== event) (koGet $ selectedEvent vm)
+			isActive = \vm event -> liftM (=== event) (koGet $ selectedEvent vm),
+			warningText = koObservable ""
 		}
 	
 	koApplyBindings viewModel
@@ -86,6 +88,7 @@ handleError pleaseHold shadow jqXhr textStatus errorThrown = do
 
 processResults :: MainViewModel -> JQuery -> JQuery -> FetchResponse -> Fay ()
 processResults viewModel pleaseHold shadow fetchResponse = do
+	T.intercalate ", " (fetchErrors fetchResponse) ~> warningText viewModel
 	let events = fetchedEvents fetchResponse
 	table <- select "table#eventsTable tbody"
 	empty table

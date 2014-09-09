@@ -34,6 +34,7 @@ import Control.Error
 import Network.HTTP.Types.URI (urlEncode)
 import Data.Char (chr)
 import Text.Printf
+import Control.Monad.Trans
 
 import Text.Regex.PCRE.Rex
 
@@ -74,10 +75,10 @@ data Email = Email
 	}
 	deriving (Eq, Show)
 
-getEmailEvents :: EmailConfig -> GlobalSettings -> Day -> IO [Event.Event]
+getEmailEvents :: EmailConfig -> GlobalSettings -> Day -> EitherT String IO [Event.Event]
 getEmailEvents cfg@(EmailConfig mboxLocation) _ day = do
-	emails <- getEmails cfg mboxLocation day day 
-	timezone <- getTimeZone (UTCTime day 8)
+	emails <- lift $ getEmails cfg mboxLocation day day 
+	timezone <- lift $ getTimeZone (UTCTime day 8)
 	return $ map (toEvent timezone) emails
 
 toEvent :: TimeZone -> Email -> Event.Event

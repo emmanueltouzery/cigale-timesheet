@@ -2,7 +2,6 @@
 
 module Git where
 
-import qualified System.Process as Process
 import Data.Time.Calendar
 import Data.Time.LocalTime
 import Data.Time.Clock (UTCTime(..))
@@ -15,6 +14,8 @@ import Data.List (isInfixOf, intercalate, foldl')
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.Maybe
 import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
+import Control.Monad.Trans
+import Control.Error
 
 import Event
 import qualified Util
@@ -36,22 +37,17 @@ getGitProvider = EventProvider
 		getExtraData = Nothing
 	}
 
-getRepoCommits :: GitRecord -> GlobalSettings -> Day -> IO [Event.Event]
+getRepoCommits :: GitRecord -> GlobalSettings -> Day -> EitherT String IO [Event.Event]
 getRepoCommits (GitRecord _username projectPath) _ date = do
 	let username = T.unpack _username
-	(inh, Just outh, errh, pid) <- Process.createProcess
-		(Process.proc "git" [
+	output <- Util.runProcess "git" [
 			"log", "--since", formatDate $ addDays (-1) date,
 			"--until", formatDate $ addDays 1 date,
 	--		"--author=\"" ++ username ++ "\"",
-			"--stat", "--all", "--decorate"])
-		{
-			Process.std_out = Process.CreatePipe,
-			Process.cwd = Just projectPath
-		}
-	output <- IO.hGetContents outh
-	timezone <- getTimeZone (UTCTime date 8)
-	let allCommits = Util.parsecError parseCommits "Git.getRepoCommits" $ T.concat [output, "\n"]
+			"--stat", "--all", "--decorate"]
+	timezone <- liftIO $ getTimeZone (UTCTime date 8)
+	allCommits <- hoistEither $ note "Error parsing the git output"
+		$ Util.parseMaybe parseCommits $ T.concat [output, "\n"]
 	let relevantCommits = filter (isRelevantCommit date username) allCommits
 	let commitsList = map (commitToEvent projectPath timezone) relevantCommits
 	let tagCommits = filter (isRelevantTagCommit date) allCommits

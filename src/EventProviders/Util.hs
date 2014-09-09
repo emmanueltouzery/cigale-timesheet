@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, FlexibleContexts, ViewPatterns, ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings, FlexibleContexts, ViewPatterns, ScopedTypeVariables, LambdaCase #-}
 
 module Util where
 
@@ -27,11 +27,24 @@ import Control.Error
 import Control.Exception as Ex
 import Control.Monad (liftM)
 import Text.Printf (printf)
+import System.Process
+import qualified Data.Text.IO as IO
+import System.Exit
+import Control.Monad.Trans
 
 import OpenSSL (withOpenSSL)
 
 parseNum :: (Num a, Read a) => Int -> T.GenParser st a
 parseNum digitCount = read <$> count digitCount digit
+
+runProcess :: String -> [String] -> EitherT String IO T.Text
+runProcess program parameters = do
+	(inh, Just outh, errh, pid) <- lift $ createProcess (proc program parameters)
+		{std_out = CreatePipe}
+	lift (waitForProcess pid) >>= \case
+		-- TODO collect error output on failure.
+		ExitFailure x -> hoistEither $ Left (printf "%s failed with exit code %d" program x :: String)
+		ExitSuccess -> lift (IO.hGetContents outh)
 
 -- return the common prefix to all the files.
 -- http://www.haskell.org/pipermail/beginners/2011-April/006861.html
@@ -55,6 +68,7 @@ parse2 parser errorV input = fmapL (const $ errorV ++ ": " ++ show input) $ pars
 parseMaybe :: (T.Stream s DFI.Identity t) => T.Parsec s () a -> s -> Maybe a
 parseMaybe parser = hush . parse parser ""
 
+-- ############# THIS MUST GO.
 parsecError :: (T.Stream s DFI.Identity t, Show s) => T.Parsec s () a -> String -> s -> a
 parsecError parser errorText input = case parse parser "" input of
 	Left a -> error $ errorText ++ show a

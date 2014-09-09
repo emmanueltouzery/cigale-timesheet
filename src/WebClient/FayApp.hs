@@ -12,6 +12,12 @@ import Utils
 
 data JDate
 
+data FetchResponse = FetchResponse
+	{
+		fetchedEvents :: [Event],
+		fetchErrors :: [String]
+	}
+
 data Event = Event
 	{
 		pluginName :: Text,
@@ -78,8 +84,9 @@ handleError pleaseHold shadow jqXhr textStatus errorThrown = do
 	hide Instantly shadow
 	alert $ T.concat ["Error! ", responseText jqXhr]
 
-processResults :: MainViewModel -> JQuery -> JQuery -> [Main.Event] -> Fay ()
-processResults viewModel pleaseHold shadow events = do
+processResults :: MainViewModel -> JQuery -> JQuery -> FetchResponse -> Fay ()
+processResults viewModel pleaseHold shadow fetchResponse = do
+	let events = fetchedEvents fetchResponse
 	table <- select "table#eventsTable tbody"
 	empty table
 	setScrollTop 0 table

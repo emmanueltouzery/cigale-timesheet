@@ -2,8 +2,6 @@
 
 module Svn where
 
-import qualified System.Process as Process
-import qualified Data.Text.IO as IO
 import Data.Time.Calendar
 import qualified Data.Text as T
 import Data.Time.Clock (UTCTime(..))
@@ -13,6 +11,9 @@ import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
+import Text.Printf
+import Control.Monad.Trans
+import Control.Error
 
 import qualified Util
 import Event
@@ -36,16 +37,14 @@ getSvnProvider = EventProvider
 		getExtraData = Nothing
 	}
 
-getRepoCommits :: SvnConfigRecord -> GlobalSettings -> Day -> IO [Event.Event]
+getRepoCommits :: SvnConfigRecord -> GlobalSettings -> Day -> EitherT String IO [Event.Event]
 getRepoCommits config _ date = do
 	let dateRange = formatDateRange date (addDays 1 date)
-	(inh, Just outh, errh, pid) <- Process.createProcess
-		(Process.proc "svn" ["log", svnRepo config, 
-				"-r", dateRange, "--verbose"])
-		{Process.std_out = Process.CreatePipe}
-	output <- IO.hGetContents outh
-	finishGetRepoCommits date date (T.pack $ svnUser config)
-		$ Util.parsecError parseCommits "Svn.getRepoCommits" output
+	output <- Util.runProcess "svn"
+		["log", svnRepo config, "-r", dateRange, "--verbose"]
+	commits <- hoistEither $ note "Error in SVN parsing"
+		$ Util.parseMaybe parseCommits output
+	lift $ finishGetRepoCommits date date (T.pack $ svnUser config) commits
 
 finishGetRepoCommits :: Day -> Day -> T.Text -> [Commit] -> IO [Event.Event]
 finishGetRepoCommits startDate endDate username commits = do

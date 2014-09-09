@@ -21,6 +21,8 @@ import Data.Maybe
 import Control.Applicative
 import Data.Text.Lazy (toStrict)
 import Data.Text.Encoding (decodeUtf8)
+import Control.Error
+import Control.Monad.Trans
 
 import Text.XML (Node(..), elementAttributes)
 import Text.XML.Cursor
@@ -54,16 +56,16 @@ getRedmineProvider = EventProvider
 		getExtraData = Nothing
 	}
 
-getRedmineEvents :: RedmineConfig -> GlobalSettings -> Day -> IO [Event]
+getRedmineEvents :: RedmineConfig -> GlobalSettings -> Day -> EitherT String IO [Event]
 getRedmineEvents config _ day = do
-	maybeCookie <- login config
-	let cookieValues = head $ split ';' $ fromJust maybeCookie
+	cookie <- lift $ login config
+	cookieValues <- hoistEither $ note "invalid cookie format" $ cookie >>= headMay . split ';'
 	let activityUrl = encodeUtf8 $ prepareActivityUrl config day
-	response <- Util.http activityUrl "" concatHandler $ do
+	response <- lift $ Util.http activityUrl "" concatHandler $ do
 		http GET "/activity?show_wiki_edits=1&show_issues=1"
 		setHeader "Cookie" cookieValues
-	timezone <- getTimeZone (UTCTime day 8)
-	today <- utctDay <$> getCurrentTime
+	timezone <- lift $ getTimeZone (UTCTime day 8)
+	today <- lift $ utctDay <$> getCurrentTime
 	return $ mergeSuccessiveEvents $ getIssues config response day today timezone
 
 mergeSuccessiveEvents :: [Event] -> [Event]

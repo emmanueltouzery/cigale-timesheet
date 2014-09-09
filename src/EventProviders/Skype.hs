@@ -13,6 +13,8 @@ import System.Directory
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Control.Monad (join)
 import Control.Arrow ( (***) )
+import Control.Error
+import Control.Monad.Trans
 
 import Database.HDBC
 import Database.HDBC.Sqlite3
@@ -39,22 +41,24 @@ getSkypeProvider = EventProvider
 		getExtraData = Nothing
 	}
 
-getSkypeEvents :: SkypeConfig -> GlobalSettings -> Day -> IO [Event]
+getSkypeEvents :: SkypeConfig -> GlobalSettings -> Day -> EitherT String IO [Event]
 getSkypeEvents (SkypeConfig skypeUsernameVal) _ day = do
 	let todayMidnight = LocalTime day (TimeOfDay 0 0 0)
-	timezone <- getTimeZone (UTCTime day 8)
+	timezone <- lift $ getTimeZone (UTCTime day 8)
 	let todayMidnightUTC = localTimeToUTC timezone todayMidnight
 	let minTimestamp = utcTimeToPOSIXSeconds todayMidnightUTC
 	let maxTimestamp = minTimestamp + 24*3600
-	homeDir <- getHomeDirectory
-	conn <- connectSqlite3 $ homeDir ++ "/.Skype/" 
-		++ skypeUsernameVal ++ "/main.db"
-	r <- quickQuery' conn "select chatname, from_dispname, timestamp, body_xml \
+	homeDir <- lift $ getHomeDirectory
+	r <- lift $ do
+		conn <- connectSqlite3 $ homeDir ++ "/.Skype/" 
+			++ skypeUsernameVal ++ "/main.db"
+		result <- quickQuery' conn "select chatname, from_dispname, timestamp, body_xml \
 				 \from messages where timestamp >= ? and timestamp <= ? \
 				 \and chatname is not null and from_dispname is not null \
 				 \and body_xml is not null \
 				 \order by timestamp" [SqlPOSIXTime minTimestamp, SqlPOSIXTime maxTimestamp]
-	disconnect conn
+		disconnect conn
+		return result
 
 	-- get the events grouped by chat
 	let eventsAr = fmap messageByChatInfo r

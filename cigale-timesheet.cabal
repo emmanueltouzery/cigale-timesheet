@@ -102,7 +102,8 @@ Executable cigale-timesheet
      parsec,
      errors,
      either,
-     mtl
+     mtl,
+     MissingH
 
   if impl(ghc >= 6.12.0)
     ghc-options: -threaded -Wall -funbox-strict-fields -O2

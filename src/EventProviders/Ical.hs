@@ -26,6 +26,7 @@ import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Control.Applicative ((<$>), (<|>))
 import Data.Maybe
 import Control.Error
+import Control.Monad.Trans
 
 import Text.Regex.PCRE.Rex
 
@@ -57,22 +58,21 @@ fromLeaf :: CalendarValue -> String
 fromLeaf (Leaf a) = a
 fromLeaf _ = "Error: expected a leaf!"
 
-getCalendarEvents :: IcalRecord -> GlobalSettings -> Day -> IO [Event.Event]
+getCalendarEvents :: IcalRecord -> GlobalSettings -> Day -> EitherT String IO [Event.Event]
 getCalendarEvents (IcalRecord icalAddress) settings day = do
-	timezone <- getTimeZone (UTCTime day 8)
-	hasCached <- hasCachedVersionForDay settingsFolder day
-	icalText <- if hasCached
-		then readFromCache settingsFolder
-		else readFromWWW (B.pack icalAddress) settingsFolder
-	return $ convertToEvents timezone day
-		$ Util.parsecError parseEvents "Ical.getCalendarEvents" icalText
-	where
-		settingsFolder = getSettingsFolder settings
+	timezone <- lift $ getTimeZone (UTCTime day 8)
+	let settingsFolder = getSettingsFolder settings
+	icalText <- lift $ do
+		hasCached <- hasCachedVersionForDay settingsFolder day
+		if hasCached
+			then readFromCache settingsFolder
+			else readFromWWW (B.pack icalAddress) settingsFolder
+	calendarData <- hoistEither $ note "Error in ical parsing"
+		$ Util.parseMaybe parseEvents icalText
+	return $ convertToEvents timezone day calendarData
 
 convertToEvents :: TimeZone -> Day -> [Map String CalendarValue] -> [Event.Event]
-convertToEvents tz day keyValues = filterDate tz day events
-	where
-		events = concatMap (keyValuesToEvents tz) keyValues
+convertToEvents tz day keyValues = filterDate tz day $ concatMap (keyValuesToEvents tz) keyValues
 
 readFromWWW :: B.ByteString -> String -> IO T.Text
 readFromWWW icalAddress settingsFolder = do

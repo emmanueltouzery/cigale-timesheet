@@ -8,8 +8,9 @@ import Data.List
 import Data.Time
 import Data.Aeson
 import Data.Aeson.TH (mkToJSON, defaultOptions)
-
-import GHC.Exts (sortWith)
+import Control.Error hiding (err)
+import Data.List.Utils (mergeBy)
+import Data.Function (on)
 
 import qualified Config
 import qualified EventProviders
@@ -22,6 +23,19 @@ process month = do
 	config <- Config.readConfig EventProviders.plugins
 	processConfig month config
 
+data FetchResponse = FetchResponse
+	{
+		fetchedEvents :: [Event],
+		fetchErrors :: [String]
+	}
+instance ToJSON FetchResponse where
+     toJSON = FayAeson.addInstance "FetchResponse" . $(mkToJSON defaultOptions ''FetchResponse)
+
+fetchResponseAdd :: FetchResponse -> Either String [Event] -> FetchResponse
+fetchResponseAdd sofar@(FetchResponse _ errs) (Left err) = sofar { fetchErrors = err:errs }
+fetchResponseAdd sofar@(FetchResponse ev _) (Right evts) =
+	sofar { fetchedEvents = mergeBy (compare `on` Event.eventDate) ev evts }
+
 processConfig :: Day -> [(EventProvider Value b, Value)] -> IO BL.ByteString
 processConfig date config = do
 	myTz <- getTimeZone $ UTCTime date (secondsToDiffTime 8*3600)
@@ -29,24 +43,20 @@ processConfig date config = do
 	putStrLn "before the fetching..."
 	settings <- getGlobalSettings 
 	allEventsSeq <- mapM (uncurry $ fetchProvider settings date) config
-	let allEvents = foldl' (++) [] allEventsSeq
-	let sortedEvents = sortWith Event.eventDate allEvents
-	--let noNullSortedEvents = map (\e -> e {
-	--	fullContents = Just $ maybe "" id (fullContents e),
-	--	}) sortedEvents
-	let eventDates = fmap Event.eventDate sortedEvents
+	let allEvents = foldl' fetchResponseAdd (FetchResponse [] []) allEventsSeq
+	let eventDates = Event.eventDate <$> fetchedEvents allEvents
 	let eventDatesLocal = fmap (utcToLocalTime myTz) eventDates
 	putStrLn "after the fetching!"
 	-- well would be faster to just check the first and last
 	-- element... but it's actually shorter to code like this..
 	let outOfRangeData = filter (outOfRange date (addDays 1 date)) eventDatesLocal
 	if null outOfRangeData
-		then return $ JSON.encode sortedEvents --noNullSortedEvents
+		then return $ JSON.encode allEvents
 		else do
 			putStrLn "*** SOME EVENTS ARE NOT IN TIME RANGE"
 			print outOfRangeData
-			print $ head sortedEvents
-			print $ last sortedEvents
+			print $ head $ fetchedEvents allEvents
+			print $ last $ fetchedEvents allEvents
 			return BL.empty
 	where
 		outOfRange start end time = time < LocalTime start midnight || time > LocalTime end midnight
@@ -56,12 +66,12 @@ getGlobalSettings = do
 	settingsFolder <- Config.getSettingsFolder
 	return GlobalSettings { getSettingsFolder = settingsFolder }
 
-fetchProvider :: GlobalSettings -> Day -> EventProvider Value b -> Value -> IO [Event]
+fetchProvider :: GlobalSettings -> Day -> EventProvider Value b -> Value -> IO (Either String [Event])
 fetchProvider settings day provider config = do
 	putStrLn $ "fetching from " ++ getModuleName provider
-	events <- getEvents provider config settings day
-	putStrLn $ "found " ++ show (length events) ++ " events."
-	return events
+	evts <- runEitherT $ getEvents provider config settings day
+	putStrLn "Done"
+	return evts
 
 data PluginConfig = PluginConfig
 	{

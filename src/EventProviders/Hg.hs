@@ -2,7 +2,6 @@
 
 module Hg where
 
-import qualified System.Process as Process
 import Data.Time.Calendar
 import Data.Time.Clock (UTCTime(..))
 import Data.Time.LocalTime
@@ -13,6 +12,8 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as IO
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
+import Control.Monad.Trans
+import Control.Error
 
 import Event
 import qualified Util
@@ -34,21 +35,16 @@ getHgProvider = EventProvider
 		getExtraData = Nothing
 	}
 
-getRepoCommits :: HgRecord -> GlobalSettings -> Day -> IO [Event.Event]
+getRepoCommits :: HgRecord -> GlobalSettings -> Day -> EitherT String IO [Event.Event]
 getRepoCommits (HgRecord _username projectPath) _ day = do
 	let username = T.unpack _username
 	let dateRange = formatDate day
-	(inh, Just outh, errh, pid) <- Process.createProcess
-		(Process.proc "hg" [
-			"log", "-k", username, "-d", dateRange,
-			"--template", "{date|isodate}\n{desc}\n--->>>\n{files}\n--->>>\n"])
-		{
-			Process.std_out = Process.CreatePipe,
-			Process.cwd = Just projectPath
-		}
-	output <- IO.hGetContents outh
-	timezone <- getTimeZone (UTCTime day 8)
-	return $ map (toEvent timezone) $ Util.parsecError parseCommits "Hg.getRepoCommits" output
+	output <- Util.runProcess "hg" ["log", "-k", username, "-d", dateRange,
+			"--template", "{date|isodate}\n{desc}\n--->>>\n{files}\n--->>>\n"]
+	timezone <- liftIO $ getTimeZone (UTCTime day 8)
+	commits <- hoistEither $ note "Error in HG parsing"
+		$ Util.parseMaybe parseCommits output
+	return $ map (toEvent timezone) commits
 	
 toEvent :: TimeZone -> Commit -> Event.Event
 toEvent timezone commit =

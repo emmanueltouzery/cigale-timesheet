@@ -40,7 +40,7 @@ getSvnProvider = EventProvider
 getRepoCommits :: SvnConfigRecord -> GlobalSettings -> Day -> EitherT String IO [Event.Event]
 getRepoCommits config _ date = do
 	let dateRange = formatDateRange date (addDays 1 date)
-	output <- Util.runProcess "svn"
+	output <- Util.runProcess "svn" "."
 		["log", svnRepo config, "-r", dateRange, "--verbose"]
 	commits <- hoistEither $ note "Error in SVN parsing"
 		$ Util.parseMaybe parseCommits output

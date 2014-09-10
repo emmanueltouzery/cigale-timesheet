@@ -39,7 +39,7 @@ getRepoCommits :: HgRecord -> GlobalSettings -> Day -> EitherT String IO [Event.
 getRepoCommits (HgRecord _username projectPath) _ day = do
 	let username = T.unpack _username
 	let dateRange = formatDate day
-	output <- Util.runProcess "hg" ["log", "-k", username, "-d", dateRange,
+	output <- Util.runProcess "hg" projectPath ["log", "-k", username, "-d", dateRange,
 			"--template", "{date|isodate}\n{desc}\n--->>>\n{files}\n--->>>\n"]
 	timezone <- liftIO $ getTimeZone (UTCTime day 8)
 	commits <- hoistEither $ note "Error in HG parsing"

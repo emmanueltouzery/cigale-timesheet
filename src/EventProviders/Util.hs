@@ -37,10 +37,10 @@ import OpenSSL (withOpenSSL)
 parseNum :: (Num a, Read a) => Int -> T.GenParser st a
 parseNum digitCount = read <$> count digitCount digit
 
-runProcess :: String -> [String] -> EitherT String IO T.Text
-runProcess program parameters = do
+runProcess :: String -> String -> [String] -> EitherT String IO T.Text
+runProcess program runningFolder parameters = do
 	(inh, Just outh, errh, pid) <- lift $ createProcess (proc program parameters)
-		{std_out = CreatePipe}
+		{ std_out = CreatePipe, cwd = Just runningFolder }
 	lift (waitForProcess pid) >>= \case
 		-- TODO collect error output on failure.
 		ExitFailure x -> hoistEither $ Left (printf "%s failed with exit code %d" program x :: String)

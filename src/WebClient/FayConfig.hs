@@ -3,7 +3,7 @@
 import Fay.Text (Text, fromString)
 import qualified Fay.Text as T
 import FFI
-import JQuery hiding (filter, not)
+import JQuery hiding (filter, not, on)
 import Prelude hiding ((++), error, putStrLn)
 import qualified Prelude as P
 import Knockout
@@ -181,7 +181,7 @@ handleValDesc :: ConfigViewModel -> JValue -> [PluginConfig] -> Fay ()
 handleValDesc vm configVal pluginConfigs = do
 	let hash = jvAsHash configVal
 	-- TODO probably need a proper Text comparison...
-	let sortedHash = sortBy (\(a, _) (b, _) -> strComp (T.unpack a) (T.unpack b)) hash
+	let sortedHash = sortBy (strComp `on` (T.unpack . fst)) hash
 	-- TODO too long line
 	foldM_ (\soFar configValue -> getConfigSection configValue pluginConfigs >>= koPushObservableList soFar >> return soFar) (configSections vm) sortedHash
 	koPushAllObservableList (pluginTypes vm) pluginConfigs

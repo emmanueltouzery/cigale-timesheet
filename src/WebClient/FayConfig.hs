@@ -3,7 +3,7 @@
 import Fay.Text (Text, fromString)
 import qualified Fay.Text as T
 import FFI
-import JQuery hiding (filter)
+import JQuery hiding (filter, not)
 import Prelude hiding ((++), error, putStrLn)
 import qualified Prelude as P
 import Knockout
@@ -126,6 +126,7 @@ data ConfigAddEditDialogVM = ConfigAddEditDialogVM
 	}
 
 instance KnockoutModel ConfigViewModel
+instance KnockoutModel ModalDialogVM
 
 main :: Fay ()
 main = ready $ do
@@ -208,6 +209,7 @@ addEditModuleAction vm pluginConfig maybeConfigValue = do
 	let pluginName = cfgPluginName pluginConfig
 	modal <- select "#myModal"
 	let configMembers = cfgPluginConfig pluginConfig
+	let memberNames = map memberName configMembers
 	let cfgAddEditVm = configAddEditVM vm
 	pluginConfig ~> pluginBeingEdited cfgAddEditVm
 	hasPasswords pluginConfig ~> pluginBeingEditedHasPasswords cfgAddEditVm
@@ -218,17 +220,29 @@ addEditModuleAction vm pluginConfig maybeConfigValue = do
 		Nothing -> do
 			jEmptyValue ~> configurationBeingEdited cfgAddEditVm
 			jEmptyValue ~> configurationOriginalValue cfgAddEditVm
-	let clickCallback = case maybeConfigValue of
-		Nothing -> addPluginConfig vm pluginConfig
-		Just (configSection, existingConfig) ->
-			koGet (configurationOriginalValue cfgAddEditVm) >>=
-				updatePluginConfig vm configSection pluginName
+	let clickCallback = do
+		newConfigJValue <- koGet (configurationBeingEdited $ configAddEditVM vm)
+		let newConfig = jvAsTextHash newConfigJValue
+		if not $ validateEntry memberNames newConfig
+			then do
+				mVm <- koGet $ modalDialogVM vm
+				"Please fill in all the fields" ~> warningText mVm
+			else case maybeConfigValue of
+				Nothing -> addPluginConfig vm pluginConfig
+				Just (configSection, existingConfig) ->
+					koGet (configurationOriginalValue cfgAddEditVm) >>=
+						updatePluginConfig vm configSection pluginName
 	let warningTextV = if hasPasswords pluginConfig
 		then "Warning: passwords are stored in plain text in the configuration file!"
 		else ""
 	modalVM <- prepareModal (Primary "Save changes") pluginName "configEditTemplate" clickCallback modal vm
  	warningTextV ~> warningText modalVM
 	bootstrapModal modal
+
+validateEntry :: [Text] -> [(Text,Text)] -> Bool
+validateEntry [] _ = True
+validateEntry (x:xs) newConfig = (isJust $ find (\(k,v) -> k == x && not (T.null v)) newConfig)
+	&& validateEntry xs newConfig
 
 hasPasswords :: PluginConfig -> Bool
 hasPasswords = hasMemberType (== "Password")

@@ -109,11 +109,12 @@ data-bind="click: function() { $root.configAddEditVM.showFilePickerCb($root.conf
 						<div class="alert alert-danger"
 							data-bind="text: modalDialogVM().errorText"></div>
 					<!-- /ko -->
-					<!-- ko if: (modalDialogVM().warningText) && (modalDialogVM().warningText().length > 0) -->
-						<div class="alert alert-warning"
-							data-bind="text: modalDialogVM().warningText"></div>
-					<!-- /ko -->
 				</div>
+				<!-- ko if: (modalDialogVM().warningText) && (modalDialogVM().warningText().length > 0) -->
+					<div class="alert alert-warning"
+						data-bind="text: modalDialogVM().warningText"
+						style="width:90%; margin-left:auto; margin-right: auto"></div>
+				<!-- /ko -->
 				<div class="modal-body" data-bind="template: { name: modalDialogVM().modalTemplate, data: $root}">
 				</div>
 				<div class="modal-footer">

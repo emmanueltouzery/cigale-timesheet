@@ -182,11 +182,14 @@ handleValDesc vm configVal pluginConfigs = do
 	let hash = jvAsHash configVal
 	-- TODO probably need a proper Text comparison...
 	let sortedHash = sortBy (strComp `on` (T.unpack . fst)) hash
-	-- TODO too long line
-	foldM_ (\soFar configValue -> getConfigSection configValue pluginConfigs >>= koPushObservableList soFar >> return soFar) (configSections vm) sortedHash
+	foldM_ (addConfigSection pluginConfigs) (configSections vm) sortedHash
 	koPushAllObservableList (pluginTypes vm) pluginConfigs
 	configSections <- koUnwrapObservableList (configSections vm)
 	return ()
+
+addConfigSection :: [PluginConfig] -> ObservableList ConfigSection -> (T.Text, JValue) -> Fay (ObservableList ConfigSection)
+addConfigSection pluginConfigs soFar configValue = getConfigSection configValue pluginConfigs
+	>>= koPushObservableList soFar >> return soFar
 
 getConfigSection :: (Text, JValue) -> [PluginConfig] -> Fay ConfigSection
 getConfigSection configValue pluginConfigs = do

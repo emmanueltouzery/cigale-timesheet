@@ -232,13 +232,11 @@ addEditModuleAction vm pluginConfig maybeConfigValue = do
 
 addEditModuleClick :: ConfigViewModel -> PluginConfig -> Maybe (ConfigSection, JValue) -> Fay ()
 addEditModuleClick vm pluginConfig maybeConfigValue = do
-	let configMembers = cfgPluginConfig pluginConfig
-	let memberNames = map memberName configMembers
+	let memberNames = map memberName $ cfgPluginConfig pluginConfig
 	let pluginName = cfgPluginName pluginConfig
 	let cfgAddEditVm = configAddEditVM vm
 	newConfigJValue <- koGet (configurationBeingEdited $ configAddEditVM vm)
-	let newConfig = jvAsTextHash newConfigJValue
-	if not $ validateEntry memberNames newConfig
+	if not $ validateEntry memberNames $ jvAsTextHash newConfigJValue
 		then do
 			mVm <- koGet $ modalDialogVM vm
 			"Please fill in all the fields" ~> warningText mVm

@@ -67,32 +67,39 @@ data ConfigDataInfo = ConfigDataInfo
 		memberType :: Text
 	} deriving (Eq) --, Show)
 
-data PluginConfig =
-	PluginConfig
+data PluginConfig = PluginConfig
 	{
+		cfgSourceName :: Text,
 		cfgPluginName :: Text,
 		-- pluginConfig.cfgPluginConfig returns configinfo? stupid naming.
 		cfgPluginConfig :: [ConfigDataInfo]
 	}
 	| InvalidPluginConfig
 
+data ConfigItem = ConfigItem
+	{
+		configItemName :: T.Text,
+		providerName :: T.Text,
+		configuration :: JValue
+	}
+	| InvalidConfigItem
+
 --- server structs END
 
 data ConfigSection = ConfigSection
 	{
 		pluginInfo :: PluginConfig,
-		userSettings :: ObservableList JValue
+		userSettings :: ObservableList ConfigItem
 	}
 
--- TODO i don't like JValue in the view model
 data ConfigViewModel = ConfigViewModel
 	{
 		pluginTypes :: ObservableList PluginConfig,
 		configSections :: ObservableList ConfigSection,
-		pluginContents :: PluginConfig -> JValue -> Fay Text,
+		pluginContents :: PluginConfig -> ConfigItem -> Fay Text,
 		addConfigItem :: ConfigViewModel -> PluginConfig -> Fay (),
-		deleteConfigItem :: ConfigSection -> JValue -> Fay (),
-		editConfigItem :: ConfigViewModel -> ConfigSection -> JValue -> Fay (),
+		deleteConfigItem :: ConfigSection -> ConfigItem -> Fay (),
+		editConfigItem :: ConfigViewModel -> ConfigSection -> ConfigItem -> Fay (),
 		modalDialogVM :: Observable ModalDialogVM,
 		configAddEditVM :: ConfigAddEditDialogVM
 	}
@@ -117,8 +124,8 @@ data ConfigAddEditDialogVM = ConfigAddEditDialogVM
 		-- ConfigAddEditDialogVM instead of creating
 		-- a new one each time, and if it's not Observable
 		-- I can't change it... The view won't change it.
-		configurationOriginalValue :: Observable JValue,
-		configurationBeingEdited :: Observable JValue,
+		configurationOriginalValue :: Observable ConfigItem, -- i think not needed anymore
+		configurationBeingEdited :: Observable ConfigItem,
 		passwordType :: Observable Text,
 		pluginBeingEditedHasPasswords :: Observable Bool,
 		showPasswords :: Observable Bool,
@@ -135,8 +142,8 @@ main = ready $ do
 	let configAddEditVMV = ConfigAddEditDialogVM
 		{
 			pluginBeingEdited = koObservable InvalidPluginConfig,
-			configurationOriginalValue = koObservable jEmptyValue,
-			configurationBeingEdited = koObservable jEmptyValue,
+			configurationOriginalValue = koObservable InvalidConfigItem,
+			configurationBeingEdited = koObservable InvalidConfigItem,
 			passwordType = koComputed $ do
 				isShowPasswd <- koGet $ showPasswords configAddEditVMV
 				return $ if isShowPasswd then "text" else "password",
@@ -177,66 +184,85 @@ showFilePickerCallback pluginCfg configurationBeingEdited memberNameV = do
 		}
 	showFilePicker curPath pickerOptions (pickerFileChanged memberNameV configurationBeingEdited)
 
-handleValDesc :: ConfigViewModel -> JValue -> [PluginConfig] -> Fay ()
-handleValDesc vm configVal pluginConfigs = do
-	let hash = jvAsHash configVal
-	-- TODO probably need a proper Text comparison...
-	let sortedHash = sortBy (strComp `on` (T.unpack . fst)) hash
-	foldM_ (addConfigSection pluginConfigs) (configSections vm) sortedHash
+handleValDesc :: ConfigViewModel -> [ConfigItem] -> [PluginConfig] -> Fay ()
+handleValDesc vm configItems pluginConfigs = do
+	let cfgByProvider = bucketsT providerName configItems
+	foldM_ (addConfigSection pluginConfigs) (configSections vm) cfgByProvider
 	koPushAllObservableList (pluginTypes vm) pluginConfigs
 	configSections <- koUnwrapObservableList (configSections vm)
 	return ()
 
-addConfigSection :: [PluginConfig] -> ObservableList ConfigSection -> (T.Text, JValue) -> Fay (ObservableList ConfigSection)
+-- monomorphic, no typeclasses in fay...
+bucketsT :: (a -> T.Text) -> [a] -> [(T.Text, [a])]
+bucketsT f = map (\g -> (fst $ head g, map snd g))
+          . groupBy ((==) `on` fst)
+          . sortBy (strComp `on` (T.unpack . fst))
+          . map (\x -> (f x, x))
+
+addConfigSection :: [PluginConfig] -> ObservableList ConfigSection -> (T.Text, [ConfigItem]) -> Fay (ObservableList ConfigSection)
 addConfigSection pluginConfigs soFar configValue = getConfigSection configValue pluginConfigs
 	>>= koPushObservableList soFar >> return soFar
 
-getConfigSection :: (Text, JValue) -> [PluginConfig] -> Fay ConfigSection
+getConfigSection :: (Text, [ConfigItem]) -> [PluginConfig] -> Fay ConfigSection
 getConfigSection configValue pluginConfigs = do
-		userSettingsL <- koObservableList userSettingsList
+		userSettingsL <- koObservableList $ snd configValue
 		return ConfigSection
 			{
 				pluginInfo = pluginConfig,
 				userSettings = userSettingsL
 			}
 	where
-		userSettingsList = jvArray $ snd configValue
 		mPluginConfig = find ((== fst configValue) . cfgPluginName) pluginConfigs
 		pluginConfig = fromMaybe
 			(error $ "The app doesn't know about plugin type " ++ fst configValue)
 			mPluginConfig
 
+getNewSourceName :: PluginConfig -> T.Text
+getNewSourceName pluginConfig = cfgPluginName pluginConfig
+
 -- hmm... doesn't the configsection include the jvalue?
-addEditModuleAction :: ConfigViewModel -> PluginConfig -> Maybe (ConfigSection, JValue) -> Fay ()
+addEditModuleAction :: ConfigViewModel -> PluginConfig -> Maybe (ConfigSection, ConfigItem) -> Fay ()
 addEditModuleAction vm pluginConfig maybeConfigValue = do
+	print "mcv"
+	print maybeConfigValue
+	let pluginConfig2 = pluginConfig { cfgSourceName = getNewSourceName pluginConfig } -- ###
 	let pluginName = cfgPluginName pluginConfig
 	modal <- select "#myModal"
 	let cfgAddEditVm = configAddEditVM vm
-	pluginConfig ~> pluginBeingEdited cfgAddEditVm
+	pluginConfig2 ~> pluginBeingEdited cfgAddEditVm
 	hasPasswords pluginConfig ~> pluginBeingEditedHasPasswords cfgAddEditVm
 	case maybeConfigValue of
 		Just configValue -> do
 			snd configValue ~> configurationBeingEdited cfgAddEditVm
-			jClone (snd configValue) ~> configurationOriginalValue cfgAddEditVm
+			snd configValue ~> configurationOriginalValue cfgAddEditVm -- used to be jClone here
 		Nothing -> do
-			jEmptyValue ~> configurationBeingEdited cfgAddEditVm
-			jEmptyValue ~> configurationOriginalValue cfgAddEditVm
+			let blankValue = map ((\x -> (x, "SSS")) . memberName) $ cfgPluginConfig pluginConfig
+			print "bv"
+			print blankValue
+			let blankCfg = ConfigItem (getNewSourceName pluginConfig) pluginName $ jvArrayToObject blankValue
+			blankCfg ~> configurationBeingEdited cfgAddEditVm
+			blankCfg ~> configurationOriginalValue cfgAddEditVm
 	let warningTextV = if hasPasswords pluginConfig
 		then "Warning: passwords are stored in plain text in the configuration file!"
 		else ""
-	let clickAction = addEditModuleClick vm pluginConfig maybeConfigValue
+	let clickAction = addEditModuleClick (cfgPluginConfig pluginConfig2) vm maybeConfigValue
 	modalVM <- prepareModal (Primary "Save changes") pluginName
 		"configEditTemplate" clickAction modal vm
  	warningTextV ~> warningText modalVM
 	bootstrapModal modal
 
-addEditModuleClick :: ConfigViewModel -> PluginConfig -> Maybe (ConfigSection, JValue) -> Fay ()
-addEditModuleClick vm pluginConfig maybeConfigValue = do
-	let memberNames = map memberName $ cfgPluginConfig pluginConfig
+addEditModuleClick :: [ConfigDataInfo] -> ConfigViewModel -> Maybe (ConfigSection, ConfigItem) -> Fay ()
+addEditModuleClick cfgPlConfig vm maybeConfigValue = do
+	let cfgAddEditVm = configAddEditVM vm
+	pluginConfig <- koGet $ pluginBeingEdited cfgAddEditVm
+	let memberNames = map memberName $ cfgPlConfig
 	let pluginName = cfgPluginName pluginConfig
 	let cfgAddEditVm = configAddEditVM vm
-	newConfigJValue <- koGet (configurationBeingEdited $ configAddEditVM vm)
-	if not $ validateEntry memberNames $ jvAsTextHash newConfigJValue
+	newConfigItem <- koGet (configurationBeingEdited $ configAddEditVM vm)
+	print newConfigItem
+	print vm
+	print maybeConfigValue
+	if not $ validateEntry memberNames (jvAsTextHash $ configuration newConfigItem)
 		then do
 			mVm <- koGet $ modalDialogVM vm
 			"Please fill in all the fields" ~> warningText mVm
@@ -282,7 +308,7 @@ prepareModal action title template clickCallback modal vm = do
 			Danger x -> ("danger", x)
 			_ -> error $ "Unknown action: " ++ tshow action
 
-deleteConfigItemCb :: ConfigViewModel -> ConfigSection -> JValue -> Fay ()
+deleteConfigItemCb :: ConfigViewModel -> ConfigSection -> ConfigItem -> Fay ()
 deleteConfigItemCb vm section userSetting = do
 	let pluginName = cfgPluginName $ pluginInfo section
 	modal <- select "#myModal"
@@ -291,7 +317,7 @@ deleteConfigItemCb vm section userSetting = do
 	bootstrapModal modal
 	return ()
 
-deleteConfigItemAction :: ConfigViewModel -> ConfigSection -> JValue -> Fay ()
+deleteConfigItemAction :: ConfigViewModel -> ConfigSection -> ConfigItem -> Fay ()
 deleteConfigItemAction vm section userSetting = do
 	let pluginName = cfgPluginName $ pluginInfo section
 	let parm = jvGetString $ jqParam (tshow userSetting)
@@ -300,15 +326,13 @@ deleteConfigItemAction vm section userSetting = do
 		koRemoveObservableList (userSettings section) userSetting
 		closePopup
 
-editConfigItemCb :: ConfigViewModel -> ConfigSection -> JValue -> Fay ()
+editConfigItemCb :: ConfigViewModel -> ConfigSection -> ConfigItem -> Fay ()
 editConfigItemCb vm section userSetting =
 	addEditModuleAction vm (pluginInfo section) (Just (section, userSetting))
 
-updatePluginConfig :: ConfigViewModel -> ConfigSection -> Text -> JValue -> Fay ()
+updatePluginConfig :: ConfigViewModel -> ConfigSection -> Text -> ConfigItem -> Fay ()
 updatePluginConfig vm configSection pluginName oldConfig = do
-	newConfigJValue <- koGet (configurationBeingEdited $ configAddEditVM vm)
-	let newConfig = jvAsTextHash newConfigJValue
-	let newConfigObj = jvArrayToObject newConfig
+	newConfigObj <- koGet (configurationBeingEdited $ configAddEditVM vm)
 	let parm = jvGetString $ jqParam (tshow oldConfig)
 	let url = "/config?pluginName=" ++ pluginName ++ "&oldVal=" ++ parm
 	ajxPut url newConfigObj (showError vm) $ do
@@ -317,17 +341,18 @@ updatePluginConfig vm configSection pluginName oldConfig = do
 
 addPluginConfig :: ConfigViewModel -> PluginConfig -> Fay ()
 addPluginConfig vm pluginConfig = do
-	newConfigJValue <- koGet (configurationBeingEdited $ configAddEditVM vm)
+	newConfigInfo <- koGet (configurationBeingEdited $ configAddEditVM vm)
+	let newConfigJValue = configuration newConfigInfo
 	let newConfig = jvAsTextHash newConfigJValue
 	let pluginName = cfgPluginName pluginConfig
-	let newConfigObj = jvArrayToObject newConfig
+	let newConfigObj = ConfigItem (cfgSourceName pluginConfig) pluginName newConfigJValue
 	ajxPost ("/config?pluginName=" ++ pluginName) newConfigObj (showError vm)
-		(addPluginInVm vm pluginConfig newConfig >> closePopup)
+		(addPluginInVm vm pluginConfig newConfigInfo >> closePopup)
 
-addPluginInVm :: ConfigViewModel -> PluginConfig -> [(Text,Text)] -> Fay ()
-addPluginInVm vm pluginConfig newConfig = do
+addPluginInVm :: ConfigViewModel -> PluginConfig -> ConfigItem -> Fay ()
+addPluginInVm vm pluginConfig newConfigItem = do
 	section <- findOrCreateSection vm pluginConfig
-	koPushObservableList (userSettings section) (jvArrayToObject newConfig)
+	koPushObservableList (userSettings section) newConfigItem
 
 findOrCreateSection :: ConfigViewModel -> PluginConfig -> Fay ConfigSection
 findOrCreateSection vm pluginConfig = do
@@ -359,9 +384,9 @@ getPluginElementHtml config dataInfo = do
 		_ -> memberValue
 	return $ memberNameV ++ " " ++ memberValueDisplay
 
-pluginContentsCb :: PluginConfig -> JValue -> Fay Text
+pluginContentsCb :: PluginConfig -> ConfigItem -> Fay Text
 pluginContentsCb pluginConfig configContents = do
-	htmlList <- mapM (getPluginElementHtml configContents) (cfgPluginConfig pluginConfig)
+	htmlList <- mapM (getPluginElementHtml $ configuration configContents) (cfgPluginConfig pluginConfig)
 	return $ "<div>" ++ T.intercalate "</div><div>" htmlList ++ "</div>"
 
 pickerFileChanged :: Text -> Observable JValue -> Text -> Fay ()

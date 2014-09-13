@@ -190,41 +190,38 @@ configVal = do
 	isSettings <- liftIO $ doesFileExist settingsFile
 	if isSettings
 		then serveFile settingsFile
-		else writeLBS "{}"
+		else writeLBS "[]"
 
 addConfigEntry :: Snap ()
-addConfigEntry = setActionResponse $ processConfigFromBody addPluginInConfig
+addConfigEntry = setActionResponse $ do
+	configItemJson <- lift (BSL.toStrict <$> readRequestBody 65536)
+	liftIO $ addPluginInConfig configItemJson
+	return ""
 
 deleteConfigEntry :: Snap ()
 deleteConfigEntry = setActionResponse $ do
-	oldCfg <- hParam "oldVal"
 	pluginName <- hParam "pluginName"
-	liftIO (deletePluginFromConfig oldCfg pluginName) >>= hoistEither
+	liftIO (deletePluginFromConfig pluginName) >>= hoistEither
 
 updateConfigEntry :: Snap ()
-updateConfigEntry = setActionResponse $ do
-	oldCfg <- hParam "oldVal"
-	processConfigFromBody $ updatePluginInConfig oldCfg
+updateConfigEntry = setActionResponse $ processConfigFromBody updatePluginInConfig
 
-processConfigFromBody :: (BS.ByteString -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)) ->
+processConfigFromBody :: (BS.ByteString -> IO (Either BS.ByteString BS.ByteString)) ->
 		 EitherT BS.ByteString Snap BS.ByteString
 processConfigFromBody handler = do
-	configJson <- lift (BSL.toStrict <$> readRequestBody 65536)
 	pluginName <- hParam "pluginName"
-	liftIO (handler pluginName configJson) >>= hoistEither
+	liftIO (handler pluginName) >>= hoistEither
 
 httpGetExtraData :: Snap ()
 httpGetExtraData = setActionResponse $ do
-	pluginName <- BS8.unpack <$> hParam "pluginName"
-	pluginConfig <- hParam "pluginConfig" -- TODO it's not OK to serialize the full config in the URL!! could include passwords!!
+	cfgItemName <- TE.decodeUtf8 <$> hParam "configItemName"
 	queryParams <- hParam "queryParams"
-	provider <- noteET (BS8.pack $ "Unknown plugin: " ++ pluginName)
-		$ find ((==pluginName) . getModuleName) EventProviders.plugins
-	extraData <- noteET "No extra data" $ getExtraData provider
+	config <- liftIO $ readConfig EventProviders.plugins
+	eventSource <- noteET "no such config item" $ find ((==cfgItemName) . srcName) config
+	extraData <- noteET "No extra data" $ getExtraData $ srcProvider eventSource
 	decodedParam <- noteET "Error decoding queryParams" $ decodeStrict' queryParams
-	decodedConfig <- noteET "Error decoding pluginConfig" $ decodeStrict' pluginConfig
 	settings <- liftIO Timesheet.getGlobalSettings
-	extraDataResult <- liftIO $ extraData decodedConfig settings decodedParam
+	extraDataResult <- liftIO $ extraData (srcConfig eventSource) settings decodedParam
 	(contentType, contents) <- noteET "No extra data retrieved" extraDataResult
 	lift $ modifyResponse $ setContentType $ BS.pack $ (fromIntegral . ord) <$> contentType
 	return contents

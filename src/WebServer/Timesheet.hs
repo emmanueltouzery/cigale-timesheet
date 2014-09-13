@@ -12,6 +12,8 @@ import Control.Error hiding (err)
 import Data.List.Utils (mergeBy)
 import Data.Function (on)
 import Control.Applicative
+import Text.Printf
+import qualified Data.Text as T
 
 import qualified Config
 import qualified EventProviders
@@ -37,13 +39,13 @@ fetchResponseAdd sofar@(FetchResponse _ errs) (Left err) = sofar { fetchErrors =
 fetchResponseAdd sofar@(FetchResponse ev _) (Right evts) =
 	sofar { fetchedEvents = mergeBy (compare `on` Event.eventDate) ev evts }
 
-processConfig :: Day -> [(EventProvider Value b, Value)] -> IO BL.ByteString
+processConfig :: Day -> [Config.EventSource Value Value] -> IO BL.ByteString
 processConfig date config = do
 	myTz <- getTimeZone $ UTCTime date (secondsToDiffTime 8*3600)
 
 	putStrLn "before the fetching..."
 	settings <- getGlobalSettings 
-	allEventsSeq <- mapM (uncurry $ fetchProvider settings date) config
+	allEventsSeq <- mapM (fetchProvider settings date) config
 	let allEvents = foldl' fetchResponseAdd (FetchResponse [] []) allEventsSeq
 	let eventDates = Event.eventDate <$> fetchedEvents allEvents
 	let eventDatesLocal = fmap (utcToLocalTime myTz) eventDates
@@ -67,10 +69,12 @@ getGlobalSettings = do
 	settingsFolder <- Config.getSettingsFolder
 	return GlobalSettings { getSettingsFolder = settingsFolder }
 
-fetchProvider :: GlobalSettings -> Day -> EventProvider Value b -> Value -> IO (Either String [Event])
-fetchProvider settings day provider config = do
-	putStrLn $ "fetching from " ++ getModuleName provider
-	evts <- runEitherT $ getEvents provider config settings day
+fetchProvider :: GlobalSettings -> Day -> Config.EventSource Value Value -> IO (Either String [Event])
+fetchProvider settings day eventSource = do
+	let provider = Config.srcProvider eventSource
+	putStrLn $ printf "fetching from %s (provider: %s)"
+		(T.unpack $ Config.srcName eventSource) (getModuleName provider)
+	evts <- runEitherT $ getEvents provider (Config.srcConfig eventSource) settings day
 	putStrLn "Done"
 	return evts
 

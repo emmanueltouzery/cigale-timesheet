@@ -16,10 +16,10 @@ bootstrapModalHide = ffi "%1.modal('hide')"
 
 data JValue
 
-ajxPut :: Text -> JValue -> Fay () -> Fay () -> Fay ()
+ajxPut :: Text -> Automatic a -> Fay () -> Fay () -> Fay ()
 ajxPut = ffi "jQuery.ajax({type:'PUT', url: %1, data: JSON.stringify(%2)}).success(%4).fail(%3)"
 
-ajxPost :: Text -> JValue -> Fay () -> Fay () -> Fay ()
+ajxPost :: Text -> Automatic a -> Fay () -> Fay () -> Fay ()
 ajxPost = ffi "jQuery.ajax({type:'POST', url: %1, data: JSON.stringify(%2)}).success(%4).fail(%3)"
 
 ajxDelete :: Text -> Fay () -> Fay () -> Fay ()
@@ -65,6 +65,12 @@ strComp (x:xs) (y:ys)
 
 textComp :: Text -> Text -> Ordering
 textComp = strComp `on` T.unpack
+
+-- | The 'groupBy' function is the non-overloaded version of 'group'.
+groupBy                 :: (a -> a -> Bool) -> [a] -> [[a]]
+groupBy _  []           =  []
+groupBy eq (x:xs)       =  (x:ys) : groupBy eq zs
+                           where (ys,zs) = span (eq x) xs
 
 -- From Control.Monad
 -- The Control.Applicative stuff

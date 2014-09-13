@@ -66,7 +66,7 @@ data ObservableList a
 koSetList :: ObservableList a -> Automatic [a] -> Fay ()
 koSetList = ffi "%1(%2)"
 
-koObservableList :: [a] -> Fay (ObservableList a)
+koObservableList :: Automatic [a] -> Fay (ObservableList a)
 koObservableList = ffi "ko.observableArray(%1)"
 
 koPushObservableList :: ObservableList a -> Automatic a -> Fay ()

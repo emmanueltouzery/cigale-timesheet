@@ -69,7 +69,7 @@ data ConfigDataInfo = ConfigDataInfo
 
 data PluginConfig = PluginConfig
 	{
-		cfgSourceName :: Text,
+		cfgSourceName :: Text, -- ## clarify
 		cfgPluginName :: Text,
 		-- pluginConfig.cfgPluginConfig returns configinfo? stupid naming.
 		cfgPluginConfig :: [ConfigDataInfo]
@@ -124,7 +124,7 @@ data ConfigAddEditDialogVM = ConfigAddEditDialogVM
 		-- ConfigAddEditDialogVM instead of creating
 		-- a new one each time, and if it's not Observable
 		-- I can't change it... The view won't change it.
-		configurationOriginalValue :: Observable ConfigItem, -- i think not needed anymore
+		configurationOriginalValue :: Observable ConfigItem, -- ## i think not needed anymore
 		configurationBeingEdited :: Observable ConfigItem,
 		passwordType :: Observable Text,
 		pluginBeingEditedHasPasswords :: Observable Bool,
@@ -189,7 +189,6 @@ handleValDesc vm configItems pluginConfigs = do
 	let cfgByProvider = bucketsT providerName configItems
 	foldM_ (addConfigSection pluginConfigs) (configSections vm) cfgByProvider
 	koPushAllObservableList (pluginTypes vm) pluginConfigs
-	configSections <- koUnwrapObservableList (configSections vm)
 	return ()
 
 -- monomorphic, no typeclasses in fay...
@@ -223,8 +222,6 @@ getNewSourceName pluginConfig = cfgPluginName pluginConfig
 -- hmm... doesn't the configsection include the jvalue?
 addEditModuleAction :: ConfigViewModel -> PluginConfig -> Maybe (ConfigSection, ConfigItem) -> Fay ()
 addEditModuleAction vm pluginConfig maybeConfigValue = do
-	print "mcv"
-	print maybeConfigValue
 	let pluginConfig2 = pluginConfig { cfgSourceName = getNewSourceName pluginConfig } -- ###
 	let pluginName = cfgPluginName pluginConfig
 	modal <- select "#myModal"
@@ -237,8 +234,6 @@ addEditModuleAction vm pluginConfig maybeConfigValue = do
 			snd configValue ~> configurationOriginalValue cfgAddEditVm -- used to be jClone here
 		Nothing -> do
 			let blankValue = map ((\x -> (x, "SSS")) . memberName) $ cfgPluginConfig pluginConfig
-			print "bv"
-			print blankValue
 			let blankCfg = ConfigItem (getNewSourceName pluginConfig) pluginName $ jvArrayToObject blankValue
 			blankCfg ~> configurationBeingEdited cfgAddEditVm
 			blankCfg ~> configurationOriginalValue cfgAddEditVm
@@ -259,9 +254,6 @@ addEditModuleClick cfgPlConfig vm maybeConfigValue = do
 	let pluginName = cfgPluginName pluginConfig
 	let cfgAddEditVm = configAddEditVM vm
 	newConfigItem <- koGet (configurationBeingEdited $ configAddEditVM vm)
-	print newConfigItem
-	print vm
-	print maybeConfigValue
 	if not $ validateEntry memberNames (jvAsTextHash $ configuration newConfigItem)
 		then do
 			mVm <- koGet $ modalDialogVM vm

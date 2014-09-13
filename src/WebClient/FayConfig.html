@@ -134,6 +134,9 @@ data-bind="click: function() { $root.configAddEditVM.showFilePickerCb($root.conf
 				<h3 class='panel-title' data-bind="text: pluginInfo.cfgPluginName"></h3></div>
 			<div class='panel-body' data-bind="foreach: userSettings">
 				<div class='well well-sm'><div class='row'>
+					<div class='col-xs-8'><span><b data-bind="text: configItemName"></b></span>
+					</div><div class='col-xs-4'></div>
+				</div><div class='row'>
 						<div class='col-xs-8' data-bind="html: $root.pluginContents($parent.pluginInfo, $data)">
 				</div><div class='col-xs-4'><div class='btn-toolbar' style='float: right;'>
 				<button type='button' class='btn btn-default btn-lg' data-bind="click:

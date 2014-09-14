@@ -69,7 +69,6 @@ data ConfigDataInfo = ConfigDataInfo
 
 data PluginConfig = PluginConfig
 	{
-		cfgSourceName :: Text, -- ## clarify
 		cfgPluginName :: Text,
 		-- pluginConfig.cfgPluginConfig returns configinfo? stupid naming.
 		cfgPluginConfig :: [ConfigDataInfo]
@@ -222,25 +221,24 @@ getNewSourceName pluginConfig = cfgPluginName pluginConfig
 -- hmm... doesn't the configsection include the jvalue?
 addEditModuleAction :: ConfigViewModel -> PluginConfig -> Maybe (ConfigSection, ConfigItem) -> Fay ()
 addEditModuleAction vm pluginConfig maybeConfigValue = do
-	let pluginConfig2 = pluginConfig { cfgSourceName = getNewSourceName pluginConfig } -- ###
 	let pluginName = cfgPluginName pluginConfig
 	modal <- select "#myModal"
 	let cfgAddEditVm = configAddEditVM vm
-	pluginConfig2 ~> pluginBeingEdited cfgAddEditVm
+	pluginConfig ~> pluginBeingEdited cfgAddEditVm
 	hasPasswords pluginConfig ~> pluginBeingEditedHasPasswords cfgAddEditVm
 	case maybeConfigValue of
 		Just configValue -> do
 			snd configValue ~> configurationBeingEdited cfgAddEditVm
 			snd configValue ~> configurationOriginalValue cfgAddEditVm -- used to be jClone here
 		Nothing -> do
-			let blankValue = map ((\x -> (x, "SSS")) . memberName) $ cfgPluginConfig pluginConfig
+			let blankValue = map ((\x -> (x, "")) . memberName) $ cfgPluginConfig pluginConfig
 			let blankCfg = ConfigItem (getNewSourceName pluginConfig) pluginName $ jvArrayToObject blankValue
 			blankCfg ~> configurationBeingEdited cfgAddEditVm
 			blankCfg ~> configurationOriginalValue cfgAddEditVm
 	let warningTextV = if hasPasswords pluginConfig
 		then "Warning: passwords are stored in plain text in the configuration file!"
 		else ""
-	let clickAction = addEditModuleClick (cfgPluginConfig pluginConfig2) vm maybeConfigValue
+	let clickAction = addEditModuleClick (cfgPluginConfig pluginConfig) vm maybeConfigValue
 	modalVM <- prepareModal (Primary "Save changes") pluginName
 		"configEditTemplate" clickAction modal vm
  	warningTextV ~> warningText modalVM
@@ -334,10 +332,8 @@ updatePluginConfig vm configSection pluginName oldConfig = do
 addPluginConfig :: ConfigViewModel -> PluginConfig -> Fay ()
 addPluginConfig vm pluginConfig = do
 	newConfigInfo <- koGet (configurationBeingEdited $ configAddEditVM vm)
-	let newConfigJValue = configuration newConfigInfo
-	let newConfig = jvAsTextHash newConfigJValue
-	let pluginName = cfgPluginName pluginConfig
-	let newConfigObj = ConfigItem (cfgSourceName pluginConfig) pluginName newConfigJValue
+	let pluginName = providerName newConfigInfo
+	let newConfigObj = newConfigInfo --ConfigItem (getNewSourceName pluginConfig) pluginName newConfigJValue
 	ajxPost ("/config?pluginName=" ++ pluginName) newConfigObj (showError vm)
 		(addPluginInVm vm pluginConfig newConfigInfo >> closePopup)
 

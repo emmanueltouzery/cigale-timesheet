@@ -48,7 +48,7 @@
 		<form role="form">
 			<div class="form-group">
 				<label for="sourceName">Enter source name:</label>
-				<input type="text" class="form-control" id="sourceName" data-bind="value: configAddEditVM.pluginBeingEdited().cfgSourceName" placeholder="Enter source name" value=""/>
+				<input type="text" class="form-control" id="sourceName" data-bind="value: configAddEditVM.configurationBeingEdited().configItemName" placeholder="Enter source name" value=""/>
 			</div>
 			<div class="form-group" data-bind="foreach: configAddEditVM.pluginBeingEdited().cfgPluginConfig">
 				<label data-bind="text: memberName, attr: {for: memberName}"></label>

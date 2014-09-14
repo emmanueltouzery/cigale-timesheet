@@ -131,7 +131,7 @@ data ConfigAddEditDialogVM = ConfigAddEditDialogVM
 		passwordType :: Observable Text,
 		pluginBeingEditedHasPasswords :: Observable Bool,
 		showPasswords :: Observable Bool,
-		showFilePickerCb :: PluginConfig -> Observable JValue -> Text -> Fay ()
+		showFilePickerCb :: PluginConfig -> Observable ConfigItem -> Text -> Fay ()
 	}
 
 instance KnockoutModel ConfigViewModel
@@ -168,11 +168,11 @@ main = ready $ do
 	myajax2 "/configVal" "/configdesc" $ \val desc ->
 		handleValDesc viewModel (head val) (head desc)
 
-showFilePickerCallback :: PluginConfig -> Observable JValue -> Text -> Fay ()
+showFilePickerCallback :: PluginConfig -> Observable ConfigItem -> Text -> Fay ()
 showFilePickerCallback pluginCfg configurationBeingEdited memberNameV = do
 	let memberTypeV = memberType $ fromJust 
 		$ find ((==memberNameV) . memberName) (cfgPluginConfig pluginCfg)
-	configurationBeingEditedV <- koGet configurationBeingEdited
+	configurationBeingEditedV <- configuration <$> koGet configurationBeingEdited
 	let maybeCurPath = lookup memberNameV (jvAsHash configurationBeingEditedV)
 	let curPath = case maybeCurPath of
 		Just v -> jvGetString v
@@ -394,10 +394,10 @@ pluginContentsCb pluginConfig configContents = do
 	htmlList <- mapM (getPluginElementHtml $ configuration configContents) (cfgPluginConfig pluginConfig)
 	return $ "<div>" ++ T.intercalate "</div><div>" htmlList ++ "</div>"
 
-pickerFileChanged :: Text -> Observable JValue -> Text -> Fay ()
+pickerFileChanged :: Text -> Observable ConfigItem -> Text -> Fay ()
 pickerFileChanged memberName configurationBeingEdited path = do
 	configurationBeingEditedV <- koGet configurationBeingEdited
-	jvValueSet configurationBeingEditedV memberName path
+	jvValueSet (configuration configurationBeingEditedV) memberName path
 	configurationBeingEditedV ~> configurationBeingEdited
 	
 

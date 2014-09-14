@@ -31,6 +31,9 @@ jvValue = ffi "%1[%2]"
 jvValueSet :: JValue -> Text -> Text -> Fay ()
 jvValueSet = ffi "%1[%2] = %3"
 
+encodeURIComponent :: Text -> Text
+encodeURIComponent = ffi "encodeURIComponent(%1)"
+
 jvArray :: JValue -> [JValue]
 jvArray = ffi "%1"
 
@@ -240,7 +243,7 @@ addEditModuleAction vm pluginConfig maybeConfigValue = do
 	case maybeConfigValue of
 		Just configValue -> do
 			snd configValue ~> configurationBeingEdited cfgAddEditVm
-			snd configValue ~> configurationOriginalValue cfgAddEditVm -- used to be jClone here
+			snd configValue ~~> configurationOriginalValue cfgAddEditVm
 		Nothing -> do
 			let blankValue = map ((\x -> (x, "")) . memberName) $ cfgPluginConfig pluginConfig
 			newSrcName <- getNewSourceName vm pluginConfig
@@ -335,8 +338,7 @@ editConfigItemCb vm section userSetting =
 updatePluginConfig :: ConfigViewModel -> ConfigSection -> Text -> ConfigItem -> Fay ()
 updatePluginConfig vm configSection pluginName oldConfig = do
 	newConfigObj <- koGet (configurationBeingEdited $ configAddEditVM vm)
-	let parm = jvGetString $ jqParam (tshow oldConfig)
-	let url = "/config?pluginName=" ++ pluginName ++ "&oldVal=" ++ parm
+	let url = "/config?pluginName=" ++ pluginName ++ "&oldConfigItemName=" ++ (encodeURIComponent $ configItemName oldConfig)
 	ajxPut url newConfigObj (showError vm) $ do
 		koReplaceElementObservableList (userSettings configSection) oldConfig newConfigObj
 		closePopup

@@ -23,6 +23,7 @@ module Knockout
   , koRemoveObservableList
   , koReplaceElementObservableList
   , (~>)
+  , (~~>)
 
   , KnockoutModel
   , koApplyBindings
@@ -59,6 +60,11 @@ koSubscribe = ffi "%1.subscribe(%2)"
 
 (~>) :: Automatic a -> Observable a -> Fay ()
 (~>) = flip koSet
+
+-- In real haskell, with immutability, i would not
+-- need that. But in fay I apparently do...
+(~~>) :: Automatic a -> Observable a -> Fay ()
+(~~>) = ffi "%2(JSON.parse(JSON.stringify(%1)))"
 
 data ObservableList a
 

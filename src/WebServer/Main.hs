@@ -200,7 +200,7 @@ addConfigEntry = setActionResponse $ do
 
 deleteConfigEntry :: Snap ()
 deleteConfigEntry = setActionResponse $ do
-	pluginName <- hParam "pluginName"
+	pluginName <- hParam "configItemName"
 	liftIO (deletePluginFromConfig pluginName) >>= hoistEither
 
 updateConfigEntry :: Snap ()

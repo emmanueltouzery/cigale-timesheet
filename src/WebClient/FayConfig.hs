@@ -327,9 +327,9 @@ deleteConfigItemAction :: ConfigViewModel -> ConfigSection -> ConfigItem -> Fay 
 deleteConfigItemAction vm section userSetting = do
 	let pluginName = cfgPluginName $ pluginInfo section
 	let parm = jvGetString $ jqParam (tshow userSetting)
-	let url = "/config?pluginName=" ++ pluginName ++ "&oldVal=" ++ parm
+	let url = "/config?configItemName=" ++ (encodeURIComponent $ configItemName userSetting)
 	ajxDelete url (showError vm) $ do
-		koRemoveObservableList (userSettings section) userSetting
+		koFilter ((/=configItemName userSetting) . configItemName) (userSettings section)
 		closePopup
 
 editConfigItemCb :: ConfigViewModel -> ConfigSection -> ConfigItem -> Fay ()

@@ -63,6 +63,11 @@ strComp (x:xs) (y:ys)
     | x > y = GT
     | otherwise = strComp xs ys
 
+(<$>) :: (a -> b) -> Fay a -> Fay b
+f <$> a = do
+	x <- a
+	return $ f x
+
 textComp :: Text -> Text -> Ordering
 textComp = strComp `on` T.unpack
 

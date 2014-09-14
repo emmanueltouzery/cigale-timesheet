@@ -22,6 +22,9 @@ module Knockout
   , koRemoveAllObservableList
   , koRemoveObservableList
   , koReplaceElementObservableList
+  , koFilter
+  , koFilterM
+  , koSort
   , (~>)
   , (~~>)
 
@@ -34,9 +37,9 @@ module Knockout
 import Prelude
 import FFI
 import Utils
-import JQuery
+import JQuery hiding (not)
 
-import Fay.Text (fromString, Text)
+import Fay.Text (fromString, Text, unpack)
 
 data Observable a
 
@@ -92,6 +95,24 @@ koRemoveObservableList = ffi "%1.remove(%2)"
 
 koReplaceElementObservableList :: ObservableList a -> a -> a -> Fay ()
 koReplaceElementObservableList = ffi "%1.splice(%1.indexOf(%2), 1, %3)"
+
+koObservableListRemove :: (a -> bool) -> ObservableList a -> Fay (ObservableList a)
+koObservableListRemove = ffi "%2.remove(%1)"
+
+koFilter :: (a -> Bool) -> ObservableList a -> Fay (ObservableList a)
+koFilter f = koObservableListRemove (not . f)
+
+koSort :: (a -> Text) -> ObservableList a -> Fay (ObservableList a)
+koSort f = koSort_ (\x y -> case strComp (unpack $ f x) (unpack $ f y) of { GT -> 1; LT -> -1; EQ -> 0;})
+
+koSort_ :: (a -> a -> Int) -> ObservableList a -> Fay (ObservableList a)
+koSort_ = ffi "%2.sort(%1)"
+
+koObservableListRemoveM :: (a -> Fay bool) -> ObservableList a -> Fay (ObservableList a)
+koObservableListRemoveM = ffi "%2.remove(%1)"
+
+koFilterM :: (a -> Fay Bool) -> ObservableList a -> Fay (ObservableList a)
+koFilterM f = koObservableListRemoveM (\x -> not <$> f x)
 
 class KnockoutModel m
 

@@ -206,7 +206,8 @@ addConfigSection pluginConfigs soFar configValue = getConfigSection configValue 
 
 getConfigSection :: (Text, [ConfigItem]) -> [PluginConfig] -> Fay ConfigSection
 getConfigSection configValue pluginConfigs = do
-		userSettingsL <- koObservableList $ snd configValue
+		userSettingsL <- koObservableList $ sortBy 
+			(strComp `on` (T.unpack . configItemName)) $ snd configValue
 		return ConfigSection
 			{
 				pluginInfo = pluginConfig,
@@ -242,7 +243,7 @@ addEditModuleAction vm pluginConfig maybeConfigValue = do
 	hasPasswords pluginConfig ~> pluginBeingEditedHasPasswords cfgAddEditVm
 	case maybeConfigValue of
 		Just configValue -> do
-			snd configValue ~> configurationBeingEdited cfgAddEditVm
+			snd configValue ~~> configurationBeingEdited cfgAddEditVm
 			snd configValue ~~> configurationOriginalValue cfgAddEditVm
 		Nothing -> do
 			let blankValue = map ((\x -> (x, "")) . memberName) $ cfgPluginConfig pluginConfig
@@ -340,7 +341,9 @@ updatePluginConfig vm configSection pluginName oldConfig = do
 	newConfigObj <- koGet (configurationBeingEdited $ configAddEditVM vm)
 	let url = "/config?pluginName=" ++ pluginName ++ "&oldConfigItemName=" ++ (encodeURIComponent $ configItemName oldConfig)
 	ajxPut url newConfigObj (showError vm) $ do
-		koReplaceElementObservableList (userSettings configSection) oldConfig newConfigObj
+		koFilter ((/=configItemName oldConfig) . configItemName) (userSettings configSection)
+		koPushObservableList (userSettings configSection) newConfigObj
+		koSort configItemName (userSettings configSection)
 		closePopup
 
 addPluginConfig :: ConfigViewModel -> PluginConfig -> Fay ()

@@ -126,7 +126,7 @@ data ConfigAddEditDialogVM = ConfigAddEditDialogVM
 		-- ConfigAddEditDialogVM instead of creating
 		-- a new one each time, and if it's not Observable
 		-- I can't change it... The view won't change it.
-		configurationOriginalValue :: Observable ConfigItem, -- ## i think not needed anymore
+		configurationOriginalValue :: Observable ConfigItem,
 		configurationBeingEdited :: Observable ConfigItem,
 		passwordType :: Observable Text,
 		pluginBeingEditedHasPasswords :: Observable Bool,

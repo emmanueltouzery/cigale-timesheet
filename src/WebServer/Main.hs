@@ -204,7 +204,10 @@ deleteConfigEntry = setActionResponse $ do
 	liftIO (deletePluginFromConfig pluginName) >>= hoistEither
 
 updateConfigEntry :: Snap ()
-updateConfigEntry = setActionResponse $ processConfigFromBody updatePluginInConfig
+updateConfigEntry = setActionResponse $ do
+	configItemJson <- lift (BSL.toStrict <$> readRequestBody 65536) -- TODO share this in processConfigFromBody
+	oldConfigItemName <- TE.decodeUtf8 <$> hParam "oldConfigItemName"
+	liftIO (updatePluginInConfig oldConfigItemName configItemJson) >>= hoistEither
 
 processConfigFromBody :: (BS.ByteString -> IO (Either BS.ByteString BS.ByteString)) ->
 		 EitherT BS.ByteString Snap BS.ByteString

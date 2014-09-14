@@ -101,13 +101,13 @@ checkRemoveFromConfig config cfgItemName =
 		then Nothing
 		else Just configWithoutThisSource
 
-updatePluginInConfig :: BS.ByteString -> IO (Either BS.ByteString BS.ByteString)
-updatePluginInConfig configItemJson = runEitherT $ do
+updatePluginInConfig :: T.Text -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)
+updatePluginInConfig oldConfigItemName configItemJson = runEitherT $ do
 	config <- liftIO $ readConfig EventProviders.plugins
 	let errorMsg = "invalid new config info: " +++ configItemJson
 	(configItem, configWithoutThisSource) <- noteET errorMsg $ do
 		nElt <- decodeStrict' configItemJson
-		configWithoutElt <- checkRemoveFromConfig config $ configItemName nElt
+		configWithoutElt <- checkRemoveFromConfig config oldConfigItemName
 		return (nElt, configWithoutElt)
 	let providersByNameHash = providersByName EventProviders.plugins
 	newElt <- noteET "Error reading new config item"

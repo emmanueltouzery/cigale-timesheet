@@ -159,3 +159,7 @@ inits                   :: [a] -> [[a]]
 inits xs                =  [] : case xs of
                                   []      -> []
                                   x : xs' -> map (x :) (inits xs')
+
+-- | The 'concatMapM' function generalizes 'concatMap' to arbitrary monads.
+concatMapM        :: (a -> Fay [b]) -> [a] -> Fay [b]
+concatMapM f xs   =  liftM concat (mapM f xs)

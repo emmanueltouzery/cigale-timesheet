@@ -215,8 +215,19 @@ getConfigSection configValue pluginConfigs = do
 			(error $ "The app doesn't know about plugin type " ++ fst configValue)
 			mPluginConfig
 
-getNewSourceName :: PluginConfig -> T.Text
-getNewSourceName pluginConfig = cfgPluginName pluginConfig
+getNewSourceName :: ConfigViewModel -> PluginConfig -> Fay T.Text
+getNewSourceName vm pluginConfig = do
+	allSections <- koUnwrapObservableList (configSections vm) 
+	allUserSettings <- concatMapM koUnwrapObservableList $ map userSettings allSections
+	let existingNames = map configItemName allUserSettings
+	return $ findNewName (cfgPluginName pluginConfig) existingNames
+
+findNewName :: Text -> [Text] -> Text
+findNewName base existing = tryNextName base existing (1::Int)
+	where tryNextName b e i = if isNothing (find (==attempt) existing)
+		then attempt
+		else tryNextName b e (i+1)
+		where attempt = base ++ " #" ++ T.pack (show i)
 
 -- hmm... doesn't the configsection include the jvalue?
 addEditModuleAction :: ConfigViewModel -> PluginConfig -> Maybe (ConfigSection, ConfigItem) -> Fay ()
@@ -232,7 +243,8 @@ addEditModuleAction vm pluginConfig maybeConfigValue = do
 			snd configValue ~> configurationOriginalValue cfgAddEditVm -- used to be jClone here
 		Nothing -> do
 			let blankValue = map ((\x -> (x, "")) . memberName) $ cfgPluginConfig pluginConfig
-			let blankCfg = ConfigItem (getNewSourceName pluginConfig) pluginName $ jvArrayToObject blankValue
+			newSrcName <- getNewSourceName vm pluginConfig
+			let blankCfg = ConfigItem newSrcName pluginName $ jvArrayToObject blankValue
 			blankCfg ~> configurationBeingEdited cfgAddEditVm
 			blankCfg ~> configurationOriginalValue cfgAddEditVm
 	let warningTextV = if hasPasswords pluginConfig

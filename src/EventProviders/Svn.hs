@@ -37,8 +37,8 @@ getSvnProvider = EventProvider
 		getExtraData = Nothing
 	}
 
-getRepoCommits :: SvnConfigRecord -> GlobalSettings -> Day -> EitherT String IO [Event.Event]
-getRepoCommits config _ date = do
+getRepoCommits :: SvnConfigRecord -> GlobalSettings -> Day -> (() -> Url) -> EitherT String IO [Event.Event]
+getRepoCommits config _ date _ = do
 	let dateRange = formatDateRange date (addDays 1 date)
 	output <- Util.runProcess "svn" "."
 		["log", svnRepo config, "-r", dateRange, "--verbose"]

@@ -56,8 +56,8 @@ getRedmineProvider = EventProvider
 		getExtraData = Nothing
 	}
 
-getRedmineEvents :: RedmineConfig -> GlobalSettings -> Day -> EitherT String IO [Event]
-getRedmineEvents config _ day = do
+getRedmineEvents :: RedmineConfig -> GlobalSettings -> Day -> (() -> Url) -> EitherT String IO [Event]
+getRedmineEvents config _ day _ = do
 	cookie <- lift $ login config
 	cookieValues <- hoistEither $ note "invalid cookie format" $ cookie >>= headMay . split ';'
 	let activityUrl = encodeUtf8 $ prepareActivityUrl config day

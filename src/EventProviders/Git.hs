@@ -37,8 +37,8 @@ getGitProvider = EventProvider
 		getExtraData = Nothing
 	}
 
-getRepoCommits :: GitRecord -> GlobalSettings -> Day -> EitherT String IO [Event.Event]
-getRepoCommits (GitRecord _username projectPath) _ date = do
+getRepoCommits :: GitRecord -> GlobalSettings -> Day -> (() -> Url) -> EitherT String IO [Event.Event]
+getRepoCommits (GitRecord _username projectPath) _ date _ = do
 	let username = T.unpack _username
 	output <- Util.runProcess "git" projectPath [
 			"log", "--since", formatDate $ addDays (-1) date,

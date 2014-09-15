@@ -2,7 +2,7 @@
 module EventProvider (thGetTypeDesc,
 	GlobalSettings(GlobalSettings), EventProvider(..),
 	eventProviderWrap, getSettingsFolder,
-	ConfigDataType(..), ConfigDataInfo(..), FolderPath, ContentType) where
+	ConfigDataType(..), ConfigDataInfo(..), FolderPath, ContentType, Url) where
 
 import qualified Data.Text as T
 import Data.Time.Calendar
@@ -67,10 +67,11 @@ data GlobalSettings = GlobalSettings {
 
 type FolderPath = String
 type ContentType = String
+type Url = String
 
 data EventProvider a b = EventProvider {
 	getModuleName :: String,
-	getEvents :: a -> GlobalSettings -> Day -> EitherT String IO [Event],
+	getEvents :: a -> GlobalSettings -> Day -> (b -> Url) -> EitherT String IO [Event],
 	getConfigType :: [ConfigDataInfo],
 	getExtraData :: Maybe (a -> GlobalSettings -> b -> IO (Maybe (ContentType, ByteString)))
 }
@@ -87,7 +88,7 @@ eventProviderWrap (EventProvider innerGetModName innerGetEvents
 		innerGetConfigType innerGetExtraData) = EventProvider
 	{
 		getModuleName = innerGetModName,
-		getEvents = innerGetEvents . decodeVal,
+		getEvents = \a s d u -> innerGetEvents (decodeVal a) s d (u . toJSON),
 		getConfigType = innerGetConfigType,
 		getExtraData = innerGetExtraData >>= \decoder -> Just $ \cfg s k -> decoder (decodeVal cfg) s (decodeVal k)
 	}

@@ -35,8 +35,8 @@ getHgProvider = EventProvider
 		getExtraData = Nothing
 	}
 
-getRepoCommits :: HgRecord -> GlobalSettings -> Day -> EitherT String IO [Event.Event]
-getRepoCommits (HgRecord _username projectPath) _ day = do
+getRepoCommits :: HgRecord -> GlobalSettings -> Day -> (() -> Url) -> EitherT String IO [Event.Event]
+getRepoCommits (HgRecord _username projectPath) _ day _ = do
 	let username = T.unpack _username
 	let dateRange = formatDate day
 	output <- Util.runProcess "hg" projectPath ["log", "-k", username, "-d", dateRange,

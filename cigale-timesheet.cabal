@@ -93,6 +93,7 @@ Executable cigale-timesheet
      transformers,
      snap-core,
      snap-server,
+     http-types,
      blaze-html,
     -- i don't use any rex 0.4 feature but it added a constraint on
     -- the haskell-src-meta dependency which prevents cabal to pick too old versions

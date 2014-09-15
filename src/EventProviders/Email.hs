@@ -75,9 +75,10 @@ data Email = Email
 	}
 	deriving (Eq, Show)
 
-getEmailEvents :: EmailConfig -> GlobalSettings -> Day -> EitherT String IO [Event.Event]
-getEmailEvents cfg@(EmailConfig mboxLocation) _ day = do
-	emails <- lift $ getEmails cfg mboxLocation day day 
+getEmailEvents :: EmailConfig -> GlobalSettings -> Day
+	-> (AttachmentKey -> Url) -> EitherT String IO [Event.Event]
+getEmailEvents cfg@(EmailConfig mboxLocation) _ day getAttachUrl = do
+	emails <- lift $ getEmails getAttachUrl mboxLocation day day 
 	timezone <- lift $ getTimeZone (UTCTime day 8)
 	return $ map (toEvent timezone) emails
 
@@ -92,8 +93,8 @@ toEvent timezone email = Event.Event
 		Event.fullContents = Just $ contents email
 	}
 
-getEmails :: EmailConfig -> String -> Day -> Day -> IO [Email]
-getEmails emailConfig sent_mbox fromDate toDate = do
+getEmails :: (AttachmentKey -> Url) -> String -> Day -> Day -> IO [Email]
+getEmails getAttachUrl sent_mbox fromDate toDate = do
 	mbox <- parseMboxFile Backward sent_mbox
 	-- going from the end, stop at the first message which
 	-- is older than my start date.
@@ -102,14 +103,14 @@ getEmails emailConfig sent_mbox fromDate toDate = do
 	-- now we remove the messages that are newer than end date
 	-- need to reverse messages because i'm reading from the end.
 	let messages1 = takeWhile isBefore (reverse messages)
-	return $ map (messageToEmail emailConfig) messages1
+	return $ map (messageToEmail getAttachUrl) messages1
 	where
 		dateMatches predicate email = predicate $ localDay (getEmailDate email)
 		isAfter = dateMatches (>= fromDate)
 		isBefore = dateMatches (<= toDate)
 
-messageToEmail :: EmailConfig -> MboxMessage BL.ByteString -> Email
-messageToEmail emailConfig msg = do
+messageToEmail :: (AttachmentKey -> Url) -> MboxMessage BL.ByteString -> Email
+messageToEmail getAttachUrl msg = do
 	let emailDate = getEmailDate msg
 	let msgBody = BSL.toStrict $ _mboxMsgBody msg
 	let (headers, rawMessage) = parseMessage msg
@@ -120,7 +121,7 @@ messageToEmail emailConfig msg = do
 	let emailContents = case parseMultipartSections headers rawMessage of
 			Just sections -> T.concat
 				[fromMaybe "no contents!" $ sectionTextContent <$> sectionToConsider sections,
-				"<hr/>", getAttachmentBar emailConfig messageId sections]
+				"<hr/>", getAttachmentBar getAttachUrl messageId sections]
 			Nothing -> parseTextPlain $ MultipartSection headers rawMessage
 	Email emailDate toVal ccVal subjectVal emailContents
 	where
@@ -128,11 +129,10 @@ messageToEmail emailConfig msg = do
 		-- pazi another top-level function is also named readHeader!!!
 		readHeader hName = decodeMime . encodeUtf8 . Map.findWithDefault "missing" hName
 
-getAttachmentBar :: EmailConfig -> String -> [MultipartSection] -> T.Text
-getAttachmentBar emailConfig messageId sections = foldr (\(section,idx) -> T.append (T.pack $
-		formatAttachmentDisplay section $ link section idx)) ""
-	$ attachmentSections sections
-	where link = formatAttachmentUrl emailConfig messageId
+getAttachmentBar :: (AttachmentKey -> Url) -> String -> [MultipartSection] -> T.Text
+getAttachmentBar getAttachUrl messageId sections = foldr (\(section,idx) -> T.append (T.pack $
+		formatAttachmentDisplay section $ link idx)) "" $ attachmentSections sections
+	where link = getAttachUrl . AttachmentKey messageId
 
 formatAttachmentDisplay :: MultipartSection -> String -> String
 formatAttachmentDisplay section link
@@ -147,12 +147,6 @@ getAttachmentName (sectionCTDisposition -> disp) = T.unpack $ fromMaybe "" $ hea
 -- filters attachment sections only. Gives the section index too.
 attachmentSections :: [MultipartSection] -> [(MultipartSection, Int)]
 attachmentSections sections = filter (("attachment" `T.isInfixOf`) . sectionCTDisposition . fst) $ zip sections [0..]
-
--- TODO encoding the plugin config in the URL is broken. but that's the way it's done right now.
-formatAttachmentUrl :: EmailConfig -> String -> MultipartSection -> Int -> String
-formatAttachmentUrl emailConfig messageId section idx = printf "/getExtraData?pluginName=Email&pluginConfig=%s&queryParams=%s"
-	(urlAeson emailConfig) (urlAeson $ AttachmentKey messageId idx)
-	where urlAeson x = (chr . fromIntegral) <$> BS.unpack (urlEncode True $ BSL.toStrict $ Aeson.encode x)
 
 parseMultipartSections :: Map T.Text T.Text -> BSL.ByteString -> Maybe [MultipartSection]
 parseMultipartSections headers rawMessage = do

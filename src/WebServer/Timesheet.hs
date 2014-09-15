@@ -4,6 +4,7 @@ module Timesheet where
 import Data.Time.Calendar
 import qualified Data.Aeson as JSON
 import qualified Data.ByteString.Lazy.Char8 as BL
+import qualified Data.ByteString as BS
 import Data.List
 import Data.Time
 import Data.Aeson
@@ -14,6 +15,10 @@ import Data.Function (on)
 import Control.Applicative
 import Text.Printf
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as TE
+import Network.HTTP.Types.URI (urlEncode)
+import qualified Data.Aeson as Aeson
+import Data.Char (chr)
 
 import qualified Config
 import qualified EventProviders
@@ -45,7 +50,7 @@ processConfig date config = do
 
 	putStrLn "before the fetching..."
 	settings <- getGlobalSettings 
-	allEventsSeq <- mapM (fetchProvider settings date) config
+	allEventsSeq <- mapM (\c -> fetchProvider (Config.srcName c) settings date c) config
 	let allEvents = foldl' fetchResponseAdd (FetchResponse [] []) allEventsSeq
 	let eventDates = Event.eventDate <$> fetchedEvents allEvents
 	let eventDatesLocal = fmap (utcToLocalTime myTz) eventDates
@@ -69,14 +74,20 @@ getGlobalSettings = do
 	settingsFolder <- Config.getSettingsFolder
 	return GlobalSettings { getSettingsFolder = settingsFolder }
 
-fetchProvider :: GlobalSettings -> Day -> Config.EventSource Value Value -> IO (Either String [Event])
-fetchProvider settings day eventSource = do
+fetchProvider :: T.Text -> GlobalSettings -> Day -> Config.EventSource Value Value -> IO (Either String [Event])
+fetchProvider configItemName settings day eventSource = do
 	let provider = Config.srcProvider eventSource
 	putStrLn $ printf "fetching from %s (provider: %s)"
 		(T.unpack $ Config.srcName eventSource) (getModuleName provider)
-	evts <- runEitherT $ getEvents provider (Config.srcConfig eventSource) settings day
+	evts <- runEitherT $ getEvents provider (Config.srcConfig eventSource)
+		settings day (getExtraDataUrl configItemName)
 	putStrLn "Done"
 	return evts
+
+getExtraDataUrl :: T.Text -> Value -> Url
+getExtraDataUrl (TE.encodeUtf8 -> configItemName) key = printf "/getExtraData?configItemName=%s&queryParams=%s" 
+	(toUrlParam configItemName) (toUrlParam $ BL.toStrict $ Aeson.encode key)
+	where toUrlParam = (fmap $ chr . fromIntegral) . BS.unpack . urlEncode True
 
 data PluginConfig = PluginConfig
 	{

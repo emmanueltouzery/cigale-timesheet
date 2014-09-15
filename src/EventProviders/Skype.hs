@@ -41,8 +41,8 @@ getSkypeProvider = EventProvider
 		getExtraData = Nothing
 	}
 
-getSkypeEvents :: SkypeConfig -> GlobalSettings -> Day -> EitherT String IO [Event]
-getSkypeEvents (SkypeConfig skypeUsernameVal) _ day = do
+getSkypeEvents :: SkypeConfig -> GlobalSettings -> Day -> (() -> Url)-> EitherT String IO [Event]
+getSkypeEvents (SkypeConfig skypeUsernameVal) _ day _ = do
 	let todayMidnight = LocalTime day (TimeOfDay 0 0 0)
 	timezone <- lift $ getTimeZone (UTCTime day 8)
 	let todayMidnightUTC = localTimeToUTC timezone todayMidnight

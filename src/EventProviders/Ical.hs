@@ -58,8 +58,8 @@ fromLeaf :: CalendarValue -> String
 fromLeaf (Leaf a) = a
 fromLeaf _ = "Error: expected a leaf!"
 
-getCalendarEvents :: IcalRecord -> GlobalSettings -> Day -> EitherT String IO [Event.Event]
-getCalendarEvents (IcalRecord icalAddress) settings day = do
+getCalendarEvents :: IcalRecord -> GlobalSettings -> Day -> (() -> Url) -> EitherT String IO [Event.Event]
+getCalendarEvents (IcalRecord icalAddress) settings day _ = do
 	timezone <- lift $ getTimeZone (UTCTime day 8)
 	let settingsFolder = getSettingsFolder settings
 	icalText <- lift $ do

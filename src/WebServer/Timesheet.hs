@@ -79,8 +79,8 @@ fetchProvider configItemName settings day eventSource = do
 	let provider = Config.srcProvider eventSource
 	putStrLn $ printf "fetching from %s (provider: %s)"
 		(T.unpack $ Config.srcName eventSource) (getModuleName provider)
-	evts <- runEitherT $ getEvents provider (Config.srcConfig eventSource)
-		settings day (getExtraDataUrl configItemName)
+	evts <- runEitherT $ fmapLT ((T.unpack (Config.srcName eventSource) ++ ": ") ++)
+		$ getEvents provider (Config.srcConfig eventSource) settings day (getExtraDataUrl configItemName)
 	putStrLn "Done"
 	return evts
 

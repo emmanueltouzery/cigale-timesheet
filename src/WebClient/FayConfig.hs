@@ -254,16 +254,16 @@ addEditModuleAction vm pluginConfig maybeConfigValue = do
 	let warningTextV = if hasPasswords pluginConfig
 		then "Warning: passwords are stored in plain text in the configuration file!"
 		else ""
-	let clickAction = addEditModuleClick (cfgPluginConfig pluginConfig) vm maybeConfigValue
+	let clickAction = addEditModuleClick pluginConfig vm maybeConfigValue
 	modalVM <- prepareModal (Primary "Save changes") pluginName
 		"configEditTemplate" clickAction modal vm
  	warningTextV ~> warningText modalVM
 	bootstrapModal modal
 
-addEditModuleClick :: [ConfigDataInfo] -> ConfigViewModel -> Maybe (ConfigSection, ConfigItem) -> Fay ()
-addEditModuleClick cfgPlConfig vm maybeConfigValue = do
+addEditModuleClick :: PluginConfig -> ConfigViewModel -> Maybe (ConfigSection, ConfigItem) -> Fay ()
+addEditModuleClick pluginConfig vm maybeConfigValue = do
+	let cfgPlConfig  = cfgPluginConfig pluginConfig
 	let cfgAddEditVm = configAddEditVM vm
-	pluginConfig <- koGet $ pluginBeingEdited cfgAddEditVm
 	let pluginName = cfgPluginName pluginConfig
 	let cfgAddEditVm = configAddEditVM vm
 	newConfigItem <- koGet (configurationBeingEdited $ configAddEditVM vm)
@@ -413,7 +413,6 @@ pickerFileChanged memberName configurationBeingEdited path = do
 	configurationBeingEditedV <- koGet configurationBeingEdited
 	jvValueSet (configuration configurationBeingEditedV) memberName path
 	configurationBeingEditedV ~> configurationBeingEdited
-	
 
 -- http://stackoverflow.com/questions/18025474/multiple-ajax-queries-in-parrallel-with-fay
 myajax2 :: Text -> Text -> (Automatic b -> Automatic c -> Fay ()) -> Fay ()

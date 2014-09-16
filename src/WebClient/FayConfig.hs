@@ -264,24 +264,38 @@ addEditModuleClick :: [ConfigDataInfo] -> ConfigViewModel -> Maybe (ConfigSectio
 addEditModuleClick cfgPlConfig vm maybeConfigValue = do
 	let cfgAddEditVm = configAddEditVM vm
 	pluginConfig <- koGet $ pluginBeingEdited cfgAddEditVm
-	let memberNames = map memberName $ cfgPlConfig
 	let pluginName = cfgPluginName pluginConfig
 	let cfgAddEditVm = configAddEditVM vm
 	newConfigItem <- koGet (configurationBeingEdited $ configAddEditVM vm)
-	if not $ validateEntry memberNames (jvAsTextHash $ configuration newConfigItem)
-		then do
+	cfgSections <- koUnwrapObservableList $ configSections vm
+	allUserSettings <- concatMapM (koUnwrapObservableList . userSettings) cfgSections
+	case validateEntry cfgPlConfig allUserSettings newConfigItem of
+		Left msg -> do
 			mVm <- koGet $ modalDialogVM vm
-			"Please fill in all the fields" ~> warningText mVm
-		else case maybeConfigValue of
+			msg ~> warningText mVm
+		_ -> case maybeConfigValue of
 			Nothing -> addPluginConfig vm pluginConfig
 			Just (configSection, existingConfig) ->
 				koGet (configurationOriginalValue cfgAddEditVm) >>=
 					updatePluginConfig vm configSection pluginName
 
-validateEntry :: [Text] -> [(Text,Text)] -> Bool
-validateEntry [] _ = True
-validateEntry (x:xs) newConfig = (isJust $ find (\(k,v) -> k == x && not (T.null v)) newConfig)
-	&& validateEntry xs newConfig
+validateEntry :: [ConfigDataInfo] -> [ConfigItem] -> ConfigItem -> Either Text ()
+validateEntry cfgPlConfig existingItems newConfigItem =
+	validateUniqueName (configItemName newConfigItem) (map configItemName existingItems) >>>
+	validateAllFieldsPresent (map memberName cfgPlConfig)
+		(jvAsTextHash $ configuration newConfigItem)
+
+validateUniqueName :: Text -> [Text] -> Either Text ()
+validateUniqueName name existing = if isNothing $ find (==name) existing
+	then Right ()
+	else Left "Source name already exists"
+
+validateAllFieldsPresent :: [Text] -> [(Text,Text)] -> Either Text ()
+validateAllFieldsPresent [] _ = Right ()
+validateAllFieldsPresent (x:xs) newConfig = if isValid
+		then Right () else Left "Please fill in all the fields"
+	where isValid = (isJust $ find (\(k,v) -> k == x && not (T.null v)) newConfig)
+		&& (isRight $ validateAllFieldsPresent xs newConfig)
 
 hasPasswords :: PluginConfig -> Bool
 hasPasswords = hasMemberType (== "Password")

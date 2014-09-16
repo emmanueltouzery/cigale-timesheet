@@ -53,6 +53,14 @@ last = ffi "%1.slice(-1)"
 toLower :: Text -> Text
 toLower = ffi "%1.toLowerCase()"
 
+-- no typeclasses in fay...
+Right m >>> k = k
+Left e >>> _ = Left e
+infixr 1 >>>
+
+isRight (Right _) = True
+isRight _ = False
+
 -- http://stackoverflow.com/questions/18521821
 strComp :: String -> String -> Ordering
 strComp (_:_) [] = GT

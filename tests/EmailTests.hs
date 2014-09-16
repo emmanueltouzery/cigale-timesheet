@@ -530,10 +530,10 @@ testDifferentMessage = it "parses a different message" $ do
 			to = "\"'C D'\" <c.d@e>",
 			cc = Nothing,
 			subject = "RE: FW: Test",
-			contents = "Hi,\n<br/>several lines.\n<br/><hr/><p><a href='/getExtraData?pluginName=Email&pluginConfig=%7B%22emailPath%22%3A%22test%22%7D&queryParams=%7B%22attachmentIndex%22%3A1%2C%22mailId%22%3A%22%22%7D' class='btn btn-default' role='button'><span class='glyphicon glyphicon-paperclip'></span>Test Cases Performance 010 11112013.xlsx</a></p>"
+			contents = "Hi,\n<br/>several lines.\n<br/><hr/><p><a href='AttachmentKey {mailId = \"\", attachmentIndex = 1}' class='btn btn-default' role='button'><span class='glyphicon glyphicon-paperclip'></span>Test Cases Performance 010 11112013.xlsx</a></p>"
 		}
 	-- also cover the alternate order of parameters in the json... ugly but will do for now.
-	let expected2 = expected { contents = "Hi,\n<br/>several lines.\n<br/><hr/><p><a href='/getExtraData?pluginName=Email&pluginConfig=%7B%22emailPath%22%3A%22test%22%7D&queryParams=%7B%22mailId%22%3A%22%22%2C%22attachmentIndex%22%3A1%7D' class='btn btn-default' role='button'><span class='glyphicon glyphicon-paperclip'></span>Test Cases Performance 010 11112013.xlsx</a></p>" }
+	let expected2 = expected { contents = "Hi,\n<br/>several lines.\n<br/><hr/><p><a href='AttachmentKey {attachmentIndex = 1, mailId = \"\"}' class='btn btn-default' role='button'><span class='glyphicon glyphicon-paperclip'></span>Test Cases Performance 010 11112013.xlsx</a></p>" }
 	let parsed = messageToEmail' msg
 	assertBool ("doesn't match; parsed: "
 		++ show parsed
@@ -545,4 +545,4 @@ getMultipartBodyText sep bdy = fromMaybe "no body!"
 	(sectionTextContent <$> (parseMultipartBody sep bdy >>= sectionToConsider))
 
 messageToEmail' :: MboxMessage BL.ByteString -> Email
-messageToEmail' = messageToEmail (EmailConfig "test")
+messageToEmail' = messageToEmail $ show

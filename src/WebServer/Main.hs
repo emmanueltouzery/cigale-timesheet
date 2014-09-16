@@ -195,8 +195,8 @@ configVal = do
 addConfigEntry :: Snap ()
 addConfigEntry = setActionResponse $ do
 	configItemJson <- lift (BSL.toStrict <$> readRequestBody 65536)
-	liftIO $ addPluginInConfig configItemJson
-	return ""
+	success <- liftIO $ addPluginInConfig configItemJson
+	hoistEither success
 
 deleteConfigEntry :: Snap ()
 deleteConfigEntry = setActionResponse $ do

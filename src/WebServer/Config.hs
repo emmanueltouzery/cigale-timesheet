@@ -13,8 +13,10 @@ import qualified Data.ByteString as BS
 import qualified Data.Text.Encoding as TE
 import Control.Applicative
 import Control.Error
+import Control.Monad (when)
 import Control.Monad.Trans (liftIO)
 import Data.Aeson.TH (deriveJSON, defaultOptions)
+import Data.List
 
 import EventProvider (EventProvider, getModuleName)
 import qualified EventProviders
@@ -109,6 +111,8 @@ updatePluginInConfig oldConfigItemName configItemJson = runEitherT $ do
 		nElt <- decodeStrict' configItemJson
 		configWithoutElt <- checkRemoveFromConfig config oldConfigItemName
 		return (nElt, configWithoutElt)
+	when (existsEventSourceName (configItemName configItem) config)
+		$ hoistEither $ Left "Duplicate config name"
 	let providersByNameHash = providersByName EventProviders.plugins
 	newElt <- noteET "Error reading new config item"
 		$ processConfigItem providersByNameHash configItem
@@ -122,5 +126,11 @@ addPluginInConfig configItemJson = runEitherT $ do
 	let providersByNameHash = providersByName EventProviders.plugins
 	newElt <- noteET "Error reading new config item"
 		$ processConfigItem providersByNameHash configItem
-	liftIO $ (newElt:) <$> readConfig EventProviders.plugins >>= writeConfiguration
+	config <- liftIO $ readConfig EventProviders.plugins
+	when (existsEventSourceName (configItemName configItem) config)
+		$ hoistEither $ Left "Duplicate config name"
+	liftIO $ writeConfiguration (newElt:config)
 	return ""
+
+existsEventSourceName :: T.Text -> [EventSource a b] -> Bool
+existsEventSourceName name = isJust . find ((==name) . srcName)

@@ -384,6 +384,7 @@ findOrCreateSection vm pluginConfig = do
 			userSettingsL <- koObservableList []
 			let newSection = ConfigSection {pluginInfo = pluginConfig, userSettings=userSettingsL}
 			koPushObservableList (configSections vm) newSection
+			koSort (cfgPluginName . pluginInfo) (configSections vm)
 			return newSection
 
 closePopup :: Fay ()

@@ -268,16 +268,23 @@ addEditModuleClick pluginConfig vm maybeConfigValue = do
 	let cfgAddEditVm = configAddEditVM vm
 	newConfigItem <- koGet (configurationBeingEdited $ configAddEditVM vm)
 	cfgSections <- koUnwrapObservableList $ configSections vm
+	let validateThen = runValidateThen vm cfgPlConfig newConfigItem
 	allUserSettings <- concatMapM (koUnwrapObservableList . userSettings) cfgSections
+	case maybeConfigValue of
+		Nothing -> validateThen allUserSettings $ addPluginConfig vm pluginConfig
+		Just (configSection, existingConfig) -> do
+			originalConfigItem <- koGet (configurationOriginalValue cfgAddEditVm)
+			validateThen (filter (</=> originalConfigItem) allUserSettings) $
+				updatePluginConfig vm configSection pluginName originalConfigItem
+	where (</=>) = (/=) `on` configItemName
+
+runValidateThen :: ConfigViewModel -> [ConfigDataInfo] -> ConfigItem -> [ConfigItem] -> Fay () -> Fay ()
+runValidateThen vm cfgPlConfig newConfigItem allUserSettings action =
 	case validateEntry cfgPlConfig allUserSettings newConfigItem of
 		Left msg -> do
 			mVm <- koGet $ modalDialogVM vm
 			msg ~> warningText mVm
-		_ -> case maybeConfigValue of
-			Nothing -> addPluginConfig vm pluginConfig
-			Just (configSection, existingConfig) ->
-				koGet (configurationOriginalValue cfgAddEditVm) >>=
-					updatePluginConfig vm configSection pluginName
+		_ -> action
 
 validateEntry :: [ConfigDataInfo] -> [ConfigItem] -> ConfigItem -> Either Text ()
 validateEntry cfgPlConfig existingItems newConfigItem =

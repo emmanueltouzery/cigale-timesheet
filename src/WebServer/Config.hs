@@ -110,7 +110,7 @@ updatePluginInConfig oldConfigItemName configItemJson = runEitherT $ do
 		nElt <- decodeStrict' configItemJson
 		configWithoutElt <- checkRemoveFromConfig config oldConfigItemName
 		return (nElt, configWithoutElt)
-	ensureUniqueEventSourceName (configItemName configItem) config
+	ensureUniqueEventSourceName (configItemName configItem) configWithoutThisSource
 	let providersByNameHash = providersByName EventProviders.plugins
 	newElt <- noteET "Error reading new config item"
 		$ processConfigItem providersByNameHash configItem

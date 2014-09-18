@@ -112,8 +112,9 @@ selectFileCb filePickerVm fileInfo = if filesize serverInfoV == -1
 
 goToFolderCb :: FilePickerViewModel -> Text -> Fay ()
 goToFolderCb filePickerVm path = do
-			path ~> displayedFolder filePickerVm
-			refresh filePickerVm
+	path ~> displayedFolder filePickerVm
+	ClientFileInfo (FileInfo "" 0) "" ~> selectedFile filePickerVm
+	refresh filePickerVm
 
 showFilePicker :: Text -> FilePickerOptions -> (Text -> Fay ()) -> Fay ()
 showFilePicker path options callback = do
@@ -123,11 +124,7 @@ showFilePicker path options callback = do
 	loadCb "#filePickerModalHolder" "/static/FilePickerModal.html" $ do
 		emptyFileList <- koObservableList []
 		filepickerRoot <- select "#filePickerModal"
-		let (curFolder, curFile) = case path of
-			"" -> ("", "")
-			_ -> case opMode of
-				PickFile -> breakOnEnd "/" path
-				PickFolder -> (path, "")
+		let (curFolder, curFile) = splitPath opMode path
 		let filePickerVm = FilePickerViewModel
 			{
 				operationMode = opMode,
@@ -150,6 +147,13 @@ showFilePicker path options callback = do
 		bootstrapModal filepickerRoot
 		koSubscribe (optShowHiddenFiles filePickerVm) (\_ -> refresh filePickerVm)
 		refresh filePickerVm
+
+splitPath :: OperationMode -> Text -> (Text, Text)
+splitPath opMode path
+	| path == "" = ("", "")
+	| opMode == PickFile && not (T.any (=='/') path) = ("", "")
+	| opMode == PickFile = breakOnEnd "/" path
+	| opMode == PickFolder = (path, "")
 
 isActiveCb :: FilePickerViewModel -> ClientFileInfo -> Fay Bool
 isActiveCb vm fileInfo = do

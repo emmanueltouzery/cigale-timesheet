@@ -77,6 +77,7 @@ prefetch :: FilePath -> Day -> Day -> IO ()
 prefetch folder curDay maxDay
 	| curDay > maxDay = return ()
 	| otherwise = unlessM (doesFileExist fname) $ do
+		putStrLn $ "prefetching for day " ++ show curDay
 		fetchTimesheetAndStore curDay fname
 		prefetch folder (addDays 1 curDay) maxDay
 	where

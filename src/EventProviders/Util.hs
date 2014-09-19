@@ -41,10 +41,11 @@ runProcess :: String -> String -> [String] -> EitherT String IO T.Text
 runProcess program runningFolder parameters = do
 	(inh, Just outh, errh, pid) <- lift $ createProcess (proc program parameters)
 		{ std_out = CreatePipe, cwd = Just runningFolder }
+	output <- lift (IO.hGetContents outh)
 	lift (waitForProcess pid) >>= \case
 		-- TODO collect error output on failure.
 		ExitFailure x -> hoistEither $ Left (printf "%s failed with exit code %d" program x :: String)
-		ExitSuccess -> lift (IO.hGetContents outh)
+		ExitSuccess -> return output
 
 -- return the common prefix to all the files.
 -- http://www.haskell.org/pipermail/beginners/2011-April/006861.html

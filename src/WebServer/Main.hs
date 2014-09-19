@@ -76,9 +76,10 @@ removeObsoletePrefetch = do
 prefetch :: FilePath -> Day -> Day -> IO ()
 prefetch folder curDay maxDay
 	| curDay > maxDay = return ()
-	| otherwise = unlessM (doesFileExist fname) $ do
-		putStrLn $ "prefetching for day " ++ show curDay
-		fetchTimesheetAndStore curDay fname
+	| otherwise = do
+		unlessM (doesFileExist fname) $ do
+			putStrLn $ "prefetching for day " ++ show curDay
+			void $ fetchTimesheetAndStore curDay fname
 		prefetch folder (addDays 1 curDay) maxDay
 	where
 		fname = folder </> getPrefetchFilename curDay

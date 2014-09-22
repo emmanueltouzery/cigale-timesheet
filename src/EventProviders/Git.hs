@@ -14,6 +14,7 @@ import Data.List (isInfixOf, intercalate, foldl')
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.Maybe
 import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
+import Control.Monad (replicateM)
 import Control.Monad.Trans
 import Control.Error
 
@@ -56,14 +57,13 @@ getRepoCommits (GitRecord _username projectPath) _ date _ = do
 
 isRelevantCommit :: Day -> String -> Commit -> Bool
 isRelevantCommit date username commit = all ($ commit) [
-			isInfixOf username . commitAuthor,
-			commitInRange date,
-			not . commitIsMerge]
+	isInfixOf username . commitAuthor,
+	commitInRange date,
+	not . commitIsMerge]
 
 isRelevantTagCommit :: Day -> Commit -> Bool
 isRelevantTagCommit date commit = all ($ commit) [
-			commitInRange date,
-			not . null . commitTags]
+	commitInRange date, not . null . commitTags]
 
 commitInRange :: Day -> Commit -> Bool
 commitInRange date = inRange . localDay . commitDate
@@ -72,14 +72,14 @@ commitInRange date = inRange . localDay . commitDate
 	
 commitToEvent :: FolderPath -> TimeZone -> Commit -> Event.Event
 commitToEvent gitFolderPath timezone commit = Event.Event
-			{
-				pluginName = getModuleName getGitProvider,
-				eventIcon = "glyphicon-cog",
-				eventDate = localTimeToUTC timezone (commitDate commit),
-				desc = fromMaybe "no commit message" (commitDesc commit),
-				extraInfo = getCommitExtraInfo commit (T.pack gitFolderPath),
-				fullContents = Just $ T.pack $ commitContents commit
-			}
+	{
+		pluginName = getModuleName getGitProvider,
+		eventIcon = "glyphicon-cog",
+		eventDate = localTimeToUTC timezone (commitDate commit),
+		desc = fromMaybe "no commit message" (commitDesc commit),
+		extraInfo = getCommitExtraInfo commit (T.pack gitFolderPath),
+		fullContents = Just $ T.pack $ commitContents commit
+	}
 
 tagToEvent :: FolderPath -> TimeZone -> Commit -> Event.Event
 tagToEvent gitFolderPath timezone commit = baseEvent
@@ -152,11 +152,9 @@ parseCommit = do
 	many1 $ T.oneOf "\r\n"
 	
 	mergeInfo <- optionMaybe parseMerge
-	string "Author: "
-	author <- readLine
+	author <- string "Author: " >> readLine
 	date <- parseDateTime
-	eol
-	eol
+	eol >> eol
 
 	summary <- optionMaybe parseCommitComment
 	filesInfo <- optionMaybe parseFiles
@@ -164,8 +162,7 @@ parseCommit = do
 	let cFilesDesc = maybe [] (fmap fst) filesInfo
 	let cFileNames = maybe [] (fmap snd) filesInfo
 
-	optional eol
-	optional eol
+	replicateM 2 $ optional eol
 	return Commit
 		{
 			commitDate = date,
@@ -212,8 +209,7 @@ parseDateTime = do
 	mins <- Util.parseNum 2 <* T.char ':'
 	seconds <- Util.parseNum 2 <* T.char ' '
 	year <- Util.parseNum 4 <* T.char ' '
-	oneOf "-+"
-	count 4 digit
+	oneOf "-+" >> count 4 digit
 	return $ LocalTime
 		(fromGregorian year month dayOfMonth)
 		(TimeOfDay hour mins seconds)

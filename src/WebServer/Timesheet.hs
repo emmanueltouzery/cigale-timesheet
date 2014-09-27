@@ -26,7 +26,7 @@ import EventProvider
 import Event
 import qualified FayAeson
 
-process :: Day -> IO BL.ByteString
+process :: Day -> IO (Bool, BL.ByteString)
 process month = do
 	config <- Config.readConfig EventProviders.plugins
 	processConfig month config
@@ -44,7 +44,7 @@ fetchResponseAdd sofar@(FetchResponse _ errs) (Left err) = sofar { fetchErrors =
 fetchResponseAdd sofar@(FetchResponse ev _) (Right evts) =
 	sofar { fetchedEvents = mergeBy (compare `on` Event.eventDate) ev evts }
 
-processConfig :: Day -> [Config.EventSource Value Value] -> IO BL.ByteString
+processConfig :: Day -> [Config.EventSource Value Value] -> IO (Bool, BL.ByteString)
 processConfig date config = do
 	myTz <- getTimeZone $ UTCTime date (secondsToDiffTime 8*3600)
 
@@ -59,13 +59,13 @@ processConfig date config = do
 	-- element... but it's actually shorter to code like this..
 	let outOfRangeData = filter (outOfRange date (addDays 1 date)) eventDatesLocal
 	if null outOfRangeData
-		then return $ JSON.encode allEvents
+		then return $ (null $ fetchErrors allEvents, JSON.encode allEvents)
 		else do
 			putStrLn "*** SOME EVENTS ARE NOT IN TIME RANGE"
 			print outOfRangeData
 			print $ head $ fetchedEvents allEvents
 			print $ last $ fetchedEvents allEvents
-			return BL.empty
+			return (False, BL.empty)
 	where
 		outOfRange start end time = time < LocalTime start midnight || time > LocalTime end midnight
 

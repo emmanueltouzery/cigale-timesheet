@@ -169,10 +169,11 @@ timesheet = setActionResponse $ do
 
 fetchTimesheetAndStore :: Day -> FilePath -> IO BS.ByteString
 fetchTimesheetAndStore date fname = do
-	contents <- Timesheet.process date
+	(success, contents) <- Timesheet.process date
 	today <- getToday
+	when (not success) $ putStrLn "*** WARNING, errors, will not cache the response"
 	-- only cache past dates
-	when (date < today)
+	when (date < today && success)
 		$ withFile fname WriteMode $ \h -> BSL.hPut h contents
 	return $ BSL.toStrict contents
 

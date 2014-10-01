@@ -6,9 +6,8 @@ import Data.Time.Calendar
 import qualified Data.Text as T
 import Data.Time.Clock (UTCTime(..))
 import Data.Time.LocalTime
-import Text.ParserCombinators.Parsec
-import qualified Text.Parsec.Text as T
-import qualified Text.Parsec as T
+import Text.Parsec.Text
+import Text.Parsec
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
 import Text.Printf
@@ -82,41 +81,41 @@ toEvent timezone (Commit dateVal _ commentVal cFiles) =
 	where
 		cFilesStr = map T.unpack cFiles
 
-parseCommits :: T.GenParser st [Commit]
+parseCommits :: GenParser st [Commit]
 parseCommits = parseCommitHeader >> many parseCommit
 
-parseCommit :: T.GenParser st Commit
+parseCommit :: GenParser st Commit
 parseCommit = do
 	readCell
 	username <- readCell
 	dateval <- parseDateTime
-	many $ T.noneOf "\r\n"; eol -- finish line
-	many $ T.noneOf "\r\n"; eol -- "Changed paths:"
-	commitFileInfos <- T.many parseCommitFileInfo
+	many $ noneOf "\r\n"; eol -- finish line
+	many $ noneOf "\r\n"; eol -- "Changed paths:"
+	commitFileInfos <- many parseCommitFileInfo
 	eol
 	summary <- parseSummary
 	parseCommitHeader
 	return $ Commit dateval (T.strip username) (T.pack summary) commitFileInfos
 
-parseCommitHeader :: T.GenParser st T.Text
-parseCommitHeader = T.pack <$> many (T.char '-') <* eol
+parseCommitHeader :: GenParser st T.Text
+parseCommitHeader = T.pack <$> many (char '-') <* eol
 
-readCell :: T.GenParser st T.Text
+readCell :: GenParser st T.Text
 readCell = do
-	T.many $ T.char ' '
-	result <- T.many $ T.noneOf "|"
-	T.char '|'
+	many $ char ' '
+	result <- many $ noneOf "|"
+	char '|'
 	return $ T.pack result
 
-parseDateTime :: T.GenParser st LocalTime
+parseDateTime :: GenParser st LocalTime
 parseDateTime = do
-	T.many $ T.char ' '
-	year <- Util.parseNum 4 <* T.char '-'
-	month <- Util.parseNum 2 <* T.char '-'
-	day <- Util.parseNum 2 <* T.char ' '
-	hour <- Util.parseNum 2 <* T.char ':'
-	mins <- Util.parseNum 2 <* T.char ':'
-	seconds <- Util.parseNum 2 <* T.char ' '
+	many $ char ' '
+	year <- Util.parseNum 4 <* char '-'
+	month <- Util.parseNum 2 <* char '-'
+	day <- Util.parseNum 2 <* char ' '
+	hour <- Util.parseNum 2 <* char ':'
+	mins <- Util.parseNum 2 <* char ':'
+	seconds <- Util.parseNum 2 <* char ' '
 	oneOf "-+"
 	count 4 digit
 	eol
@@ -124,20 +123,20 @@ parseDateTime = do
 		(fromGregorian year month day)
 		(TimeOfDay hour mins seconds)
 
-parseCommitFileInfo :: T.GenParser st T.Text
+parseCommitFileInfo :: GenParser st T.Text
 parseCommitFileInfo = do
-	count 3 (T.char ' ')
-	T.anyChar
-	T.char ' '
+	count 3 (char ' ')
+	anyChar
+	char ' '
 	filename <- many $ noneOf "\r\n"
 	eol
 	return $ T.pack filename
 
-parseSummary :: T.GenParser st String 
-parseSummary = T.manyTill T.anyChar (T.try $ string "----------")
+parseSummary :: GenParser st String
+parseSummary = manyTill anyChar (try $ string "----------")
 
-eol :: T.GenParser st String
-eol = T.many $ T.oneOf "\r\n"
+eol :: GenParser st String
+eol = many $ oneOf "\r\n"
 
 formatDateRange :: Day -> Day -> String
 formatDateRange startDate endDate =

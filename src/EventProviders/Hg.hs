@@ -5,9 +5,8 @@ module Hg where
 import Data.Time.Calendar
 import Data.Time.Clock (UTCTime(..))
 import Data.Time.LocalTime
-import Text.ParserCombinators.Parsec
-import qualified Text.Parsec.Text as T
-import qualified Text.Parsec as T
+import Text.Parsec.Text
+import Text.Parsec
 import qualified Data.Text as T
 import qualified Data.Text.IO as IO
 import Data.Aeson.TH (deriveJSON, defaultOptions)
@@ -70,10 +69,10 @@ data Commit = Commit
 	}
 	deriving (Eq, Show)
 
-parseCommits :: T.GenParser st [Commit]
+parseCommits :: GenParser st [Commit]
 parseCommits = many parseCommit
 
-parseCommit :: T.GenParser st Commit
+parseCommit :: GenParser st Commit
 parseCommit = do
 	date <- parseDateTime
 	summary <- parseSummary
@@ -81,19 +80,19 @@ parseCommit = do
 	cFiles <- parseFiles
 	return $ Commit date (T.pack summary) cFiles
 
-parseFiles :: T.GenParser st [String]
-parseFiles = manyTill parseFile (T.try $ string "--->>>\n")
+parseFiles :: GenParser st [String]
+parseFiles = manyTill parseFile (try $ string "--->>>\n")
 
-parseFile :: T.GenParser st String
-parseFile = T.manyTill anyChar $ string " \n"
+parseFile :: GenParser st String
+parseFile = manyTill anyChar $ string " \n"
 
-parseDateTime :: T.GenParser st LocalTime
+parseDateTime :: GenParser st LocalTime
 parseDateTime = do
-	year <- Util.parseNum 4 <* T.char '-'
-	month <- Util.parseNum 2 <* T.char '-'
-	day <- Util.parseNum 2 <* T.char ' '
-	hour <- Util.parseNum 2 <* T.char ':'
-	mins <- Util.parseNum 2 <* T.char ' '
+	year <- Util.parseNum 4 <* char '-'
+	month <- Util.parseNum 2 <* char '-'
+	day <- Util.parseNum 2 <* char ' '
+	hour <- Util.parseNum 2 <* char ':'
+	mins <- Util.parseNum 2 <* char ' '
 	oneOf "-+"
 	count 4 digit
 	eol
@@ -101,8 +100,8 @@ parseDateTime = do
 		(fromGregorian year month day)
 		(TimeOfDay hour mins 0)
 
-parseSummary :: T.GenParser st String
-parseSummary = manyTill anyChar (T.try $ string "--->>>")
+parseSummary :: GenParser st String
+parseSummary = manyTill anyChar (try $ string "--->>>")
 
-eol :: T.GenParser st String
-eol = T.many $ T.oneOf "\r\n"
+eol :: GenParser st String
+eol = many $ oneOf "\r\n"

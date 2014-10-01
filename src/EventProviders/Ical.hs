@@ -11,9 +11,8 @@ import Network.Http.Client
 import qualified Data.Text.Encoding as TE
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
-import Text.ParserCombinators.Parsec hiding ((<|>))
-import qualified Text.Parsec.Text as T
-import qualified Text.Parsec as T
+import Text.Parsec.Text
+import Text.Parsec hiding ((<|>))
 import qualified Data.ByteString.Char8 as B
 import System.IO
 import qualified System.Directory as Dir
@@ -135,17 +134,17 @@ eventInDateRange tz day event =  eventDay >= day && eventDay <= day
 	where
 		eventDay = localDay $ utcToLocalTime tz (Event.eventDate event)
 
-parseEvents :: T.GenParser st [Map String CalendarValue]
+parseEvents :: GenParser st [Map String CalendarValue]
 parseEvents = do
-	T.manyTill T.anyChar (T.try $ T.lookAhead parseBegin)
+	manyTill anyChar (try $ lookAhead parseBegin)
 	many parseEvent
 
-parseEvent :: T.GenParser st (Map String CalendarValue)
+parseEvent :: GenParser st (Map String CalendarValue)
 parseEvent = do
 	parseBegin
 	keyValues <- manyTill
-		(T.try parseSubLevel <|> T.try parseKeyValue)
-		(T.try parseEnd)
+		(try parseSubLevel <|> try parseKeyValue)
+		(try parseEnd)
 	return $ Map.fromList keyValues
 
 makeEvents :: TimeZone -> Event.Event -> LocalTime -> LocalTime -> [Event.Event]
@@ -182,10 +181,10 @@ keyValuesToEvents tz records = makeEvents tz baseEvent startDate endDate
 		startDate = parseDateNode "DTSTART" records
 		endDate = parseDateNode "DTEND" records
 
-parseBegin :: T.GenParser st String
+parseBegin :: GenParser st String
 parseBegin = string "BEGIN:VEVENT" >> eol
 
-parseKeyValue :: T.GenParser st (String, CalendarValue)
+parseKeyValue :: GenParser st (String, CalendarValue)
 parseKeyValue = do
 	key <- many $ noneOf ":;"
 	propertyParameters <- Map.fromList <$> many parsePropertyParameters
@@ -194,7 +193,7 @@ parseKeyValue = do
 	eol
 	return (key, Leaf $ CalendarLeaf propertyParameters values)
 
-parseSingleValue :: T.GenParser st String
+parseSingleValue :: GenParser st String
 parseSingleValue = do
 	text <- many1 $ noneOf "\\,\r\n"
 	isBackslash <- isJust <$> optionMaybe (string "\\")
@@ -204,7 +203,7 @@ parseSingleValue = do
 			((text ++ [chr]) ++) <$> parseSingleValue
 		else return text
 
-parsePropertyParameters :: T.GenParser st (String, String)
+parsePropertyParameters :: GenParser st (String, String)
 parsePropertyParameters = do
 	string ";"
 	key <- many $ noneOf "="
@@ -212,12 +211,12 @@ parsePropertyParameters = do
 	value <- many $ noneOf ";:"
 	return (key, value)
 
-parseSubLevel :: T.GenParser st (String, CalendarValue)
+parseSubLevel :: GenParser st (String, CalendarValue)
 parseSubLevel = do
 	string "BEGIN:"
 	value <- many $ noneOf "\r\n"
 	eol
-	subcontents <- manyTill parseKeyValue (T.try (do string $ "END:" ++ value; eol))
+	subcontents <- manyTill parseKeyValue (try (do string $ "END:" ++ value; eol))
 	return (value, SubLevel $ Map.fromList subcontents)
 
 parseDateNode :: String -> Map String CalendarValue -> LocalTime
@@ -233,14 +232,14 @@ parseDateOnlyNode key (T.pack -> nodeText) = dayTime <$> parseMaybe parseDate no
 		"DTSTART" -> time
 		"DTEND" -> time { localTimeOfDay = TimeOfDay 23 59 59 } -- end of the day
 
-parseDate :: T.GenParser st LocalTime
+parseDate :: GenParser st LocalTime
 parseDate = do
 	year <- parseNum 4
 	month <- parseNum 2
 	day <- parseNum 2
 	return $ LocalTime (fromGregorian year month day) (TimeOfDay 0 0 0)
 
-parseDateTime :: T.GenParser st LocalTime
+parseDateTime :: GenParser st LocalTime
 parseDateTime = do
 	date <- parseDate
 	hours <- char 'T' >> parseNum 2
@@ -249,7 +248,7 @@ parseDateTime = do
 	return $ date { localTimeOfDay = TimeOfDay hours mins sec }
 
 -- at the end of the file there may not be a carriage return.
-parseEnd :: T.GenParser st ()
+parseEnd :: GenParser st ()
 parseEnd = string "END:VEVENT" >> optional eol
 
 hasCachedVersionForDay :: String -> Day -> IO Bool
@@ -276,5 +275,5 @@ putInCache :: String -> T.Text -> IO ()
 putInCache settingsFolder text = withFile (cacheFilename settingsFolder) WriteMode
 	(\h -> T.hPutStr h text)
 
-eol :: T.GenParser st String
+eol :: GenParser st String
 eol = many1 $ oneOf "\r\n"

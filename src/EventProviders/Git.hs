@@ -5,9 +5,8 @@ module Git where
 import Data.Time.Calendar
 import Data.Time.LocalTime
 import Data.Time.Clock (UTCTime(..))
-import Text.ParserCombinators.Parsec
-import qualified Text.Parsec.Text as T
-import qualified Text.Parsec as T
+import Text.Parsec.Text
+import Text.Parsec
 import qualified Data.Text as T
 import qualified Data.Text.IO as IO
 import Data.List (isInfixOf, intercalate, foldl')
@@ -114,13 +113,13 @@ data Commit = Commit
 	}
 	deriving (Eq, Show)
 
-parseCommits :: T.GenParser st [Commit]
-parseCommits = many parseCommit --manyTill parseCommit (T.try eof)
+parseCommits :: GenParser st [Commit]
+parseCommits = many parseCommit
 
-parseMerge :: T.GenParser st String
+parseMerge :: GenParser st String
 parseMerge = string "Merge: " *> readLine
 
-parseDecoration :: T.GenParser st [String]
+parseDecoration :: GenParser st [String]
 parseDecoration = do
 	string " ("
 	decorationItems <- many1 $ do
@@ -138,18 +137,18 @@ isTag :: DecorationItem -> Bool
 isTag (Tag _) = True
 isTag _ = False
 
-parseTag :: T.GenParser st DecorationItem
-parseTag = Tag <$> (string "tag: " *> many1 (T.noneOf ",)"))
+parseTag :: GenParser st DecorationItem
+parseTag = Tag <$> (string "tag: " *> many1 (noneOf ",)"))
 
-parseParent :: T.GenParser st DecorationItem
-parseParent = Parent <$> many1 (T.noneOf ",)")
+parseParent :: GenParser st DecorationItem
+parseParent = Parent <$> many1 (noneOf ",)")
 
-parseCommit :: T.GenParser st Commit
+parseCommit :: GenParser st Commit
 parseCommit = do
 	string "commit "
-	commitSha <- many1 $ T.noneOf " \n\r"
+	commitSha <- many1 $ noneOf " \n\r"
 	tags <- option [] parseDecoration
-	many1 $ T.oneOf "\r\n"
+	many1 $ oneOf "\r\n"
 	
 	mergeInfo <- optionMaybe parseMerge
 	author <- string "Author: " >> readLine
@@ -174,41 +173,41 @@ parseCommit = do
 			commitTags = tags
 		}
 
-readLine :: T.GenParser st String
-readLine = T.many (T.noneOf "\r\n") <* T.oneOf "\r\n"
+readLine :: GenParser st String
+readLine = many (noneOf "\r\n") <* oneOf "\r\n"
 
-parseFiles :: T.GenParser st [(String, String)]
-parseFiles = manyTill parseFile (T.try parseFilesSummary)
+parseFiles :: GenParser st [(String, String)]
+parseFiles = manyTill parseFile (try parseFilesSummary)
 
-parseFile :: T.GenParser st (String, String)
+parseFile :: GenParser st (String, String)
 parseFile = do
 	char ' '
-	result <- T.many $ T.noneOf "|"
-	rest <- T.many $ T.noneOf "\n"
+	result <- many $ noneOf "|"
+	rest <- many $ noneOf "\n"
 	eol
 	return (result ++ rest, T.unpack $ T.strip $ T.pack result)
 
-parseFilesSummary :: T.GenParser st String
+parseFilesSummary :: GenParser st String
 parseFilesSummary = do
 	char ' '
 	many1 digit
 	string " file"
-	T.many $ T.noneOf "\n"
+	many $ noneOf "\n"
 	eol
 
-parseDateTime :: T.GenParser st LocalTime
+parseDateTime :: GenParser st LocalTime
 parseDateTime = do
 	string "Date:"
-	many $ T.char ' '
-	count 3 T.anyChar <* T.char ' ' -- day
-	month <- strToMonth <$> count 3 T.anyChar
-	T.char ' '
-	dayOfMonth <- read <$> T.many1 (T.noneOf " ")
-	T.char ' '
-	hour <- Util.parseNum 2 <* T.char ':'
-	mins <- Util.parseNum 2 <* T.char ':'
-	seconds <- Util.parseNum 2 <* T.char ' '
-	year <- Util.parseNum 4 <* T.char ' '
+	many $ char ' '
+	count 3 anyChar <* char ' ' -- day
+	month <- strToMonth <$> count 3 anyChar
+	char ' '
+	dayOfMonth <- read <$> many1 (noneOf " ")
+	char ' '
+	hour <- Util.parseNum 2 <* char ':'
+	mins <- Util.parseNum 2 <* char ':'
+	seconds <- Util.parseNum 2 <* char ' '
+	year <- Util.parseNum 4 <* char ' '
 	oneOf "-+" >> count 4 digit
 	return $ LocalTime
 		(fromGregorian year month dayOfMonth)
@@ -230,12 +229,12 @@ strToMonth month = case month of
 	"Dec" -> 12
 	_ -> error $ "Unknown month " ++ month
 
-parseCommitComment :: T.GenParser st String
+parseCommitComment :: GenParser st String
 parseCommitComment = do
-	T.try $ string "    "
-	summary <- manyTill anyChar (T.try $ string "\n\n" <|> string "\r\n\r\n")
+	try $ string "    "
+	summary <- manyTill anyChar (try $ string "\n\n" <|> string "\r\n\r\n")
 	count 2 eol
 	return summary
 
-eol :: T.GenParser st String
-eol = T.many $ T.oneOf "\r\n"
+eol :: GenParser st String
+eol = many $ oneOf "\r\n"

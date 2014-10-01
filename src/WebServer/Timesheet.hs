@@ -42,7 +42,8 @@ instance ToJSON FetchResponse where
 fetchResponseAdd :: FetchResponse -> Either String [Event] -> FetchResponse
 fetchResponseAdd sofar@(FetchResponse _ errs) (Left err) = sofar { fetchErrors = err:errs }
 fetchResponseAdd sofar@(FetchResponse ev _) (Right evts) =
-	sofar { fetchedEvents = mergeBy (compare `on` Event.eventDate) ev evts }
+	sofar { fetchedEvents = mergeBy orderByDate ev (sortBy orderByDate evts) }
+	where orderByDate = compare `on` Event.eventDate
 
 processConfig :: Day -> [Config.EventSource Value Value] -> IO (Bool, BL.ByteString)
 processConfig date config = do

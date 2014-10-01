@@ -12,8 +12,7 @@ import Str
 import TestUtil
 
 runHgTests :: Spec
-runHgTests = do
-	testUsualCommit
+runHgTests = testUsualCommit
 
 testUsualCommit :: Spec
 testUsualCommit = it "parses usual commits" $ do

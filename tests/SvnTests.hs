@@ -14,8 +14,7 @@ import TestUtil
 import Util
 
 runSvnTests :: Spec
-runSvnTests = do
-	testBasicCommit
+runSvnTests = testBasicCommit
 
 testBasicCommit :: Spec
 testBasicCommit = it "parses a basic SVN commit" $ do

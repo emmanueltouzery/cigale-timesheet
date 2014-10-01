@@ -48,7 +48,7 @@ getSkypeEvents (SkypeConfig skypeUsernameVal) _ day _ = do
 	let todayMidnightUTC = localTimeToUTC timezone todayMidnight
 	let minTimestamp = utcTimeToPOSIXSeconds todayMidnightUTC
 	let maxTimestamp = minTimestamp + 24*3600
-	homeDir <- lift $ getHomeDirectory
+	homeDir <- lift getHomeDirectory
 	r <- lift $ do
 		conn <- connectSqlite3 $ homeDir ++ "/.Skype/" 
 			++ skypeUsernameVal ++ "/main.db"

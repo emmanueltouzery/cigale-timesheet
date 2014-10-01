@@ -13,7 +13,7 @@ import Data.List (isInfixOf, intercalate, foldl')
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.Maybe
 import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
-import Control.Monad (replicateM)
+import Control.Monad (replicateM_)
 import Control.Monad.Trans
 import Control.Error
 
@@ -161,7 +161,7 @@ parseCommit = do
 	let cFilesDesc = maybe [] (fmap fst) filesInfo
 	let cFileNames = maybe [] (fmap snd) filesInfo
 
-	replicateM 2 $ optional eol
+	replicateM_ 2 $ optional eol
 	return Commit
 		{
 			commitDate = date,

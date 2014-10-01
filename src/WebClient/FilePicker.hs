@@ -17,7 +17,7 @@ import JQuery (JQuery, select, append)
 putStrLn = P.putStrLn . T.unpack
 
 getFolderContents :: Text -> (Automatic BrowseResponse -> Fay ()) -> Fay ()
-getFolderContents path callback = ajxGet url (putStrLn "Error getting folder contents") callback
+getFolderContents path = ajxGet url (putStrLn "Error getting folder contents")
 	where url = case path of
 		"" -> "/browseFolder"
 		_ -> "/browseFolder?path=" ++ path
@@ -163,7 +163,7 @@ isActiveCb vm fileInfo = do
 
 refresh :: FilePickerViewModel -> Fay ()
 refresh filePickerVm = do
-	True ~> (showThrobber filePickerVm)
+	True ~> showThrobber filePickerVm
 	displayedFolderV <- koGet $ displayedFolder filePickerVm
 	getFolderContents displayedFolderV (readBrowseResponse filePickerVm)
 
@@ -201,7 +201,7 @@ readBrowseResponse filePickerVm browseResponse = do
 		then filesToDisplay
 		else filter ((/='.') . T.head . filename) filesToDisplay
 	koSetList (files filePickerVm) finalList
-	False ~> (showThrobber filePickerVm)
+	False ~> showThrobber filePickerVm
 
 getPathElements :: Text -> [PathElem]
 getPathElements path = PathElem "root" "/" : zipWith PathElem pathElems paths
@@ -212,7 +212,7 @@ getPathElements path = PathElem "root" "/" : zipWith PathElem pathElems paths
 filesForDisplayCb :: FilePickerViewModel -> Fay [ClientFileInfo]
 filesForDisplayCb vm = do
 	filesList <- koUnwrapObservableList $ files vm
-	let filesListDisplay = filter (\fi -> notElem (filename fi) [".", ".."]) filesList
+	let filesListDisplay = filter (\fi -> filename fi `notElem` [".", ".."]) filesList
 	return $ map convertFileInfo (sortBy filesSort filesListDisplay)
 
 filesSort :: FileInfo -> FileInfo -> Ordering

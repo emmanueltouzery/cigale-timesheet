@@ -545,4 +545,4 @@ getMultipartBodyText sep bdy = fromMaybe "no body!"
 	(sectionTextContent <$> (parseMultipartBody sep bdy >>= sectionToConsider))
 
 messageToEmail' :: MboxMessage BL.ByteString -> Email
-messageToEmail' = messageToEmail $ show
+messageToEmail' = messageToEmail show

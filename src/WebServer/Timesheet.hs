@@ -60,7 +60,7 @@ processConfig date config = do
 	-- element... but it's actually shorter to code like this..
 	let outOfRangeData = filter (outOfRange date (addDays 1 date)) eventDatesLocal
 	if null outOfRangeData
-		then return $ (null $ fetchErrors allEvents, JSON.encode allEvents)
+		then return (null $ fetchErrors allEvents, JSON.encode allEvents)
 		else do
 			putStrLn "*** SOME EVENTS ARE NOT IN TIME RANGE"
 			print outOfRangeData
@@ -88,7 +88,7 @@ fetchProvider configItemName settings day eventSource = do
 getExtraDataUrl :: T.Text -> Value -> Url
 getExtraDataUrl (TE.encodeUtf8 -> configItemName) key = printf "/getExtraData?configItemName=%s&queryParams=%s" 
 	(toUrlParam configItemName) (toUrlParam $ BL.toStrict $ Aeson.encode key)
-	where toUrlParam = (fmap $ chr . fromIntegral) . BS.unpack . urlEncode True
+	where toUrlParam = fmap (chr . fromIntegral) . BS.unpack . urlEncode True
 
 data PluginConfig = PluginConfig
 	{

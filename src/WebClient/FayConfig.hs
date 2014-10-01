@@ -165,8 +165,7 @@ main = ready $ do
 			configAddEditVM = configAddEditVMV
 		}
 	koApplyBindings viewModel
-	myajax2 "/configVal" "/configdesc" $ \val desc ->
-		handleValDesc viewModel (head val) (head desc)
+	myajax2 "/configVal" "/configdesc" (handleValDesc viewModel `on` head)
 
 showFilePickerCallback :: PluginConfig -> Observable ConfigItem -> Text -> Fay ()
 showFilePickerCallback pluginCfg configurationBeingEdited memberNameV = do
@@ -302,7 +301,7 @@ validateAllFieldsPresent [] _ = Right ()
 validateAllFieldsPresent (x:xs) newConfig = if isValid
 		then Right () else Left "Please fill in all the fields"
 	where isValid = (isJust $ find (\(k,v) -> k == x && not (T.null v)) newConfig)
-		&& (isRight $ validateAllFieldsPresent xs newConfig)
+		&& isRight (validateAllFieldsPresent xs newConfig)
 
 hasPasswords :: PluginConfig -> Bool
 hasPasswords = hasMemberType (== "Password")
@@ -348,7 +347,7 @@ deleteConfigItemAction :: ConfigViewModel -> ConfigSection -> ConfigItem -> Fay 
 deleteConfigItemAction vm section userSetting = do
 	let pluginName = cfgPluginName $ pluginInfo section
 	let parm = jvGetString $ jqParam (tshow userSetting)
-	let url = "/config?configItemName=" ++ (encodeURIComponent $ configItemName userSetting)
+	let url = "/config?configItemName=" ++ encodeURIComponent (configItemName userSetting)
 	ajxDelete url (showError vm) $ do
 		koFilter ((/=configItemName userSetting) . configItemName) (userSettings section)
 		closePopup
@@ -360,7 +359,7 @@ editConfigItemCb vm section userSetting =
 updatePluginConfig :: ConfigViewModel -> ConfigSection -> Text -> ConfigItem -> Fay ()
 updatePluginConfig vm configSection pluginName oldConfig = do
 	newConfigObj <- koGet (configurationBeingEdited $ configAddEditVM vm)
-	let url = "/config?pluginName=" ++ pluginName ++ "&oldConfigItemName=" ++ (encodeURIComponent $ configItemName oldConfig)
+	let url = "/config?pluginName=" ++ pluginName ++ "&oldConfigItemName=" ++ encodeURIComponent (configItemName oldConfig)
 	ajxPut url newConfigObj (showError vm) $ do
 		koFilter ((/=configItemName oldConfig) . configItemName) (userSettings configSection)
 		koPushObservableList (userSettings configSection) newConfigObj

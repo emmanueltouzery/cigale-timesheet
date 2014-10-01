@@ -41,7 +41,7 @@ testBasicEvent tz = it "parses basic ICAL event" $ do
 		LOCATION:
 		SEQUENCE:0
 		STATUS:CONFIRMED
-		SUMMARY:spent a lot of time researching bus tables for position records
+		SUMMARY:spent a lot of time researching bus tables\, for position records
 		TRANSP:OPAQUE
 		END:VEVENT
 			|]
@@ -51,7 +51,7 @@ testBasicEvent tz = it "parses basic ICAL event" $ do
 			eventIcon = "glyphicon-calendar",
 			eventDate = UTCTime (fromGregorian 2013 4 17)
 				(secondsToDiffTime $ 7*3600+30*60),
-			desc = "spent a lot of time researching bus tables for position records",
+			desc = "spent a lot of time researching bus tables, for position records",
 			extraInfo = "End: 09:00; duration: 1:30",
 			fullContents = Nothing
 		}

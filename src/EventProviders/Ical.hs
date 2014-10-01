@@ -5,6 +5,7 @@ module Ical where
 import Data.Time.Clock
 import Data.Time.LocalTime
 import Data.Time.Calendar
+import Data.List
 import Network.Socket
 import Network.Http.Client
 import qualified Data.Text.Encoding as TE
@@ -52,11 +53,53 @@ getIcalProvider = EventProvider
 		getExtraData = Nothing
 	}
 
-data CalendarValue = Leaf String | SubLevel (Map String CalendarValue) deriving (Show, Eq)
+-- we can have components or objects, which are between BEGIN and END blocks,
+-- and can be recursive:
+--
+--     BEGIN:VTIMEZONE
+--     TZID:US-Eastern
+--     BEGIN:STANDARD
+--     DTSTART:19971026T020000
+--     TZOFFSETFROM:-0400
+--     END:STANDARD
+--     BEGIN:DAYLIGHT
+--     DTSTART:19971026T02000
+--     TZOFFSETFROM:-0500
+--     TZNAME:EDT
+--     END:DAYLIGHT
+--     END:VTIMEZONE0
+--
+-- I map those with a tree structure.
+--
+-- And also: http://tools.ietf.org/html/rfc2445#section-4.1.1
+--
+--    Some properties allow a list of parameters. Each property parameter
+--    in a list of property parameters MUST be separated by a SEMICOLON
+--    character (US-ASCII decimal 59).
+-- 
+--    Property parameters with values containing a COLON, a SEMICOLON or a
+--    COMMA character MUST be placed in quoted text.
+-- 
+--    For example, in the following properties a SEMICOLON is used to
+--    separate property parameters from each other, and a COMMA is used to
+--    separate property values in a value list.
+-- 
+--      ATTENDEE;RSVP=TRUE;ROLE=REQ-PARTICIPANT:MAILTO:
+--       jsmith@host.com
+-- 
+--      RDATE;VALUE=DATE:19970304,19970504,19970704,19970904
+--
+-- Due to that, I have propParams (property parameters) and a list for the property values.
+data CalendarLeaf = CalendarLeaf { propParams :: Map String String, propValues :: [String] } deriving (Show, Eq)
+data CalendarValue = Leaf CalendarLeaf
+	| SubLevel (Map String CalendarValue) deriving (Show, Eq)
 
-fromLeaf :: CalendarValue -> String
-fromLeaf (Leaf a) = a
-fromLeaf _ = "Error: expected a leaf!"
+leafText :: CalendarLeaf -> String
+leafText = intercalate ", " . propValues
+
+fromLeaf :: CalendarValue -> Maybe CalendarLeaf
+fromLeaf (Leaf x) = Just x
+fromLeaf _ = Nothing
 
 getCalendarEvents :: IcalRecord -> GlobalSettings -> Day -> (() -> Url) -> EitherT String IO [Event.Event]
 getCalendarEvents (IcalRecord icalAddress) settings day _ = do
@@ -132,9 +175,8 @@ keyValuesToEvents tz records = makeEvents tz baseEvent startDate endDate
 				extraInfo = "",
 				fullContents = Nothing
 			}
-		leafValue name = case Map.lookup name records of
-			Just value -> fromLeaf value
-			Nothing -> error $ "No leaf of name " ++ name ++ " " ++ show records
+		leafValue name = fromMaybe (error $ "No leaf of name " ++ name ++ " " ++ show records) $
+			leafText <$> (Map.lookup name records >>= fromLeaf)
 		descV = T.concat [T.pack $ leafValue "DESCRIPTION",
 				 T.pack $ leafValue "SUMMARY"]
 		startDate = parseDateNode "DTSTART" records
@@ -145,11 +187,30 @@ parseBegin = string "BEGIN:VEVENT" >> eol
 
 parseKeyValue :: T.GenParser st (String, CalendarValue)
 parseKeyValue = do
-	key <- many $ noneOf ":"
+	key <- many $ noneOf ":;"
+	propertyParameters <- Map.fromList <$> many parsePropertyParameters
 	string ":"
-	value <- many $ noneOf "\r\n"
+	values <- many parseSingleValue
 	eol
-	return (key, Leaf value)
+	return (key, Leaf $ CalendarLeaf propertyParameters values)
+
+parseSingleValue :: T.GenParser st String
+parseSingleValue = do
+	text <- many1 $ noneOf "\\,\r\n"
+	isBackslash <- isJust <$> optionMaybe (string "\\")
+	if isBackslash
+		then do
+			chr <- anyChar
+			((text ++ [chr]) ++) <$> parseSingleValue
+		else return text
+
+parsePropertyParameters :: T.GenParser st (String, String)
+parsePropertyParameters = do
+	string ";"
+	key <- many $ noneOf "="
+	string "="
+	value <- many $ noneOf ";:"
+	return (key, value)
 
 parseSubLevel :: T.GenParser st (String, CalendarValue)
 parseSubLevel = do
@@ -160,21 +221,17 @@ parseSubLevel = do
 	return (value, SubLevel $ Map.fromList subcontents)
 
 parseDateNode :: String -> Map String CalendarValue -> LocalTime
-parseDateNode key records = fromMaybe (error $ "Didn't find a parseable leaf for the date " ++ key)
-	$ parseDateTimeNode key records <|> parseDateOnlyNode key records
+parseDateNode key records = fromMaybe (error $ "Didn't find a parseable leaf for the date " ++ key) $ do
+	dateInfo <- Map.lookup key records >>= fromLeaf
+	case Map.lookup "VALUE" $ propParams dateInfo of
+		Just "DATE" -> parseDateOnlyNode key $ leafText dateInfo
+		_ -> parseMaybe parseDateTime $ T.pack $ leafText dateInfo
 
-parseDateTimeNode :: String -> Map String CalendarValue -> Maybe LocalTime
-parseDateTimeNode key records = fromLeaf <$> Map.lookup key records
-	>>= parseMaybe parseDateTime . T.pack
-
-parseDateOnlyNode :: String -> Map String CalendarValue -> Maybe LocalTime
-parseDateOnlyNode key records = do
-	nodeText <- T.pack . fromLeaf <$> Map.lookup (key ++ ";VALUE=DATE") records
-	dayTime <$> parseMaybe parseDate nodeText
-	where
-		dayTime time = case key of
-			"DTSTART" -> time
-			"DTEND" -> time { localTimeOfDay = TimeOfDay 23 59 59 } -- end of the day
+parseDateOnlyNode :: String -> String -> Maybe LocalTime
+parseDateOnlyNode key (T.pack -> nodeText) = dayTime <$> parseMaybe parseDate nodeText
+	where dayTime time = case key of
+		"DTSTART" -> time
+		"DTEND" -> time { localTimeOfDay = TimeOfDay 23 59 59 } -- end of the day
 
 parseDate :: T.GenParser st LocalTime
 parseDate = do

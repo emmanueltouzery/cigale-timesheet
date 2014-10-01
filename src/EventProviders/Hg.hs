@@ -85,7 +85,7 @@ parseFiles :: T.GenParser st [String]
 parseFiles = manyTill parseFile (T.try $ string "--->>>\n")
 
 parseFile :: T.GenParser st String
-parseFile = T.many $ T.noneOf " \n" <* T.oneOf " \n"
+parseFile = T.manyTill anyChar $ string " \n"
 
 parseDateTime :: T.GenParser st LocalTime
 parseDateTime = do

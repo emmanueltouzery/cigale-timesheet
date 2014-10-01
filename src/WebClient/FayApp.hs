@@ -64,7 +64,7 @@ main = ready $ do
 	koApplyBindings viewModel
 	setupDatepicker (fetchDay viewModel)
 	overwriteCss
-	todayServerDate >>= fetchDay viewModel
+	yesterdayServerDate >>= fetchDay viewModel
 
 fetchDay :: MainViewModel -> Text -> Fay ()
 fetchDay viewModel dayStr = do
@@ -135,5 +135,5 @@ myajax = ffi "jQuery.ajax(%1, {'type': 'GET', contentType: 'text/json', processD
 setupDatepicker :: (Text -> Fay ()) -> Fay ()
 setupDatepicker = ffi "setupDatepicker(%1)"
 
-todayServerDate :: Fay Text
-todayServerDate = ffi "todayServerDate()"
+yesterdayServerDate :: Fay Text
+yesterdayServerDate = ffi "yesterdayServerDate()"

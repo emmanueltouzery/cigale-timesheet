@@ -111,8 +111,10 @@
 			return dateObj.getHours() + ":" + ((mins <= 9) ?  ("0" + mins) : mins);
 		}
 
-		function todayServerDate() {
-			return (new Date()).toISOString().slice(0, 10);
+		function yesterdayServerDate() {
+			var date = new Date();
+			date.setDate(date.getDate() - 1);
+			return date.toISOString().slice(0, 10);
 		}
 
 		// http://stackoverflow.com/a/646631/516188
@@ -147,7 +149,7 @@
 				onSelect: callback,
 				firstDay: 1,
 				dateFormat: 'yy-mm-dd'
-			}).datepicker('setDate', '0');
+			}).datepicker('setDate', '-1');
 
 			$('#previousDay').click(function() {
 				dateAddDays(-1);

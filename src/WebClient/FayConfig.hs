@@ -165,7 +165,8 @@ main = ready $ do
 			configAddEditVM = configAddEditVMV
 		}
 	koApplyBindings viewModel
-	myajax2 "/configVal" "/configdesc" (handleValDesc viewModel `on` head)
+	myajax2 "/configVal" "/configdesc" $ \val desc ->
+		handleValDesc viewModel (head val) (head desc)
 
 showFilePickerCallback :: PluginConfig -> Observable ConfigItem -> Text -> Fay ()
 showFilePickerCallback pluginCfg configurationBeingEdited memberNameV = do

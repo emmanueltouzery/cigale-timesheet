@@ -269,11 +269,10 @@ cachedVersionDate settingsFolder = do
 readFromCache :: String -> IO T.Text
 readFromCache settingsFolder = do
 	putStrLn "reading calendar from cache!"
-	T.pack <$> (readFile $ cacheFilename settingsFolder)
+	T.pack <$> readFile (cacheFilename settingsFolder)
 
 putInCache :: String -> T.Text -> IO ()
-putInCache settingsFolder text = withFile (cacheFilename settingsFolder) WriteMode
-	(\h -> T.hPutStr h text)
+putInCache settingsFolder text = withFile (cacheFilename settingsFolder) WriteMode (`T.hPutStr` text)
 
 eol :: GenParser st String
 eol = many1 $ oneOf "\r\n"

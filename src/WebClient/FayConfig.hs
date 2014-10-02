@@ -301,7 +301,7 @@ validateAllFieldsPresent :: [Text] -> [(Text,Text)] -> Either Text ()
 validateAllFieldsPresent [] _ = Right ()
 validateAllFieldsPresent (x:xs) newConfig = if isValid
 		then Right () else Left "Please fill in all the fields"
-	where isValid = (isJust $ find (\(k,v) -> k == x && not (T.null v)) newConfig)
+	where isValid = isJust (find (\(k,v) -> k == x && not (T.null v)) newConfig)
 		&& isRight (validateAllFieldsPresent xs newConfig)
 
 hasPasswords :: PluginConfig -> Bool

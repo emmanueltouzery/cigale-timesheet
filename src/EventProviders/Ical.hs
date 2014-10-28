@@ -109,8 +109,7 @@ getCalendarEvents (IcalRecord icalAddress) settings day _ = do
 		if hasCached
 			then readFromCache settingsFolder
 			else readFromWWW (B.pack icalAddress) settingsFolder
-	calendarData <- hoistEither $ note "Error in ical parsing"
-		$ Util.parseMaybe parseEvents icalText
+	calendarData <- hoistEither $ fmapL show $ parse parseEvents "" icalText
 	return $ convertToEvents timezone day calendarData
 
 convertToEvents :: TimeZone -> Day -> [Map String CalendarValue] -> [Event.Event]
@@ -189,7 +188,7 @@ parseKeyValue = do
 	key <- many $ noneOf ":;"
 	propertyParameters <- Map.fromList <$> many parsePropertyParameters
 	string ":"
-	values <- many parseSingleValue
+	values <- parseSingleValue `sepBy` string ","
 	eol
 	return (key, Leaf $ CalendarLeaf propertyParameters values)
 

@@ -41,8 +41,7 @@ getRepoCommits config _ date _ = do
 	let dateRange = formatDateRange date (addDays 1 date)
 	output <- Util.runProcess "svn" "."
 		["log", svnRepo config, "-r", dateRange, "--verbose"]
-	commits <- hoistEither $ note "Error in SVN parsing"
-		$ Util.parseMaybe parseCommits output
+	commits <- hoistEither $ fmapL show $ parse parseCommits "" output
 	lift $ finishGetRepoCommits date date (T.pack $ svnUser config) commits
 
 finishGetRepoCommits :: Day -> Day -> T.Text -> [Commit] -> IO [Event.Event]

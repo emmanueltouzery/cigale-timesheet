@@ -41,8 +41,7 @@ getRepoCommits (HgRecord _username projectPath) _ day _ = do
 	output <- Util.runProcess "hg" projectPath ["log", "-k", username, "-d", dateRange,
 			"--template", "{date|isodate}\n{desc}\n--->>>\n{files}\n--->>>\n"]
 	timezone <- liftIO $ getTimeZone (UTCTime day 8)
-	commits <- hoistEither $ note "Error in HG parsing"
-		$ Util.parseMaybe parseCommits output
+	commits <- hoistEither $ fmapL show $ parse parseCommits "" output
 	return $ map (toEvent timezone) commits
 	
 toEvent :: TimeZone -> Commit -> Event.Event

@@ -46,8 +46,7 @@ getRepoCommits (GitRecord _username projectPath) _ date _ = do
 	--		"--author=\"" ++ username ++ "\"",
 			"--stat", "--all", "--decorate"]
 	timezone <- liftIO $ getTimeZone (UTCTime date 8)
-	allCommits <- hoistEither $ note "Error parsing the git output"
-		$ Util.parseMaybe parseCommits $ T.concat [output, "\n"]
+	allCommits <- hoistEither $ fmapL show $ parse parseCommits "" $ T.concat [output, "\n"]
 	let relevantCommits = filter (isRelevantCommit date username) allCommits
 	let commitsList = map (commitToEvent projectPath timezone) relevantCommits
 	let tagCommits = filter (isRelevantTagCommit date) allCommits

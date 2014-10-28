@@ -63,6 +63,7 @@ testThroughMidnightEvent tz = it "parses basic ICAL event through midnight" $ do
 		BEGIN:VEVENT
 		DTSTART:20130417T233000Z
 		DTEND:20130418T003000Z
+		RRULE:FREQ=WEEKLY;UNTIL=20141020;BYDAY=SU,MO
 		DTSTAMP:20130419T192234Z
 		UID:d7anctkba3qoui0qcru9samr0o@google.com
 		CREATED:20130417T131454Z

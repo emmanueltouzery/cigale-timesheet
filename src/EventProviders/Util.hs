@@ -2,8 +2,7 @@
 
 module Util where
 
-import qualified Data.ByteString               as B
-import qualified Data.ByteString.Lazy          as BL
+import qualified Data.ByteString as B
 import Data.Char (digitToInt)
 import Data.List (transpose)
 import Text.ParserCombinators.Parsec.Error
@@ -15,10 +14,8 @@ import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
 import Network.Http.Client
 import System.IO.Streams (InputStream(..))
-import Network.URI
 import qualified System.IO.Streams as Streams
 import qualified Blaze.ByteString.Builder as Builder
-import qualified System.Info as Sysinfo
 import qualified OpenSSL.Session as SSL
 import qualified Data.Aeson as A
 import qualified Data.Functor.Identity as DFI

@@ -13,6 +13,7 @@ import Control.Error hiding (err)
 import Data.List.Utils (mergeBy)
 import Data.Function (on)
 import Control.Applicative
+import Control.Monad (when)
 import Text.Printf
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
@@ -53,6 +54,8 @@ processConfig date config = do
 	settings <- getGlobalSettings 
 	allEventsSeq <- mapM (\c -> fetchProvider (Config.srcName c) settings date c) config
 	let allEvents = foldl' fetchResponseAdd (FetchResponse [] []) allEventsSeq
+	let errors = filter isLeft allEventsSeq
+	when (not $ null errors) $ print errors
 	let eventDates = Event.eventDate <$> fetchedEvents allEvents
 	let eventDatesLocal = fmap (utcToLocalTime myTz) eventDates
 	putStrLn "after the fetching!"

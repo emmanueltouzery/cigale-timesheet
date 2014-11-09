@@ -20,12 +20,17 @@ import qualified Data.Text.Encoding as TE
 import Network.HTTP.Types.URI (urlEncode)
 import qualified Data.Aeson as Aeson
 import Data.Char (chr)
+import System.Timeout (timeout)
 
 import qualified Config
 import qualified EventProviders
 import EventProvider
 import Event
 import qualified FayAeson
+
+-- 5 seconds max runtime before a fetch is aborted.
+maxRuntimeFetchMicros :: Int
+maxRuntimeFetchMicros = 5000000
 
 process :: Day -> IO (Bool, BL.ByteString)
 process month = do
@@ -51,7 +56,7 @@ processConfig date config = do
 	myTz <- getTimeZone $ UTCTime date (secondsToDiffTime 8*3600)
 
 	putStrLn "before the fetching..."
-	settings <- getGlobalSettings 
+	settings <- getGlobalSettings
 	allEventsSeq <- mapM (\c -> fetchProvider (Config.srcName c) settings date c) config
 	let allEvents = foldl' fetchResponseAdd (FetchResponse [] []) allEventsSeq
 	let errors = filter isLeft allEventsSeq
@@ -83,10 +88,14 @@ fetchProvider configItemName settings day eventSource = do
 	let provider = Config.srcProvider eventSource
 	putStrLn $ printf "fetching from %s (provider: %s)"
 		(T.unpack $ Config.srcName eventSource) (getModuleName provider)
-	evts <- runEitherT $ fmapLT ((T.unpack (Config.srcName eventSource) ++ ": ") ++)
-		$ getEvents provider (Config.srcConfig eventSource) settings day (getExtraDataUrl configItemName)
+	let errorInfo = ((T.unpack (Config.srcName eventSource) ++ ": ") ++)
+	evts <- timeout maxRuntimeFetchMicros $
+		runEitherT $ fmapLT errorInfo $ getEvents provider
+			(Config.srcConfig eventSource) settings day (getExtraDataUrl configItemName)
 	putStrLn "Done"
-	return evts
+	return $ case evts of
+		Nothing -> Left $ errorInfo "Timeouted"
+		Just returned -> returned
 
 getExtraDataUrl :: T.Text -> Value -> Url
 getExtraDataUrl (TE.encodeUtf8 -> configItemName) key = printf "/getExtraData?configItemName=%s&queryParams=%s" 

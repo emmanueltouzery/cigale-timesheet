@@ -2,6 +2,12 @@
 
 module Email where
 
+-- TODO all over the place here I'm parsing bytestrings
+-- in String and then converting back to Text.
+-- http://stackoverflow.com/questions/21620298
+-- Should probably move to attoparsec.
+-- Also some bits are really messy here.
+
 import Codec.Mbox
 import Control.Monad
 import Data.Time.Calendar
@@ -17,13 +23,12 @@ import Data.Maybe
 import Data.List
 import qualified Data.Text as T
 import Data.Text.Encoding 
-import Text.ParserCombinators.Parsec
 import Data.Text.Read
 import GHC.Word
 import qualified Data.ByteString.Base64 as Base64
-import qualified Text.Parsec.ByteString as T
+import Text.Parsec.ByteString
 import qualified Text.Parsec.Text as TT
-import qualified Text.Parsec as T
+import Text.Parsec
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import qualified Data.Aeson as Aeson
 import qualified Codec.Text.IConv as IConv
@@ -38,8 +43,6 @@ import Network.HTTP.Types.URI (urlEncode)
 import Data.Char (chr)
 import Text.Printf
 import Control.Monad.Trans
-
-import Text.Regex.PCRE.Rex
 
 import qualified Event
 import EventProvider
@@ -173,7 +176,7 @@ parseMessage :: MboxMessage BL.ByteString -> (Map T.Text T.Text, BSL.ByteString)
 parseMessage msg = Util.parsecError parseMessageParsec "Email.parseMessage error: "
 		(_mboxMsgBody msg)
 
-parseMessageParsec :: T.Parsec BSL.ByteString st (Map T.Text T.Text, BSL.ByteString)
+parseMessageParsec :: Parsec BSL.ByteString st (Map T.Text T.Text, BSL.ByteString)
 parseMessageParsec = do
 	headers <- readHeaders
 	body <- many anyChar
@@ -209,11 +212,11 @@ sectionForMimeType mType secsByCt = snd <$> find (keyContainsStr mType) secsByCt
 		keyContainsStr str (Nothing, _) = False
 		keyContainsStr str (Just x, _) = str `T.isInfixOf` x
 
-parseMultipartBodyParsec :: T.Text -> T.Parsec BSL.ByteString st [MultipartSection]
+parseMultipartBodyParsec :: T.Text -> Parsec BSL.ByteString st [MultipartSection]
 parseMultipartBodyParsec mimeSeparator = do
-	manyTill readLine (T.try $ T.string $ T.unpack mimeSeparator)
+	manyTill readLine (try $ string $ T.unpack mimeSeparator)
 	readLine
-	manyTill (parseMultipartSection mimeSeparator) (T.try sectionsEnd)
+	manyTill (parseMultipartSection mimeSeparator) (try sectionsEnd)
 
 data MultipartSection = MultipartSection
 	{
@@ -277,41 +280,41 @@ sectionContentType = Map.lookup "Content-Type" . sectionHeaders
 sectionContentTransferEncoding :: MultipartSection -> Maybe T.Text
 sectionContentTransferEncoding = Map.lookup "Content-Transfer-Encoding" . sectionHeaders
 
-parseMultipartSection :: T.Text -> T.Parsec BSL.ByteString st MultipartSection
+parseMultipartSection :: T.Text -> Parsec BSL.ByteString st MultipartSection
 parseMultipartSection mimeSeparator = do
 	headers <- Map.fromList <$> readHeaders
-	contents <- manyTill readLine (T.try $ T.string $ T.unpack mimeSeparator)
+	contents <- manyTill readLine (try $ string $ T.unpack mimeSeparator)
 	many eol
 	return $ MultipartSection headers (BSL.intercalate "\n" contents)
 
-readHeaders :: T.Parsec BSL.ByteString st [(T.Text, T.Text)]
+readHeaders :: Parsec BSL.ByteString st [(T.Text, T.Text)]
 readHeaders = do
-	val <- manyTill readHeader (T.try eol)
+	val <- manyTill readHeader (try eol)
 	return $ join (***) (decodeUtf8 . BSL.toStrict) <$> val
 
-readHeader :: T.Parsec BSL.ByteString st (BSL.ByteString, BSL.ByteString)
+readHeader :: Parsec BSL.ByteString st (BSL.ByteString, BSL.ByteString)
 readHeader = do
-	key <- BL.pack <$> T.many (T.noneOf ":\n\r")
-	T.string ":"
-	many $ T.string " "
+	key <- BL.pack <$> many (noneOf ":\n\r")
+	string ":"
+	many $ string " "
 	val <- readHeaderValue
 	return (key, val)
 
-readHeaderValue :: T.Parsec BSL.ByteString st BSL.ByteString
+readHeaderValue :: Parsec BSL.ByteString st BSL.ByteString
 readHeaderValue = do
-	val <- T.many $ T.noneOf "\r\n"
+	val <- many $ noneOf "\r\n"
 	eol
 	rest <- (do many1 $ oneOf " \t"; v <- readHeaderValue; return $ BSL.concat [" ", v])
 		<|> return ""
 	return $ BSL.concat [BL.pack val, rest]
 
-sectionsEnd :: T.Parsec BSL.ByteString st ()
-sectionsEnd = T.string "--" >> (eol <|> eof)
+sectionsEnd :: Parsec BSL.ByteString st ()
+sectionsEnd = string "--" >> (eol <|> eof)
 
-readLine :: T.Parsec BSL.ByteString st BSL.ByteString
-readLine = BL.pack <$> T.many (noneOf "\r\n") <* eol
+readLine :: Parsec BSL.ByteString st BSL.ByteString
+readLine = BL.pack <$> many (noneOf "\r\n") <* eol
 
-eol :: T.Parsec BSL.ByteString st ()
+eol :: Parsec BSL.ByteString st ()
 eol = optional (string "\r") >> void (string "\n")
 
 readT :: B.ByteString -> Int
@@ -334,22 +337,40 @@ iconvFuzzyText encoding input = decodeUtf8 $ BSL.toStrict lbsResult
 	where lbsResult = IConv.convertFuzzy IConv.Transliterate encoding "utf8" input
 
 decodeMime :: B.ByteString -> T.Text
--- base64
-decodeMime [brex|=\?(?{T.unpack . decUtf8IgnErrors -> encoding}[\w\d-]+)
-		\?B\?(?{contentsB64}.*)\?=|] = do
-		let contentsBinary = BL.fromChunks [Base64.decodeLenient contentsB64]
-		iconvFuzzyText encoding contentsBinary
--- quoted printable
-decodeMime [brex|=\?(?{T.unpack . decUtf8IgnErrors -> encoding}[\w\d-]+)
-		\?Q\?(?{decUtf8IgnErrors -> contentsVal}.*)\?=|] = decodeMimeContents encoding contentsVal
-decodeMime s@_ = decUtf8IgnErrors s
+decodeMime t = case parse (decodeEncoded <|> decodePlainText) "" t of
+	Left x -> T.pack $ "Error parsing " ++ T.unpack (decUtf8IgnErrors t) ++ " -- " ++ show x
+	Right x -> x
+
+decodeEncoded :: Parsec B.ByteString st T.Text
+decodeEncoded = do
+	string "=?"
+	encoding <- many (noneOf "?")
+	char '?'
+	decodeBase64 encoding <|> decodeQuotedPrintable encoding
+
+decodePlainText :: Parsec B.ByteString st T.Text
+decodePlainText = T.pack <$> many anyChar
+
+decodeQuotedPrintable :: String -> Parsec B.ByteString st T.Text
+decodeQuotedPrintable encoding = do
+	string "Q?"
+	contentsVal <- many $ noneOf "?"
+	string "?="
+	return $ decodeMimeContents encoding $ T.pack contentsVal
+
+decodeBase64 :: String -> Parsec B.ByteString st T.Text
+decodeBase64 encoding = do
+	string "B?"
+	contentsB64 <- many $ noneOf "?"
+	string "?="
+	let contentsBinary = BL.fromChunks [Base64.decodeLenient $ B.pack contentsB64]
+	return $ iconvFuzzyText encoding contentsBinary
 
 decodeMimeContents :: String -> T.Text -> T.Text
-decodeMimeContents encoding contentsVal = 
-		case parseQuotedPrintable (T.unpack contentsVal) of
-			Left err -> T.concat ["can't parse ", contentsVal ,
-				" as quoted printable? ", T.pack $ show err]
-			Right elts -> T.concat $ map (qpEltToString encoding) elts
+decodeMimeContents encoding contentsVal = case parseQuotedPrintable (encodeUtf8 contentsVal) of
+	Left err -> T.concat ["can't parse ", contentsVal ,
+		" as quoted printable? ", T.pack $ show err]
+	Right elts -> T.concat $ map (qpEltToString encoding) elts
 
 qpEltToString :: String -> QuotedPrintableElement -> T.Text
 qpEltToString encoding (AsciiSection str) = T.pack str
@@ -361,7 +382,7 @@ data QuotedPrintableElement = AsciiSection String
 		| LineBreak
 	deriving (Show, Eq)
 
-parseQuotedPrintable :: String -> Either ParseError [QuotedPrintableElement]
+parseQuotedPrintable :: BS.ByteString -> Either ParseError [QuotedPrintableElement]
 parseQuotedPrintable = parse parseQPElements ""
 
 parseQPElements :: GenParser Char st [QuotedPrintableElement]

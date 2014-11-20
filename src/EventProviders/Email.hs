@@ -7,6 +7,8 @@ import Control.Monad
 import Data.Time.Calendar
 import Data.Time.Clock (UTCTime(..))
 import Data.Time.LocalTime
+import Data.Time.Format
+import System.Locale
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString as BS
@@ -29,6 +31,7 @@ import Debug.Trace
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
+import qualified Control.Applicative as A
 import Control.Arrow ( (***) )
 import Control.Error
 import Network.HTTP.Types.URI (urlEncode)
@@ -179,11 +182,11 @@ parseMessageParsec = do
 parseTextPlain :: MultipartSection -> T.Text
 parseTextPlain section = T.replace "\n" "\n<br/>" (sectionFormattedContent section)
 
---textAfterHeaders :: T.Text -> T.Text
---textAfterHeaders txt = snd $ T.breakOn "\n\n" $ T.replace "\r" "" txt
-
 getEmailDate :: MboxMessage BL.ByteString -> LocalTime
-getEmailDate = parseEmailDate . BSL.toStrict . _mboxMsgTime
+getEmailDate msg = parseEmailDate $ case BSL.toStrict $ _mboxMsgTime msg of
+	"" -> fromMaybe (error $ "Can't find a date for email: " ++ show msg)
+		$ Map.lookup "Date" $ fst $ parseMessage msg
+	dt -> decodeUtf8 dt
 
 parseMultipartBody :: T.Text -> BSL.ByteString -> Maybe [MultipartSection]
 parseMultipartBody separator = Util.parseMaybe (parseMultipartBodyParsec mimeSeparator)
@@ -317,27 +320,11 @@ readT = fst . fromJust . B.readInt
 readTT :: B.ByteString -> Integer
 readTT = fst . fromJust . B.readInteger
 
-parseEmailDate :: B.ByteString -> LocalTime
-parseEmailDate [brex|(?{month}\w+)\s+(?{readT -> day}\d+)\s+
-		(?{readT -> hour}\d+):(?{readT -> mins}\d+):(?{readT -> sec}\d+)\s+
-		(?{readTT -> year}\d+)|] =
-	LocalTime (fromGregorian year monthI day) (TimeOfDay hour mins (fromIntegral sec))
-	where
-		monthI = case month of
-			"Jan" -> 1
-			"Feb" -> 2
-			"Mar" -> 3
-			"Apr" -> 4
-			"May" -> 5
-			"Jun" -> 6
-			"Jul" -> 7
-			"Aug" -> 8
-			"Sep" -> 9
-			"Oct" -> 10
-			"Nov" -> 11
-			"Dec" -> 12
-			_ -> error $ "Unknown month " ++ B.unpack month
-parseEmailDate v@_  = error $ "Invalid date format " ++ T.unpack (decUtf8IgnErrors v)
+parseEmailDate :: T.Text -> LocalTime
+parseEmailDate (T.unpack -> dt) = fromMaybe (error $ "Error parsing date: " ++ dt)
+	$ (parseTime defaultTimeLocale "%b %d %T %Y" dt
+		A.<|> (zonedTimeToLocalTime <$> parseTime defaultTimeLocale "%a, %d %b %Y %T %z" dt)
+		A.<|> parseTime defaultTimeLocale "%a %b %d %T %Y" dt)
 
 decUtf8IgnErrors :: B.ByteString -> T.Text
 decUtf8IgnErrors = decodeUtf8With (\str input -> Just ' ')

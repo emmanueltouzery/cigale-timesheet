@@ -62,8 +62,10 @@ testMimeB64 = it "parses base64 email subject" $
 	assertEqual "doesn't match" "Prevent Foreclosure & Save Your Home " (decodeMime "=?iso-8859-1?B?UHJldmVudCBGb3JlY2xvc3VyZSAmIFNhdmUgWW91ciBIb21lIA=?=")
 
 testParseEmailDate :: Spec
-testParseEmailDate = it "parses email date" $
+testParseEmailDate = it "parses email date" $ do
 	assertEqual "doesn't match" expected (parseEmailDate "Sep 27 20:46:35 2013")
+	assertEqual "test zoned" expected (parseEmailDate "Fri, 27 Sep 2013 20:46:35 +0100")
+	assertEqual "test zoned" expected (parseEmailDate "Fri Sep 27 20:46:35 2013")
 		where
 			expected = LocalTime (fromGregorian 2013 9 27) (TimeOfDay 20 46 35)
 
@@ -371,7 +373,7 @@ testMboxMessage = it "parses a message from start to end" $ do
 			
 			Živjo
 			|]
-	let msg = MboxMessage "sender" "Jan 23 6:0:5 2013" source "file" 0
+	let msg = MboxMessage "sender" "Jan 23 06:00:05 2013" source "file" 0
 	let expected = Email
 		{
 			date = LocalTime (fromGregorian 2013 1 23) (TimeOfDay 6 0 5),
@@ -404,7 +406,7 @@ testMboxMessageQP = it "parses a quoted-printable plain text message from start 
 
 			Emmanuel
 			|]
-	let msg = MboxMessage "sender" "Jan 23 6:0:5 2013" source "file" 0
+	let msg = MboxMessage "sender" "Jan 23 06:00:05 2013" source "file" 0
 	let expected = Email
 		{
 			date = LocalTime (fromGregorian 2013 1 23) (TimeOfDay 6 0 5),
@@ -471,7 +473,7 @@ testMboxMultipartMessage = it "parses a multipart message from start to end" $ d
 			
 			--------------090707030607080209050905--
 			|] -- warning I truncated the base64 picture attachments
-	let msg = MboxMessage "sender" "Jan 23 6:0:5 2013" source "file" 0
+	let msg = MboxMessage "sender" "Jan 23 06:00:05 2013" source "file" 0
 	let expected = Email
 		{
 			date = LocalTime (fromGregorian 2013 1 23) (TimeOfDay 6 0 5),
@@ -523,7 +525,7 @@ testDifferentMessage = it "parses a different message" $ do
 			
 			------=_NextPart_000_00CE_01CEE078.3CBC8C10--
 			|] -- warning I truncated the base64 picture attachments
-	let msg = MboxMessage "sender" "Jan 23 6:0:5 2013" source "file" 0
+	let msg = MboxMessage "sender" "Jan 23 06:00:05 2013" source "file" 0
 	let expected = Email
 		{
 			date = LocalTime (fromGregorian 2013 1 23) (TimeOfDay 6 0 5),

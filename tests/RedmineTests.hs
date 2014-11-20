@@ -36,9 +36,9 @@ runRedmineTests = do
 	let day = fromGregorian 2014 8 21
 
 	it "parses morning time" $ parseTimeOfDay day "12:06 am" `shouldBe`
-		LocalTime day (TimeOfDay 12  6 0)
+		LocalTime day (TimeOfDay 0 6 0)
 
-	it "parses afternoon time" $ parseTimeOfDay day "2:28 pm" `shouldBe`
+	it "parses afternoon time" $ parseTimeOfDay day "02:28 pm" `shouldBe`
 		LocalTime day (TimeOfDay 14 28 0)
 
 

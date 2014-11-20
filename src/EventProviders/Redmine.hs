@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, QuasiQuotes, TemplateHaskell, ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings, QuasiQuotes, TemplateHaskell #-}
 
 module Redmine where
 
@@ -15,14 +15,17 @@ import Text.Printf
 import Data.Time.Clock
 import Data.Time.Calendar
 import Data.Time.LocalTime
+import Data.Time.Format
+import System.Locale
 import Data.List (find)
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.Maybe
-import Control.Applicative
+import Control.Applicative hiding ((<|>))
 import Data.Text.Lazy (toStrict)
 import Data.Text.Encoding (decodeUtf8)
 import Control.Error
 import Control.Monad.Trans
+import Text.ParserCombinators.Parsec
 
 import Text.XML (Node(..), elementAttributes)
 import Text.XML.Cursor
@@ -31,10 +34,9 @@ import Text.XML.Scraping
 import Text.HTML.DOM (parseLBS)
 
 import qualified Util
+import Util (parseNum)
 import Event
 import EventProvider
-
-import Text.Regex.PCRE.Rex
 
 type Password = T.Text
 
@@ -74,13 +76,6 @@ mergeSuccessiveEvents (x:xs) = x : mergeSuccessiveEvents (dropWhile firstPartMat
 		firstPartMatches y = firstPart y == firstPart x
 		firstPart = head . T.splitOn "(" . desc
 mergeSuccessiveEvents [] = []
-
--- mergeSuccessiveEvents :: [Event] -> [Event]
--- mergeSuccessiveEvents (x:y:xs) = if firstPart x == firstPart y
--- 		then x : mergeSuccessiveEvents xs
--- 		else x : (mergeSuccessiveEvents $ y :xs)
--- 	where firstPart = head . (T.splitOn "(") . desc
--- mergeSuccessiveEvents whatever@_ = whatever
 
 prepareActivityUrl :: RedmineConfig -> Day -> T.Text
 prepareActivityUrl config day = T.concat [redmineUrl config, "/activity?from=", dayBeforeStr]
@@ -146,13 +141,8 @@ parseBugNodes _ _ _ [] = []
 parseBugNodes _ _ _ [_] = error "parseBugNodes: invalid pattern!?"
 
 parseTimeOfDay :: Day -> String -> LocalTime
-parseTimeOfDay day [rex|(?{read -> hours}\d+)
-			:(?{read -> mins}\d+)\s*
-			(?{ampm}am|pm)|] = LocalTime day (TimeOfDay hours24 mins 0)
-	where
-		hours24 = if (ampm == "pm") && (hours < 12)
-			then hours + 12 else hours
-parseTimeOfDay _ x@_ = error $ "can't parse date " ++ x
+parseTimeOfDay day time = LocalTime day $ fromMaybe (error $ "Can't parse time: " ++ time) parsed
+	where parsed = parseTime defaultTimeLocale "%I:%M %P" time
 
 isElement :: Node -> Bool
 isElement (NodeElement _) = True

@@ -97,6 +97,13 @@ removeIfOlderThan date folder filename =
 		Nothing -> return () -- not a prefetch file.
 		Just fileDate -> when (fileDate < date) $ removeFile $ folder </> filename
 
+wipePrefetchFiles :: IO ()
+wipePrefetchFiles = do
+	prefetchFolder <- getPrefetchFolder 
+	prefetchFiles <- getDirectoryContents prefetchFolder
+	mapM_ (\f -> removeFile (prefetchFolder </> f))
+		$ filter (not . (isPrefixOf ".")) prefetchFiles
+
 parsePrefetchFilename :: T.GenParser st Day
 parsePrefetchFilename = parseDate <* T.string ".json"
 
@@ -198,19 +205,19 @@ configVal = do
 addConfigEntry :: Snap ()
 addConfigEntry = setActionResponse $ do
 	configItemJson <- lift (BSL.toStrict <$> readRequestBody 65536)
-	success <- liftIO $ addPluginInConfig configItemJson
+	success <- liftIO $ wipePrefetchFiles >> addPluginInConfig configItemJson
 	hoistEither success
 
 deleteConfigEntry :: Snap ()
 deleteConfigEntry = setActionResponse $ do
 	pluginName <- hParam "configItemName"
-	liftIO (deletePluginFromConfig pluginName) >>= hoistEither
+	liftIO (wipePrefetchFiles >> deletePluginFromConfig pluginName) >>= hoistEither
 
 updateConfigEntry :: Snap ()
 updateConfigEntry = setActionResponse $ do
 	configItemJson <- lift (BSL.toStrict <$> readRequestBody 65536) -- TODO share this in processConfigFromBody
 	oldConfigItemName <- TE.decodeUtf8 <$> hParam "oldConfigItemName"
-	liftIO (updatePluginInConfig oldConfigItemName configItemJson) >>= hoistEither
+	liftIO (wipePrefetchFiles >> updatePluginInConfig oldConfigItemName configItemJson) >>= hoistEither
 
 processConfigFromBody :: (BS.ByteString -> IO (Either BS.ByteString BS.ByteString)) ->
 		 EitherT BS.ByteString Snap BS.ByteString

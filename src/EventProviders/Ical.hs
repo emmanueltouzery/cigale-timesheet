@@ -28,8 +28,6 @@ import Data.Maybe
 import Control.Error
 import Control.Monad.Trans
 
-import Text.Regex.PCRE.Rex
-
 import Event
 --import qualified Settings
 import qualified Util

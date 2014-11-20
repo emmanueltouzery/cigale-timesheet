@@ -7,6 +7,7 @@ module Email where
 -- http://stackoverflow.com/questions/21620298
 -- Should probably move to attoparsec.
 -- Also some bits are really messy here.
+-- And we're still using error here...
 
 import Codec.Mbox
 import Control.Monad

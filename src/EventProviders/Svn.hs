@@ -18,8 +18,6 @@ import qualified Util
 import Event
 import EventProvider
 
-import Text.Regex.PCRE.Rex
-
 data SvnConfigRecord = SvnConfigRecord
 	{
 		svnUser :: String,

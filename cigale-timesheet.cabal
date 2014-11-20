@@ -21,9 +21,6 @@ Library
     MonadCatchIO-transformers,
     mtl,
     aeson >= 0.7.0.0,
-    -- i don't use any rex 0.4 feature but it added a constraint on
-    -- the haskell-src-meta dependency which prevents cabal to pick too old versions
-    rex >= 0.4,
     codec-mbox,
     text,
     time,
@@ -95,9 +92,6 @@ Executable cigale-timesheet
      snap-server,
      http-types,
      blaze-html,
-    -- i don't use any rex 0.4 feature but it added a constraint on
-    -- the haskell-src-meta dependency which prevents cabal to pick too old versions
-     rex >= 0.4,
      HTTP,
      filepath,
      parsec,
@@ -124,9 +118,6 @@ test-suite        tests
     MonadCatchIO-transformers,
     mtl,
     aeson >= 0.7.0.0,
-    -- i don't use any rex 0.4 feature but it added a constraint on
-    -- the haskell-src-meta dependency which prevents cabal to pick too old versions
-    rex >= 0.4,
     codec-mbox,
     text,
     time,

@@ -28,9 +28,9 @@ import EventProvider
 import Event
 import qualified FayAeson
 
--- 5 seconds max runtime before a fetch is aborted.
+-- 15 seconds max runtime before a fetch is aborted.
 maxRuntimeFetchMicros :: Int
-maxRuntimeFetchMicros = 5000000
+maxRuntimeFetchMicros = 15000000
 
 process :: Day -> IO (Bool, BL.ByteString)
 process month = do

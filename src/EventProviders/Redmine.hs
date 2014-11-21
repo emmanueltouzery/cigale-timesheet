@@ -7,7 +7,8 @@ import Data.ByteString.Char8 as Char8 (split, pack)
 import Data.ByteString.Lazy (fromChunks)
 import System.IO.Streams (write)
 import Network.Http.Client
-import Data.Text as T (Text(..), splitOn, pack, unpack, span, take, drop, concat)
+import qualified Data.Text as T
+import Data.Text (Text(..))
 import qualified Data.Map as Map
 import Data.Text.Read (decimal)
 import Data.Text.Encoding as TE
@@ -38,13 +39,13 @@ import Util (parseNum)
 import Event
 import EventProvider
 
-type Password = T.Text
+type Password = Text
 
 data RedmineConfig = RedmineConfig
 	{
-		redmineUrl :: T.Text,
-		redmineUsername :: T.Text,
-		redmineUserDisplay :: T.Text,
+		redmineUrl :: Text,
+		redmineUsername :: Text,
+		redmineUserDisplay :: Text,
 		redminePassword :: Password
 	} deriving Show
 deriveJSON defaultOptions ''RedmineConfig
@@ -60,9 +61,10 @@ getRedmineProvider = EventProvider
 
 getRedmineEvents :: RedmineConfig -> GlobalSettings -> Day -> (() -> Url) -> EitherT String IO [Event]
 getRedmineEvents config _ day _ = do
-	cookie <- lift $ login config
+	let url = addProtocolIfNeeded $ appendIfNeeded "/" $ redmineUrl config
+	cookie <- lift $ login url config
 	cookieValues <- hoistEither $ note "invalid cookie format" $ cookie >>= headMay . split ';'
-	let activityUrl = encodeUtf8 $ prepareActivityUrl config day
+	let activityUrl = encodeUtf8 $ prepareActivityUrl url day
 	response <- lift $ Util.http activityUrl "" concatHandler $ do
 		http GET "/activity?show_wiki_edits=1&show_issues=1"
 		setHeader "Cookie" cookieValues
@@ -77,17 +79,29 @@ mergeSuccessiveEvents (x:xs) = x : mergeSuccessiveEvents (dropWhile firstPartMat
 		firstPart = head . T.splitOn "(" . desc
 mergeSuccessiveEvents [] = []
 
-prepareActivityUrl :: RedmineConfig -> Day -> T.Text
-prepareActivityUrl config day = T.concat [redmineUrl config, "/activity?from=", dayBeforeStr]
+prepareActivityUrl :: Text -> Day -> Text
+prepareActivityUrl url day = T.concat [url, "/activity?from=", dayBeforeStr]
 	where
 		dayBefore = addDays (-1) day
 		(y, m, d) = toGregorian dayBefore
 		dayBeforeStr = T.pack $ printf "%d-%02d-%02d" y m d
 
+addProtocolIfNeeded :: Text -> Text
+addProtocolIfNeeded val = if hasProtocol then val else T.append "http://" val
+	where
+		hasProtocol = "http://" `T.isPrefixOf` lower
+			|| "https://" `T.isPrefixOf` lower
+		lower = T.toLower val
+
+appendIfNeeded :: Text -> Text -> Text
+appendIfNeeded postfix val
+	| postfix `T.isSuffixOf` val = val
+	| otherwise = T.append val postfix
+
 -- returns the cookie
-login :: RedmineConfig -> IO (Maybe ByteString)
-login config = postForm
-		(BS.concat [encodeUtf8 $ redmineUrl config, "login"])
+login :: Text -> RedmineConfig -> IO (Maybe ByteString)
+login url config = postForm
+		(BS.concat [encodeUtf8 url, "login"])
 		[("username", encodeUtf8 $ redmineUsername config), 
 			("password", encodeUtf8 $ redminePassword config)]
 		(\r _ -> return $ getHeader r "Set-Cookie")

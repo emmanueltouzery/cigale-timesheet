@@ -66,7 +66,7 @@ getRedmineEvents config _ day _ = do
 	cookieValues <- hoistEither $ note "invalid cookie format" $ cookie >>= headMay . split ';'
 	let activityUrl = encodeUtf8 $ prepareActivityUrl url day
 	response <- lift $ Util.http activityUrl "" concatHandler $ do
-		http GET "/activity?show_wiki_edits=1&show_issues=1"
+		http GET activityUrl
 		setHeader "Cookie" cookieValues
 	timezone <- lift $ getTimeZone (UTCTime day 8)
 	today <- lift $ utctDay <$> getCurrentTime
@@ -80,10 +80,9 @@ mergeSuccessiveEvents (x:xs) = x : mergeSuccessiveEvents (dropWhile firstPartMat
 mergeSuccessiveEvents [] = []
 
 prepareActivityUrl :: Text -> Day -> Text
-prepareActivityUrl url day = T.concat [url, "/activity?from=", dayBeforeStr]
+prepareActivityUrl url day = T.concat [url, "/activity?show_wiki_edits=1&show_issues=1&from=", dayBeforeStr]
 	where
-		dayBefore = addDays (-1) day
-		(y, m, d) = toGregorian dayBefore
+		(y, m, d) = toGregorian $ addDays 1 day
 		dayBeforeStr = T.pack $ printf "%d-%02d-%02d" y m d
 
 addProtocolIfNeeded :: Text -> Text

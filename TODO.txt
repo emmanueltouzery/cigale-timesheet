@@ -3,8 +3,6 @@ src/EventProviders/Util.hs:24:1: Warning:
 Module `Data.Attoparsec' is deprecated:
 This module will be removed in the next major release.
 
-the git parser is ugly, it has a separate parser for list of files and heuristics whether to use it or not. Now that i have a decent test suite, consider refactoring it.
-
 would be nice to have duration of voice chats for skype example 2014-04-04.
 
 keyboard navigation would be nice.
@@ -17,16 +15,10 @@ interesting, 2014-02-05, 10:47, same mail present twice. 2014-03-10 thrice!
 
 ugly to in email, example 2014-02-04 15:38
 
-improve a couple of rex regexs with this trick? https://github.com/mgsloan/rex/issues/8
-
 the knockout API could be so. much. nicer... i think it needs operators and also a typeclass for Observable and ObservableList.
 Obviously for the typeclass, for now Fay doesn't support it...
 
 remove lib/ folder and instead install JS dependencies using NPM?
-
-should be able to make parseDateTime in Hg.hs and surely elsewhere too nicer by using parsec's parseNatural:
-Text.Parsec.Token
-Also can get rid of Util.parsedToInteger and parsedToInt..
 
 I avoided the problem of heteregenous lists by putting in the module data types the Value (IIRC) therefore tying me to Aeson.
 Here he talks about RankNTypes and foreach to achieve the same result:
@@ -35,7 +27,7 @@ Consider that solution instead.
 
 maybe use the async library to fetch from all sources concurrently instead of sequentially.
 
-cancel button in the loading throbber. especially when we first launch the app, it starts fetching for today and i don't care about that, i want data for 1 month ago.. I'm waiting for nothing.
+cancel button in the loading throbber.
 
 bootstrap date picker instead of jquery-ui?
 
@@ -60,8 +52,6 @@ for the config, if I make some smart TH then let's also have it call the aeson j
 store passwords using gnome-keyring on linux?
 
 migrate to scotty instead of snap? https://github.com/xich/scotty
-
-remove Util.toStrict1 once I can migrate to bytestring 0.10 (I think ghc 7.6)
 
 new sources: firefox google searches, maybe stackoverflow upvotes/questions, dropbox subfolder
 activity, google docs?

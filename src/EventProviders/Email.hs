@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, QuasiQuotes, ViewPatterns, DeriveGeneric, TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings, TemplateHaskell, ViewPatterns #-}
 
 module Email where
 
@@ -328,7 +328,8 @@ parseEmailDate :: T.Text -> LocalTime
 parseEmailDate (T.unpack -> dt) = fromMaybe (error $ "Error parsing date: " ++ dt)
 	$ (parseTime defaultTimeLocale "%b %d %T %Y" dt
 		A.<|> (zonedTimeToLocalTime <$> parseTime defaultTimeLocale "%a, %d %b %Y %T %z" dt)
-		A.<|> parseTime defaultTimeLocale "%a %b %d %T %Y" dt)
+		A.<|> parseTime defaultTimeLocale "%a %b %d %T %Y" dt
+		A.<|> parseTime defaultTimeLocale "%a %b %e %T %Y" dt)
 
 decUtf8IgnErrors :: B.ByteString -> T.Text
 decUtf8IgnErrors = decodeUtf8With (\str input -> Just ' ')

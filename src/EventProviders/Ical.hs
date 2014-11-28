@@ -29,9 +29,8 @@ import Control.Error
 import Control.Monad.Trans
 
 import Event
---import qualified Settings
 import qualified Util
-import Util (parseMaybe, parseNum)
+import Util (parseMaybe, parseNum, requestDefaults)
 import EventProvider
 
 
@@ -116,8 +115,7 @@ convertToEvents tz day keyValues = filterDate tz day $ concatMap (keyValuesToEve
 readFromWWW :: B.ByteString -> String -> IO T.Text
 readFromWWW icalAddress settingsFolder = do
 	putStrLn "reading from WWW"
-	--icalData <- withSocketsDo $ Util.http icalAddress "" concatHandler $ do
-	icalData <- Util.http icalAddress "" concatHandler $ http GET icalAddress
+	icalData <- Util.http GET icalAddress "" concatHandler requestDefaults
 	putStrLn "read from WWW"
 	let icalText = TE.decodeUtf8 icalData
 	putInCache settingsFolder icalText

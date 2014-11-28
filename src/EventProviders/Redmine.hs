@@ -65,8 +65,7 @@ getRedmineEvents config _ day _ = do
 	cookie <- lift $ login url config
 	cookieValues <- hoistEither $ note "invalid cookie format" $ cookie >>= headMay . split ';'
 	let activityUrl = encodeUtf8 $ prepareActivityUrl url day
-	response <- lift $ Util.http activityUrl "" concatHandler $ do
-		http GET activityUrl
+	response <- lift $ Util.http GET activityUrl "" concatHandler $ do
 		setHeader "Cookie" cookieValues
 	timezone <- lift $ getTimeZone (UTCTime day 8)
 	today <- lift $ utctDay <$> getCurrentTime

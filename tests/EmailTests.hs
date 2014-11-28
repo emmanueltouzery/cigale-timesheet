@@ -54,8 +54,11 @@ testMimeNonUtf = it "parses simple quoted printable" $
 	assertEqual "doesn't match" "RE: FW: import datoteke - ki so šle skozi" (decodeMime "=?iso-8859-2?Q?RE:_FW:_import_datoteke_-_ki_so_=B9le_skozi?=")
 
 testMimeMultibyte :: Spec
-testMimeMultibyte = it "parses multibyte quoted printable" $
+testMimeMultibyte = it "parses multibyte quoted printable" $ do
 	assertEqual "doesn't match" "Arrières plans" (decodeMime "=?utf-8?Q?Arri=C3=A8res_plans?=")
+	assertEqual "doesn't match" "nadgradnja testni strežnik in FK" (decodeMime "nadgradnja testni =?UTF-8?B?c3RyZcW+bmlrIGluIEZL?=")
+	assertEqual "doesn't match" "a=?b=?c" (decodeMime "a=?b=?c")
+	assertEqual "doesn't match" "test =?test?= test1" (decodeMime "test =?test?= test1")
 
 testMimeB64 :: Spec
 testMimeB64 = it "parses base64 email subject" $

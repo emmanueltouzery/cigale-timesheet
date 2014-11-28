@@ -339,9 +339,13 @@ iconvFuzzyText encoding input = decodeUtf8 $ BSL.toStrict lbsResult
 	where lbsResult = IConv.convertFuzzy IConv.Transliterate encoding "utf8" input
 
 decodeMime :: B.ByteString -> T.Text
-decodeMime t = case parse (decodeEncoded <|> decodePlainText) "" t of
+decodeMime t = case parse parseMime "" t of
 	Left x -> T.pack $ "Error parsing " ++ T.unpack (decUtf8IgnErrors t) ++ " -- " ++ show x
 	Right x -> x
+	where parseMime = T.concat <$> many
+		((try decodeEncoded)
+		<|> (T.pack <$> string "=") 
+		<|> decodePlainText)
 
 decodeEncoded :: Parsec B.ByteString st T.Text
 decodeEncoded = do
@@ -351,7 +355,7 @@ decodeEncoded = do
 	decodeBase64 encoding <|> decodeQuotedPrintable encoding
 
 decodePlainText :: Parsec B.ByteString st T.Text
-decodePlainText = T.pack <$> many anyChar
+decodePlainText = T.pack <$> many1 (noneOf "=")
 
 decodeQuotedPrintable :: String -> Parsec B.ByteString st T.Text
 decodeQuotedPrintable encoding = do

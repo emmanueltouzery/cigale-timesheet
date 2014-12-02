@@ -134,7 +134,7 @@ messageToEmail getAttachUrl msg = do
 	where
 		-- TODO ugly to re-encode in ByteString, now I do ByteString->Text->ByteString->Text
 		-- pazi another top-level function is also named readHeader!!!
-		readHeader hName = decodeMime . encodeUtf8 . Map.findWithDefault "missing" hName
+		readHeader hName = decodeMimeHeader . encodeUtf8 . Map.findWithDefault "missing" hName
 
 getAttachmentBar :: (AttachmentKey -> Url) -> String -> [MultipartSection] -> T.Text
 getAttachmentBar getAttachUrl messageId sections = foldr (\(section,idx) -> T.append (T.pack $
@@ -338,8 +338,8 @@ iconvFuzzyText :: String -> BL.ByteString -> T.Text
 iconvFuzzyText encoding input = decodeUtf8 $ BSL.toStrict lbsResult
 	where lbsResult = IConv.convertFuzzy IConv.Transliterate encoding "utf8" input
 
-decodeMime :: B.ByteString -> T.Text
-decodeMime t = case parse parseMime "" t of
+decodeMimeHeader :: B.ByteString -> T.Text
+decodeMimeHeader t = case parse parseMime "" t of
 	Left x -> T.pack $ "Error parsing " ++ T.unpack (decUtf8IgnErrors t) ++ " -- " ++ show x
 	Right x -> x
 	where parseMime = T.concat <$> many

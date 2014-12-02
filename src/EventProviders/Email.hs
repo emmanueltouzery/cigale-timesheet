@@ -186,10 +186,12 @@ parseTextPlain :: MultipartSection -> T.Text
 parseTextPlain section = T.replace "\n" "\n<br/>" (sectionFormattedContent section)
 
 getEmailDate :: MboxMessage BL.ByteString -> LocalTime
-getEmailDate msg = parseEmailDate $ case BSL.toStrict $ _mboxMsgTime msg of
-	"" -> fromMaybe (error $ "Can't find a date for email: " ++ show msg)
-		$ Map.lookup "Date" $ fst $ parseMessage msg
-	dt -> decodeUtf8 dt
+getEmailDate msg = parseEmailDate $ case Map.lookup "Date" $ fst $ parseMessage msg of
+	Nothing -> if mboxDate == ""
+		then error $ "Can't find a date for email: " ++ show msg
+		else decodeUtf8 mboxDate
+	Just date -> date
+	where mboxDate = BSL.toStrict $ _mboxMsgTime msg
 
 parseMultipartBody :: T.Text -> BSL.ByteString -> Maybe [MultipartSection]
 parseMultipartBody separator = Util.parseMaybe (parseMultipartBodyParsec mimeSeparator)

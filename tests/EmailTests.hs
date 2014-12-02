@@ -34,6 +34,7 @@ runEmailTests = do
 	testMultipartAlternative
 	testMultipartRelated
 	testMultipartProblem
+	testEmailCarriageReturnInMiddleOfMultibyte
 	testHeadersParse
 	testCharsetFromContenType
 	--testMboxMessage
@@ -336,6 +337,27 @@ testMultipartProblem = it "parse multipart problem body" $ do
 			------=_Part_261520_1752112592.1379489229611--
 			|] -- TODO truncated base64!!
 	assertEqual "doesn't match" "<html> smo se znašli v položaju se NOČEŠ najti" (getMultipartBodyText "----=_Part_261520_1752112592.1379489229611" source)
+
+testEmailCarriageReturnInMiddleOfMultibyte = it "parses email carriage return in middle of multibyte" $ do
+	let source = BL.pack $ T.unpack [strT|
+		This is a multi-part message in MIME format.
+		
+		-------------7934315f87642993d731c3ef7372f2b3
+		Content-Type: text/plain;
+			charset="UTF-8"
+		Content-Transfer-Encoding: quoted-printable
+		
+		Pozdravljen,
+		-------------7934315f87642993d731c3ef7372f2b3
+		Content-Type: text/html;
+			charset="utf-8"
+		Content-Transfer-Encoding: quoted-printable
+		
+		 celo danes zjutraj=3F Nekaj je bilo v soboto 15:35, ki mu ni bilo v=C5=
+		=A1e=C4=8D. =C5=A0e raziskujem.
+		-------------7934315f87642993d731c3ef7372f2b3--
+		|]
+	assertEqual "doesn't match" " celo danes zjutraj? Nekaj je bilo v soboto 15:35, ki mu ni bilo všeč. Še raziskujem." (getMultipartBodyText "-----------7934315f87642993d731c3ef7372f2b3" source)
 
 testHeadersParse :: Spec
 testHeadersParse = it "parses headers" $ do

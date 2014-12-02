@@ -33,7 +33,6 @@ import Text.Parsec
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import qualified Data.Aeson as Aeson
 import qualified Codec.Text.IConv as IConv
-import Debug.Trace
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
@@ -373,10 +372,13 @@ decodeBase64 encoding = do
 	return $ iconvFuzzyText encoding contentsBinary
 
 decodeMimeContents :: String -> T.Text -> T.Text
-decodeMimeContents encoding contentsVal = case parseQuotedPrintable (encodeUtf8 contentsVal) of
+decodeMimeContents encoding contentsVal = case parseQuotedPrintable (encodeUtf8 $ stripCarriageReturns contentsVal) of
 	Left err -> T.concat ["can't parse ", contentsVal ,
 		" as quoted printable? ", T.pack $ show err]
 	Right elts -> T.concat $ map (qpEltToString encoding) elts
+
+stripCarriageReturns :: T.Text -> T.Text
+stripCarriageReturns = T.replace "=\n" ""
 
 qpEltToString :: String -> QuotedPrintableElement -> T.Text
 qpEltToString encoding (AsciiSection str) = T.pack str
@@ -392,20 +394,13 @@ parseQuotedPrintable :: BS.ByteString -> Either ParseError [QuotedPrintableEleme
 parseQuotedPrintable = parse parseQPElements ""
 
 parseQPElements :: GenParser Char st [QuotedPrintableElement]
-parseQPElements = many $ parseAsciiSection <|> parseUnderscoreSpace <|> try parseNonAsciiChars <|> try pqLineBreak
-
-pqLineBreak :: GenParser Char st QuotedPrintableElement
-pqLineBreak = do
-	string "="
-	optional $ string "\r"
-	string "\n"
-	return LineBreak
+parseQPElements = many $ parseAsciiSection <|> parseUnderscoreSpace <|> parseNonAsciiChars
 
 parseAsciiSection :: GenParser Char st QuotedPrintableElement
 parseAsciiSection = AsciiSection <$> many1 (noneOf "=_")
 
 parseNonAsciiChars :: GenParser Char st QuotedPrintableElement
-parseNonAsciiChars = NonAsciiChars <$> many1 parseNonAsciiChar
+parseNonAsciiChars = NonAsciiChars <$> many1 (try parseNonAsciiChar)
 
 parseNonAsciiChar :: GenParser Char st Word8
 parseNonAsciiChar = do

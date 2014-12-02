@@ -436,7 +436,7 @@ testMboxMessageQP = it "parses a quoted-printable plain text message from start 
 	let msg = MboxMessage "sender" "Jan 23 06:00:05 2013" source "file" 0
 	let expected = Email
 		{
-			date = LocalTime (fromGregorian 2013 1 23) (TimeOfDay 6 0 5),
+			date = LocalTime (fromGregorian 2013 10 3) (TimeOfDay 13 34 30),
 			to = "'a b' <a.b@test.com>",
 			cc = Nothing,
 			subject = "test",
@@ -503,7 +503,7 @@ testMboxMultipartMessage = it "parses a multipart message from start to end" $ d
 	let msg = MboxMessage "sender" "Jan 23 06:00:05 2013" source "file" 0
 	let expected = Email
 		{
-			date = LocalTime (fromGregorian 2013 1 23) (TimeOfDay 6 0 5),
+			date = LocalTime (fromGregorian 2013 10 3) (TimeOfDay 10 18 40),
 			to = "c d <c@test.com>",
 			cc = Nothing,
 			subject = "Re: FW: Test",
@@ -555,7 +555,7 @@ testDifferentMessage = it "parses a different message" $ do
 	let msg = MboxMessage "sender" "Jan 23 06:00:05 2013" source "file" 0
 	let expected = Email
 		{
-			date = LocalTime (fromGregorian 2013 1 23) (TimeOfDay 6 0 5),
+			date = LocalTime (fromGregorian 2013 11 13) (TimeOfDay 13 57 5),
 			to = "\"'C D'\" <c.d@e>",
 			cc = Nothing,
 			subject = "RE: FW: Test",

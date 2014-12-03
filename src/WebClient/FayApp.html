@@ -122,19 +122,36 @@
 			return str.substring(0, pattern.length) == pattern;
 		}
 
+		function headerHeight() {
+			var result = $('p#m1').outerHeight(true)
+				+ $('p#m2').outerHeight(true)
+				+ $('table#datepickheader').outerHeight(true);
+			var w = $('div#warning');
+			if (w.is(':visible')) {
+				result += w.outerHeight(true)
+			}
+			return result;
+		}
+
 		function overwriteCss() {
 			// http://stackoverflow.com/questions/730048/how-to-change-remove-css-classes-definitions-at-runtime
 			// that's I think the most ugly code of the whole frontend...
 			// I'm absolutely certain there's a much better way to achieve this.
 			var rules = document.styleSheets[0].cssRules;
-			var calendarHeight = $('table#datepickheader').height();
 			for (var i=0;i<rules.length;i++) {
 				if (startsWith(rules[i].cssText, '.vert_limited')) {
-					// add 25 for margins
-					rules[i].style.height = "calc(100% - " + (calendarHeight+25) + "px)";
+					rules[i].style.height = "calc(100% - " + headerHeight() + "px)";
 				}
 			}
 		}
+
+		// must be called when the sidebar contents change (header's height
+		// will change) and on window resize.
+		function updateSidebarContentsHeight() {
+			$('iframe#page-contents').height($('body').height() - headerHeight() -
+					$('div#page-header').outerHeight(true))
+		}
+		$(window).resize(function() {updateSidebarContentsHeight();});
 
 		function dateAddDays(days) {
 			var date2 = $('#datepicker').datepicker('getDate');
@@ -183,7 +200,7 @@
 		</div><!-- /.navbar-collapse -->
 	</nav>
 	
-	<div class="alert alert-warning alert-dismissible" role="alert" 
+	<div id="warning" class="alert alert-warning alert-dismissible" role="alert" 
 		style="width: 65%; margin-left: auto; margin-right: auto"
 		data-bind="visible: warningText().length>0">
 		<button type="button" class="close" data-dismiss="alert">
@@ -192,7 +209,7 @@
 		<strong>Warning!</strong> <span data-bind="text: warningText"></span>
 	</div>
 
-	<p style="margin-left: 10px;">
+	<p style="margin-left: 10px;" id="m1">
 	<table id="datepickheader">
 	<tr><td>
 	Day to display:
@@ -211,7 +228,7 @@
 		<span class="glyphicon glyphicon-step-forward"></span>
 	</button>
 	</td></tr></table>
-	</p>
+	<p id="m2"></p>
 
 	<div id="shadow"></div> 
 	<div id="pleasehold">Please hold...</div>
@@ -240,13 +257,13 @@
 		</table>
 		</div>
 		<div class="fully_responsive" style="position: relative; right: 0px; min-height: 1px; padding-left: 15px; padding-right: 15px;">
-			<div id="sidebar">
+			<div id="sidebar" style="overflow: hidden">
 			<!-- ko if: selectedEvent() !== null -->
-			<div class="page-header" style="margin-top: 0px;">
-				<h3 data-bind="text: selectedEvent().desc"></h3>
+			<div id="page-header" class="page-header" style="margin-top: 20px;">
+				<h3 data-bind="text: selectedEvent().desc" style="margin-top: 0px;"></h3>
 				<h4 data-bind="text: selectedEvent().extraInfo"></h4>
 			</div>
-			<span data-bind="html: selectedEvent().fullContents"></span>
+			<iframe data-bind="attr: { srcdoc: selectedEvent().fullContents }" frameBorder="0" width="100%" id="page-contents"></iframe>
 			<!-- /ko -->
 			</div>
 		</div>

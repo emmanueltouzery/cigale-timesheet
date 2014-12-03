@@ -98,6 +98,11 @@ processResults viewModel pleaseHold shadow fetchResponse = do
 	mapM_ (koPushObservableList eventsObsV . evtFormatTime) events
 	let eventToDisplay = if null events then NullEvent else evtFormatTime $ head events
 	showSidebarCb viewModel eventToDisplay
+	-- recalculate the heights in case the warning
+	-- box appeared or disappeared
+	overwriteCss
+	updateSidebarContentsHeight
+
 	hide Instantly pleaseHold
 	void $ hide Instantly shadow
 
@@ -105,6 +110,7 @@ showSidebarCb :: MainViewModel -> Event -> Fay ()
 showSidebarCb vm event = do
 	event ~> selectedEvent vm
 	void $ select "#sidebar" >>= setScrollTop 0
+	updateSidebarContentsHeight
 
 nullable :: b -> (a->b) -> Nullable a -> b
 nullable b _ Null = b
@@ -118,6 +124,9 @@ formatTime = ffi "formatTime(%1)"
 
 overwriteCss :: Fay ()
 overwriteCss = ffi "overwriteCss()"
+
+updateSidebarContentsHeight :: Fay ()
+updateSidebarContentsHeight = ffi "updateSidebarContentsHeight()"
 
 alert :: Text -> Fay ()
 alert = ffi "alert(%1)"

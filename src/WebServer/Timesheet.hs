@@ -21,6 +21,9 @@ import Network.HTTP.Types.URI (urlEncode)
 import qualified Data.Aeson as Aeson
 import Data.Char (chr)
 import System.Timeout (timeout)
+import Control.Concurrent.MSem
+import Control.Concurrent.Async
+import qualified Data.Traversable as T
 
 import qualified Config
 import qualified EventProviders
@@ -31,6 +34,9 @@ import qualified FayAeson
 -- 15 seconds max runtime before a fetch is aborted.
 maxRuntimeFetchMicros :: Int
 maxRuntimeFetchMicros = 15000000
+
+fetchingConcurrentThreads :: Int
+fetchingConcurrentThreads = 3
 
 process :: Day -> IO (Bool, BL.ByteString)
 process month = do
@@ -51,13 +57,20 @@ fetchResponseAdd sofar@(FetchResponse ev _) (Right evts) =
 	sofar { fetchedEvents = mergeBy orderByDate ev (sortBy orderByDate evts) }
 	where orderByDate = compare `on` Event.eventDate
 
+-- http://stackoverflow.com/a/18898822/516188
+mapPool :: T.Traversable t => Int -> (a -> IO b) -> t a -> IO (t b)
+mapPool count f xs = do
+    sem <- new count
+    mapConcurrently (with sem . f) xs
+
 processConfig :: Day -> [Config.EventSource Value Value] -> IO (Bool, BL.ByteString)
 processConfig date config = do
 	myTz <- getTimeZone $ UTCTime date (secondsToDiffTime 8*3600)
 
 	putStrLn "before the fetching..."
 	settings <- getGlobalSettings
-	allEventsSeq <- mapM (\c -> fetchProvider (Config.srcName c) settings date c) config
+	allEventsSeq <- mapPool fetchingConcurrentThreads
+		(\c -> fetchProvider (Config.srcName c) settings date c) config
 	let allEvents = foldl' fetchResponseAdd (FetchResponse [] []) allEventsSeq
 	let errors = filter isLeft allEventsSeq
 	when (not $ null errors) $ print errors

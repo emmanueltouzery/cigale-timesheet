@@ -326,11 +326,12 @@ readTT :: B.ByteString -> Integer
 readTT = fst . fromJust . B.readInteger
 
 parseEmailDate :: T.Text -> LocalTime
-parseEmailDate (T.unpack -> dt) = fromMaybe (error $ "Error parsing date: " ++ dt)
+parseEmailDate (T.unpack -> dt) = fromMaybe (error $ "Email: error parsing date: " ++ dt)
 	$ (parseTime defaultTimeLocale "%b %d %T %Y" dt
 		A.<|> (zonedTimeToLocalTime <$> parseTime defaultTimeLocale "%a, %d %b %Y %T %z" dt)
 		A.<|> parseTime defaultTimeLocale "%a %b %d %T %Y" dt
-		A.<|> parseTime defaultTimeLocale "%a %b %e %T %Y" dt)
+		A.<|> parseTime defaultTimeLocale "%a %b %e %T %Y" dt
+		A.<|> (zonedTimeToLocalTime <$> parseTime defaultTimeLocale "%a, %-d %b %Y %T %z (%Z)" dt))
 
 decUtf8IgnErrors :: B.ByteString -> T.Text
 decUtf8IgnErrors = decodeUtf8With (\str input -> Just ' ')

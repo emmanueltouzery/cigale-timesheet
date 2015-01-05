@@ -30,6 +30,7 @@ import qualified EventProviders
 import EventProvider
 import Event
 import qualified FayAeson
+import Communication
 
 -- 15 seconds max runtime before a fetch is aborted.
 maxRuntimeFetchMicros :: Int
@@ -38,18 +39,23 @@ maxRuntimeFetchMicros = 15000000
 fetchingConcurrentThreads :: Int
 fetchingConcurrentThreads = 3
 
+-- must define those in a different module than
+-- the definition of the item itself with GHC 7.8:
+-- https://github.com/mchakravarty/language-c-inline/issues/25
+instance ToJSON Event where
+     toJSON = FayAeson.addInstance "Event" . $(mkToJSON defaultOptions ''Event)
+
+instance ToJSON PluginConfig where
+    toJSON = FayAeson.addInstance "PluginConfig" . $(mkToJSON defaultOptions ''PluginConfig)
+
+instance ToJSON FetchResponse where
+     toJSON = FayAeson.addInstance "FetchResponse" . $(mkToJSON defaultOptions ''FetchResponse)
+
+
 process :: Day -> IO (Bool, BL.ByteString)
 process month = do
 	config <- Config.readConfig EventProviders.plugins
 	processConfig month config
-
-data FetchResponse = FetchResponse
-	{
-		fetchedEvents :: [Event],
-		fetchErrors :: [String]
-	}
-instance ToJSON FetchResponse where
-     toJSON = FayAeson.addInstance "FetchResponse" . $(mkToJSON defaultOptions ''FetchResponse)
 
 fetchResponseAdd :: FetchResponse -> Either String [Event] -> FetchResponse
 fetchResponseAdd sofar@(FetchResponse _ errs) (Left err) = sofar { fetchErrors = err:errs }
@@ -114,14 +120,6 @@ getExtraDataUrl :: T.Text -> Value -> Url
 getExtraDataUrl (TE.encodeUtf8 -> configItemName) key = printf "/getExtraData?configItemName=%s&queryParams=%s" 
 	(toUrlParam configItemName) (toUrlParam $ BL.toStrict $ Aeson.encode key)
 	where toUrlParam = fmap (chr . fromIntegral) . BS.unpack . urlEncode True
-
-data PluginConfig = PluginConfig
-	{
-		cfgPluginName :: String,
-		cfgPluginConfig :: [ConfigDataInfo]
-	}
-instance ToJSON PluginConfig where
-    toJSON = FayAeson.addInstance "PluginConfig" . $(mkToJSON defaultOptions ''PluginConfig)
 
 getEventProvidersConfig :: BL.ByteString
 getEventProvidersConfig = JSON.encode $ fmap getPluginConfig EventProviders.plugins

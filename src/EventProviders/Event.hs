@@ -8,6 +8,7 @@ import Data.Aeson (ToJSON, toJSON)
 import Data.Aeson.TH (mkToJSON, defaultOptions)
 import GHC.Generics
 import qualified FayAeson
+import Language.Haskell.TH
 
 data Event = Event
 	{
@@ -19,6 +20,3 @@ data Event = Event
 		fullContents :: Maybe T.Text
 	}
 	deriving (Eq, Show)
-
-instance ToJSON Event where
-     toJSON = FayAeson.addInstance "Event" . $(mkToJSON defaultOptions ''Event)

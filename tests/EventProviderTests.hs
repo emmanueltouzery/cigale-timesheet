@@ -6,6 +6,7 @@ import Test.HUnit
 import qualified Data.Text as T
 
 import EventProvider
+import EventProviderTestsData
 
 runEventProviderTests :: Spec
 runEventProviderTests = do
@@ -13,33 +14,14 @@ runEventProviderTests = do
 	testThGetTypeDescComplex
 	testThGetTypeDescComplexT
 
-data TestData = TestData
-	{
-		field :: String,
-		field1 :: Int
-	}
-
 testThGetTypeDesc :: Spec
 testThGetTypeDesc = it "parses a simple type" $
 	$(thGetTypeDesc ''TestData) `shouldBe` ConfigDataType"TestData"
 		[ConfigDataInfo "field" "String", ConfigDataInfo "field1" "Int"]
 
-data EmailConfigRecord = EmailRecord
-	{
-		emailProj :: T.Text,
-		emailPatterns :: [T.Text]
-	} deriving Show
-
-data EmailConfig = EmailConfig
-	{
-		emailPaths :: [String],
-		emailRecords :: [EmailConfigRecord]
-		
-	} deriving Show
-
 testThGetTypeDescComplex :: Spec
 testThGetTypeDescComplex = it "parses a complex type" $
-	$(thGetTypeDesc ''EmailConfig) `shouldBe` ConfigDataType "EmailConfig" 
+	$(thGetTypeDesc ''EmailConfig) `shouldBe` ConfigDataType "EmailConfig"
 		[ConfigDataInfo "emailPaths" "[String]",
 		ConfigDataInfo "emailRecords" "[EmailConfigRecord]"]
 

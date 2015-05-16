@@ -23,7 +23,7 @@ import qualified Data.ByteString.Lazy as BSL
 import Data.Maybe
 import Data.List
 import qualified Data.Text as T
-import Data.Text.Encoding 
+import Data.Text.Encoding
 import Data.Text.Read
 import GHC.Word
 import qualified Data.ByteString.Base64 as Base64
@@ -31,7 +31,6 @@ import Text.Parsec.ByteString
 import qualified Text.Parsec.Text as TT
 import Text.Parsec
 import Data.Aeson.TH (deriveJSON, defaultOptions)
-import qualified Data.Aeson as Aeson
 import qualified Codec.Text.IConv as IConv
 import qualified Data.Map as Map
 import Data.Map (Map)
@@ -39,8 +38,6 @@ import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
 import qualified Control.Applicative as A
 import Control.Arrow ( (***) )
 import Control.Error
-import Network.HTTP.Types.URI (urlEncode)
-import Data.Char (chr)
 import Text.Printf
 import Control.Monad.Trans
 
@@ -51,7 +48,6 @@ import Util
 data EmailConfig = EmailConfig
 	{
 		emailPath :: FilePath
-		
 	} deriving Show
 deriveJSON defaultOptions ''EmailConfig
 
@@ -84,7 +80,7 @@ data Email = Email
 getEmailEvents :: EmailConfig -> GlobalSettings -> Day
 	-> (AttachmentKey -> Url) -> EitherT String IO [Event.Event]
 getEmailEvents cfg@(EmailConfig mboxLocation) _ day getAttachUrl = do
-	emails <- lift $ getEmails getAttachUrl mboxLocation day day 
+	emails <- lift $ getEmails getAttachUrl mboxLocation day day
 	timezone <- lift $ getTimeZone (UTCTime day 8)
 	return $ map (toEvent timezone) emails
 
@@ -186,12 +182,13 @@ parseTextPlain :: MultipartSection -> T.Text
 parseTextPlain section = T.replace "\n" "\n<br/>" (sectionFormattedContent section)
 
 getEmailDate :: MboxMessage BL.ByteString -> LocalTime
-getEmailDate msg = parseEmailDate $ case Map.lookup "Date" $ fst $ parseMessage msg of
-	Nothing -> if mboxDate == ""
-		then error $ "Can't find a date for email: " ++ show msg
-		else decodeUtf8 mboxDate
-	Just date -> date
-	where mboxDate = BSL.toStrict $ _mboxMsgTime msg
+getEmailDate msg = parseEmailDate $ fromMaybe decodedMboxDate
+		(Map.lookup "Date" $ fst $ parseMessage msg)
+	where
+		mboxDate = BSL.toStrict $ _mboxMsgTime msg
+		decodedMboxDate = if mboxDate == ""
+			then error $ "Can't find a date for email: " ++ show msg
+			else decodeUtf8 mboxDate
 
 parseMultipartBody :: T.Text -> BSL.ByteString -> Maybe [MultipartSection]
 parseMultipartBody separator = Util.parseMaybe (parseMultipartBodyParsec mimeSeparator)
@@ -346,7 +343,7 @@ decodeMimeHeader t = case parse parseMime "" t of
 	Right x -> x
 	where parseMime = T.concat <$> many
 		((try decodeEncoded)
-		<|> (T.pack <$> string "=") 
+		<|> (T.pack <$> string "=")
 		<|> decodePlainText)
 
 decodeEncoded :: Parsec B.ByteString st T.Text

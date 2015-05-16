@@ -3,10 +3,7 @@
 module Util where
 
 import qualified Data.ByteString as B
-import Data.Char (digitToInt)
 import Data.List (transpose)
-import Text.ParserCombinators.Parsec.Error
-import Text.ParserCombinators.Parsec.Pos
 import qualified Data.Text as T
 import Data.Time.Clock
 import Text.ParserCombinators.Parsec
@@ -16,13 +13,10 @@ import Network.Http.Client as S
 import System.IO.Streams (InputStream(..))
 import qualified System.IO.Streams as Streams
 import qualified Blaze.ByteString.Builder as Builder
-import qualified OpenSSL.Session as SSL
-import qualified Data.Aeson as A
 import qualified Data.Functor.Identity as DFI
 import Control.Applicative
 import Control.Error
 import Control.Exception as Ex
-import Control.Monad (liftM)
 import Text.Printf (printf)
 import System.Process
 import qualified Data.Text.IO as IO
@@ -82,7 +76,7 @@ requestDefaults :: RequestBuilder ()
 requestDefaults = return ()
 
 http :: Method -> B.ByteString -> B.ByteString
-		-> (Response -> InputStream B.ByteString -> IO B.ByteString) 
+		-> (Response -> InputStream B.ByteString -> IO B.ByteString)
 		-> RequestBuilder a ->  IO B.ByteString
 http method url contents responseProcessor requestSpec = withOpenSSL $ do
 	c <- establishConnection url

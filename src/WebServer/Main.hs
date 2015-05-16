@@ -72,7 +72,7 @@ removeObsoletePrefetch = do
 	oldestAccepted <- addGregorianMonthsClip (-3) <$> getToday
 	prefetchFolder <- getPrefetchFolder
 	getDirectoryContents prefetchFolder >>= mapM_ (removeIfOlderThan oldestAccepted prefetchFolder)
-	
+
 prefetch :: FilePath -> Day -> Day -> IO ()
 prefetch folder curDay maxDay
 	| curDay > maxDay = return ()
@@ -99,10 +99,10 @@ removeIfOlderThan date folder filename =
 
 wipePrefetchFiles :: IO ()
 wipePrefetchFiles = do
-	prefetchFolder <- getPrefetchFolder 
+	prefetchFolder <- getPrefetchFolder
 	prefetchFiles <- getDirectoryContents prefetchFolder
 	mapM_ (\f -> removeFile (prefetchFolder </> f))
-		$ filter (not . (isPrefixOf ".")) prefetchFiles
+		$ filter (not . isPrefixOf ".") prefetchFiles
 
 parsePrefetchFilename :: T.GenParser st Day
 parsePrefetchFilename = parseDate <* T.string ".json"

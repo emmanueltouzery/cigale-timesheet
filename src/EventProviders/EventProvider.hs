@@ -4,16 +4,13 @@ module EventProvider (thGetTypeDesc,
 	eventProviderWrap, getSettingsFolder,
 	ConfigDataType(..), ConfigDataInfo(..), FolderPath, ContentType, Url) where
 
-import qualified Data.Text as T
 import Data.Time.Calendar
 import Data.Aeson
 import Language.Haskell.TH
 import Language.Haskell.TH.Lift
-import Language.Haskell.TH.Syntax
 import Data.ByteString (ByteString)
-import Data.Aeson.TH (deriveJSON, deriveFromJSON, mkToJSON, defaultOptions)
+import Data.Aeson.TH
 import qualified FayAeson
-import Control.Applicative
 import Control.Error
 
 import Event
@@ -44,7 +41,7 @@ formatTypeName (AppT ListT x) = "[" ++ formatTypeName x ++ "]"
 formatTypeName x@_ = "fallback " ++ show x
 
 showField :: (Name,Type) -> ConfigDataInfo
-showField nameType = ConfigDataInfo s typS 
+showField nameType = ConfigDataInfo s typS
 	where
 		s = nameBase $ fst nameType
 		typS = formatTypeName $ snd nameType

@@ -16,14 +16,12 @@ import Control.Error
 import Control.Monad.Trans (liftIO)
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.List
+import Data.Monoid
 
 import EventProvider (EventProvider, getModuleName)
 import qualified EventProviders
 import qualified Util
 import SnapUtil (noteET)
-
-(+++) :: BS.ByteString -> BS.ByteString -> BS.ByteString
-(+++) = BS.append
 
 data ConfigItem = ConfigItem
 	{
@@ -105,7 +103,7 @@ checkRemoveFromConfig config cfgItemName =
 updatePluginInConfig :: T.Text -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)
 updatePluginInConfig oldConfigItemName configItemJson = runEitherT $ do
 	config <- liftIO $ readConfig EventProviders.plugins
-	let errorMsg = "invalid new config info: " +++ configItemJson
+	let errorMsg = "invalid new config info: " <> configItemJson
 	(configItem, configWithoutThisSource) <- noteET errorMsg $ do
 		nElt <- decodeStrict' configItemJson
 		configWithoutElt <- checkRemoveFromConfig config oldConfigItemName
@@ -119,7 +117,7 @@ updatePluginInConfig oldConfigItemName configItemJson = runEitherT $ do
 
 addPluginInConfig :: BS.ByteString -> IO (Either BS.ByteString BS.ByteString)
 addPluginInConfig configItemJson = runEitherT $ do
-	configItem <- noteET ("invalid new config info " +++ configItemJson)
+	configItem <- noteET ("invalid new config info " <> configItemJson)
 		$ decodeStrict' configItemJson
 	let providersByNameHash = providersByName EventProviders.plugins
 	newElt <- noteET "Error reading new config item"

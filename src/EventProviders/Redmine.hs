@@ -5,12 +5,10 @@ module Redmine where
 import Data.ByteString as BS (ByteString(..), concat)
 import Data.ByteString.Char8 as Char8 (split, pack)
 import Data.ByteString.Lazy (fromChunks)
-import System.IO.Streams (write)
 import Network.Http.Client
 import qualified Data.Text as T
-import Data.Text (Text(..))
+import Data.Text (Text)
 import qualified Data.Map as Map
-import Data.Text.Read (decimal)
 import Data.Text.Encoding as TE
 import Text.Printf
 import Data.Time.Clock
@@ -23,7 +21,6 @@ import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.Maybe
 import Control.Applicative hiding ((<|>))
 import Data.Text.Lazy (toStrict)
-import Data.Text.Encoding (decodeUtf8)
 import Control.Error
 import Control.Monad.Trans
 import Text.ParserCombinators.Parsec
@@ -100,7 +97,7 @@ appendIfNeeded postfix val
 login :: Text -> RedmineConfig -> IO (Maybe ByteString)
 login url config = postForm
 		(BS.concat [encodeUtf8 url, "login"])
-		[("username", encodeUtf8 $ redmineUsername config), 
+		[("username", encodeUtf8 $ redmineUsername config),
 			("password", encodeUtf8 $ redminePassword config)]
 		(\r _ -> return $ getHeader r "Set-Cookie")
 

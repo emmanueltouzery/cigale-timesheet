@@ -6,7 +6,6 @@ import Data.Time.Clock
 import Data.Time.LocalTime
 import Data.Time.Calendar
 import Data.List
-import Network.Socket
 import Network.Http.Client
 import qualified Data.Text.Encoding as TE
 import qualified Data.Text as T
@@ -18,8 +17,6 @@ import System.IO
 import qualified System.Directory as Dir
 import qualified System.IO.Error as IOEx
 import Data.Map as Map hiding (filter, map, foldl)
-import Data.Time.Clock.POSIX
-import System.Time.Utils
 import Data.Time.Format
 import System.Locale
 import Data.Aeson.TH (deriveJSON, defaultOptions)
@@ -72,17 +69,17 @@ getIcalProvider = EventProvider
 --    Some properties allow a list of parameters. Each property parameter
 --    in a list of property parameters MUST be separated by a SEMICOLON
 --    character (US-ASCII decimal 59).
--- 
+--
 --    Property parameters with values containing a COLON, a SEMICOLON or a
 --    COMMA character MUST be placed in quoted text.
--- 
+--
 --    For example, in the following properties a SEMICOLON is used to
 --    separate property parameters from each other, and a COMMA is used to
 --    separate property values in a value list.
--- 
+--
 --      ATTENDEE;RSVP=TRUE;ROLE=REQ-PARTICIPANT:MAILTO:
 --       jsmith@host.com
--- 
+--
 --      RDATE;VALUE=DATE:19970304,19970504,19970704,19970904
 --
 -- Due to that, I have propParams (property parameters) and a list for the property values.

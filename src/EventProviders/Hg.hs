@@ -8,7 +8,6 @@ import Data.Time.LocalTime
 import Text.Parsec.Text
 import Text.Parsec
 import qualified Data.Text as T
-import qualified Data.Text.IO as IO
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
 import Control.Monad.Trans
@@ -43,7 +42,7 @@ getRepoCommits (HgRecord _username projectPath) _ day _ = do
 	timezone <- liftIO $ getTimeZone (UTCTime day 8)
 	commits <- hoistEither $ fmapL show $ parse parseCommits "" output
 	return $ map (toEvent timezone) commits
-	
+
 toEvent :: TimeZone -> Commit -> Event.Event
 toEvent timezone commit =
 	Event.Event

@@ -8,8 +8,7 @@ import Data.Time.Clock (UTCTime(..))
 import Text.Parsec.Text
 import Text.Parsec
 import qualified Data.Text as T
-import qualified Data.Text.IO as IO
-import Data.List (isInfixOf, intercalate, foldl')
+import Data.List (isInfixOf, intercalate)
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.Maybe
 import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
@@ -67,7 +66,7 @@ commitInRange :: Day -> Commit -> Bool
 commitInRange date = inRange . localDay . commitDate
 	where
 		inRange tdate = tdate >= date && tdate < addDays 1 date
-	
+
 commitToEvent :: FolderPath -> TimeZone -> Commit -> Event.Event
 commitToEvent gitFolderPath timezone commit = Event.Event
 	{
@@ -148,7 +147,7 @@ parseCommit = do
 	commitSha <- many1 $ noneOf " \n\r"
 	tags <- option [] parseDecoration
 	many1 $ oneOf "\r\n"
-	
+
 	mergeInfo <- optionMaybe parseMerge
 	author <- string "Author: " >> readLine
 	date <- parseDateTime

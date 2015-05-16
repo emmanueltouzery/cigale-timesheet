@@ -112,12 +112,10 @@ fetchProvider configItemName settings day eventSource = do
 		runEitherT $ fmapLT errorInfo $ getEvents provider
 			(Config.srcConfig eventSource) settings day (getExtraDataUrl configItemName)
 	putStrLn "Done"
-	return $ case evts of
-		Nothing -> Left $ errorInfo "Timeouted"
-		Just returned -> returned
+	return $ fromMaybe (Left $ errorInfo "Timeouted") evts
 
 getExtraDataUrl :: T.Text -> Value -> Url
-getExtraDataUrl (TE.encodeUtf8 -> configItemName) key = printf "/getExtraData?configItemName=%s&queryParams=%s" 
+getExtraDataUrl (TE.encodeUtf8 -> configItemName) key = printf "/getExtraData?configItemName=%s&queryParams=%s"
 	(toUrlParam configItemName) (toUrlParam $ BL.toStrict $ Aeson.encode key)
 	where toUrlParam = fmap (chr . fromIntegral) . BS.unpack . urlEncode True
 

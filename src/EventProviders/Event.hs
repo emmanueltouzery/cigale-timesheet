@@ -1,14 +1,8 @@
-{-# LANGUAGE TemplateHaskell, OverloadedStrings #-}
-
 module Event where
 
 import Data.Time.Clock
 import qualified Data.Text as T
-import Data.Aeson (ToJSON, toJSON)
-import Data.Aeson.TH (mkToJSON, defaultOptions)
-import GHC.Generics
-import qualified FayAeson
-import Language.Haskell.TH
+import Data.Aeson()
 
 data Event = Event
 	{

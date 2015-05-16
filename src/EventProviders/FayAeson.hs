@@ -5,7 +5,6 @@
 module FayAeson where
 
 import Data.Aeson
-import Data.Aeson.Types
 import qualified Data.Text as T
 import qualified Data.HashMap.Strict as H
 

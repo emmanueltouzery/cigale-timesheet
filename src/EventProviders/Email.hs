@@ -78,7 +78,7 @@ data Email = Email
 	deriving (Eq, Show)
 
 getEmailEvents :: EmailConfig -> GlobalSettings -> Day
-	-> (AttachmentKey -> Url) -> EitherT String IO [Event.Event]
+	-> (AttachmentKey -> Url) -> ExceptT String IO [Event.Event]
 getEmailEvents cfg@(EmailConfig mboxLocation) _ day getAttachUrl = do
 	emails <- lift $ getEmails getAttachUrl mboxLocation day day
 	timezone <- lift $ getTimeZone (UTCTime day 8)

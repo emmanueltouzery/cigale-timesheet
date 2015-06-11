@@ -28,7 +28,7 @@ import OpenSSL (withOpenSSL)
 parseNum :: (Num a, Read a) => Int -> T.GenParser st a
 parseNum digitCount = read <$> count digitCount digit
 
-runProcess :: String -> String -> [String] -> EitherT String IO T.Text
+runProcess :: String -> String -> [String] -> ExceptT String IO T.Text
 runProcess program runningFolder parameters = do
 	(inh, Just outh, errh, pid) <- lift $ createProcess (proc program parameters)
 		{ std_out = CreatePipe, cwd = Just runningFolder }

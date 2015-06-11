@@ -55,7 +55,7 @@ Library
     fay >= 0.19,
     fay-jquery,
     zip-archive >= 0.1.4,
-    errors,
+    errors >= 2.0.0,
     http-types
   exposed-modules:
     EventProviders,
@@ -95,7 +95,7 @@ Executable cigale-timesheet
      HTTP,
      filepath,
      parsec,
-     errors,
+     errors >= 2.0.0,
      either,
      mtl,
      MissingH,
@@ -150,5 +150,5 @@ test-suite        tests
     transformers,
     th-lift,
     iconv,
-    errors,
+    errors >= 2.0.0,
     http-types

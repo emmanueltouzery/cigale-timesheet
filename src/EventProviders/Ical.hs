@@ -94,7 +94,7 @@ fromLeaf :: CalendarValue -> Maybe CalendarLeaf
 fromLeaf (Leaf x) = Just x
 fromLeaf _ = Nothing
 
-getCalendarEvents :: IcalRecord -> GlobalSettings -> Day -> (() -> Url) -> EitherT String IO [Event.Event]
+getCalendarEvents :: IcalRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [Event.Event]
 getCalendarEvents (IcalRecord icalAddress) settings day _ = do
 	timezone <- lift $ getTimeZone (UTCTime day 8)
 	let settingsFolder = getSettingsFolder settings

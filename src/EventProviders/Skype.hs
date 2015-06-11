@@ -41,7 +41,7 @@ getSkypeProvider = EventProvider
 		getExtraData = Nothing
 	}
 
-getSkypeEvents :: SkypeConfig -> GlobalSettings -> Day -> (() -> Url)-> EitherT String IO [Event]
+getSkypeEvents :: SkypeConfig -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [Event]
 getSkypeEvents (SkypeConfig skypeUsernameVal) _ day _ = do
 	let todayMidnight = LocalTime day (TimeOfDay 0 0 0)
 	timezone <- lift $ getTimeZone (UTCTime day 8)
@@ -50,7 +50,7 @@ getSkypeEvents (SkypeConfig skypeUsernameVal) _ day _ = do
 	let maxTimestamp = minTimestamp + 24*3600
 	homeDir <- lift getHomeDirectory
 	r <- lift $ do
-		conn <- connectSqlite3 $ homeDir ++ "/.Skype/" 
+		conn <- connectSqlite3 $ homeDir ++ "/.Skype/"
 			++ skypeUsernameVal ++ "/main.db"
 		result <- quickQuery' conn "select chatname, from_dispname, timestamp, body_xml \
 				 \from messages where timestamp >= ? and timestamp <= ? \
@@ -95,7 +95,7 @@ splitByCompare notTooFar records = (head records : firstSeries) : splitByCompare
 
 -- in reality the list in the second position
 -- of the pair will always have one element.
--- it's made like that to easier later call 
+-- it's made like that to easier later call
 -- Map.fromListWith
 messageByChatInfo :: [SqlValue] -> (String, [ChatRecord])
 messageByChatInfo [chatname, author, time, text] = (fromSql chatname,

@@ -56,7 +56,7 @@ getRedmineProvider = EventProvider
 		getExtraData = Nothing
 	}
 
-getRedmineEvents :: RedmineConfig -> GlobalSettings -> Day -> (() -> Url) -> EitherT String IO [Event]
+getRedmineEvents :: RedmineConfig -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [Event]
 getRedmineEvents config _ day _ = do
 	let url = addProtocolIfNeeded $ appendIfNeeded "/" $ redmineUrl config
 	cookie <- lift $ login url config

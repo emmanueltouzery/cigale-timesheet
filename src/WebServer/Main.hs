@@ -220,7 +220,7 @@ updateConfigEntry = setActionResponse $ do
 	liftIO (wipePrefetchFiles >> updatePluginInConfig oldConfigItemName configItemJson) >>= hoistEither
 
 processConfigFromBody :: (BS.ByteString -> IO (Either BS.ByteString BS.ByteString)) ->
-		 EitherT BS.ByteString Snap BS.ByteString
+		 ExceptT BS.ByteString Snap BS.ByteString
 processConfigFromBody handler = do
 	pluginName <- hParam "pluginName"
 	liftIO (handler pluginName) >>= hoistEither

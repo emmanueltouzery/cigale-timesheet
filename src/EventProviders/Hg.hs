@@ -33,7 +33,7 @@ getHgProvider = EventProvider
 		getExtraData = Nothing
 	}
 
-getRepoCommits :: HgRecord -> GlobalSettings -> Day -> (() -> Url) -> EitherT String IO [Event.Event]
+getRepoCommits :: HgRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [Event.Event]
 getRepoCommits (HgRecord _username projectPath) _ day _ = do
 	let username = T.unpack _username
 	let dateRange = formatDate day

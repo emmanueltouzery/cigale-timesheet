@@ -10,11 +10,11 @@ setResponse :: Either BS.ByteString BS.ByteString -> Snap ()
 setResponse (Left msg) = modifyResponse $ setResponseStatus 500 msg
 setResponse (Right val) = writeBS val
 
-setActionResponse :: EitherT BS.ByteString Snap BS.ByteString -> Snap ()
-setActionResponse action = runEitherT action >>= setResponse
+setActionResponse :: ExceptT BS.ByteString Snap BS.ByteString -> Snap ()
+setActionResponse action = runExceptT action >>= setResponse
 
-hParam :: BS.ByteString -> EitherT BS.ByteString Snap BS.ByteString
+hParam :: BS.ByteString -> ExceptT BS.ByteString Snap BS.ByteString
 hParam t = lift (getParam t) >>= hoistEither . note (BS.append "Parameter missing: " t)
 
-noteET :: Monad m => a -> Maybe b -> EitherT a m b
+noteET :: Monad m => a -> Maybe b -> ExceptT a m b
 noteET l = hoistEither . note l

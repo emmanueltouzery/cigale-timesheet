@@ -109,7 +109,7 @@ fetchProvider configItemName settings day eventSource = do
 		(T.unpack $ Config.srcName eventSource) (getModuleName provider)
 	let errorInfo = ((T.unpack (Config.srcName eventSource) ++ ": ") ++)
 	evts <- timeout maxRuntimeFetchMicros $
-		runEitherT $ fmapLT errorInfo $ getEvents provider
+		runExceptT $ fmapLT errorInfo $ getEvents provider
 			(Config.srcConfig eventSource) settings day (getExtraDataUrl configItemName)
 	putStrLn "Done"
 	return $ fromMaybe (Left $ errorInfo "Timeouted") evts

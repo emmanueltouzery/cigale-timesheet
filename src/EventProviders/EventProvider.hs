@@ -68,7 +68,7 @@ type Url = String
 
 data EventProvider a b = EventProvider {
 	getModuleName :: String,
-	getEvents :: a -> GlobalSettings -> Day -> (b -> Url) -> EitherT String IO [Event],
+	getEvents :: a -> GlobalSettings -> Day -> (b -> Url) -> ExceptT String IO [Event],
 	getConfigType :: [ConfigDataInfo],
 	getExtraData :: Maybe (a -> GlobalSettings -> b -> IO (Maybe (ContentType, ByteString)))
 }

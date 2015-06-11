@@ -3,9 +3,8 @@
 
 import Distribution.PackageDescription (PackageDescription(..))
 import Distribution.Simple
-import Distribution.Simple.LocalBuildInfo (LocalBuildInfo(..))
+import Distribution.Simple.LocalBuildInfo
 import Distribution.Simple.Setup (ConfigFlags, InstallFlags, BuildFlags)
-import Distribution.Simple.InstallDirs
 
 import System.IO
 import System.Exit
@@ -27,16 +26,9 @@ main = defaultMainWithHooks simpleUserHooks
 		postBuild = doPostBuild
 	}
 
--- i found it difficult to find information about this...
--- helped myself also with this code: https://github.com/Eelis/geordi/blob/master/Setup.hs
 doPostBuild :: Args -> BuildFlags -> PackageDescription -> LocalBuildInfo -> IO ()
 doPostBuild _ _ pkg_descr lbi = do
-	let idt = installDirTemplates lbi
-	let env = installDirsTemplateEnv idt
-	let idt' = fmap (fromPathTemplate
-	      . substPathTemplate env
-	      . substPathTemplate (packageTemplateEnv (package pkg_descr))) idt
-	let appDataDir = datadir idt' ++ "/" ++ datasubdir idt' 
+	let appDataDir = datadir $ absoluteInstallDirs pkg_descr lbi NoCopyDest
 	putStrLn appDataDir
 	createDirectoryIfMissing True appDataDir
 	compileFay "src/WebClient/" "FayApp.hs" "FayApp.js" appDataDir

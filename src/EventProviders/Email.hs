@@ -329,6 +329,9 @@ parseEmailDate (T.unpack -> dt) = fromMaybe (error $ "Email: error parsing date:
 		A.<|> parseTime defaultTimeLocale "%a %b %d %T %Y" dt
 		A.<|> parseTime defaultTimeLocale "%a %b %e %T %Y" dt
 		A.<|> (zonedTimeToLocalTime <$> parseTime defaultTimeLocale "%a, %-d %b %Y %T %z (%Z)" dt))
+		-- the next line is for "Wed, 1 ..." which I saw
+		-- %e is day of month, space-padded to two chars, 1 - 31
+		A.<|> (zonedTimeToLocalTime <$> parseTime defaultTimeLocale "%a,%e %b %Y %T %z" dt)
 
 decUtf8IgnErrors :: B.ByteString -> T.Text
 decUtf8IgnErrors = decodeUtf8With (\str input -> Just ' ')

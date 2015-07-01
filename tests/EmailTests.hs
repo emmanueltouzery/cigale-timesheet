@@ -72,10 +72,12 @@ testParseEmailDate = it "parses email date" $ do
 	assertEqual "test zoned" expected (parseEmailDate "Fri Sep 27 20:46:35 2013")
 	assertEqual "test extra space" expected1 (parseEmailDate "Mon Nov  3 07:54:09 2014")
 	assertEqual "test another" expected2 (parseEmailDate "Tue, 9 Dec 2014 06:27:27 +0100 (CET)")
+	assertEqual "yet another" expected3 (parseEmailDate "Wed, 1 Jul 2015 08:22:43 +0200")
 		where
 			expected = LocalTime (fromGregorian 2013 9 27) (TimeOfDay 20 46 35)
 			expected1 = LocalTime (fromGregorian 2014 11 3) (TimeOfDay 7 54 9)
 			expected2 = LocalTime (fromGregorian 2014 12 9) (TimeOfDay 6 27 27)
+			expected3 = LocalTime (fromGregorian 2015 07 1) (TimeOfDay 8 22 43)
 
 testParseMultipartBody :: Spec
 testParseMultipartBody = it "parses multipart body" $ do

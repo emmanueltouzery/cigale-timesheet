@@ -57,6 +57,5 @@ compileFay sourceFolder filename targetFilename appDataDir = do
 
 unzipToTarget :: FilePath -> String -> IO ()
 unzipToTarget sourceFile targetFolder = do
-    return ()
     zipContents <- LBS.readFile sourceFile
     Zip.extractFilesFromArchive [Zip.OptDestination targetFolder] (Zip.toArchive zipContents)

@@ -17,40 +17,40 @@ import Data.Aeson.TH (deriveFromJSON, mkToJSON, defaultOptions)
 import qualified FayAeson
 
 data FileInfo = FileInfo
-	{
-		filename :: String,
-		-- filesize will be -1 for a directory
-		filesize :: Integer
-	} deriving (Show)
+    {
+        filename :: String,
+        -- filesize will be -1 for a directory
+        filesize :: Integer
+    } deriving (Show)
 $(deriveFromJSON defaultOptions ''FileInfo)
 instance ToJSON FileInfo where
      toJSON = FayAeson.addInstance "FileInfo" . $(mkToJSON defaultOptions ''FileInfo)
 
 data BrowseResponse = BrowseResponse
-	{
-		browseFolderPath :: String,
-		browseFiles :: [FileInfo]
-	} deriving (Show, Generic)
+    {
+        browseFolderPath :: String,
+        browseFiles :: [FileInfo]
+    } deriving (Show, Generic)
 $(deriveFromJSON defaultOptions ''BrowseResponse)
 instance ToJSON BrowseResponse where
      toJSON = FayAeson.addInstance "BrowseResponse" . $(mkToJSON defaultOptions ''BrowseResponse)
 
 browseFolder :: Snap ()
 browseFolder = do
-	homeDir <- liftIO $ TE.encodeUtf8 . T.pack <$> getHomeDirectory
-	modifyResponse $ setContentType "application/json"
-	curFolder <- T.unpack . TE.decodeUtf8 . fromMaybe homeDir <$> getParam "path"
-	files <- liftIO $ getDirectoryContents curFolder
-	fileInfos <- liftIO $ mapM (fileInfo curFolder) files
-	let response = BrowseResponse curFolder fileInfos
-	writeLBS $ encode response
+    homeDir <- liftIO $ TE.encodeUtf8 . T.pack <$> getHomeDirectory
+    modifyResponse $ setContentType "application/json"
+    curFolder <- T.unpack . TE.decodeUtf8 . fromMaybe homeDir <$> getParam "path"
+    files <- liftIO $ getDirectoryContents curFolder
+    fileInfos <- liftIO $ mapM (fileInfo curFolder) files
+    let response = BrowseResponse curFolder fileInfos
+    writeLBS $ encode response
 
 fileInfo :: String -> String -> IO FileInfo
 fileInfo folder fName = do
-	let fullPath = folder </> fName
-	isFile <- doesFileExist fullPath
-	fSize <- if isFile
-		then catch (withFile fullPath ReadMode hFileSize)
-			(\(_ :: SomeException) -> return (-2))
-		else return (-1)
-	return FileInfo { filename = fName, filesize = fSize}
+    let fullPath = folder </> fName
+    isFile <- doesFileExist fullPath
+    fSize <- if isFile
+        then catch (withFile fullPath ReadMode hFileSize)
+            (\(_ :: SomeException) -> return (-2))
+        else return (-1)
+    return FileInfo { filename = fName, filesize = fSize}

@@ -5,12 +5,12 @@ import qualified Data.Text as T
 import Data.Aeson()
 
 data Event = Event
-	{
-		pluginName :: String,
-		eventIcon :: String,
-		eventDate :: UTCTime,
-		desc :: T.Text,
-		extraInfo :: T.Text,
-		fullContents :: Maybe T.Text
-	}
-	deriving (Eq, Show)
+    {
+        pluginName :: String,
+        eventIcon :: String,
+        eventDate :: UTCTime,
+        desc :: T.Text,
+        extraInfo :: T.Text,
+        fullContents :: Maybe T.Text
+    }
+    deriving (Eq, Show)

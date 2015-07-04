@@ -1,5 +1,5 @@
 module EventProviders (
-	plugins
+    plugins
 ) where
 
 import Data.Aeson
@@ -16,10 +16,10 @@ import Redmine
 
 plugins :: [EventProvider Value Value]
 plugins = [
-	eventProviderWrap getEmailProvider,
-	eventProviderWrap getGitProvider,
-	eventProviderWrap getSvnProvider,
-	eventProviderWrap getHgProvider,
-	eventProviderWrap getIcalProvider,
-	eventProviderWrap getSkypeProvider,
-	eventProviderWrap getRedmineProvider]
+    eventProviderWrap getEmailProvider,
+    eventProviderWrap getGitProvider,
+    eventProviderWrap getSvnProvider,
+    eventProviderWrap getHgProvider,
+    eventProviderWrap getIcalProvider,
+    eventProviderWrap getSkypeProvider,
+    eventProviderWrap getRedmineProvider]

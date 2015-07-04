@@ -13,104 +13,102 @@ import Utils
 data JDate
 
 data FetchResponse = FetchResponse
-	{
-		fetchedEvents :: [Event],
-		fetchErrors :: [Text]
-	}
+    {
+        fetchedEvents :: [Event],
+        fetchErrors :: [Text]
+    }
 
 data Event = Event
-	{
-		pluginName :: Text,
-		eventIcon :: Text,
-		eventDate :: Text,
-		desc :: Text,
-		extraInfo :: Text, 
-		fullContents :: Nullable Text -- it's maybe on the server
-	} | NullEvent
+    {
+        pluginName :: Text,
+        eventIcon :: Text,
+        eventDate :: Text,
+        desc :: Text,
+        extraInfo :: Text,
+        fullContents :: Nullable Text -- it's maybe on the server
+    } | NullEvent
 
 -- I would prever to implement Eq for Event,
 -- but it didn't work.
 x === y = eventDate x == eventDate y &&
-		eventIcon x == eventIcon y &&
-		pluginName x == pluginName y &&
-		desc x == desc y &&
-		extraInfo x == extraInfo y
+        eventIcon x == eventIcon y &&
+        pluginName x == pluginName y &&
+        desc x == desc y &&
+        extraInfo x == extraInfo y
 
 data MainViewModel = MainViewModel
-	{
-		displayedDate :: Observable JDate,
-		eventsObs :: ObservableList Event,
-		selectedEvent :: Observable Event,
-		showSidebar :: MainViewModel -> Event -> Fay (),
-		isActive :: MainViewModel -> Event -> Fay Bool,
-		warningText :: Observable Text
-	}
+    {
+        displayedDate :: Observable JDate,
+        eventsObs :: ObservableList Event,
+        selectedEvent :: Observable Event,
+        showSidebar :: MainViewModel -> Event -> Fay (),
+        isActive :: MainViewModel -> Event -> Fay Bool,
+        warningText :: Observable Text
+    }
 instance KnockoutModel MainViewModel
 
 main :: Fay ()
 main = ready $ do
-	eventsObsV <- koObservableList []
-	jsDate <- getJsDate "1970-01-01"
-	let viewModel = MainViewModel
-		{
-			displayedDate = koObservable jsDate,
-			eventsObs = eventsObsV,
-			showSidebar = showSidebarCb,
-			selectedEvent = koObservable NullEvent,
-			isActive = \vm event -> liftM (=== event) (koGet $ selectedEvent vm),
-			warningText = koObservable ""
-		}
-	
-	koApplyBindings viewModel
-	setupDatepicker (fetchDay viewModel)
-	overwriteCss
-	yesterdayServerDate >>= fetchDay viewModel
+    eventsObsV <- koObservableList []
+    jsDate <- getJsDate "1970-01-01"
+    let viewModel = MainViewModel {
+            displayedDate = koObservable jsDate,
+            eventsObs = eventsObsV,
+            showSidebar = showSidebarCb,
+            selectedEvent = koObservable NullEvent,
+            isActive = \vm event -> liftM (=== event) (koGet $ selectedEvent vm),
+            warningText = koObservable ""
+        }
+    koApplyBindings viewModel
+    setupDatepicker (fetchDay viewModel)
+    overwriteCss
+    yesterdayServerDate >>= fetchDay viewModel
 
 fetchDay :: MainViewModel -> Text -> Fay ()
 fetchDay viewModel dayStr = do
-	jdate <- getJsDate dayStr
-	koSet (displayedDate viewModel) jdate
-	pleaseHold <- select "#pleasehold"
-	shadow <- select "#shadow"
-	unhide shadow
-	unhide pleaseHold
-	myajax ("/timesheet/" ++ dayStr) (processResults viewModel pleaseHold shadow)
-		(handleError pleaseHold shadow)
+    jdate <- getJsDate dayStr
+    koSet (displayedDate viewModel) jdate
+    pleaseHold <- select "#pleasehold"
+    shadow <- select "#shadow"
+    unhide shadow
+    unhide pleaseHold
+    myajax ("/timesheet/" ++ dayStr) (processResults viewModel pleaseHold shadow)
+        (handleError pleaseHold shadow)
 
 getJsDate :: Text -> Fay JDate
 getJsDate = ffi "new Date(Date.parse(%1 + 'T00:00:00'))"
 
 handleError :: JQuery -> JQuery -> JqXHR -> Text -> Text -> Fay ()
 handleError pleaseHold shadow jqXhr textStatus errorThrown = do
-	hide Instantly pleaseHold
-	hide Instantly shadow
-	alert $ T.concat ["Error! ", responseText jqXhr]
+    hide Instantly pleaseHold
+    hide Instantly shadow
+    alert $ T.concat ["Error! ", responseText jqXhr]
 
 processResults :: MainViewModel -> JQuery -> JQuery -> FetchResponse -> Fay ()
 processResults viewModel pleaseHold shadow fetchResponse = do
-	T.intercalate ", " (fetchErrors fetchResponse) ~> warningText viewModel
-	let events = fetchedEvents fetchResponse
-	table <- select "table#eventsTable tbody"
-	empty table
-	setScrollTop 0 table
-	let eventsObsV =  eventsObs viewModel
-	koRemoveAllObservableList eventsObsV
-	mapM_ (koPushObservableList eventsObsV . evtFormatTime) events
-	let eventToDisplay = if null events then NullEvent else evtFormatTime $ head events
-	showSidebarCb viewModel eventToDisplay
-	-- recalculate the heights in case the warning
-	-- box appeared or disappeared
-	overwriteCss
-	updateSidebarContentsHeight
+    T.intercalate ", " (fetchErrors fetchResponse) ~> warningText viewModel
+    let events = fetchedEvents fetchResponse
+    table <- select "table#eventsTable tbody"
+    empty table
+    setScrollTop 0 table
+    let eventsObsV =  eventsObs viewModel
+    koRemoveAllObservableList eventsObsV
+    mapM_ (koPushObservableList eventsObsV . evtFormatTime) events
+    let eventToDisplay = if null events then NullEvent else evtFormatTime $ head events
+    showSidebarCb viewModel eventToDisplay
+    -- recalculate the heights in case the warning
+    -- box appeared or disappeared
+    overwriteCss
+    updateSidebarContentsHeight
 
-	hide Instantly pleaseHold
-	void $ hide Instantly shadow
+    hide Instantly pleaseHold
+    void $ hide Instantly shadow
 
 showSidebarCb :: MainViewModel -> Event -> Fay ()
 showSidebarCb vm event = do
-	event ~> selectedEvent vm
-	void $ select "#sidebar" >>= setScrollTop 0
-	updateSidebarContentsHeight
+    event ~> selectedEvent vm
+    void $ select "#sidebar" >>= setScrollTop 0
+    updateSidebarContentsHeight
 
 nullable :: b -> (a->b) -> Nullable a -> b
 nullable b _ Null = b

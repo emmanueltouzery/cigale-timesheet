@@ -30,13 +30,13 @@ parseNum digitCount = read <$> count digitCount digit
 
 runProcess :: String -> String -> [String] -> ExceptT String IO T.Text
 runProcess program runningFolder parameters = do
-	(inh, Just outh, errh, pid) <- lift $ createProcess (proc program parameters)
-		{ std_out = CreatePipe, cwd = Just runningFolder }
-	output <- lift (IO.hGetContents outh)
-	lift (waitForProcess pid) >>= \case
-		-- TODO collect error output on failure.
-		ExitFailure x -> hoistEither $ Left (printf "%s failed with exit code %d" program x :: String)
-		ExitSuccess -> return output
+    (inh, Just outh, errh, pid) <- lift $ createProcess (proc program parameters)
+        { std_out = CreatePipe, cwd = Just runningFolder }
+    output <- lift (IO.hGetContents outh)
+    lift (waitForProcess pid) >>= \case
+        -- TODO collect error output on failure.
+        ExitFailure x -> hoistEither $ Left (printf "%s failed with exit code %d" program x :: String)
+        ExitSuccess -> return output
 
 -- return the common prefix to all the files.
 -- http://www.haskell.org/pipermail/beginners/2011-April/006861.html
@@ -63,28 +63,28 @@ parseMaybe parser = hush . parse parser ""
 -- ############# THIS MUST GO.
 parsecError :: (T.Stream s DFI.Identity t, Show s) => T.Parsec s () a -> String -> s -> a
 parsecError parser errorText input = case parse parser "" input of
-	Left a -> error $ errorText ++ show a
-	Right x -> x
+    Left a -> error $ errorText ++ show a
+    Right x -> x
 
 formatDurationSec :: NominalDiffTime -> T.Text
 formatDurationSec (round -> seconds :: Int) = T.pack $ printf "%d:%02d" hours minutes
-	where
-		hours = seconds `div` 3600
-		minutes = (seconds `mod` 3600) `div` 60
+    where
+        hours = seconds `div` 3600
+        minutes = (seconds `mod` 3600) `div` 60
 
 requestDefaults :: RequestBuilder ()
 requestDefaults = return ()
 
 http :: Method -> B.ByteString -> B.ByteString
-		-> (Response -> InputStream B.ByteString -> IO B.ByteString)
-		-> RequestBuilder a ->  IO B.ByteString
+        -> (Response -> InputStream B.ByteString -> IO B.ByteString)
+        -> RequestBuilder a ->  IO B.ByteString
 http method url contents responseProcessor requestSpec = withOpenSSL $ do
-	c <- establishConnection url
-	q <- buildRequest $ S.http method url >> requestSpec
-	sendRequest c q $ Streams.write (Just $ Builder.fromByteString contents)
-	result <- receiveResponse c responseProcessor
-	closeConnection c
-	return result
+    c <- establishConnection url
+    q <- buildRequest $ S.http method url >> requestSpec
+    sendRequest c q $ Streams.write (Just $ Builder.fromByteString contents)
+    result <- receiveResponse c responseProcessor
+    closeConnection c
+    return result
 
 -- 99% when using try, i want to catch all, so SomeException.
 -- save myself the ScopedTypeVariables and typing there.

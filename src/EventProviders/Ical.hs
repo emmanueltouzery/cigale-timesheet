@@ -32,19 +32,19 @@ import EventProvider
 
 
 data IcalRecord = IcalRecord
-	{
-		icalUrl :: String
-	} deriving Show
+    {
+        icalUrl :: String
+    } deriving Show
 deriveJSON defaultOptions ''IcalRecord
 
 getIcalProvider :: EventProvider IcalRecord ()
 getIcalProvider = EventProvider
-	{
-		getModuleName = "Ical",
-		getEvents = getCalendarEvents,
-		getConfigType = members $(thGetTypeDesc ''IcalRecord),
-		getExtraData = Nothing
-	}
+    {
+        getModuleName = "Ical",
+        getEvents = getCalendarEvents,
+        getConfigType = members $(thGetTypeDesc ''IcalRecord),
+        getExtraData = Nothing
+    }
 
 -- we can have components or objects, which are between BEGIN and END blocks,
 -- and can be recursive:
@@ -85,7 +85,7 @@ getIcalProvider = EventProvider
 -- Due to that, I have propParams (property parameters) and a list for the property values.
 data CalendarLeaf = CalendarLeaf { propParams :: Map String String, propValues :: [String] } deriving (Show, Eq)
 data CalendarValue = Leaf CalendarLeaf
-	| SubLevel (Map String CalendarValue) deriving (Show, Eq)
+    | SubLevel (Map String CalendarValue) deriving (Show, Eq)
 
 leafText :: CalendarLeaf -> String
 leafText = intercalate ", " . propValues
@@ -96,148 +96,148 @@ fromLeaf _ = Nothing
 
 getCalendarEvents :: IcalRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [Event.Event]
 getCalendarEvents (IcalRecord icalAddress) settings day _ = do
-	timezone <- lift $ getTimeZone (UTCTime day 8)
-	let settingsFolder = getSettingsFolder settings
-	icalText <- lift $ do
-		hasCached <- hasCachedVersionForDay settingsFolder day
-		if hasCached
-			then readFromCache settingsFolder
-			else readFromWWW (B.pack icalAddress) settingsFolder
-	calendarData <- hoistEither $ fmapL show $ parse parseEvents "" icalText
-	return $ convertToEvents timezone day calendarData
+    timezone <- lift $ getTimeZone (UTCTime day 8)
+    let settingsFolder = getSettingsFolder settings
+    icalText <- lift $ do
+        hasCached <- hasCachedVersionForDay settingsFolder day
+        if hasCached
+            then readFromCache settingsFolder
+            else readFromWWW (B.pack icalAddress) settingsFolder
+    calendarData <- hoistEither $ fmapL show $ parse parseEvents "" icalText
+    return $ convertToEvents timezone day calendarData
 
 convertToEvents :: TimeZone -> Day -> [Map String CalendarValue] -> [Event.Event]
 convertToEvents tz day keyValues = filterDate tz day $ concatMap (keyValuesToEvents tz) keyValues
 
 readFromWWW :: B.ByteString -> String -> IO T.Text
 readFromWWW icalAddress settingsFolder = do
-	putStrLn "reading from WWW"
-	icalData <- Util.http GET icalAddress "" concatHandler requestDefaults
-	putStrLn "read from WWW"
-	let icalText = TE.decodeUtf8 icalData
-	putInCache settingsFolder icalText
-	return icalText
+    putStrLn "reading from WWW"
+    icalData <- Util.http GET icalAddress "" concatHandler requestDefaults
+    putStrLn "read from WWW"
+    let icalText = TE.decodeUtf8 icalData
+    putInCache settingsFolder icalText
+    return icalText
 
 filterDate :: TimeZone -> Day -> [Event.Event] -> [Event.Event]
 filterDate tz day = filter (eventInDateRange tz day)
 
 eventInDateRange :: TimeZone -> Day -> Event.Event -> Bool
 eventInDateRange tz day event =  eventDay >= day && eventDay <= day
-	where
-		eventDay = localDay $ utcToLocalTime tz (Event.eventDate event)
+    where
+        eventDay = localDay $ utcToLocalTime tz (Event.eventDate event)
 
 parseEvents :: GenParser st [Map String CalendarValue]
 parseEvents = do
-	manyTill anyChar (try $ lookAhead parseBegin)
-	many parseEvent
+    manyTill anyChar (try $ lookAhead parseBegin)
+    many parseEvent
 
 parseEvent :: GenParser st (Map String CalendarValue)
 parseEvent = do
-	parseBegin
-	keyValues <- manyTill
-		(try parseSubLevel <|> try parseKeyValue)
-		(try parseEnd)
-	return $ Map.fromList keyValues
+    parseBegin
+    keyValues <- manyTill
+        (try parseSubLevel <|> try parseKeyValue)
+        (try parseEnd)
+    return $ Map.fromList keyValues
 
 makeEvents :: TimeZone -> Event.Event -> LocalTime -> LocalTime -> [Event.Event]
 makeEvents tz base start end
-	| localDay end == localDay start =
-		[base
-		{
-			eventDate = startUtc,
-			extraInfo = T.concat["End: ", T.pack $ formatTime defaultTimeLocale "%R" end,
-				"; duration: ", Util.formatDurationSec $ diffUTCTime endUtc startUtc]
-		}]
-	| otherwise = makeEvents tz base start (start {localTimeOfDay = TimeOfDay 23 59 0}) ++
-		makeEvents tz base (LocalTime (addDays 1 (localDay start)) (TimeOfDay 0 0 0)) end
-	where
-		startUtc = localTimeToUTC tz start
-		endUtc = localTimeToUTC tz end
+    | localDay end == localDay start =
+        [base
+        {
+            eventDate = startUtc,
+            extraInfo = T.concat["End: ", T.pack $ formatTime defaultTimeLocale "%R" end,
+                "; duration: ", Util.formatDurationSec $ diffUTCTime endUtc startUtc]
+        }]
+    | otherwise = makeEvents tz base start (start {localTimeOfDay = TimeOfDay 23 59 0}) ++
+        makeEvents tz base (LocalTime (addDays 1 (localDay start)) (TimeOfDay 0 0 0)) end
+    where
+        startUtc = localTimeToUTC tz start
+        endUtc = localTimeToUTC tz end
 
 keyValuesToEvents :: TimeZone -> Map String CalendarValue -> [Event.Event]
 keyValuesToEvents tz records = makeEvents tz baseEvent startDate endDate
-	where
-		baseEvent = Event.Event
-			{
-				pluginName = getModuleName getIcalProvider,
-				eventIcon = "glyphicon-calendar",
-				eventDate = localTimeToUTC tz startDate,
-				desc = descV,
-				extraInfo = "",
-				fullContents = Nothing
-			}
-		leafValue name = fromMaybe (error $ "No leaf of name " ++ name ++ " " ++ show records) $
-			leafText <$> (Map.lookup name records >>= fromLeaf)
-		descV = T.concat [T.pack $ leafValue "DESCRIPTION",
-				 T.pack $ leafValue "SUMMARY"]
-		startDate = parseDateNode "DTSTART" records
-		endDate = parseDateNode "DTEND" records
+    where
+        baseEvent = Event.Event
+            {
+                pluginName = getModuleName getIcalProvider,
+                eventIcon = "glyphicon-calendar",
+                eventDate = localTimeToUTC tz startDate,
+                desc = descV,
+                extraInfo = "",
+                fullContents = Nothing
+            }
+        leafValue name = fromMaybe (error $ "No leaf of name " ++ name ++ " " ++ show records) $
+            leafText <$> (Map.lookup name records >>= fromLeaf)
+        descV = T.concat [T.pack $ leafValue "DESCRIPTION",
+                 T.pack $ leafValue "SUMMARY"]
+        startDate = parseDateNode "DTSTART" records
+        endDate = parseDateNode "DTEND" records
 
 parseBegin :: GenParser st String
 parseBegin = string "BEGIN:VEVENT" >> eol
 
 parseKeyValue :: GenParser st (String, CalendarValue)
 parseKeyValue = do
-	key <- many $ noneOf ":;"
-	propertyParameters <- Map.fromList <$> many parsePropertyParameters
-	string ":"
-	values <- parseSingleValue `sepBy` string ","
-	eol
-	return (key, Leaf $ CalendarLeaf propertyParameters values)
+    key <- many $ noneOf ":;"
+    propertyParameters <- Map.fromList <$> many parsePropertyParameters
+    string ":"
+    values <- parseSingleValue `sepBy` string ","
+    eol
+    return (key, Leaf $ CalendarLeaf propertyParameters values)
 
 parseSingleValue :: GenParser st String
 parseSingleValue = do
-	text <- many1 $ noneOf "\\,\r\n"
-	isBackslash <- isJust <$> optionMaybe (string "\\")
-	if isBackslash
-		then do
-			chr <- anyChar
-			((text ++ [chr]) ++) <$> parseSingleValue
-		else return text
+    text <- many1 $ noneOf "\\,\r\n"
+    isBackslash <- isJust <$> optionMaybe (string "\\")
+    if isBackslash
+        then do
+            chr <- anyChar
+            ((text ++ [chr]) ++) <$> parseSingleValue
+        else return text
 
 parsePropertyParameters :: GenParser st (String, String)
 parsePropertyParameters = do
-	string ";"
-	key <- many $ noneOf "="
-	string "="
-	value <- many $ noneOf ";:"
-	return (key, value)
+    string ";"
+    key   <- many $ noneOf "="
+    string "="
+    value <- many $ noneOf ";:"
+    return (key, value)
 
 parseSubLevel :: GenParser st (String, CalendarValue)
 parseSubLevel = do
-	string "BEGIN:"
-	value <- many $ noneOf "\r\n"
-	eol
-	subcontents <- manyTill parseKeyValue (try (do string $ "END:" ++ value; eol))
-	return (value, SubLevel $ Map.fromList subcontents)
+    string "BEGIN:"
+    value <- many $ noneOf "\r\n"
+    eol
+    subcontents <- manyTill parseKeyValue (try (do string $ "END:" ++ value; eol))
+    return (value, SubLevel $ Map.fromList subcontents)
 
 parseDateNode :: String -> Map String CalendarValue -> LocalTime
 parseDateNode key records = fromMaybe (error $ "Didn't find a parseable leaf for the date " ++ key) $ do
-	dateInfo <- Map.lookup key records >>= fromLeaf
-	case Map.lookup "VALUE" $ propParams dateInfo of
-		Just "DATE" -> parseDateOnlyNode key $ leafText dateInfo
-		_ -> parseMaybe parseDateTime $ T.pack $ leafText dateInfo
+    dateInfo <- Map.lookup key records >>= fromLeaf
+    case Map.lookup "VALUE" $ propParams dateInfo of
+        Just "DATE" -> parseDateOnlyNode key $ leafText dateInfo
+        _ -> parseMaybe parseDateTime $ T.pack $ leafText dateInfo
 
 parseDateOnlyNode :: String -> String -> Maybe LocalTime
 parseDateOnlyNode key (T.pack -> nodeText) = dayTime <$> parseMaybe parseDate nodeText
-	where dayTime time = case key of
-		"DTSTART" -> time
-		"DTEND" -> time { localTimeOfDay = TimeOfDay 23 59 59 } -- end of the day
+    where dayTime time = case key of
+              "DTSTART" -> time
+              "DTEND"   -> time { localTimeOfDay = TimeOfDay 23 59 59 } -- end of the day
 
 parseDate :: GenParser st LocalTime
 parseDate = do
-	year <- parseNum 4
-	month <- parseNum 2
-	day <- parseNum 2
-	return $ LocalTime (fromGregorian year month day) (TimeOfDay 0 0 0)
+    year  <- parseNum 4
+    month <- parseNum 2
+    day   <- parseNum 2
+    return $ LocalTime (fromGregorian year month day) (TimeOfDay 0 0 0)
 
 parseDateTime :: GenParser st LocalTime
 parseDateTime = do
-	date <- parseDate
-	hours <- char 'T' >> parseNum 2
-	mins <- parseNum 2
-	sec <- parseNum 2
-	return $ date { localTimeOfDay = TimeOfDay hours mins sec }
+    date  <- parseDate
+    hours <- char 'T' >> parseNum 2
+    mins  <- parseNum 2
+    sec   <- parseNum 2
+    return $ date { localTimeOfDay = TimeOfDay hours mins sec }
 
 -- at the end of the file there may not be a carriage return.
 parseEnd :: GenParser st ()
@@ -245,23 +245,23 @@ parseEnd = string "END:VEVENT" >> optional eol
 
 hasCachedVersionForDay :: String -> Day -> IO Bool
 hasCachedVersionForDay settingsFolder day =
-	cachedVersionDate settingsFolder >>= \case
-		Nothing -> return False
-		Just cachedDate -> return $ day < cachedDate
+    cachedVersionDate settingsFolder >>= \case
+        Nothing         -> return False
+        Just cachedDate -> return $ day < cachedDate
 
 cacheFilename :: String -> String
 cacheFilename settingsFolder = settingsFolder ++ "cached-calendar.ical"
 
 cachedVersionDate :: String -> IO (Maybe Day)
 cachedVersionDate settingsFolder = do
-	modifTime <- IOEx.tryIOError $ Dir.getModificationTime
-		$ cacheFilename settingsFolder
-	return $ utctDay <$> hush modifTime
+    modifTime <- IOEx.tryIOError $ Dir.getModificationTime
+        $ cacheFilename settingsFolder
+    return $ utctDay <$> hush modifTime
 
 readFromCache :: String -> IO T.Text
 readFromCache settingsFolder = do
-	putStrLn "reading calendar from cache!"
-	T.pack <$> readFile (cacheFilename settingsFolder)
+    putStrLn "reading calendar from cache!"
+    T.pack <$> readFile (cacheFilename settingsFolder)
 
 putInCache :: String -> T.Text -> IO ()
 putInCache settingsFolder text = withFile (cacheFilename settingsFolder) WriteMode (`T.hPutStr` text)

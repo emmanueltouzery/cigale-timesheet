@@ -27,71 +27,71 @@ skypeMinIntervalToSplitChatsSeconds :: NominalDiffTime
 skypeMinIntervalToSplitChatsSeconds = 3600
 
 data SkypeConfig = SkypeConfig
-	{
-		skypeUsername :: String
-	} deriving Show
+    {
+        skypeUsername :: String
+    } deriving Show
 deriveJSON defaultOptions ''SkypeConfig
 
 getSkypeProvider :: EventProvider SkypeConfig ()
 getSkypeProvider = EventProvider
-	{
-		getModuleName = "Skype",
-		getEvents = getSkypeEvents,
-		getConfigType = members $(thGetTypeDesc ''SkypeConfig),
-		getExtraData = Nothing
-	}
+    {
+        getModuleName = "Skype",
+        getEvents = getSkypeEvents,
+        getConfigType = members $(thGetTypeDesc ''SkypeConfig),
+        getExtraData = Nothing
+    }
 
 getSkypeEvents :: SkypeConfig -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [Event]
 getSkypeEvents (SkypeConfig skypeUsernameVal) _ day _ = do
-	let todayMidnight = LocalTime day (TimeOfDay 0 0 0)
-	timezone <- lift $ getTimeZone (UTCTime day 8)
-	let todayMidnightUTC = localTimeToUTC timezone todayMidnight
-	let minTimestamp = utcTimeToPOSIXSeconds todayMidnightUTC
-	let maxTimestamp = minTimestamp + 24*3600
-	homeDir <- lift getHomeDirectory
-	r <- lift $ do
-		conn <- connectSqlite3 $ homeDir ++ "/.Skype/"
-			++ skypeUsernameVal ++ "/main.db"
-		result <- quickQuery' conn "select chatname, from_dispname, timestamp, body_xml \
-				 \from messages where timestamp >= ? and timestamp <= ? \
-				 \and chatname is not null and from_dispname is not null \
-				 \and body_xml is not null \
-				 \order by timestamp" [SqlPOSIXTime minTimestamp, SqlPOSIXTime maxTimestamp]
-		disconnect conn
-		return result
+    let todayMidnight = LocalTime day (TimeOfDay 0 0 0)
+    timezone <- lift $ getTimeZone (UTCTime day 8)
+    let todayMidnightUTC = localTimeToUTC timezone todayMidnight
+    let minTimestamp = utcTimeToPOSIXSeconds todayMidnightUTC
+    let maxTimestamp = minTimestamp + 24*3600
+    homeDir <- lift getHomeDirectory
+    r <- lift $ do
+        conn <- connectSqlite3 $ homeDir ++ "/.Skype/"
+            ++ skypeUsernameVal ++ "/main.db"
+        result <- quickQuery' conn "select chatname, from_dispname, timestamp, body_xml \
+                 \from messages where timestamp >= ? and timestamp <= ? \
+                 \and chatname is not null and from_dispname is not null \
+                 \and body_xml is not null \
+                 \order by timestamp" [SqlPOSIXTime minTimestamp, SqlPOSIXTime maxTimestamp]
+        disconnect conn
+        return result
 
-	-- get the events grouped by chat
-	let eventsAr = fmap messageByChatInfo r
-	let eventsMap = Map.fromListWith (flip (++)) eventsAr
+    -- get the events grouped by chat
+    let eventsAr = fmap messageByChatInfo r
+    let eventsMap = Map.fromListWith (flip (++)) eventsAr
 
-	let chatInfos = map snd (Map.toList eventsMap)
+    let chatInfos = map snd (Map.toList eventsMap)
 
-	let splitChatInfos = splitFarawayChats chatInfos
+    let splitChatInfos = splitFarawayChats chatInfos
 
-	return $ map toEvent splitChatInfos
+    return $ map toEvent splitChatInfos
 
 data ChatRecord = ChatRecord
-	{
-		messageAuthor :: T.Text,
-		messageTime :: UTCTime,
-		messageText :: T.Text
-	} deriving (Eq, Show)
+    {
+        messageAuthor :: T.Text,
+        messageTime :: UTCTime,
+        messageText :: T.Text
+    } deriving (Eq, Show)
 
 splitFarawayChats :: [[ChatRecord]] -> [[ChatRecord]]
 splitFarawayChats = concatMap splitChat
 
 splitChat :: [ChatRecord] -> [[ChatRecord]]
 splitChat = splitByCompare notTooFar
-	where
-		notTooFar (a,b) = diffUTCTime (messageTime b) (messageTime a) < skypeMinIntervalToSplitChatsSeconds
+    where
+        notTooFar (a,b) = diffUTCTime (messageTime b) (messageTime a) < skypeMinIntervalToSplitChatsSeconds
 
 -- TODO maybe unfoldr would make sense here...
 splitByCompare :: ((a,a)->Bool) -> [a] -> [[a]]
 splitByCompare _ [] = []
 splitByCompare notTooFar records = (head records : firstSeries) : splitByCompare notTooFar remains
-	where
-		(firstSeries, remains) = sndOnly $ span notTooFar $ zip records (tail records)
-		sndOnly = join (***) (fmap snd)
+    where
+        (firstSeries, remains) = sndOnly $ span notTooFar $ zip records (tail records)
+        sndOnly = join (***) (fmap snd)
 
 -- in reality the list in the second position
 -- of the pair will always have one element.
@@ -108,19 +108,19 @@ messageByChatInfo x@_ = error $ "messageByChatInfo: invalid SQL query results" +
 
 toEvent :: [ChatRecord] -> Event
 toEvent chatRecords = Event
-		{
-			pluginName = getModuleName getSkypeProvider,
-			eventIcon = "glyphicon-comment",
-			eventDate = messageTime (head chatRecords),
-			desc = T.intercalate ", " $ sort participants,
-			extraInfo = extraInfoVal,
-			fullContents = Just fullLog
-		}
-	where
-		participants = nub $ map messageAuthor chatRecords
-		extraInfoVal = T.pack $ show (length chatRecords) ++ " messages, lasted " ++ durationStr
-		durationStr = T.unpack $ Util.formatDurationSec $ diffUTCTime lastTime firstTime
-		lastTime = messageTime (last chatRecords)
-		firstTime = messageTime (head chatRecords)
-		fullLog = T.intercalate "<br/>" (map formatMessage chatRecords)
-		formatMessage chatRecord = T.concat ["<b>", messageAuthor chatRecord, ":</b> ", messageText chatRecord]
+        {
+            pluginName = getModuleName getSkypeProvider,
+            eventIcon = "glyphicon-comment",
+            eventDate = messageTime (head chatRecords),
+            desc = T.intercalate ", " $ sort participants,
+            extraInfo = extraInfoVal,
+            fullContents = Just fullLog
+        }
+    where
+        participants = nub $ map messageAuthor chatRecords
+        extraInfoVal = T.pack $ show (length chatRecords) ++ " messages, lasted " ++ durationStr
+        durationStr = T.unpack $ Util.formatDurationSec $ diffUTCTime lastTime firstTime
+        lastTime = messageTime (last chatRecords)
+        firstTime = messageTime (head chatRecords)
+        fullLog = T.intercalate "<br/>" (map formatMessage chatRecords)
+        formatMessage chatRecord = T.concat ["<b>", messageAuthor chatRecord, ":</b> ", messageText chatRecord]

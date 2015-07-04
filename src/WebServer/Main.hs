@@ -45,45 +45,45 @@ appPort = 8000
 
 main :: IO ()
 main = do
-	args <- getArgs
-	getPrefetchFolder >>= createDirectoryIfMissing True
-	removeObsoletePrefetch
-	if args == ["--prefetch"]
-		then doPrefetch
-		else startWebApp
+    args <- getArgs
+    getPrefetchFolder >>= createDirectoryIfMissing True
+    removeObsoletePrefetch
+    if args == ["--prefetch"]
+        then doPrefetch
+        else startWebApp
 
 doPrefetch :: IO ()
 doPrefetch = do
-	prefetchFolder <- getPrefetchFolder
-	today <- getToday
-	-- fetch from the first day of the previous month
-	let prefetchStart = addGregorianMonthsClip (-1)
-		$ (\(y,m,_) -> fromGregorian y m 1) $ toGregorian today
-	-- now fetch from oldestAccepted to yesterday, if needed.
-	prefetch prefetchFolder prefetchStart (addDays (-1) today)
+    prefetchFolder <- getPrefetchFolder
+    today <- getToday
+    -- fetch from the first day of the previous month
+    let prefetchStart = addGregorianMonthsClip (-1) $
+                        (\(y,m,_) -> fromGregorian y m 1) $ toGregorian today
+    -- now fetch from oldestAccepted to yesterday, if needed.
+    prefetch prefetchFolder prefetchStart (addDays (-1) today)
 
 getToday :: IO Day
 getToday = (localDay . zonedTimeToLocalTime) <$> getZonedTime
 
 removeObsoletePrefetch :: IO ()
 removeObsoletePrefetch = do
-	-- remove obsolete prefetch files, that means from
-	-- let's say 3 months ago.
-	oldestAccepted <- addGregorianMonthsClip (-3) <$> getToday
-	prefetchFolder <- getPrefetchFolder
-	getDirectoryContents prefetchFolder >>= mapM_ (removeIfOlderThan oldestAccepted prefetchFolder)
+    -- remove obsolete prefetch files, that means from
+    -- let's say 3 months ago.
+    oldestAccepted <- addGregorianMonthsClip (-3) <$> getToday
+    prefetchFolder <- getPrefetchFolder
+    getDirectoryContents prefetchFolder >>= mapM_ (removeIfOlderThan oldestAccepted prefetchFolder)
 
 prefetch :: FilePath -> Day -> Day -> IO ()
 prefetch folder curDay maxDay
-	| curDay > maxDay = return ()
-	| otherwise = do
-		unlessM (doesFileExist fname) $ do
-			putStrLn $ "prefetching for day " ++ show curDay
-			void $ fetchTimesheetAndStore curDay fname
-		prefetch folder (addDays 1 curDay) maxDay
-	where
-		fname = folder </> getPrefetchFilename curDay
-		unlessM s r = not <$> s >>= flip when r
+    | curDay > maxDay = return ()
+    | otherwise = do
+        unlessM (doesFileExist fname) $ do
+            putStrLn $ "prefetching for day " ++ show curDay
+            void $ fetchTimesheetAndStore curDay fname
+        prefetch folder (addDays 1 curDay) maxDay
+    where
+        fname = folder </> getPrefetchFilename curDay
+        unlessM s r = not <$> s >>= flip when r
 
 getPrefetchFolder :: IO FilePath
 getPrefetchFolder = (++ "/prefetch") <$> Config.getSettingsFolder
@@ -93,29 +93,29 @@ getPrefetchFilename (toGregorian -> (y,m,d)) = printf "%d-%02d-%02d.json" y m d
 
 removeIfOlderThan :: Day -> FilePath -> FilePath -> IO ()
 removeIfOlderThan date folder filename =
-	case parseMaybe parsePrefetchFilename (T.pack filename) of
-		Nothing -> return () -- not a prefetch file.
-		Just fileDate -> when (fileDate < date) $ removeFile $ folder </> filename
+    case parseMaybe parsePrefetchFilename (T.pack filename) of
+        Nothing       -> return () -- not a prefetch file.
+        Just fileDate -> when (fileDate < date) $ removeFile $ folder </> filename
 
 wipePrefetchFiles :: IO ()
 wipePrefetchFiles = do
-	prefetchFolder <- getPrefetchFolder
-	prefetchFiles <- getDirectoryContents prefetchFolder
-	mapM_ (\f -> removeFile (prefetchFolder </> f))
-		$ filter (not . isPrefixOf ".") prefetchFiles
+    prefetchFolder <- getPrefetchFolder
+    prefetchFiles  <- getDirectoryContents prefetchFolder
+    mapM_ (\f -> removeFile (prefetchFolder </> f))
+        $ filter (not . isPrefixOf ".") prefetchFiles
 
 parsePrefetchFilename :: T.GenParser st Day
 parsePrefetchFilename = parseDate <* T.string ".json"
 
 startWebApp :: IO ()
 startWebApp = do
-	installPath <- Paths_cigale_timesheet.getDataFileName ""
-	let snapConfig = setPort appPort .
-		setAccessLog ConfigNoLog .
-		setErrorLog ConfigNoLog $
-		defaultConfig
-	forkIO openInBrowser
-	httpServe snapConfig (site installPath)
+    installPath <- Paths_cigale_timesheet.getDataFileName ""
+    let snapConfig = setPort appPort .
+                     setAccessLog ConfigNoLog .
+                     setErrorLog ConfigNoLog $
+                     defaultConfig
+    forkIO openInBrowser
+    httpServe snapConfig (site installPath)
 
 -- wait for the port to be opened then
 -- start the browser on the URL of the app.
@@ -123,23 +123,23 @@ startWebApp = do
 -- not be ready.
 openInBrowser :: IO ()
 openInBrowser = do
-	portOpen <- try (openTCPPort "127.0.0.1" appPort)
-	case portOpen of
-		Left (_ :: SomeException) -> openInBrowser
-		Right conn -> close conn >> openApp
+    portOpen <- try (openTCPPort "127.0.0.1" appPort)
+    case portOpen of
+        Left (_ :: SomeException) -> openInBrowser
+        Right conn -> close conn >> openApp
 
 openApp :: IO ()
 openApp = do
-	epiphany <- hasProgram "epiphany"
-	void $ if epiphany
-	then do
-		settingsFolder <- Config.getSettingsFolder
-		let profileDir = settingsFolder ++ "/epiphany-profile-app-cigale-timesheet"
-		createDirectoryIfMissing True profileDir
-		rawSystem "epiphany" ["--application-mode", "--profile=" ++ profileDir, url]
-	else rawSystem "xdg-open" [url]
-	where
-		url = "http://localhost:" ++ show appPort
+    epiphany <- hasProgram "epiphany"
+    void $ if epiphany
+    then do
+        settingsFolder <- Config.getSettingsFolder
+        let profileDir = settingsFolder ++ "/epiphany-profile-app-cigale-timesheet"
+        createDirectoryIfMissing True profileDir
+        rawSystem "epiphany" ["--application-mode", "--profile=" ++ profileDir, url]
+    else rawSystem "xdg-open" [url]
+    where
+        url = "http://localhost:" ++ show appPort
 
 hasProgram :: String -> IO Bool
 hasProgram prog = isJust <$> findExecutable prog
@@ -155,86 +155,86 @@ site installPath =
             ("config", method PUT updateConfigEntry),
             ("config", method DELETE deleteConfigEntry),
             ("browseFolder", browseFolder),
-	    ("getExtraData", httpGetExtraData)
+        ("getExtraData", httpGetExtraData)
           ] <|>
     dir "static" (serveDirectory installPath)
 
 timesheet :: Snap ()
 timesheet = setActionResponse $ do
-	lift $ do
-		modifyResponse $ setContentType "application/json"
-		setTimeout 3600
-	dateParamText <- TE.decodeUtf8 <$> hParam "tsparam"
-	date <- hoistEither $ fmapL BS8.pack $ parse2 parseDate
-		"Invalid date format, expected yyyy-mm-dd" dateParamText
-	pFname <- (</> getPrefetchFilename date) <$> liftIO getPrefetchFolder
-	-- first try to read from prefetch, if it fails, exception, calculate.
-	liftIO $ BS.readFile pFname `catch` handleError date pFname
-	where handleError date pFname e
-		| isDoesNotExistError e = fetchTimesheetAndStore date pFname
-		| otherwise = print e >> throwIO e
+    lift $ do
+        modifyResponse $ setContentType "application/json"
+        setTimeout 3600
+    dateParamText <- TE.decodeUtf8 <$> hParam "tsparam"
+    date <- hoistEither $ fmapL BS8.pack $ parse2 parseDate
+        "Invalid date format, expected yyyy-mm-dd" dateParamText
+    pFname <- (</> getPrefetchFilename date) <$> liftIO getPrefetchFolder
+    -- first try to read from prefetch, if it fails, exception, calculate.
+    liftIO $ BS.readFile pFname `catch` handleError date pFname
+    where handleError date pFname e
+              | isDoesNotExistError e = fetchTimesheetAndStore date pFname
+              | otherwise             = print e >> throwIO e
 
 fetchTimesheetAndStore :: Day -> FilePath -> IO BS.ByteString
 fetchTimesheetAndStore date fname = do
-	(success, contents) <- Timesheet.process date
-	today <- getToday
-	when (not success) $ putStrLn "*** WARNING, errors, will not cache the response"
-	-- only cache past dates
-	when (date < today && success)
-		$ withFile fname WriteMode $ \h -> BSL.hPut h contents
-	return $ BSL.toStrict contents
+    (success, contents) <- Timesheet.process date
+    today <- getToday
+    when (not success) $ putStrLn "*** WARNING, errors, will not cache the response"
+    -- only cache past dates
+    when (date < today && success)
+        $ withFile fname WriteMode $ \h -> BSL.hPut h contents
+    return $ BSL.toStrict contents
 
 parseDate :: T.GenParser st Day
 parseDate = fromGregorian <$> parseNum 4
-	<*> (T.char '-' >> parseNum 2) <*> (T.char '-' >> parseNum 2)
+    <*> (T.char '-' >> parseNum 2) <*> (T.char '-' >> parseNum 2)
 
 configdesc :: Snap ()
 configdesc = do
-	modifyResponse $ setContentType "application/json"
-	writeLBS Timesheet.getEventProvidersConfig
+    modifyResponse $ setContentType "application/json"
+    writeLBS Timesheet.getEventProvidersConfig
 
 configVal :: Snap ()
 configVal = do
-	modifyResponse $ setContentType "application/json"
-	settingsFile <- liftIO Config.getConfigFileName
-	isSettings <- liftIO $ doesFileExist settingsFile
-	if isSettings
-		then serveFile settingsFile
-		else writeLBS "[]"
+    modifyResponse $ setContentType "application/json"
+    settingsFile <- liftIO Config.getConfigFileName
+    isSettings   <- liftIO $ doesFileExist settingsFile
+    if isSettings
+        then serveFile settingsFile
+        else writeLBS "[]"
 
 addConfigEntry :: Snap ()
 addConfigEntry = setActionResponse $ do
-	configItemJson <- lift (BSL.toStrict <$> readRequestBody 65536)
-	success <- liftIO $ wipePrefetchFiles >> addPluginInConfig configItemJson
-	hoistEither success
+    configItemJson <- lift (BSL.toStrict <$> readRequestBody 65536)
+    success <- liftIO $ wipePrefetchFiles >> addPluginInConfig configItemJson
+    hoistEither success
 
 deleteConfigEntry :: Snap ()
 deleteConfigEntry = setActionResponse $ do
-	pluginName <- hParam "configItemName"
-	liftIO (wipePrefetchFiles >> deletePluginFromConfig pluginName) >>= hoistEither
+    pluginName <- hParam "configItemName"
+    liftIO (wipePrefetchFiles >> deletePluginFromConfig pluginName) >>= hoistEither
 
 updateConfigEntry :: Snap ()
 updateConfigEntry = setActionResponse $ do
-	configItemJson <- lift (BSL.toStrict <$> readRequestBody 65536) -- TODO share this in processConfigFromBody
-	oldConfigItemName <- TE.decodeUtf8 <$> hParam "oldConfigItemName"
-	liftIO (wipePrefetchFiles >> updatePluginInConfig oldConfigItemName configItemJson) >>= hoistEither
+    configItemJson <- lift (BSL.toStrict <$> readRequestBody 65536) -- TODO share this in processConfigFromBody
+    oldConfigItemName <- TE.decodeUtf8 <$> hParam "oldConfigItemName"
+    liftIO (wipePrefetchFiles >> updatePluginInConfig oldConfigItemName configItemJson) >>= hoistEither
 
 processConfigFromBody :: (BS.ByteString -> IO (Either BS.ByteString BS.ByteString)) ->
-		 ExceptT BS.ByteString Snap BS.ByteString
+         ExceptT BS.ByteString Snap BS.ByteString
 processConfigFromBody handler = do
-	pluginName <- hParam "pluginName"
-	liftIO (handler pluginName) >>= hoistEither
+    pluginName <- hParam "pluginName"
+    liftIO (handler pluginName) >>= hoistEither
 
 httpGetExtraData :: Snap ()
 httpGetExtraData = setActionResponse $ do
-	cfgItemName <- TE.decodeUtf8 <$> hParam "configItemName"
-	queryParams <- hParam "queryParams"
-	config <- liftIO $ readConfig EventProviders.plugins
-	eventSource <- noteET "no such config item" $ find ((==cfgItemName) . srcName) config
-	extraData <- noteET "No extra data" $ getExtraData $ srcProvider eventSource
-	decodedParam <- noteET "Error decoding queryParams" $ decodeStrict' queryParams
-	settings <- liftIO Timesheet.getGlobalSettings
-	extraDataResult <- liftIO $ extraData (srcConfig eventSource) settings decodedParam
-	(contentType, contents) <- noteET "No extra data retrieved" extraDataResult
-	lift $ modifyResponse $ setContentType $ BS.pack $ (fromIntegral . ord) <$> contentType
-	return contents
+    cfgItemName  <- TE.decodeUtf8 <$> hParam "configItemName"
+    queryParams  <- hParam "queryParams"
+    config       <- liftIO $ readConfig EventProviders.plugins
+    eventSource  <- noteET "no such config item" $ find ((==cfgItemName) . srcName) config
+    extraData    <- noteET "No extra data" $ getExtraData $ srcProvider eventSource
+    decodedParam <- noteET "Error decoding queryParams" $ decodeStrict' queryParams
+    settings     <- liftIO Timesheet.getGlobalSettings
+    extraDataResult <- liftIO $ extraData (srcConfig eventSource) settings decodedParam
+    (contentType, contents) <- noteET "No extra data retrieved" extraDataResult
+    lift $ modifyResponse $ setContentType $ BS.pack $ (fromIntegral . ord) <$> contentType
+    return contents

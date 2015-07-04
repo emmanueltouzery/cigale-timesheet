@@ -1,8 +1,8 @@
 {-# LANGUAGE TemplateHaskell, FlexibleInstances, OverloadedStrings #-}
 module EventProvider (thGetTypeDesc,
-	GlobalSettings(GlobalSettings), EventProvider(..),
-	eventProviderWrap, getSettingsFolder,
-	ConfigDataType(..), ConfigDataInfo(..), FolderPath, ContentType, Url) where
+    GlobalSettings(GlobalSettings), EventProvider(..),
+    eventProviderWrap, getSettingsFolder,
+    ConfigDataType(..), ConfigDataInfo(..), FolderPath, ContentType, Url) where
 
 import Data.Time.Calendar
 import Data.Aeson
@@ -16,20 +16,20 @@ import Control.Error
 import Event
 
 data ConfigDataInfo = ConfigDataInfo
-	{
-		memberName :: String,
-		memberType :: String
-	} deriving (Eq, Show)
+    {
+        memberName :: String,
+        memberType :: String
+    } deriving (Eq, Show)
 $(deriveLift ''ConfigDataInfo)
 $(deriveFromJSON defaultOptions ''ConfigDataInfo)
 instance ToJSON ConfigDataInfo where
      toJSON = FayAeson.addInstance "ConfigDataInfo" . $(mkToJSON defaultOptions ''ConfigDataInfo)
 
 data ConfigDataType = ConfigDataType
-	{
-		dataName :: String,
-		members :: [ConfigDataInfo]
-	} deriving (Eq, Show)
+    {
+        dataName :: String,
+        members :: [ConfigDataInfo]
+    } deriving (Eq, Show)
 
 $(deriveFromJSON defaultOptions ''ConfigDataType)
 instance ToJSON ConfigDataType where
@@ -42,24 +42,24 @@ formatTypeName x@_ = "fallback " ++ show x
 
 showField :: (Name,Type) -> ConfigDataInfo
 showField nameType = ConfigDataInfo s typS
-	where
-		s = nameBase $ fst nameType
-		typS = formatTypeName $ snd nameType
+    where
+        s = nameBase $ fst nameType
+        typS = formatTypeName $ snd nameType
 
 showFields :: Name -> [(Name, Type)] -> Q Exp
 showFields name names = do
-	let exps = fmap showField names
-	let nameExp = nameBase name
-	[| ConfigDataType nameExp exps |]
+    let exps = fmap showField names
+    let nameExp = nameBase name
+    [| ConfigDataType nameExp exps |]
 
 thGetTypeDesc :: Name -> Q Exp
 thGetTypeDesc name = do
-	TyConI (DataD _ _ _ [RecC _ fields] _) <- reify name
-	let names = map (\(name,_,typ) -> (name,typ)) fields
-	showFields name names
+    TyConI (DataD _ _ _ [RecC _ fields] _) <- reify name
+    let names = map (\(name,_,typ) -> (name,typ)) fields
+    showFields name names
 
 data GlobalSettings = GlobalSettings {
-	getSettingsFolder :: String
+    getSettingsFolder :: String
 }
 
 type FolderPath = String
@@ -67,25 +67,25 @@ type ContentType = String
 type Url = String
 
 data EventProvider a b = EventProvider {
-	getModuleName :: String,
-	getEvents :: a -> GlobalSettings -> Day -> (b -> Url) -> ExceptT String IO [Event],
-	getConfigType :: [ConfigDataInfo],
-	getExtraData :: Maybe (a -> GlobalSettings -> b -> IO (Maybe (ContentType, ByteString)))
+    getModuleName :: String,
+    getEvents :: a -> GlobalSettings -> Day -> (b -> Url) -> ExceptT String IO [Event],
+    getConfigType :: [ConfigDataInfo],
+    getExtraData :: Maybe (a -> GlobalSettings -> b -> IO (Maybe (ContentType, ByteString)))
 }
 
 instance Show (EventProvider a b) where show = getModuleName
 
 decodeVal :: FromJSON a => Value -> a
 decodeVal value = case fromJSON value of
-	Error msg -> error msg
-	Success a -> a
+    Error msg -> error msg
+    Success a -> a
 
 eventProviderWrap :: (FromJSON a, ToJSON a, FromJSON b, ToJSON b) =>  EventProvider a b -> EventProvider Value Value
 eventProviderWrap (EventProvider innerGetModName innerGetEvents
-		innerGetConfigType innerGetExtraData) = EventProvider
-	{
-		getModuleName = innerGetModName,
-		getEvents = \a s d u -> innerGetEvents (decodeVal a) s d (u . toJSON),
-		getConfigType = innerGetConfigType,
-		getExtraData = innerGetExtraData >>= \decoder -> Just $ \cfg s k -> decoder (decodeVal cfg) s (decodeVal k)
-	}
+        innerGetConfigType innerGetExtraData) = EventProvider
+    {
+        getModuleName = innerGetModName,
+        getEvents = \a s d u -> innerGetEvents (decodeVal a) s d (u . toJSON),
+        getConfigType = innerGetConfigType,
+        getExtraData = innerGetExtraData >>= \decoder -> Just $ \cfg s k -> decoder (decodeVal cfg) s (decodeVal k)
+    }

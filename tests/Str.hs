@@ -25,27 +25,27 @@ quotedStrCr str = [| T.concat [T.pack $ manageWhitespace str, "\n"] |]
 -}
 manageWhitespace :: String -> String
 manageWhitespace input = fromMaybe (error "Parse error") $
-	hush $ parse manageWhitespaceParser "" input
+    hush $ parse manageWhitespaceParser "" input
 
 manageWhitespaceParser :: GenParser Char st String
 manageWhitespaceParser = do
-	eol
-	-- check the number of characters until the first
-	-- non-whitespace character.
-	whitespace <- many $ oneOf "\t "
-	let spacesCount = length whitespace
-	firstLine <- many $ noneOf "\r\n"
-	void eol <|> eof
-	otherLines <- many (lineSkipSpaces spacesCount <|> eol)
-	eof
-	return $ intercalate "\n" (firstLine:otherLines)
+    eol
+    -- check the number of characters until the first
+    -- non-whitespace character.
+    whitespace <- many $ oneOf "\t "
+    let spacesCount = length whitespace
+    firstLine <- many $ noneOf "\r\n"
+    void eol <|> eof
+    otherLines <- many (lineSkipSpaces spacesCount <|> eol)
+    eof
+    return $ intercalate "\n" (firstLine:otherLines)
 
 lineSkipSpaces :: Int -> GenParser Char st String
 lineSkipSpaces spacesCount = do
-	count spacesCount (oneOf "\t ")
-	result <- many $ noneOf "\r\n"
-	void eol <|> eof
-	return result
+    count spacesCount (oneOf "\t ")
+    result <- many $ noneOf "\r\n"
+    void eol <|> eof
+    return result
 
 eol :: GenParser Char st String
 eol = optional (string "\r") >> string "\n" >> return ""

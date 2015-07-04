@@ -73,8 +73,8 @@ strComp (x:xs) (y:ys)
 
 (<$>) :: (a -> b) -> Fay a -> Fay b
 f <$> a = do
-	x <- a
-	return $ f x
+    x <- a
+    return $ f x
 
 textComp :: Text -> Text -> Ordering
 textComp = strComp `on` T.unpack
@@ -168,10 +168,10 @@ on :: (b -> b -> c) -> (a -> b) -> a -> a -> c
 (.*.) `on` f = \x y -> f x .*. f y
 
 -- from Data.List
-inits                   :: [a] -> [[a]]
-inits xs                =  [] : case xs of
-                                  []      -> []
-                                  x : xs' -> map (x :) (inits xs')
+inits    :: [a] -> [[a]]
+inits xs =  [] : case xs of
+    []      -> []
+    x : xs' -> map (x :) (inits xs')
 
 -- | The 'concatMapM' function generalizes 'concatMap' to arbitrary monads.
 concatMapM        :: (a -> Fay [b]) -> [a] -> Fay [b]

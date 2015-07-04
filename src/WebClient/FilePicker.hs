@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings, RebindableSyntax #-}
 
 module FilePicker (getFolderContents, showFilePicker,
-	OperationMode(..), FilePickerOptions(..), pickerDefaultOptions) where
+    OperationMode(..), FilePickerOptions(..), pickerDefaultOptions) where
 
 import Prelude hiding ((++), error, putStrLn, last)
 import qualified Prelude as P
@@ -18,208 +18,207 @@ putStrLn = P.putStrLn . T.unpack
 
 getFolderContents :: Text -> (Automatic BrowseResponse -> Fay ()) -> Fay ()
 getFolderContents path = ajxGet url (putStrLn "Error getting folder contents")
-	where url = case path of
-		"" -> "/browseFolder"
-		_ -> "/browseFolder?path=" ++ path
+    where url = case path of
+              "" -> "/browseFolder"
+              _  -> "/browseFolder?path=" ++ path
 
 data BrowseResponse = BrowseResponse
-	{
-		browseFolderPath :: Text,
-		browseFiles :: [FileInfo]
-	}
+    {
+        browseFolderPath :: Text,
+        browseFiles :: [FileInfo]
+    }
 
 data FileInfo = FileInfo
-	{
-		filename :: Text,
-		-- filesize will be -1 for a directory
-		filesize :: Int
-	} deriving Eq
+    {
+        filename :: Text,
+        -- filesize will be -1 for a directory
+        filesize :: Int
+    } deriving Eq
 
 data ClientFileInfo = ClientFileInfo
-	{
-		serverInfo :: FileInfo,
-		filesizeDesc :: Text
-	} deriving Eq
+    {
+        serverInfo :: FileInfo,
+        filesizeDesc :: Text
+    } deriving Eq
 
 data OperationMode = PickFile | PickFolder deriving Eq
 
 data FilePickerOptions = FilePickerOptions
-	{
-		pickerMode :: OperationMode,
-		showHiddenFiles :: Bool
-	}
+    {
+        pickerMode :: OperationMode,
+        showHiddenFiles :: Bool
+    }
 pickerDefaultOptions = FilePickerOptions
-	{
-		pickerMode = PickFile,
-		showHiddenFiles = False
-	}
+    {
+        pickerMode = PickFile,
+        showHiddenFiles = False
+    }
 
 data FilePickerViewModel = FilePickerViewModel
-	{
-		operationMode :: OperationMode,
-		optShowHiddenFiles :: Observable Bool,
-		showThrobber :: Observable Bool,
-		operationModeStr :: Observable Text,
-		displayedFolder :: Observable Text,
-		pathElems :: Observable [PathElem],
-		files :: ObservableList FileInfo,
-		sortedFiles :: ObservableList ClientFileInfo,
-		selectedFile :: Observable ClientFileInfo,
-		isActive :: FilePickerViewModel -> ClientFileInfo -> Fay Bool,
-		selectFile :: FilePickerViewModel -> ClientFileInfo -> Fay (),
-		goToFolder :: FilePickerViewModel -> Text -> Fay (),
-		okClicked :: Fay ()
-	}
+    {
+        operationMode :: OperationMode,
+        optShowHiddenFiles :: Observable Bool,
+        showThrobber :: Observable Bool,
+        operationModeStr :: Observable Text,
+        displayedFolder :: Observable Text,
+        pathElems :: Observable [PathElem],
+        files :: ObservableList FileInfo,
+        sortedFiles :: ObservableList ClientFileInfo,
+        selectedFile :: Observable ClientFileInfo,
+        isActive :: FilePickerViewModel -> ClientFileInfo -> Fay Bool,
+        selectFile :: FilePickerViewModel -> ClientFileInfo -> Fay (),
+        goToFolder :: FilePickerViewModel -> Text -> Fay (),
+        okClicked :: Fay ()
+    }
 instance KnockoutModel FilePickerViewModel
 
 data PathElem = PathElem
-	{
-		pathElemName :: Text,
-		fullPath :: Text
-	}
+    {
+        pathElemName :: Text,
+        fullPath :: Text
+    }
 
 convertFileInfo :: FileInfo -> ClientFileInfo
 convertFileInfo serverInfoV = ClientFileInfo
-	{
-		serverInfo = serverInfoV,
-		filesizeDesc = getSizeDesc $ filesize serverInfoV
-	}
+    {
+        serverInfo = serverInfoV,
+        filesizeDesc = getSizeDesc $ filesize serverInfoV
+    }
 
 sizeUnits :: [(Double, Text)]
 sizeUnits = reverse $ zip (map (1024**) [1..]) ["kb", "Mb", "Gb"]
 
 getSizeDesc :: Int -> Text
 getSizeDesc v
-	| v == -1 = "-"
-	| v == -2 = ""
-	| otherwise = case find (\s -> vDouble >= fst s) sizeUnits of
-		Just (mult, desc) -> formatDouble (vDouble / mult) 2 ++ desc
-		Nothing -> T.pack (show v) ++ " bytes"
-		where vDouble = fromIntegral v
+    | v == -1 = "-"
+    | v == -2 = ""
+    | otherwise = case find (\s -> vDouble >= fst s) sizeUnits of
+        Just (mult, desc) -> formatDouble (vDouble / mult) 2 ++ desc
+        Nothing -> T.pack (show v) ++ " bytes"
+        where vDouble = fromIntegral v
 
 formatDouble :: Double -> Int -> Text
 formatDouble = ffi "%1.toFixed(%2)"
 
 selectFileCb :: FilePickerViewModel -> ClientFileInfo -> Fay ()
 selectFileCb filePickerVm fileInfo = if filesize serverInfoV == -1
-		then do
-			curDisplayedFolder <- koGet $ displayedFolder filePickerVm
-			goToFolderCb filePickerVm
-				(ensureEndSlash curDisplayedFolder ++ filename serverInfoV)
-		else fileInfo ~> selectedFile filePickerVm
-		where
-			serverInfoV = serverInfo fileInfo
+        then do
+            curDisplayedFolder <- koGet $ displayedFolder filePickerVm
+            goToFolderCb filePickerVm
+                (ensureEndSlash curDisplayedFolder ++ filename serverInfoV)
+        else fileInfo ~> selectedFile filePickerVm
+        where
+            serverInfoV = serverInfo fileInfo
 
 goToFolderCb :: FilePickerViewModel -> Text -> Fay ()
 goToFolderCb filePickerVm path = do
-	path ~> displayedFolder filePickerVm
-	ClientFileInfo (FileInfo "" 0) "" ~> selectedFile filePickerVm
-	refresh filePickerVm
+    path ~> displayedFolder filePickerVm
+    ClientFileInfo (FileInfo "" 0) "" ~> selectedFile filePickerVm
+    refresh filePickerVm
 
 showFilePicker :: Text -> FilePickerOptions -> (Text -> Fay ()) -> Fay ()
 showFilePicker path options callback = do
-	let opMode = pickerMode options
-	holderExists <- liftM (/=0) (select "#filePickerModalHolder" >>= jsLength)
-	unless holderExists $ select "body"
-        	>>= append "<div id='filePickerModalHolder'></div>" >> return ()
-	loadCb "#filePickerModalHolder" "/static/FilePickerModal.html" $ do
-		emptyFileList <- koObservableList []
-		filepickerRoot <- select "#filePickerModal"
-		let (curFolder, curFile) = splitPath opMode path
-		let filePickerVm = FilePickerViewModel
-			{
-				operationMode = opMode,
-				optShowHiddenFiles = koObservable $ showHiddenFiles options,
-				showThrobber = koObservable False,
-				operationModeStr = koComputed $ return $ if opMode == PickFile
-					then "PickFile" else "PickFolder",
-				displayedFolder = koObservable curFolder,
-				pathElems = koObservable [],
-				files = emptyFileList,
-				sortedFiles = koComputedList $ filesForDisplayCb filePickerVm,
-				selectedFile = koObservable $ ClientFileInfo (FileInfo curFile 0) "",
-				isActive = isActiveCb,
-				selectFile = selectFileCb,
-				goToFolder = goToFolderCb,
-				okClicked = okClickedCb filePickerVm callback filepickerRoot
-			}
-		koGet (optShowHiddenFiles filePickerVm) >>= print
-		koApplyBindingsSubTree filePickerVm (first filepickerRoot)
-		bootstrapModal filepickerRoot
-		koSubscribe (optShowHiddenFiles filePickerVm) (\_ -> refresh filePickerVm)
-		refresh filePickerVm
+    let opMode = pickerMode options
+    holderExists <- liftM (/=0) (select "#filePickerModalHolder" >>= jsLength)
+    unless holderExists $ select "body"
+            >>= append "<div id='filePickerModalHolder'></div>" >> return ()
+    loadCb "#filePickerModalHolder" "/static/FilePickerModal.html" $ do
+        emptyFileList <- koObservableList []
+        filepickerRoot <- select "#filePickerModal"
+        let (curFolder, curFile) = splitPath opMode path
+        let filePickerVm = FilePickerViewModel {
+                operationMode = opMode,
+                optShowHiddenFiles = koObservable $ showHiddenFiles options,
+                showThrobber = koObservable False,
+                operationModeStr = koComputed $ return $ if opMode == PickFile
+                    then "PickFile" else "PickFolder",
+                displayedFolder = koObservable curFolder,
+                pathElems = koObservable [],
+                files = emptyFileList,
+                sortedFiles = koComputedList $ filesForDisplayCb filePickerVm,
+                selectedFile = koObservable $ ClientFileInfo (FileInfo curFile 0) "",
+                isActive = isActiveCb,
+                selectFile = selectFileCb,
+                goToFolder = goToFolderCb,
+                okClicked = okClickedCb filePickerVm callback filepickerRoot
+            }
+        koGet (optShowHiddenFiles filePickerVm) >>= print
+        koApplyBindingsSubTree filePickerVm (first filepickerRoot)
+        bootstrapModal filepickerRoot
+        koSubscribe (optShowHiddenFiles filePickerVm) (\_ -> refresh filePickerVm)
+        refresh filePickerVm
 
 splitPath :: OperationMode -> Text -> (Text, Text)
 splitPath opMode path
-	| path == "" = ("", "")
-	| opMode == PickFile && not (T.any (=='/') path) = ("", "")
-	| opMode == PickFile = breakOnEnd "/" path
-	| opMode == PickFolder = (path, "")
+    | path == "" = ("", "")
+    | opMode == PickFile && not (T.any (=='/') path) = ("", "")
+    | opMode == PickFile = breakOnEnd "/" path
+    | opMode == PickFolder = (path, "")
 
 isActiveCb :: FilePickerViewModel -> ClientFileInfo -> Fay Bool
 isActiveCb vm fileInfo = do
-	selectedFileName <- koGet $ selectedFile vm
-	return $ fEquals fileInfo selectedFileName
-	where fEquals = (==) `on` (filename . serverInfo)
+    selectedFileName <- koGet $ selectedFile vm
+    return $ fEquals fileInfo selectedFileName
+    where fEquals = (==) `on` (filename . serverInfo)
 
 refresh :: FilePickerViewModel -> Fay ()
 refresh filePickerVm = do
-	True ~> showThrobber filePickerVm
-	displayedFolderV <- koGet $ displayedFolder filePickerVm
-	getFolderContents displayedFolderV (readBrowseResponse filePickerVm)
+    True ~> showThrobber filePickerVm
+    displayedFolderV <- koGet $ displayedFolder filePickerVm
+    getFolderContents displayedFolderV (readBrowseResponse filePickerVm)
 
 alert :: Text -> Fay ()
 alert = ffi "alert(%1)"
 
 okClickedCb :: FilePickerViewModel -> (Text -> Fay ()) -> JQuery -> Fay ()
 okClickedCb vm callback filepickerRoot = do
-	folder <- koGet $ displayedFolder vm
-	file <- koGet $ selectedFile vm
-	if operationMode vm == PickFile && filename (serverInfo file) == ""
-		then alert "Please pick a file!"
-		else do
-			let folderSlash = ensureEndSlash folder
-			case operationMode vm of
-				PickFile -> callback $ folderSlash ++ filename (serverInfo file)
-				PickFolder -> callback folderSlash
-			bootstrapModalHide filepickerRoot
+    folder <- koGet $ displayedFolder vm
+    file <- koGet $ selectedFile vm
+    if operationMode vm == PickFile && filename (serverInfo file) == ""
+        then alert "Please pick a file!"
+        else do
+            let folderSlash = ensureEndSlash folder
+            case operationMode vm of
+                PickFile -> callback $ folderSlash ++ filename (serverInfo file)
+                PickFolder -> callback folderSlash
+            bootstrapModalHide filepickerRoot
 
 ensureEndSlash :: Text -> Text
 ensureEndSlash path = case last path of
-	'/' -> path
-	_ -> path ++ "/"
+    '/' -> path
+    _ -> path ++ "/"
 
 readBrowseResponse :: FilePickerViewModel -> Automatic BrowseResponse -> Fay ()
 readBrowseResponse filePickerVm browseResponse = do
-	browseFolderPath browseResponse ~> displayedFolder filePickerVm
-	getPathElements (browseFolderPath browseResponse) ~> pathElems filePickerVm
-	let allFiles = browseFiles browseResponse
-	let filesToDisplay = case operationMode filePickerVm of
-		PickFile -> allFiles
-		PickFolder -> filter ((==(-1)) . filesize) allFiles
-	showHiddenFiles <- koGet $ optShowHiddenFiles filePickerVm
-	let finalList = if showHiddenFiles
-		then filesToDisplay
-		else filter ((/='.') . T.head . filename) filesToDisplay
-	koSetList (files filePickerVm) finalList
-	False ~> showThrobber filePickerVm
+    browseFolderPath browseResponse ~> displayedFolder filePickerVm
+    getPathElements (browseFolderPath browseResponse) ~> pathElems filePickerVm
+    let allFiles = browseFiles browseResponse
+    let filesToDisplay = case operationMode filePickerVm of
+            PickFile   -> allFiles
+            PickFolder -> filter ((==(-1)) . filesize) allFiles
+    showHiddenFiles <- koGet $ optShowHiddenFiles filePickerVm
+    let finalList = if showHiddenFiles
+        then filesToDisplay
+        else filter ((/='.') . T.head . filename) filesToDisplay
+    koSetList (files filePickerVm) finalList
+    False ~> showThrobber filePickerVm
 
 getPathElements :: Text -> [PathElem]
 getPathElements path = PathElem "root" "/" : zipWith PathElem pathElems paths
-	where
-		paths = tail $ map (T.cons '/' . T.intercalate "/") (inits pathElems)
-		pathElems = tail $ splitOn "/" path
+    where
+        paths = tail $ map (T.cons '/' . T.intercalate "/") (inits pathElems)
+        pathElems = tail $ splitOn "/" path
 
 filesForDisplayCb :: FilePickerViewModel -> Fay [ClientFileInfo]
 filesForDisplayCb vm = do
-	filesList <- koUnwrapObservableList $ files vm
-	let filesListDisplay = filter (\fi -> filename fi `notElem` [".", ".."]) filesList
-	return $ map convertFileInfo (sortBy filesSort filesListDisplay)
+    filesList <- koUnwrapObservableList $ files vm
+    let filesListDisplay = filter (\fi -> filename fi `notElem` [".", ".."]) filesList
+    return $ map convertFileInfo (sortBy filesSort filesListDisplay)
 
 filesSort :: FileInfo -> FileInfo -> Ordering
 filesSort a b
-	| filesize a == -1 && filesize b >= 0 = LT
-	| filesize a >= 0 && filesize b == -1 = GT
-	| otherwise = filenameComp a b
-		where
-			filenameComp = textComp `on` (toLower . filename)
+    | filesize a == -1 && filesize b >= 0 = LT
+    | filesize a >= 0 && filesize b == -1 = GT
+    | otherwise = filenameComp a b
+        where
+            filenameComp = textComp `on` (toLower . filename)

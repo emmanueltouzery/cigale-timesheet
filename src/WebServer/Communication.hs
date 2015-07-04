@@ -4,13 +4,13 @@ import Event
 import EventProvider
 
 data FetchResponse = FetchResponse
-	{
-		fetchedEvents :: [Event],
-		fetchErrors :: [String]
-	}
+    {
+        fetchedEvents :: [Event],
+        fetchErrors :: [String]
+    }
 
 data PluginConfig = PluginConfig
-	{
-		cfgPluginName :: String,
-		cfgPluginConfig :: [ConfigDataInfo]
-	}
+    {
+        cfgPluginName :: String,
+        cfgPluginConfig :: [ConfigDataInfo]
+    }

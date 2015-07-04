@@ -76,18 +76,15 @@ testUsualCommit = it "parses usual commits" $ do
 
 testMergeConflict :: Spec
 testMergeConflict = it "parses merge conflict" $ do
-    let source = [strT|
-        commit c4305424787636da6743221256aae93d53d0f642
-        Author: Emmanuel Touzery <et@gmail.com>
-        Date:   Mon May 19 17:03:36 2014 +0200
-        
-            Merge branch 'master'
-            
-            Conflicts:
-            generic/src/main/webapp/app/module/maintenance/route/route-ctrl.js
-            generic/src/main/webapp/app/resources.js
-        
-        |]
+    -- this one is problematic with strT and trailing whitespace,
+    -- which I drop on save => rather use a more traditional way.
+    let source = "commit c4305424787636da6743221256aae93d53d0f642\n\
+                 \Author: Emmanuel Touzery <et@gmail.com>\n\
+                 \Date:   Mon May 19 17:03:36 2014 +0200\n\n\
+                 \    Merge branch 'master'\n    \n    Conflicts:\n\
+                 \    generic/src/main/webapp/app/module/maintenance/route/route-ctrl.js\n\
+                 \    generic/src/main/webapp/app/resources.js\n\n"
+    print source
     let expected = Commit {
         commitDate = LocalTime (fromGregorian 2014 5 19) (TimeOfDay 17 03 36),
         commitDesc = Just "Merge branch 'master'\n    \n    Conflicts:\n    generic/src/main/webapp/app/module/maintenance/route/route-ctrl.js\n    generic/src/main/webapp/app/resources.js",

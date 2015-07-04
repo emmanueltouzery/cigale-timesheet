@@ -1,11 +1,14 @@
 {-# LANGUAGE TemplateHaskell, QuasiQuotes, OverloadedStrings #-}
 
 module Str (strT, strCrT) where
- 
+
 import Text.ParserCombinators.Parsec
 import Language.Haskell.TH
 import Language.Haskell.TH.Quote
 import Data.List
+import Data.Maybe
+import Control.Error
+import Control.Monad (void)
 
 import qualified Data.Text as T
 
@@ -21,33 +24,31 @@ quotedStrCr str = [| T.concat [T.pack $ manageWhitespace str, "\n"] |]
   the same number of spaces for every line after.
 -}
 manageWhitespace :: String -> String
-manageWhitespace input =
-	let
-		parseResult = parse manageWhitespaceParser "" input 
-	in
-		case parseResult of
-			Left _ -> error "Parse error"
-			Right x -> x
+manageWhitespace input = fromMaybe (error "Parse error") $
+	hush $ parse manageWhitespaceParser "" input
 
 manageWhitespaceParser :: GenParser Char st String
 manageWhitespaceParser = do
-	optional $ string "\r"
-	string "\n"
+	eol
 	-- check the number of characters until the first
 	-- non-whitespace character.
 	whitespace <- many $ oneOf "\t "
 	let spacesCount = length whitespace
 	firstLine <- many $ noneOf "\r\n"
-	many $ oneOf "\r\n"
-	otherLines <- many $ lineSkipSpaces spacesCount
+	void eol <|> eof
+	otherLines <- many (lineSkipSpaces spacesCount <|> eol)
+	eof
 	return $ intercalate "\n" (firstLine:otherLines)
 
 lineSkipSpaces :: Int -> GenParser Char st String
-lineSkipSpaces spaces = do
-	count spaces (oneOf "\t ")
+lineSkipSpaces spacesCount = do
+	count spacesCount (oneOf "\t ")
 	result <- many $ noneOf "\r\n"
-	many $ oneOf "\r\n"
+	void eol <|> eof
 	return result
+
+eol :: GenParser Char st String
+eol = optional (string "\r") >> string "\n" >> return ""
 
 strT :: QuasiQuoter
 strT = QuasiQuoter quotedStr undefined undefined undefined

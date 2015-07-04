@@ -85,7 +85,7 @@ testParseMultipartBody = it "parses multipart body" $ do
 			--047d7bfeb46643323d04e617c30c
 			Content-Type: text/plain; charset=ISO-8859-2; format=flowed; delsp=yes
 			Content-Transfer-Encoding: base64
-			
+
 			UG92YWJsamVuaSBzdGUgYmlsaSBuYSB0YSBkb2dvZGVrLg0KDQpOYXppdjogWm9ibmkgcmVudGdl
 			BiBMYXJhDQpab2JuaSByZW50Z2VuIExhcmENCktkYWo6IHBldCA0LiBva3QgMjAxMyAwNzoxMCAt
 			IDA4OjEwIE9zcmVkbmppIGV2cm9wc2tpIOhhcyAtIEJlb2dyYWQNCktqZTogWkQgVmnoDQpLb2xl
@@ -105,22 +105,22 @@ testParseMultipartBody = it "parses multipart body" $ do
 			--047d7bfeb46643323d04e617c30c
 			Content-Type: text/html; charset=ISO-8859-2
 			Content-Transfer-Encoding: quoted-printable
-			
+
 			message body, but html
 			--047d7bfeb46643323d04e617c30c
 			Content-Type: text/calendar; charset=UTF-8; method=REQUEST
 			Content-Transfer-Encoding: quoted-printable
-			
+
 			BEGIN:VCALENDAR
 			calendar contents
 			END:VCALENDAR
-			
+
 			--047d7bfeb46643323d04e617c30c--
 			--047d7bfeb46643324304e617c30e
 			Content-Type: application/ics; name="invite.ics"
 			Content-Disposition: attachment; filename="invite.ics"
 			Content-Transfer-Encoding: base64
-			
+
 			QkVHSU46VkNBTEVOREFSDQpQUk9ESUQ6LS8vR29vZ2xlIEluYy8vR29vZ2xlIENhbGVuZGFyIDcw
 			LjkwNTQvL0VODQpWRVJTSU9OOjIuMA0KQ0FMU0NBTEU6R1JFR09SSUFODQpNRVRIT0Q6UkVRVUVT
 			VA0KQkVHSU46VkVWRU5UDQpEVFNUQVJUOjIwMTMxMDA0VDA1MTAwMFoNCkRURU5EOjIwMTMxMDA0
@@ -143,7 +143,7 @@ testParseMultipartBody = it "parses multipart body" $ do
 			--047d7bfeb46643324304e617c30e--
 			|]
 	assertEqual "doesn't match" "message body, but html"
-		(getMultipartBodyText "047d7bfeb46643323d04e617c30c" source) 
+		(getMultipartBodyText "047d7bfeb46643323d04e617c30c" source)
 
 testParseMultipartBodyTextPlainAttach :: Spec
 testParseMultipartBodyTextPlainAttach = it "parse multipart body text/plain plus attach" $ do
@@ -152,7 +152,7 @@ testParseMultipartBodyTextPlainAttach = it "parse multipart body text/plain plus
 			Content-Type: text/html;
                            charset=ISO-8859-2; format=flowed; delsp=yes
 			Content-Transfer-Encoding: base64
-			
+
 			UG92YWJsamVuaSBzdGUgYmlsaSBuYSB0YSBkb2dvZGVrLg0KDQpOYXppdjogWm9ibmkgcmVudGdl
 			BiBMYXJhDQpab2JuaSByZW50Z2VuIExhcmENCktkYWo6IHBldCA0LiBva3QgMjAxMyAwNzoxMCAt
 			IDA4OjEwIE9zcmVkbmppIGV2cm9wc2tpIOhhcyAtIEJlb2dyYWQNCktqZTogWkQgVmnoDQpLb2xl
@@ -172,22 +172,22 @@ testParseMultipartBodyTextPlainAttach = it "parse multipart body text/plain plus
 			--047d7bfeb46643323d04e617c30c
 			Content-Type: text/plain; charset=ISO-8859-2
 			Content-Transfer-Encoding: quoted-printable
-			
+
 			message body, but html
 			--047d7bfeb46643323d04e617c30c
 			Content-Type: text/calendar; charset=UTF-8; method=REQUEST
 			Content-Transfer-Encoding: quoted-printable
-			
+
 			BEGIN:VCALENDAR
 			calendar contents
 			END:VCALENDAR
-			
+
 			--047d7bfeb46643323d04e617c30c--
 			--047d7bfeb46643324304e617c30e
 			Content-Type: application/ics; name="invite.ics"
 			Content-Disposition: attachment; filename="invite.ics"
 			Content-Transfer-Encoding: base64
-			
+
 			QkVHSU46VkNBTEVOREFSDQpQUk9ESUQ6LS8vR29vZ2xlIEluYy8vR29vZ2xlIENhbGVuZGFyIDcw
 			LjkwNTQvL0VODQpWRVJTSU9OOjIuMA0KQ0FMU0NBTEU6R1JFR09SSUFODQpNRVRIT0Q6UkVRVUVT
 			VA0KQkVHSU46VkVWRU5UDQpEVFNUQVJUOjIwMTMxMDA0VDA1MTAwMFoNCkRURU5EOjIwMTMxMDA0
@@ -208,7 +208,7 @@ testParseMultipartBodyTextPlainAttach = it "parse multipart body text/plain plus
 			VFVTOkNPTkZJUk1FRA0KU1VNTUFSWTpab2JuaSByZW50Z2VuIExhcmENClRSQU5TUDpPUEFRVUUN
 			CkVORDpWRVZFTlQNCkVORDpWQ0FMRU5EQVINCg==
 			--047d7bfeb46643324304e617c30e--
-			|] 
+			|]
 	assertEqual "doesn't match" "UG92YWJsamVuaSBzdGUgYmlsaSBuYSB0YSBkb2dvZGVrLg0KDQpOYXppdjogWm9ibmkgcmVudGdl\nBiBMYXJhDQpab2JuaSByZW50Z2VuIExhcmENCktkYWo6IHBldCA0LiBva3QgMjAxMyAwNzoxMCAt\nIDA4OjEwIE9zcmVkbmppIGV2cm9wc2tpIOhhcyAtIEJlb2dyYWQNCktqZTogWkQgVmnoDQpLb2xl\nZGFyOiBldG91emVyeUBnbWFpbC5jb20NCktkbzoNCiAgICAgKiBTaW1vbmEgSHZhbGnoIFRvdXpl\nCnktIG9yZ2FuaXphdG9yDQogICAgICogRW1tYW51ZWwgVG91emVyeQ0KDQpQb2Ryb2Jub3N0aSBk\nB2dvZGthOiAgDQpodHRwczovL3d3dy5nb29nbGUuY29tL2NhbGVuZGFyL2V2ZW50P2FjdGlvbj1W\nSUVXJmVpZD1aR3R4T1dWck1tazRNbkp0Y21SelozUmtkVEF5Tm1aek16QWdaWFJ2ZFhwbGNubEFi\nUSZ0b2s9TXpFamMybHRiMjVoTG1oMllXeHBZeTUwYjNWNlpYSjVRR2R0WVdsc0xtTnZiV1JsT0Rn\nD1pUWm1Oemd5T1RobFltVTNPREl3TVdSaVlqVTBNR0U1TVRjNE1UTmlZbVF6TmpjJmN0ej1FdXJv\nCGUvQmVsZ3JhZGUmaGw9c2wNCg0KVmFiaWxvIGl6IEdvb2dsZSBLb2xlZGFyamE6IGh0dHBzOi8v\nD3d3Lmdvb2dsZS5jb20vY2FsZW5kYXIvDQoNClRvIGUtcG+5dG8gcHJlamVtYXRlIG5hIHJh6HVu\nIGV0b3V6ZXJ5QGdtYWlsLmNvbSwga2VyIHN0ZSBuYXJv6GVuaSBuYSAgDQpwb3ZhYmlsYSB2IGtv\nBGVkYXJqdSBldG91emVyeUBnbWFpbC5jb20uDQoNCshlIG5lIL5lbGl0ZSB2ZeggcHJlamVtYXRp\nIG9idmVzdGlsLCBzZSBwcmlqYXZpdGUgdiAgDQpodHRwczovL3d3dy5nb29nbGUuY29tL2NhbGVu\nZGFyLyBpbiBzcHJlbWVuaXRlIG5hc3Rhdml0dmUgb2J2ZXN0aWwgemEgdGEgIA0Ka29sZWRhci4N\nCg==" (getMultipartBodyText "047d7bfeb46643323d04e617c30c" source)
 
 testMultipartAlternative :: Spec
@@ -218,29 +218,29 @@ testMultipartAlternative = it "parse multipart alternative body plus attach" $ d
 			--------------070503040503000700050104
 			Content-Type: multipart/alternative;
 			 boundary="------------000008060108030905000402"
-			
-			
+
+
 			--------------000008060108030905000402
 			Content-Type: text/plain; charset=ISO-8859-2; format=flowed
 			Content-Transfer-Encoding: 8bit
-			
+
 			text version
-			
+
 			--------------000008060108030905000402
 			Content-Type: text/html; charset=ISO-8859-2
 			Content-Transfer-Encoding: 8bit
-			
+
 			html version
-			
+
 			--------------000008060108030905000402--
-			
+
 			--------------070503040503000700050104
 			Content-Type: application/octet-stream;
 			 name="9780133018004.pdf"
 			Content-Transfer-Encoding: base64
 			Content-Disposition: attachment;
 			 filename="9780133018004.pdf"
-			
+
 			JVBERi0xLjYKJfv8/f4KMjgzIDAgb2JqCjw8Ci9SZXNvdXJjZXMgMTQ2OCAwIFIKL1BhcmVu
 			dCA0IDAgUgovQ3JvcEJveCBbMTIuOTYwMDAgMC43MjAwMCA0NzMuMDQwMDAgNjU1IF0KL0Nv
 			bnRlbnRzIFsxNDY3IDAgUiAxNDcwIDAgUiAxNDY5IDAgUiBdCi9Bbm5vdHMgWzE0NzEgMCBS
@@ -259,26 +259,26 @@ testMultipartRelated = it "parse multipart related body plus attach" $ do
 			--------------080701080400090206090002
 			Content-Type: text/plain; charset=UTF-8; format=flowed
 			Content-Transfer-Encoding: 8bit
-			
+
 			text
-			
+
 			--------------080701080400090206090002
 			Content-Type: multipart/related;
 			 boundary="------------040602030008000703040204"
-			
-			
+
+
 			--------------040602030008000703040204
 			Content-Type: text/html; charset=UTF-8
 			Content-Transfer-Encoding: 8bit
-			
+
 			html content
 			<img id="Picture_x0020_2" src="cid:part20.08050508.06050608@test.com" alt="cid:image002.jpg@01CEAF06.B364DF00" border="0" height="562" width="601">
-			
+
 			--------------040602030008000703040204
 			Content-Type: image/jpeg
 			Content-Transfer-Encoding: base64
 			Content-ID: <part20.08050508.06050608@test.com>
-			
+
 			/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAoHBwgHBgoICAgLCgoLDhgQDg0NDh0VFhEYIx8l
 			JCIfIiEmKzcvJik0KSEiMEExNDk7Pj4+JS5ESUM8SDc9Pjv/2wBDAQoLCw4NDhwQEBw7KCIo
 			Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozv/wAAR
@@ -287,7 +287,7 @@ testMultipartRelated = it "parse multipart related body plus attach" $ do
 			FhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWG
 			h4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl
 			--------------040602030008000703040204--
-			
+
 			--------------080701080400090206090002--
 			|] -- WARNING i truncated the base64!!!
 	assertEqual "doesn't match" "html content\n<img id=\"Picture_x0020_2\" src=\"cid:part20.08050508.06050608@test.com\" alt=\"cid:image002.jpg@01CEAF06.B364DF00\" border=\"0\" height=\"562\" width=\"601\">\n" (getMultipartBodyText "------------080701080400090206090002" source)
@@ -296,27 +296,27 @@ testMultipartProblem :: Spec
 testMultipartProblem = it "parse multipart problem body" $ do
 	let source = BL.pack $ T.unpack [strT|
 			------=_Part_261520_1752112592.1379489229611
-			Content-Type: multipart/alternative; 
+			Content-Type: multipart/alternative;
 				boundary="----=_Part_261521_1460566080.1379489229611"
-			
+
 			------=_Part_261521_1460566080.1379489229611
 			Content-Type: text/plain; charset=utf-8
 			Content-Transfer-Encoding: quoted-printable
-			
+
 			do tega najverjetneje pride ker gledate stare podatke ali zato ker stara en=
 			ota oddaja. namre=C4=8D je Dejan pomotoma spremenil kode za alerte in event=
 			e. Ko je to naredil, smo se zna=C5=A1li v polo=C5=BEaju v katerem stare eve=
 			nte so imeli en format in nove en drug, kar je polo=C5=BEaj v katerem se NO=
 			=C4=8CE=C5=A0 najti. v glavnem, imamo po mojem dve re=C5=A1itvi:=20
-			
+
 			------=_Part_261521_1460566080.1379489229611
-			Content-Type: multipart/related; 
+			Content-Type: multipart/related;
 				boundary="----=_Part_261522_1996021350.1379489229611"
-			
+
 			------=_Part_261522_1996021350.1379489229611
 			Content-Type: text/html; charset=utf-8
 			Content-Transfer-Encoding: quoted-printable
-			
+
 			<html> smo se zna=C5=A1li v polo=C5=BEaju se NO=
 			=C4=8CE=C5=A0 najti
 			------=_Part_261522_1996021350.1379489229611
@@ -324,18 +324,18 @@ testMultipartProblem = it "parse multipart problem body" $ do
 			Content-Disposition: attachment; filename=ddfiieci.png
 			Content-Transfer-Encoding: base64
 			Content-ID: <part1.05020003.09090100@test.com>
-			
+
 			iVBORw0KGgoAAAANSUhEUgAAA9MAAABeCAIAAACvqdCJAAAgAElEQVR4nO2dXaKjIAyFux634kpc
 			iAtxHbO5efCHBM4JYG1rb8/3MlMvhhBCiEjL4yGEEEIIIYQQQgghhBBCCCGEEEIIIYQQQgghhBDi
 			------=_Part_261522_1996021350.1379489229611--
-			
+
 			------=_Part_261521_1460566080.1379489229611--
-			
+
 			------=_Part_261520_1752112592.1379489229611
 			Content-Type: text/x-java; name=Event-current.java
 			Content-Disposition: attachment; filename=Event-current.java
 			Content-Transfer-Encoding: base64
-			
+
 			cGFja2FnZSBjb20ubGVjaXAudHJhbnNtaXR0ZXI7CgppbXBvcnQgamF2YS51dGlsLkxpc3Q7Cgpp
 			bXBvcnQgb3JnLmpzb24uSlNPTkFycmF5OwppbXBvcnQgb3JnLmpzb24uSlNPTkV4Y2VwdGlvbjsK
 			------=_Part_261520_1752112592.1379489229611--
@@ -345,18 +345,18 @@ testMultipartProblem = it "parse multipart problem body" $ do
 testEmailCarriageReturnInMiddleOfMultibyte = it "parses email carriage return in middle of multibyte" $ do
 	let source = BL.pack $ T.unpack [strT|
 		This is a multi-part message in MIME format.
-		
+
 		-------------7934315f87642993d731c3ef7372f2b3
 		Content-Type: text/plain;
 			charset="UTF-8"
 		Content-Transfer-Encoding: quoted-printable
-		
+
 		Pozdravljen,
 		-------------7934315f87642993d731c3ef7372f2b3
 		Content-Type: text/html;
 			charset="utf-8"
 		Content-Transfer-Encoding: quoted-printable
-		
+
 		 celo danes zjutraj=3F Nekaj je bilo v soboto 15:35, ki mu ni bilo v=C5=
 		=A1e=C4=8D. =C5=A0e raziskujem.
 		-------------7934315f87642993d731c3ef7372f2b3--
@@ -372,12 +372,12 @@ testHeadersParse = it "parses headers" $ do
 				T_NOT_A_PERSON=-0.01]
 			Received: from www.google.com ([127.0.0.1])
 				by localhost (www.google.com [127.0.0.1])
-			
+
 			|]
 	assertEqual "doesn't match" [("X-Spam-Level", ""),
 		("X-Spam-Status", "No, score=-3.054 tests=[ALL_TRUSTED=-1, T_NOT_A_PERSON=-0.01]"),
 		("Received",
-		   "from www.google.com ([127.0.0.1]) by localhost (www.google.com [127.0.0.1])")] 
+		   "from www.google.com ([127.0.0.1]) by localhost (www.google.com [127.0.0.1])")]
 		(Util.parsecError readHeaders "testHeadersParse" source)
 
 testCharsetFromContenType :: Spec
@@ -392,7 +392,7 @@ testMboxMessage = it "parses a message from start to end" $ do
 			From - Thu Oct 03 13:34:30 2013
 			X-Mozilla-Status: 0001
 			X-Mozilla-Status2: 00800000
-			X-Mozilla-Keys:                                                                                 
+			X-Mozilla-Keys:
 			Message-ID: <524D5646.90908@test.com>
 			Date: Thu, 03 Oct 2013 13:34:30 +0200
 			From: Emmanuel <emmanuel@test.com>
@@ -401,7 +401,7 @@ testMboxMessage = it "parses a message from start to end" $ do
 			Subject: test
 			Content-Type: text/plain; charset=UTF-8; format=flowed
 			Content-Transfer-Encoding: 8bit
-			
+
 			Živjo
 			|]
 	let msg = MboxMessage "sender" "Jan 23 06:00:05 2013" source "file" 0
@@ -421,7 +421,7 @@ testMboxMessageQP = it "parses a quoted-printable plain text message from start 
 			From - Thu Oct 03 13:34:30 2013
 			X-Mozilla-Status: 0001
 			X-Mozilla-Status2: 00800000
-			X-Mozilla-Keys:                                                                                 
+			X-Mozilla-Keys:
 			Message-ID: <524D5646.90908@test.com>
 			Date: Thu, 03 Oct 2013 13:34:30 +0200
 			From: Emmanuel <emmanuel@test.com>
@@ -430,7 +430,7 @@ testMboxMessageQP = it "parses a quoted-printable plain text message from start 
 			Subject: test
 			Content-Type: text/plain; charset=UTF-8; format=flowed
 			Content-Transfer-Encoding: quoted-printable
-			
+
 			=C5=BDivjo,
 
 			Lep pozdrav,
@@ -444,7 +444,7 @@ testMboxMessageQP = it "parses a quoted-printable plain text message from start 
 			to = "'a b' <a.b@test.com>",
 			cc = Nothing,
 			subject = "test",
-			contents = "Živjo,\n<br/>Lep pozdrav,\n<br/>Emmanuel\n<br/>"
+			contents = "Živjo,\n<br/>\n<br/>Lep pozdrav,\n<br/>\n<br/>Emmanuel\n<br/>"
 		}
 	assertEqual "doesn't match" expected (messageToEmail' msg)
 
@@ -454,7 +454,7 @@ testMboxMultipartMessage = it "parses a multipart message from start to end" $ d
 			From - Thu Oct 03 10:18:41 2013
 			X-Mozilla-Status: 0001
 			X-Mozilla-Status2: 00800000
-			X-Mozilla-Keys:                                                                                 
+			X-Mozilla-Keys:
 			Message-ID: <524D2860.2060103@test.com>
 			Date: Thu, 03 Oct 2013 10:18:40 +0200
 			From: a b <a.b@test.com>
@@ -463,45 +463,45 @@ testMboxMultipartMessage = it "parses a multipart message from start to end" $ d
 			Subject: Re: FW: Test
 			Content-Type: multipart/alternative;
 			 boundary="------------090707030607080209050905"
-			
+
 			This is a multi-part message in MIME format.
 			--------------090707030607080209050905
 			Content-Type: text/plain; charset=ISO-8859-2; format=flowed
 			Content-Transfer-Encoding: 8bit
-			
+
 			yes, sorry i was focused on these upgrades and let the mails go a bit.
-			
+
 			--------------090707030607080209050905
 			Content-Type: multipart/related;
 			 boundary="------------040305040006080906090803"
-			
-			
+
+
 			--------------040305040006080906090803
 			Content-Type: text/html; charset=ISO-8859-2
 			Content-Transfer-Encoding: 8bit
-			
+
 			<html>contents HTML
 			</html>
-			
+
 			--------------040305040006080906090803
 			Content-Type: image/png
 			Content-Transfer-Encoding: base64
 			Content-ID: <part2.04000607.07010808@test.com>
-			
+
 			iVBORw0KGgoAAAANSUhEUgAABAgAAANtCAIAAACSZd4qAAAAAXNSR0IArs4c6QAA/8pJREFU
 			eF7sfQeYZGWVduWcc3XOcUJPYoacg6iIoIIKoq66ZmV1XXHRNfAvqCiorGExrqxiWExrYAVB
 			RU5ErkJggg==
-			
+
 			--------------040305040006080906090803
 			Content-Type: image/png
 			Content-Transfer-Encoding: base64
 			Content-ID: <part4.00020808.07050000@test.com>
-			
+
 			iVBORw0KGgoAAAANSUhEUgAAB4AAAAQQCAIAAACMTtFPAAAAAXNSR0IArs4c6QAA/8pJREFU
 			eF7snQdgFFX+xyedhISEQCD0LqEX6WAHBREUAQX1lLNXznaennJ6ooINORV74e+pIEUQDkEB
 			CCCAAAIIIIAAAgjoC/w/mDOVH0wNG5MAAAAASUVORK5CYII=
 			--------------040305040006080906090803--
-			
+
 			--------------090707030607080209050905--
 			|] -- warning I truncated the base64 picture attachments
 	let msg = MboxMessage "sender" "Jan 23 06:00:05 2013" source "file" 0
@@ -523,7 +523,7 @@ testDifferentMessage = it "parses a different message" $ do
 			X-UIDL: 5772.NiG4Gf0oqFthpgYGWYC9gzRwsIxdwVaV3p4Jg11nyGk=
 			X-Mozilla-Status: 0011
 			X-Mozilla-Status2: 00000000
-			X-Mozilla-Keys:                                                                                 
+			X-Mozilla-Keys:
 			From: "A B" <a.b@c>
 			To: "'C D'" <c.d@e>
 			Subject: RE: FW: Test
@@ -532,28 +532,28 @@ testDifferentMessage = it "parses a different message" $ do
 			Content-Type: multipart/mixed;
 				boundary="----=_NextPart_000_00CE_01CEE078.3CBC8C10"
 			X-Mailer: Microsoft Outlook 15.0
-			
+
 			This is a multipart message in MIME format.
-			
+
 			------=_NextPart_000_00CE_01CEE078.3CBC8C10
 			Content-Type: text/plain;
 				charset="us-ascii"
 			Content-Transfer-Encoding: 7bit
-			
+
 			Hi,
 
 			several lines.
-			
+
 			------=_NextPart_000_00CE_01CEE078.3CBC8C10
 			Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;
 				name="Test Cases Performance 010 11112013.xlsx"
 			Content-Transfer-Encoding: base64
 			Content-Disposition: attachment;
 				filename="Test Cases Performance 010 11112013.xlsx"
-			
+
 			UEsDBBQABgAIAAAAIQCq91ikeQEAABQGAAATAAgCW0NvbnRlbnRfVHlwZXNdLnhtbCCiBAIooAAC
 			ZG9jUHJvcHMvYXBwLnhtbFBLBQYAAAAAHwAfACEIAACQnBoAAAA=
-			
+
 			------=_NextPart_000_00CE_01CEE078.3CBC8C10--
 			|] -- warning I truncated the base64 picture attachments
 	let msg = MboxMessage "sender" "Jan 23 06:00:05 2013" source "file" 0
@@ -563,10 +563,10 @@ testDifferentMessage = it "parses a different message" $ do
 			to = "\"'C D'\" <c.d@e>",
 			cc = Nothing,
 			subject = "RE: FW: Test",
-			contents = "Hi,\n<br/>several lines.\n<br/><hr/><p><a href='AttachmentKey {mailId = \"\", attachmentIndex = 1}' class='btn btn-default' role='button'><span class='glyphicon glyphicon-paperclip'></span>Test Cases Performance 010 11112013.xlsx</a></p>"
+			contents = "Hi,\n<br/>\n<br/>several lines.\n<br/><hr/><p><a href='AttachmentKey {mailId = \"\", attachmentIndex = 1}' class='btn btn-default' role='button'><span class='glyphicon glyphicon-paperclip'></span>Test Cases Performance 010 11112013.xlsx</a></p>"
 		}
 	-- also cover the alternate order of parameters in the json... ugly but will do for now.
-	let expected2 = expected { contents = "Hi,\n<br/>several lines.\n<br/><hr/><p><a href='AttachmentKey {attachmentIndex = 1, mailId = \"\"}' class='btn btn-default' role='button'><span class='glyphicon glyphicon-paperclip'></span>Test Cases Performance 010 11112013.xlsx</a></p>" }
+	let expected2 = expected { contents = "Hi,\n<br/>\n<br/>several lines.\n<br/><hr/><p><a href='AttachmentKey {attachmentIndex = 1, mailId = \"\"}' class='btn btn-default' role='button'><span class='glyphicon glyphicon-paperclip'></span>Test Cases Performance 010 11112013.xlsx</a></p>" }
 	let parsed = messageToEmail' msg
 	assertBool ("doesn't match; parsed: "
 		++ show parsed
@@ -574,7 +574,7 @@ testDifferentMessage = it "parses a different message" $ do
 		++ "\nor\n" ++ show expected2) (parsed == expected || parsed == expected2)
 
 getMultipartBodyText :: T.Text -> BL.ByteString -> T.Text
-getMultipartBodyText sep bdy = fromMaybe "no body!" 
+getMultipartBodyText sep bdy = fromMaybe "no body!"
 	(sectionTextContent <$> (parseMultipartBody sep bdy >>= sectionToConsider))
 
 messageToEmail' :: MboxMessage BL.ByteString -> Email

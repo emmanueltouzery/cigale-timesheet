@@ -15,7 +15,6 @@ import Data.Time.Clock
 import Data.Time.Calendar
 import Data.Time.LocalTime
 import Data.Time.Format
-import System.Locale
 import Data.List (find)
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.Maybe
@@ -151,7 +150,7 @@ parseBugNodes _ _ _ [_] = error "parseBugNodes: invalid pattern!?"
 
 parseTimeOfDay :: Day -> String -> LocalTime
 parseTimeOfDay day time = LocalTime day $ fromMaybe (error $ "Can't parse time: " ++ time) parsed
-    where parsed = parseTime defaultTimeLocale "%I:%M %P" time
+    where parsed = parseTimeM False defaultTimeLocale "%I:%M %P" time
 
 isElement :: Node -> Bool
 isElement (NodeElement _) = True

@@ -18,7 +18,6 @@ import qualified System.Directory as Dir
 import qualified System.IO.Error as IOEx
 import Data.Map as Map hiding (filter, map, foldl)
 import Data.Time.Format
-import System.Locale
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Control.Applicative ((<$>), (<|>))
 import Data.Maybe

@@ -15,7 +15,6 @@ import Data.Time.Calendar
 import Data.Time.Clock (UTCTime(..))
 import Data.Time.LocalTime
 import Data.Time.Format
-import System.Locale
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString as BS
@@ -324,14 +323,15 @@ readTT = fst . fromJust . B.readInteger
 
 parseEmailDate :: T.Text -> LocalTime
 parseEmailDate (T.unpack -> dt) = fromMaybe (error $ "Email: error parsing date: " ++ dt)
-    $ (parseTime defaultTimeLocale "%b %d %T %Y" dt
-        A.<|> (zonedTimeToLocalTime <$> parseTime defaultTimeLocale "%a, %d %b %Y %T %z" dt)
-        A.<|> parseTime defaultTimeLocale "%a %b %d %T %Y" dt
-        A.<|> parseTime defaultTimeLocale "%a %b %e %T %Y" dt
-        A.<|> (zonedTimeToLocalTime <$> parseTime defaultTimeLocale "%a, %-d %b %Y %T %z (%Z)" dt))
+    $ (parseT "%b %d %T %Y" dt
+        A.<|> parseT "%a, %d %b %Y %T %z" dt
+        A.<|> parseT "%a %b %d %T %Y" dt
+        A.<|> parseT "%a %b %e %T %Y" dt
+        A.<|> parseT "%a, %-d %b %Y %T %z (%Z)" dt)
         -- the next line is for "Wed, 1 ..." which I saw
         -- %e is day of month, space-padded to two chars, 1 - 31
-        A.<|> (zonedTimeToLocalTime <$> parseTime defaultTimeLocale "%a,%e %b %Y %T %z" dt)
+        A.<|> parseT "%a,%e %b %Y %T %z" dt
+    where parseT = parseTimeM False defaultTimeLocale
 
 decUtf8IgnErrors :: B.ByteString -> T.Text
 decUtf8IgnErrors = decodeUtf8With (\str input -> Just ' ')

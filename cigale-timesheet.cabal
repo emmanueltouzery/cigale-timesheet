@@ -23,7 +23,8 @@ Library
     aeson >= 0.7.0.0,
     codec-mbox,
     text,
-    time,
+    -- using parseTimeM, parseTime deprecated in 1.5
+    time >= 1.5,
     parsec,
     containers,
     MissingH,
@@ -86,7 +87,8 @@ Executable cigale-timesheet
      unordered-containers,
      aeson >= 0.7.0.0,
      async,
-     time,
+     -- using parseTimeM, parseTime deprecated in 1.5
+     time >= 1.5,
      transformers,
      snap-core,
      snap-server,
@@ -121,7 +123,8 @@ test-suite        tests
     aeson >= 0.7.0.0,
     codec-mbox,
     text,
-    time,
+    -- using parseTimeM, parseTime deprecated in 1.5
+    time >= 1.5,
     parsec,
     containers,
     MissingH,

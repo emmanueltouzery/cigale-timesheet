@@ -96,7 +96,7 @@ getCommitExtraInfo commit gitFolderPath = if atRoot filesRoot then gitRepoName e
     where
         filesRoot = T.pack $ Util.getFilesRoot $ commitFiles commit
         gitRepoName = last $ T.splitOn "/" gitFolderPath
-        atRoot = T.all (`elem` "./")
+        atRoot = T.all (`elem` ['.', '/'])
 
 formatDate :: Day -> String
 formatDate (toGregorian -> (year, month, dayOfMonth)) =

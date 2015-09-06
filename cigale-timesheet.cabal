@@ -43,8 +43,8 @@ Library
     io-streams,
     html-conduit,
     xml-conduit,
-    -- openssl-streams => HsOpenSSL>=0.10.3 && <0.11)
-    HsOpenSSL < 0.11,
+    -- openssl-streams => HsOpenSSL>=0.10.3 && <0.12)
+    HsOpenSSL < 0.12,
     transformers,
     template-haskell,
     th-lift,
@@ -142,8 +142,8 @@ test-suite        tests
     io-streams,
     html-conduit,
     xml-conduit,
-    -- openssl-streams => HsOpenSSL>=0.10.3 && <0.11)
-    HsOpenSSL < 0.11,
+    -- openssl-streams => HsOpenSSL>=0.10.3 && <0.12)
+    HsOpenSSL < 0.12,
     hspec,
     HUnit,
     template-haskell,

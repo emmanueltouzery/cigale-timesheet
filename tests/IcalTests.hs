@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, QuasiQuotes #-}
+{-# LANGUAGE OverloadedStrings, QuasiQuotes, FlexibleContexts #-}
 
 module IcalTests where
 
@@ -6,15 +6,14 @@ import Test.Hspec
 import Test.HUnit
 
 import qualified Data.Text as T
-import qualified Data.Map as Map
+import Data.Map (Map)
 import Data.Time.LocalTime
 import Data.Time.Clock
 import Data.Time.Calendar
-
+import qualified Text.Parsec as T
 
 import Str
 import Ical
-import Util
 import Event
 import EventProvider
 
@@ -26,6 +25,7 @@ runIcalTests = do
     testBasicEvent tz
     testThroughMidnightEvent tz
     testWholeDayEvent tz
+    testNoEndEvent tz
 
 testBasicEvent :: TimeZone -> Spec
 testBasicEvent tz = it "parses basic ICAL event" $ do
@@ -92,7 +92,7 @@ testThroughMidnightEvent tz = it "parses basic ICAL event through midnight" $ do
             extraInfo = "End: 00:30; duration: 0:30",
             fullContents = Nothing
         }]
-    testParsecExpectTransform (concatMap (keyValuesToEvents tz)) source parseEvents expected
+    testIcalParse tz source parseEvents expected
 
 testWholeDayEvent :: TimeZone -> Spec
 testWholeDayEvent tz = it "parses whole day ICAL event" $ do
@@ -137,4 +137,36 @@ testWholeDayEvent tz = it "parses whole day ICAL event" $ do
             extraInfo = "End: 23:59; duration: 23:59",
             fullContents = Nothing
         }]
-    testParsecExpectTransform (concatMap (keyValuesToEvents tz)) source parseEvents expected
+    testIcalParse tz source parseEvents expected
+
+testNoEndEvent :: TimeZone -> Spec
+testNoEndEvent tz = it "parses event no end date" $ do
+    let source = [strT|
+        BEGIN:VEVENT
+        DTSTART:20130417T073000Z
+        DTSTAMP:20130419T192234Z
+        UID:d7anctkba3qoui0qcru9samr0o@google.com
+        CREATED:20130417T131454Z
+        DESCRIPTION:
+        LAST-MODIFIED:20130417T131454Z
+        LOCATION:
+        SEQUENCE:0
+        STATUS:CONFIRMED
+        SUMMARY:spent a lot of time researching bus tables\, for position records
+        TRANSP:OPAQUE
+        END:VEVENT
+            |]
+    let expected = Event {
+            pluginName = getModuleName getIcalProvider,
+            eventIcon = "glyphicon-calendar",
+            eventDate = UTCTime (fromGregorian 2013 4 17)
+                (secondsToDiffTime $ 7*3600+30*60),
+            desc = "spent a lot of time researching bus tables, for position records",
+            extraInfo = "End: 07:30; duration: 0:00",
+            fullContents = Nothing
+        }
+    testIcalParse tz source parseEvents [expected]
+
+testIcalParse :: TimeZone -> T.Text
+        -> T.Parsec T.Text () [Map String CalendarValue] -> [Event] -> Assertion
+testIcalParse tz = testParsecExpectTransform (concatMap (keyValuesToEvents tz))

@@ -9,6 +9,7 @@ import Data.List
 import Network.Http.Client
 import qualified Data.Text.Encoding as TE
 import qualified Data.Text as T
+import Data.Text (Text)
 import qualified Data.Text.IO as T
 import Text.Parsec.Text
 import Text.Parsec hiding ((<|>))
@@ -156,21 +157,25 @@ makeEvents tz base start end
 keyValuesToEvents :: TimeZone -> Map String CalendarValue -> [Event.Event]
 keyValuesToEvents tz records = makeEvents tz baseEvent startDate endDate
     where
-        baseEvent = Event.Event
-            {
-                pluginName = getModuleName getIcalProvider,
-                eventIcon = "glyphicon-calendar",
-                eventDate = localTimeToUTC tz startDate,
-                desc = descV,
-                extraInfo = "",
-                fullContents = Nothing
-            }
-        leafValue name = fromMaybe (error $ "No leaf of name " ++ name ++ " " ++ show records) $
-            leafText <$> (Map.lookup name records >>= fromLeaf)
-        descV = T.concat [T.pack $ leafValue "DESCRIPTION",
-                 T.pack $ leafValue "SUMMARY"]
-        startDate = parseDateNode "DTSTART" records
-        endDate = parseDateNode "DTEND" records
+        baseEvent = buildBasicEvent descV (localTimeToUTC tz startDate)
+        descV = T.concat $ (T.pack . leafValue records) <$> ["DESCRIPTION", "SUMMARY"]
+        startDate = fromMaybe (error "No DTSTART!?") $ parseDateNode "DTSTART" records
+        endDate = fromMaybe startDate $ parseDateNode "DTEND" records
+
+leafValue :: Map String CalendarValue -> String -> String
+leafValue records name = fromMaybe (error $ "No leaf of name " ++ name ++ " " ++ show records) $
+    leafText <$> (Map.lookup name records >>= fromLeaf)
+
+buildBasicEvent :: Text -> UTCTime -> Event.Event
+buildBasicEvent descV date = Event.Event
+   {
+       pluginName = getModuleName getIcalProvider,
+       eventIcon = "glyphicon-calendar",
+       eventDate = date,
+       desc = descV,
+       extraInfo = "",
+       fullContents = Nothing
+   }
 
 parseBegin :: GenParser st String
 parseBegin = string "BEGIN:VEVENT" >> eol
@@ -210,8 +215,8 @@ parseSubLevel = do
     subcontents <- manyTill parseKeyValue (try (do string $ "END:" ++ value; eol))
     return (value, SubLevel $ Map.fromList subcontents)
 
-parseDateNode :: String -> Map String CalendarValue -> LocalTime
-parseDateNode key records = fromMaybe (error $ "Didn't find a parseable leaf for the date " ++ key) $ do
+parseDateNode :: String -> Map String CalendarValue -> Maybe LocalTime
+parseDateNode key records = do
     dateInfo <- Map.lookup key records >>= fromLeaf
     case Map.lookup "VALUE" $ propParams dateInfo of
         Just "DATE" -> parseDateOnlyNode key $ leafText dateInfo

@@ -227,21 +227,19 @@ parseDateOnlyNode key (T.pack -> nodeText) = dayTime <$> parseMaybe parseDate no
     where dayTime time = case key of
               "DTSTART" -> time
               "DTEND"   -> time { localTimeOfDay = TimeOfDay 23 59 59 } -- end of the day
+              _         -> error $ "parseDateOnlyNode: " ++ show key
 
 parseDate :: GenParser st LocalTime
 parseDate = do
-    year  <- parseNum 4
-    month <- parseNum 2
-    day   <- parseNum 2
-    return $ LocalTime (fromGregorian year month day) (TimeOfDay 0 0 0)
+    date <- fromGregorian <$> parseNum 4 <*> parseNum 2 <*> parseNum 2
+    return $ LocalTime date (TimeOfDay 0 0 0)
 
 parseDateTime :: GenParser st LocalTime
 parseDateTime = do
     date  <- parseDate
-    hours <- char 'T' >> parseNum 2
-    mins  <- parseNum 2
-    sec   <- parseNum 2
-    return $ date { localTimeOfDay = TimeOfDay hours mins sec }
+    char 'T'
+    timeOfDay <- TimeOfDay <$> parseNum 2 <*> parseNum 2 <*> parseNum 2
+    return $ date { localTimeOfDay = timeOfDay }
 
 -- at the end of the file there may not be a carriage return.
 parseEnd :: GenParser st ()
@@ -268,7 +266,8 @@ readFromCache settingsFolder = do
     T.pack <$> readFile (cacheFilename settingsFolder)
 
 putInCache :: String -> T.Text -> IO ()
-putInCache settingsFolder text = withFile (cacheFilename settingsFolder) WriteMode (`T.hPutStr` text)
+putInCache settingsFolder text =
+    withFile (cacheFilename settingsFolder) WriteMode (`T.hPutStr` text)
 
 eol :: GenParser st String
 eol = many1 $ oneOf "\r\n"

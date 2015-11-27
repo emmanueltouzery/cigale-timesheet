@@ -90,3 +90,7 @@ http method url contents responseProcessor requestSpec = withOpenSSL $ do
 -- save myself the ScopedTypeVariables and typing there.
 tryS :: IO a -> IO (Either SomeException a)
 tryS = Ex.try
+
+findM :: Monad m => (a -> m Bool) -> [a] -> m (Maybe a)
+findM _ []     = return Nothing
+findM f (x:xs) = f x >>= bool (findM f xs) (return $ Just x)

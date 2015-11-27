@@ -26,6 +26,7 @@ runIcalTests = do
     testThroughMidnightEvent tz
     testWholeDayEvent tz
     testNoEndEvent tz
+    testSlashes tz
 
 testBasicEvent :: TimeZone -> Spec
 testBasicEvent tz = it "parses basic ICAL event" $ do
@@ -163,6 +164,45 @@ testNoEndEvent tz = it "parses event no end date" $ do
                 (secondsToDiffTime $ 7*3600+30*60),
             desc = "spent a lot of time researching bus tables, for position records",
             extraInfo = "End: 07:30; duration: 0:00",
+            fullContents = Nothing
+        }
+    testIcalParse tz source parseEvents [expected]
+
+testSlashes :: TimeZone -> Spec
+testSlashes tz = it "parses description with slashes" $ do
+    let source = [strT|
+        BEGIN:VEVENT
+        DTSTART:20151203T170000Z
+        DTEND:20151203T180000Z
+        DTSTAMP:20151127T150612Z
+        ORGANIZER;CN=unknownorganizer@calendar.google.com:mailto:unknownorganizer@c
+         alendar.google.com
+        UID:7kukuqrfedlm2f9tpu19cgijm5bor4c0t814jvcmak9669k42o97ore4arbku72f2t10
+        ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;CN=Emmanu
+         el Touzery;X-NUM-GUESTS=0:mailto:etouzery@gmail.com
+        CLASS:PRIVATE
+        CREATED:20151124T184939Z
+        DESCRIPTION:Za samodejno ustvarjene dogodke\, kot je ta\, si lahko podrobne
+          podatke ogledate tako\, da uporabite uradno aplikacijo Google Koledar. htt
+         p://g.co/calendar\n\nTa dogodek je bil ustvarjen iz e-poštnega sporočila\,
+         ki ste ga prejeli v Gmailu. https://mail.google.com/mail?extsrc=cal&plid=AC
+         UX6DMQjasq0BPzJxSSXD1TYiuCQZxgmyyP4JA\n
+        LAST-MODIFIED:20151124T191516Z
+        LOCATION:Kreativni center Poligon\, Tobačna ulica 5\, Ljubljana\, Ljubljana
+         \, si\, 1000
+        SEQUENCE:0
+        STATUS:CONFIRMED
+        SUMMARY:First Lambda Meetup!
+        TRANSP:TRANSPARENT
+        END:VEVENT
+            |]
+    let expected = Event {
+            pluginName = getModuleName getIcalProvider,
+            eventIcon = "glyphicon-calendar",
+            eventDate = UTCTime (fromGregorian 2015 12 3)
+                (secondsToDiffTime $ 17*3600),
+            desc = "Za samodejno ustvarjene dogodke, kot je ta, si lahko podrobne podatke ogledate tako, da uporabite uradno aplikacijo Google Koledar. http://g.co/calendar\n\nTa dogodek je bil ustvarjen iz e-po\353tnega sporo\269ila,ki ste ga prejeli v Gmailu. https://mail.google.com/mail?extsrc=cal&plid=ACUX6DMQjasq0BPzJxSSXD1TYiuCQZxgmyyP4JA\nFirst Lambda Meetup!",
+            extraInfo = "End: 18:00; duration: 1:00",
             fullContents = Nothing
         }
     testIcalParse tz source parseEvents [expected]

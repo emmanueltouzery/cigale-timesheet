@@ -189,15 +189,22 @@ parseKeyValue = do
     eol
     return (key, Leaf $ CalendarLeaf propertyParameters values)
 
+isMatch :: GenParser st a -> GenParser st Bool
+isMatch parser = isJust <$> optionMaybe (try parser)
+
+singleValueParserMatches :: [(GenParser st String, GenParser st String)]
+singleValueParserMatches = [
+    (string "\\n", ("\n" ++) <$> parseSingleValue),
+    (string "\\", (:) <$> anyChar <*> parseSingleValue),
+    (oneOf "\r\n" >> string " ", parseSingleValue)]
+
 parseSingleValue :: GenParser st String
 parseSingleValue = do
-    text <- many1 $ noneOf "\\,\r\n"
-    isBackslash <- isJust <$> optionMaybe (string "\\")
-    if isBackslash
-        then do
-            chr <- anyChar
-            ((text ++ [chr]) ++) <$> parseSingleValue
-        else return text
+    text <- many $ noneOf "\\,\r\n"
+    match <- Util.findM (isMatch . fst) singleValueParserMatches
+    case match of
+        Just matchInfo -> (text ++) <$> snd matchInfo
+        Nothing        -> return text
 
 parsePropertyParameters :: GenParser st (String, String)
 parsePropertyParameters = do

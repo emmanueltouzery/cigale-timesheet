@@ -27,7 +27,6 @@ import Data.Text.Read
 import GHC.Word
 import qualified Data.ByteString.Base64 as Base64
 import Text.Parsec.ByteString
-import qualified Text.Parsec.Text as TT
 import Text.Parsec
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import qualified Codec.Text.IConv as IConv
@@ -321,10 +320,13 @@ readT = fst . fromJust . B.readInt
 readTT :: B.ByteString -> Integer
 readTT = fst . fromJust . B.readInteger
 
+-- I guess i'll have to find a smarter library
+-- to parse dates instead of keeping piling those up??
 parseEmailDate :: T.Text -> LocalTime
 parseEmailDate (T.unpack -> dt) = fromMaybe (error $ "Email: error parsing date: " ++ dt)
     $ (parseT "%b %d %T %Y" dt
         A.<|> parseT "%a, %d %b %Y %T %z" dt
+        A.<|> parseT "%a, %d %b %Y %T %Z" dt
         A.<|> parseT "%a %b %d %T %Y" dt
         A.<|> parseT "%a %b %e %T %Y" dt
         A.<|> parseT "%a, %-d %b %Y %T %z (%Z)" dt)

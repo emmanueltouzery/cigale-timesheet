@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, QuasiQuotes #-}
 
-module SvnTests (runSvnTests) where
+module SvnSpec (spec) where
 
 import Test.Hspec
 import Test.HUnit
@@ -13,8 +13,8 @@ import Svn
 import TestUtil
 import Util
 
-runSvnTests :: Spec
-runSvnTests = testBasicCommit
+spec :: Spec
+spec = testBasicCommit
 
 testBasicCommit :: Spec
 testBasicCommit = it "parses a basic SVN commit" $ do

@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module RedmineTests (runRedmineTests) where
+module RedmineSpec (spec) where
 
 import Test.Hspec
 
@@ -14,8 +14,8 @@ import EventProvider
 
 import Redmine
 
-runRedmineTests :: Spec
-runRedmineTests = do
+spec :: Spec
+spec = do
     it "works ok with empty" $
         mergeSuccessiveEvents [] `shouldBe` []
 

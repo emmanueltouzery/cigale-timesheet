@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
-module EventProviderTests (runEventProviderTests) where
+module EventProviderSpec (spec) where
 
 import Test.Hspec
 import Test.HUnit
@@ -8,8 +8,8 @@ import qualified Data.Text as T
 import EventProvider
 import EventProviderTestsData
 
-runEventProviderTests :: Spec
-runEventProviderTests = do
+spec :: Spec
+spec = do
     testThGetTypeDesc
     testThGetTypeDescComplex
     testThGetTypeDescComplexT

@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, QuasiQuotes #-}
 
-module GitTests (runGitTests) where
+module GitSpec (spec) where
 
 import Test.Hspec
 import Test.HUnit
@@ -15,8 +15,8 @@ import Git
 import Util
 import TestUtil
 
-runGitTests :: Spec
-runGitTests = do
+spec :: Spec
+spec = do
     testUsualCommit
     testMerge
     testCommitWithoutMessage

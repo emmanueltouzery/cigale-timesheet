@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module SkypeTests where
+module SkypeSpec where
 
 import Test.Hspec
 import Test.HUnit
@@ -9,8 +9,8 @@ import Data.Time.Clock
 
 import Skype
 
-runSkypeTests :: Spec
-runSkypeTests = do
+spec :: Spec
+spec = do
     splitWhenNeeded
     noSplitIfNotNeeded
     splitFourElts

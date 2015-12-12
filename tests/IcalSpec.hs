@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, QuasiQuotes, FlexibleContexts #-}
 
-module IcalTests where
+module IcalSpec where
 
 import Test.Hspec
 import Test.HUnit
@@ -19,8 +19,8 @@ import EventProvider
 
 import TestUtil
 
-runIcalTests :: Spec
-runIcalTests = do
+spec :: Spec
+spec = do
     let tz = utc
     testBasicEvent tz
     testThroughMidnightEvent tz

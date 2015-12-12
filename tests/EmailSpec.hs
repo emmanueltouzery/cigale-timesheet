@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, QuasiQuotes #-}
 
-module EmailTests (runEmailTests) where
+module EmailSpec (spec) where
 
 import Test.Hspec
 import Test.HUnit
@@ -21,8 +21,8 @@ import TestUtil
 
 import Email
 
-runEmailTests :: Spec
-runEmailTests = do
+spec :: Spec
+spec = do
     testEmail1
     testEmail2
     testMimeNonUtf

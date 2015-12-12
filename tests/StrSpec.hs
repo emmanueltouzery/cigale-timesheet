@@ -1,14 +1,14 @@
 {-# LANGUAGE OverloadedStrings, QuasiQuotes #-}
 
-module StrTests (runStrTests) where
+module StrSpec (spec) where
 
 import Test.Hspec
 import Test.HUnit
 
 import Str
 
-runStrTests :: Spec
-runStrTests = do
+spec :: Spec
+spec = do
     testStrT
     testStrMultiT
     testStrCrMultiT

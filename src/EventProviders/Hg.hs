@@ -82,7 +82,10 @@ parseFiles :: GenParser st [String]
 parseFiles = manyTill parseFile (try $ string "--->>>\n")
 
 parseFile :: GenParser st String
-parseFile = manyTill anyChar $ string " \n"
+parseFile = do
+    result <- many $ noneOf " \n"
+    oneOf " \n"
+    return result
 
 parseDateTime :: GenParser st LocalTime
 parseDateTime = do

@@ -11,3 +11,5 @@ Utils.js
 jquery-2.0.3.min.js
 .cabal-sandbox/
 cabal.sandbox.config
+.stack-work
+src/WebGui/reflex-dom

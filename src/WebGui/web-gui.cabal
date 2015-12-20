@@ -1,0 +1,27 @@
+Name:                web-gui
+Version:             0.1
+Synopsis:            Timesheet helper
+Description:         Reverse-engineer your timesheet from records of your past
+                     activity left in your computer.
+License:             MIT
+License-file:        LICENSE.txt
+Author:              Emmanuel Touzery
+Maintainer:          etouzery@gmail.com
+Stability:           Experimental
+Category:            Tools
+Build-type:          Simple
+Cabal-version:       >=1.8
+
+Executable cigale-web
+   hs-source-dirs: .
+   main-is: App.hs
+   build-depends:
+       base,
+       reflex,
+       reflex-dom,
+       ghcjs-dom == 0.1.*,
+       time,
+       text,
+       aeson,
+       transformers
+   ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2

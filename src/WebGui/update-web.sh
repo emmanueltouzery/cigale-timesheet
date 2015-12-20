@@ -1,0 +1,1 @@
+cp /home/emmanuel/home/2/cigale-timesheet/src/WebGui/.stack-work/dist/x86_64-linux/Cabal-1.22.4.0_ghcjs/build/cigale-web/cigale-web.jsexe/* /home/emmanuel/home/2/cigale-timesheet/.stack-work/install/x86_64-linux/lts-3.16/7.10.2/share/x86_64-linux-ghc-7.10.2/cigale-timesheet-0.1

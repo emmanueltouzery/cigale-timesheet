@@ -2,7 +2,6 @@ module Event where
 
 import Data.Time.Clock
 import qualified Data.Text as T
-import Data.Aeson()
 
 data Event = Event
     {
@@ -12,5 +11,4 @@ data Event = Event
         desc :: T.Text,
         extraInfo :: T.Text,
         fullContents :: Maybe T.Text
-    }
-    deriving (Eq, Show)
+    } deriving (Eq, Show)

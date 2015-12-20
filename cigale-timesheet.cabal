@@ -52,9 +52,6 @@ Library
     unordered-containers,
     iconv,
 -- after this line are build/install dependencies, not runtime dependencies!
-    -- fay-base need mapM, unless
-    fay >= 0.19,
-    fay-jquery,
     zip-archive >= 0.1.4,
     errors >= 2.0.0,
     http-types

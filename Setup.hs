@@ -28,8 +28,6 @@ doPostBuild _ _ pkg_descr lbi = do
     let appDataDir = datadir $ absoluteInstallDirs pkg_descr lbi NoCopyDest
     putStrLn appDataDir
     createDirectoryIfMissing True appDataDir
-    compileFay "src/WebClient/" "FayApp.hs" "FayApp.js" appDataDir
-    compileFay "src/WebClient/" "FayConfig.hs" "FayConfig.js" appDataDir
     unzipToTarget "lib/bootstrap-3.0.0-dist.zip" appDataDir
     unzipToTarget "lib/jquery-ui-1.9.2.custom.zip" appDataDir
     copyFile "lib/jquery-2.0.3.min.js" (appDataDir ++ "/jquery-2.0.3.min.js")
@@ -43,17 +41,6 @@ doPostBuild _ _ pkg_descr lbi = do
     rawSystem "xdg-icon-resource" ["install", "--size", "96", "cigale-timesheet-96.png", "cigale-timesheet"]
     rawSystem "xdg-desktop-menu" ["install", "cigale-timesheet.desktop"]
     return ()
-
-compileFay :: String -> String -> String -> FilePath -> IO ()
-compileFay sourceFolder filename targetFilename appDataDir = do
-    let command = "fay --package fay-jquery,fay-text --include " <> sourceFolder <> " "
-                  <> sourceFolder <> filename <> " -o "
-                  <> appDataDir <> "/" <> targetFilename <> " --pretty"
-    putStrLn command
-    exitCode <- runCommand command >>= waitForProcess
-    case exitCode of
-        ExitSuccess -> return ()
-        ExitFailure _ -> exitWith exitCode
 
 unzipToTarget :: FilePath -> String -> IO ()
 unzipToTarget sourceFile targetFolder = do

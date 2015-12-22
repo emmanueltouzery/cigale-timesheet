@@ -49,8 +49,7 @@ cigaleView = do
         dateInput <- textInput $ def
             & textInputConfig_initialValue .~ initialDay
         let req url = xhrRequest "GET" ("/timesheet/" ++ url) def
-        postBuild <- getPostBuild
-        let loadRecordsEvent = mergeWith const [textInputGetEnter dateInput, postBuild]
+        loadRecordsEvent <- mergeWith const <$> sequence [pure $ textInputGetEnter dateInput, getPostBuild]
         asyncReq <- performRequestAsync (tag (req <$> current (_textInput_value dateInput)) loadRecordsEvent)
         resp <- holdDyn Nothing $ fmap decodeXhrResponse asyncReq
         void (mapDyn eventsTable resp >>= dyn)

@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, DeriveGeneric, LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables, DeriveGeneric, LambdaCase, RecordWildCards #-}
 
 import Reflex
 import Reflex.Dom
@@ -6,7 +6,9 @@ import Reflex.Dom
 import GHC.Generics
 import Data.Time.Clock
 import qualified Data.Text as T
+import Data.Text (Text)
 import Data.Aeson
+import Control.Monad
 
 -- url is http://localhost:8000/static/index.html
 -- start cigale with .stack-work/install/x86_64-linux/lts-3.16/7.10.2/bin/cigale-timesheet
@@ -14,6 +16,9 @@ import Data.Aeson
 -- TODO unhardcode
 initialDay :: String
 initialDay = "2015-11-10"
+
+text_ :: MonadWidget t m => Text -> m ()
+text_ = text . T.unpack
 
 -- TODO share code with the server
 -- instead of copy-pasting
@@ -44,20 +49,19 @@ cigaleView = do
         dateInput <- textInput $ def
             & textInputConfig_initialValue .~ initialDay
         let req url = xhrRequest "GET" ("/timesheet/" ++ url) def
-        eventsTable
         postBuild <- getPostBuild
         let loadRecordsEvent = mergeWith const [textInputGetEnter dateInput, postBuild]
         asyncReq <- performRequestAsync (tag (req <$> current (_textInput_value dateInput)) loadRecordsEvent)
         resp <- holdDyn Nothing $ fmap decodeXhrResponse asyncReq
-        --liftIO $ putStrLn "hello"
-        dynText =<< mapDyn (\case
-            Nothing -> "Error reading the server's message!"
-            Just r  -> show $ desc $ head $ fetchedEvents r) resp
-        return ()
+        void (mapDyn eventsTable resp >>= dyn)
 
 -- https://m.reddit.com/r/reflexfrp/comments/3h3s72/rendering_dynamic_html_table/
-eventsTable :: MonadWidget t m => m ()
-eventsTable = el "table" $ do
+eventsTable :: MonadWidget t m => Maybe FetchResponse -> m ()
+eventsTable Nothing = text "Error reading the server's message!"
+eventsTable (Just (FetchResponse events errors)) = el "table" $ mapM_ showRecord events
+
+showRecord :: MonadWidget t m => TsEvent -> m ()
+showRecord TsEvent{..} = do
     el "tr" $ do
-        el "td" $ text "test"
-        el "td" $ text "test1"
+        el "td" $ text_ desc
+        el "td" $ text $ show eventDate

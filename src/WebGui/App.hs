@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, DeriveGeneric, LambdaCase, RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables, DeriveGeneric, LambdaCase, RecordWildCards, RecursiveDo #-}
 
 import Reflex
 import Reflex.Dom
@@ -45,24 +45,27 @@ instance FromJSON FetchResponse
 main :: IO ()
 main = mainWidget cigaleView
 
-decreaseDay :: String -> String
-decreaseDay str = case parseTimeM False defaultTimeLocale "%Y-%m-%d" str of
+modifyDay :: Integer -> String -> String
+modifyDay daysCount str = case parseTimeM False defaultTimeLocale "%Y-%m-%d" str of
     Nothing  -> str
-    Just day -> showGregorian (addDays (-1) day)
+    Just day -> showGregorian (addDays daysCount day)
 
 cigaleView :: MonadWidget t m => m ()
 cigaleView = do
     el "div" $ do
         previousDayBtn <- button "<<"
         -- domEvent Click previousDayBtn
-        curDate <- foldDyn ($) initialDay $ mergeWith (.)
-            [
-                fmap (const decreaseDay) previousDayBtn
-            ]
+        rec
+            curDate <- foldDyn ($) initialDay $ mergeWith (.)
+                [
+                    fmap (const $ modifyDay (-1)) previousDayBtn,
+                    fmap (const $ modifyDay 1) nextDayBtn
+                ]
 
-        dateInput <- textInput $ def
-            & textInputConfig_initialValue .~ initialDay
-            & setValue .~ updated curDate
+            dateInput <- textInput $ def
+                & textInputConfig_initialValue .~ initialDay
+                & setValue .~ updated curDate
+            nextDayBtn <- button ">>"
         let req url = xhrRequest "GET" ("/timesheet/" ++ url) def
         loadRecordsEvent <- mergeWith const <$> sequence [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
         asyncReq <- performRequestAsync (req <$> loadRecordsEvent)

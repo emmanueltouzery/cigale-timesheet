@@ -1,4 +1,10 @@
-{-# LANGUAGE ScopedTypeVariables, DeriveGeneric, LambdaCase, RecordWildCards, RecursiveDo #-}
+{-# LANGUAGE ScopedTypeVariables, DeriveGeneric, LambdaCase #-}
+{-# LANGUAGE RecordWildCards, RecursiveDo, JavaScriptFFI, ForeignFunctionInterface #-}
+
+import GHCJS.Types
+import GHCJS.Foreign
+import GHCJS.DOM.Element
+import GHCJS.DOM.Types hiding (Text)
 
 import Reflex
 import Reflex.Dom
@@ -11,6 +17,11 @@ import Data.Aeson
 import Control.Monad
 import Data.Time.Calendar
 import Data.Time.Format
+import Data.Monoid
+import Control.Monad.IO.Class
+
+-- foreign import javascript unsafe "new Pikaday({onSelect: $1})" initPikaday :: (JSFun JSString -> IO ()) -> IO Node
+foreign import javascript unsafe "$1.appendChild(new Pikaday({onSelect: function(txt) {console.error(txt);}}).el)" initPikaday :: JSRef Element -> IO ()
 
 -- url is http://localhost:8000/static/index.html
 -- start cigale with .stack-work/install/x86_64-linux/lts-3.16/7.10.2/bin/cigale-timesheet
@@ -52,20 +63,22 @@ modifyDay daysCount str = case parseTimeM False defaultTimeLocale "%Y-%m-%d" str
 
 cigaleView :: MonadWidget t m => m ()
 cigaleView = do
+    stylesheet "pikaday.css"
     el "div" $ do
         previousDayBtn <- button "<<"
-        -- domEvent Click previousDayBtn
         rec
             curDate <- foldDyn ($) initialDay $ mergeWith (.)
                 [
                     fmap (const $ modifyDay (-1)) previousDayBtn,
-                    fmap (const $ modifyDay 1) nextDayBtn
+                    fmap (const $ modifyDay 1) nextDayBtn --,
+                    -- fmap const $ tagDyn (_textInput_value dateInput) (textInputGetEnter dateInput)
                 ]
 
             dateInput <- textInput $ def
                 & textInputConfig_initialValue .~ initialDay
                 & setValue .~ updated curDate
             nextDayBtn <- button ">>"
+            datePicker
         let req url = xhrRequest "GET" ("/timesheet/" ++ url) def
         loadRecordsEvent <- mergeWith const <$> sequence [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
         asyncReq <- performRequestAsync (req <$> loadRecordsEvent)
@@ -82,3 +95,15 @@ showRecord TsEvent{..} = do
     el "tr" $ do
         el "td" $ text_ desc
         el "td" $ text $ show eventDate
+
+datePicker :: MonadWidget t m => m ()
+datePicker = do
+    --cb <- (syncCallback2 AlwaysRetain False $ \x -> print x :: JSFun JSString)
+    (e, _) <- elAttr' "div" ("style" =: "width: 250px;") $ return ()
+    datePickerElt <- liftIO $ do
+        initPikaday $ unElement $ toElement $ _el_element e
+        return e
+    return ()
+
+stylesheet :: MonadWidget t m => String -> m ()
+stylesheet s = elAttr "link" ("rel" =: "stylesheet" <> "href" =: s) blank

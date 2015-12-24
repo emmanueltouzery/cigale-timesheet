@@ -20,8 +20,10 @@ Executable cigale-web
        reflex,
        reflex-dom,
        ghcjs-dom == 0.1.*,
+       ghcjs-base,
        time,
        text,
        aeson,
        transformers
+   js-sources: ../../lib/Pikaday-1.4.0/pikaday.js
    ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2

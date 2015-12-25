@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, DeriveGeneric, LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables, DeriveGeneric, LambdaCase, OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards, RecursiveDo, JavaScriptFFI, ForeignFunctionInterface #-}
 
 import GHCJS.Types
@@ -20,8 +20,8 @@ import Data.Time.Format
 import Data.Monoid
 import Control.Monad.IO.Class
 
--- foreign import javascript unsafe "new Pikaday({onSelect: $1})" initPikaday :: (JSFun JSString -> IO ()) -> IO Node
-foreign import javascript unsafe "$1.appendChild(new Pikaday({onSelect: function(txt) {console.error(txt);}}).el)" initPikaday :: JSRef Element -> IO ()
+foreign import javascript unsafe "$1.appendChild(new Pikaday({onSelect: function(picker) { $2(picker.toString()) }}).el)" initPikaday
+                                 :: JSRef Element -> JSFun (JSString -> IO ()) -> IO ()
 
 -- url is http://localhost:8000/static/index.html
 -- start cigale with .stack-work/install/x86_64-linux/lts-3.16/7.10.2/bin/cigale-timesheet
@@ -98,10 +98,10 @@ showRecord TsEvent{..} = do
 
 datePicker :: MonadWidget t m => m ()
 datePicker = do
-    --cb <- (syncCallback2 AlwaysRetain False $ \x -> print x :: JSFun JSString)
     (e, _) <- elAttr' "div" ("style" =: "width: 250px;") $ return ()
     datePickerElt <- liftIO $ do
-        initPikaday $ unElement $ toElement $ _el_element e
+        cb <- syncCallback1 AlwaysRetain False $ \date -> putStrLn $ fromJSString date
+        initPikaday (unElement $ toElement $ _el_element e) cb
         return e
     return ()
 

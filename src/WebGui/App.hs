@@ -20,15 +20,16 @@ import Data.Time.Format
 import Data.Monoid
 import Control.Monad.IO.Class
 
-foreign import javascript unsafe "$1.appendChild(new Pikaday({onSelect: function(picker) { $2(picker.toString()) }}).el)" initPikaday
-                                 :: JSRef Element -> JSFun (JSString -> IO ()) -> IO ()
+foreign import javascript unsafe
+    "$1.appendChild(new Pikaday({onSelect: function(picker) { $2(picker.toString()) }}).el)"
+    initPikaday :: JSRef Element -> JSFun (JSString -> IO ()) -> IO ()
 
 -- url is http://localhost:8000/static/index.html
 -- start cigale with .stack-work/install/x86_64-linux/lts-3.16/7.10.2/bin/cigale-timesheet
 
 -- TODO unhardcode
-initialDay :: String
-initialDay = "2015-11-10"
+initialDay :: Day
+initialDay = fromGregorian 2015 11 10
 
 text_ :: MonadWidget t m => Text -> m ()
 text_ = text . T.unpack
@@ -56,11 +57,6 @@ instance FromJSON FetchResponse
 main :: IO ()
 main = mainWidget cigaleView
 
-modifyDay :: Integer -> String -> String
-modifyDay daysCount str = case parseTimeM False defaultTimeLocale "%Y-%m-%d" str of
-    Nothing  -> str
-    Just day -> showGregorian (addDays daysCount day)
-
 cigaleView :: MonadWidget t m => m ()
 cigaleView = do
     stylesheet "pikaday.css"
@@ -69,19 +65,19 @@ cigaleView = do
         rec
             curDate <- foldDyn ($) initialDay $ mergeWith (.)
                 [
-                    fmap (const $ modifyDay (-1)) previousDayBtn,
-                    fmap (const $ modifyDay 1) nextDayBtn --,
+                    fmap (const $ addDays (-1)) previousDayBtn,
+                    fmap (const $ addDays 1) nextDayBtn --,
                     -- fmap const $ tagDyn (_textInput_value dateInput) (textInputGetEnter dateInput)
                 ]
 
             dateInput <- textInput $ def
-                & textInputConfig_initialValue .~ initialDay
-                & setValue .~ updated curDate
+                & textInputConfig_initialValue .~ (showGregorian initialDay)
+                & setValue .~ (showGregorian <$> updated curDate)
             nextDayBtn <- button ">>"
             datePicker
         let req url = xhrRequest "GET" ("/timesheet/" ++ url) def
         loadRecordsEvent <- mergeWith const <$> sequence [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
-        asyncReq <- performRequestAsync (req <$> loadRecordsEvent)
+        asyncReq <- performRequestAsync (req <$> showGregorian <$> loadRecordsEvent)
         resp <- holdDyn Nothing $ fmap decodeXhrResponse asyncReq
         void (mapDyn eventsTable resp >>= dyn)
 
@@ -100,10 +96,14 @@ datePicker :: MonadWidget t m => m ()
 datePicker = do
     (e, _) <- elAttr' "div" ("style" =: "width: 250px;") $ return ()
     datePickerElt <- liftIO $ do
-        cb <- syncCallback1 AlwaysRetain False $ \date -> putStrLn $ fromJSString date
+        cb <- syncCallback1 AlwaysRetain False $ \date -> print $ parsePikadayDate $ fromJSString date
         initPikaday (unElement $ toElement $ _el_element e) cb
         return e
     return ()
+
+-- the format from pikaday is "Tue Dec 22 2015 00:00:00 GMT+0100 (CET)" for me.
+parsePikadayDate :: String -> Maybe Day
+parsePikadayDate = parseTimeM False defaultTimeLocale "%a %b %d %Y %X GMT%z (%Z)"
 
 stylesheet :: MonadWidget t m => String -> m ()
 stylesheet s = elAttr "link" ("rel" =: "stylesheet" <> "href" =: s) blank

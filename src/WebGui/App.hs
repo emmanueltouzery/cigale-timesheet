@@ -126,8 +126,11 @@ cigaleView = do
         let req url = xhrRequest "GET" ("/timesheet/" ++ url) def
         loadRecordsEvent <- mergeWith const <$> sequence [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
         asyncReq <- performRequestAsync (req <$> showGregorian <$> loadRecordsEvent)
-        resp <- holdDyn Nothing $ fmap decodeXhrResponse asyncReq
-        void (mapDyn eventsTable resp >>= dyn)
+        respDyn <- holdDyn Nothing $ fmap decodeXhrResponse asyncReq
+        -- that's a mess. Surely there must be a better way.
+        curEvtDyn <- joinDyn <$> (mapDyn eventsTable respDyn >>= dyn >>= holdDyn (constDyn Nothing))
+        void $ mapDyn displayDetails curEvtDyn >>= dyn
+        return ()
 
 createDateLabel :: MonadWidget t m => Dynamic t Day -> m (Dynamic t Bool, IO ())
 createDateLabel curDate = do
@@ -177,6 +180,15 @@ showRecord curEventDyn tsEvt@TsEvent{..} = do
         el "td" $ text $ formatTime defaultTimeLocale "%R" eventDate
         el "td" $ text_ desc
     return (const tsEvt <$> domEvent Click e)
+
+displayDetails :: MonadWidget t m => Maybe TsEvent -> m ()
+displayDetails Nothing = return ()
+displayDetails (Just TsEvent{..}) = do
+    el "h3" $ text_ desc
+    el "h4" $ text_ extraInfo
+    case fullContents of
+        Nothing   -> return ()
+        Just cts  -> text_ cts
 
 datePicker :: MonadWidget t m => m (Event t Day, PikadayPicker)
 datePicker = do

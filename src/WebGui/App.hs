@@ -35,7 +35,7 @@ initPikaday :: JSRef Element -> JSFun (JSString -> IO ()) -> IO PikadayPicker
 initPikaday = fmap (fmap PikadayPicker) . _initPikaday
 
 foreign import javascript unsafe
-    "$1.setDate($2, true)" -- the true is to prevent to trigger "onSelect"
+    "$1.setDate($2, true)" -- the true is to prevent from triggering "onSelect"
     _pickerSetDate :: JSRef a -> JSString -> IO ()
 
 pickerSetDate :: PikadayPicker -> Day -> IO ()
@@ -162,15 +162,21 @@ eltStripClass elt className = do
     elementSetClassName elt (intercalate " " newClasses)
 
 -- https://m.reddit.com/r/reflexfrp/comments/3h3s72/rendering_dynamic_html_table/
-eventsTable :: MonadWidget t m => Maybe FetchResponse -> m ()
-eventsTable Nothing = text "Error reading the server's message!"
-eventsTable (Just (FetchResponse events errors)) = el "table" $ mapM_ showRecord events
+eventsTable :: MonadWidget t m => Maybe FetchResponse -> m (Dynamic t (Maybe TsEvent))
+eventsTable Nothing = text "Error reading the server's message!" >> return (constDyn Nothing)
+eventsTable (Just (FetchResponse tsEvents errors)) = elAttr "table" ("class" =: "table") $ do
+    rec
+        events <- mapM (showRecord curEventDyn) tsEvents
+        curEventDyn <- holdDyn Nothing $ mergeWith const $ fmap (fmap Just) events
+    return curEventDyn
 
-showRecord :: MonadWidget t m => TsEvent -> m ()
-showRecord TsEvent{..} = do
-    el "tr" $ do
+showRecord :: MonadWidget t m => Dynamic t (Maybe TsEvent) -> TsEvent -> m (Event t TsEvent)
+showRecord curEventDyn tsEvt@TsEvent{..} = do
+    rowAttrs <- mapDyn (\curEvt -> "class" =: if curEvt == Just tsEvt then "table-active" else "") curEventDyn
+    (e, _) <- elDynAttr' "tr" rowAttrs $ do
+        el "td" $ text $ formatTime defaultTimeLocale "%R" eventDate
         el "td" $ text_ desc
-        el "td" $ text $ show eventDate
+    return (const tsEvt <$> domEvent Click e)
 
 datePicker :: MonadWidget t m => m (Event t Day, PikadayPicker)
 datePicker = do

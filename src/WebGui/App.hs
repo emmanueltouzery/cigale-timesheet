@@ -40,6 +40,14 @@ foreign import javascript unsafe
 pickerSetDate :: PikadayPicker -> Day -> IO ()
 pickerSetDate picker day = _pickerSetDate (unPicker picker) (toJSString $ showGregorian day)
 
+foreign import javascript unsafe "$1.hide()" _pickerHide :: JSRef a -> IO ()
+pickerHide :: PikadayPicker -> IO ()
+pickerHide = _pickerHide . unPicker
+
+foreign import javascript unsafe "$1.show()" _pickerShow :: JSRef a -> IO ()
+pickerShow :: PikadayPicker -> IO ()
+pickerShow = _pickerShow . unPicker
+
 -- url is http://localhost:8000/static/index.html
 -- start cigale with .stack-work/install/x86_64-linux/lts-3.16/7.10.2/bin/cigale-timesheet
 
@@ -73,6 +81,10 @@ instance FromJSON FetchResponse
 main :: IO ()
 main = mainWidget cigaleView
 
+performOnChange :: MonadWidget t m => (a -> WidgetHost m ()) -> Dynamic t a -> m ()
+performOnChange action dynamic = performEvent_ $
+    fmap (const $ sample (current dynamic) >>= action) $ updated dynamic
+
 cigaleView :: MonadWidget t m => m ()
 cigaleView = do
     stylesheet "pikaday.css"
@@ -86,13 +98,14 @@ cigaleView = do
                     --fmap const $ tagDyn (_textInput_value dateInput) pickedDateEvt
                     fmap const pickedDateEvt
                 ]
-            performEvent_ $ fmap (const $ do
-                                  d <- sample (current curDate)
-                                  liftIO (pickerSetDate picker d)) $ updated curDate
+            performOnChange (\d -> liftIO (pickerHide picker >> pickerSetDate picker d)) curDate
 
             dateInput <- textInput $ def
                 & textInputConfig_initialValue .~ (showGregorian initialDay)
                 & setValue .~ (showGregorian <$> updated curDate)
+            performOnChange
+                (\focus -> liftIO ((if focus then pickerShow else pickerHide) picker))
+                (_textInput_hasFocus dateInput)
             nextDayBtn <- button ">>"
             (pickedDateEvt, picker) <- datePicker
         let req url = xhrRequest "GET" ("/timesheet/" ++ url) def
@@ -114,7 +127,7 @@ showRecord TsEvent{..} = do
 
 datePicker :: MonadWidget t m => m (Event t Day, PikadayPicker)
 datePicker = do
-    (e, _) <- elAttr' "div" ("style" =: "width: 250px;") $ return ()
+    (e, _) <- elAttr' "div" ("style" =: "width: 250px; position: absolute; z-index: 3") $ return ()
     (evt, evtTrigger) <- newEventWithTriggerRef
     postGui <- askPostGui
     runWithActions <- askRunWithActions

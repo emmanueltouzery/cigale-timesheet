@@ -106,36 +106,21 @@ cigaleView = do
                 ]
             -- close the datepicker & update its date on day change.
             performOnChange (\d -> liftIO $ do
-                eltStripClass (_el_element label) "active"
-                postGui (handleTrigger runWithActions False dayToggleEvtTrigger)
+                dateLabelDeactivate
                 pickerSetDate picker d) curDate
             -- open or close the datepicker when the user clicks on the toggle button
             performOnChange
                 (\focus -> liftIO $ (if focus then pickerShow else pickerHide) picker)
                 cbDyn
 
-            -- the bootstrap toggle button doesn't update the underlying checkbox (!!!)
-            -- => must catch the click event myself & look at the active class of the label...
-            (dayToggleEvt, dayToggleEvtTrigger) <- newEventWithTriggerRef
-            postGui <- askPostGui
-            runWithActions <- askRunWithActions
-            performEvent_ $ fmap (const $ liftIO $ do
-                (cn :: String) <- elementGetClassName (_el_element label)
-                postGui $ handleTrigger runWithActions ("active" `isInfixOf` cn) dayToggleEvtTrigger) $ domEvent Click label
-            cbDyn <- holdDyn False dayToggleEvt
-
             -- the date picker has position: absolute & will position itself
             -- relative to the nearest ancestor with position: relative.
-            (previousDayBtn, label, nextDayBtn) <- elAttr "div" ("class" =: "btn-group" <> "data-toggle" =: "buttons" <> "style" =: "position: relative") $ do
-                pDayBtn <- button' "<<"
-                (lbel, _) <- elAttr' "label" ("class" =: "btn btn-primary-outline btn-sm" <> "style" =: "margin-bottom: 0px") $ do
-                    -- TODO i would expect the checkbox to check or uncheck propertly but it doesn't.
-                    -- it's completely user-invisible though.
-                    void $ checkbox False $ def
-                        & setValue .~ dayToggleEvt
-                    dynText =<< mapDyn showGregorian curDate
-                nDayBtn <- button' ">>"
-                return (pDayBtn, lbel, nDayBtn)
+            (previousDayBtn, dateLabelDeactivate, nextDayBtn, cbDyn) <-
+                elAttr "div" ("class" =: "btn-group" <> "data-toggle" =: "buttons" <> "style" =: "position: relative") $ do
+                    pDayBtn <- button' "<<"
+                    (cbDn, lbelDeac) <- createDateLabel curDate
+                    nDayBtn <- button' ">>"
+                    return (pDayBtn, lbelDeac, nDayBtn, cbDn)
             (pickedDateEvt, picker) <- datePicker
             liftIO $ pickerHide picker
         let req url = xhrRequest "GET" ("/timesheet/" ++ url) def
@@ -143,6 +128,32 @@ cigaleView = do
         asyncReq <- performRequestAsync (req <$> showGregorian <$> loadRecordsEvent)
         resp <- holdDyn Nothing $ fmap decodeXhrResponse asyncReq
         void (mapDyn eventsTable resp >>= dyn)
+
+createDateLabel :: MonadWidget t m => Dynamic t Day -> m (Dynamic t Bool, IO ())
+createDateLabel curDate = do
+    rec
+        -- the bootstrap toggle button doesn't update the underlying checkbox (!!!)
+        -- => must catch the click event myself & look at the active class of the label...
+        -- I create a new event because I need IO to check the class of the element
+        (dayToggleEvt, dayToggleEvtTrigger) <- newEventWithTriggerRef
+        postGui <- askPostGui
+        runWithActions <- askRunWithActions
+        performEvent_ $ fmap (const $ liftIO $ do
+            (cn :: String) <- elementGetClassName (_el_element label)
+            postGui $ handleTrigger runWithActions ("active" `isInfixOf` cn) dayToggleEvtTrigger) $ domEvent Click label
+        cbDyn <- holdDyn False dayToggleEvt
+
+        (label, _) <- elAttr' "label" ("class" =: "btn btn-primary-outline btn-sm" <> "style" =: "margin-bottom: 0px") $ do
+            -- TODO i would expect the checkbox to check or uncheck propertly but it doesn't.
+            -- it's completely user-invisible though.
+            void $ checkbox False $ def
+                & setValue .~ dayToggleEvt
+            dynText =<< mapDyn showGregorian curDate
+
+    let dateLabelDeactivate = do
+        eltStripClass (_el_element label) "active"
+        postGui (handleTrigger runWithActions False dayToggleEvtTrigger)
+    return (cbDyn, dateLabelDeactivate)
 
 eltStripClass :: IsElement self => self -> Text -> IO ()
 eltStripClass elt className = do

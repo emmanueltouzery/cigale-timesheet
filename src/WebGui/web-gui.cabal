@@ -25,6 +25,10 @@ Executable cigale-web
        text,
        aeson,
        transformers,
+       containers,
        dependent-sum
-   js-sources: ../../lib/Pikaday-1.4.0/pikaday.js
+   js-sources:
+        ../../lib/Pikaday-1.4.0/pikaday.js
+        ../../lib/jquery.min.js
+        ../../lib/bootstrap.min.js
    ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2

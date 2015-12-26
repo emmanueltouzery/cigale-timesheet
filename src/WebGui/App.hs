@@ -12,6 +12,7 @@ import Reflex.Host.Class
 
 import Data.Dependent.Sum (DSum ((:=>)))
 
+import Data.List
 import Data.IORef
 import GHC.Generics
 import Data.Time.Clock
@@ -85,34 +86,69 @@ performOnChange :: MonadWidget t m => (a -> WidgetHost m ()) -> Dynamic t a -> m
 performOnChange action dynamic = performEvent_ $
     fmap (const $ sample (current dynamic) >>= action) $ updated dynamic
 
+button' :: MonadWidget t m => String -> m (Event t ())
+button' s = do
+  (e, _) <- elAttr' "button" ("class" =: "btn btn-secondary btn-sm") $ text s
+  return $ domEvent Click e
+
 cigaleView :: MonadWidget t m => m ()
 cigaleView = do
     stylesheet "pikaday.css"
+    stylesheet "https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.2/css/bootstrap.min.css"
     el "div" $ do
-        previousDayBtn <- button "<<"
         rec
+            -- update current day based on user actions
             curDate <- foldDyn ($) initialDay $ mergeWith (.)
                 [
                     fmap (const $ addDays (-1)) previousDayBtn,
                     fmap (const $ addDays 1) nextDayBtn,
-                    --fmap const $ tagDyn (_textInput_value dateInput) pickedDateEvt
                     fmap const pickedDateEvt
                 ]
-            performOnChange (\d -> liftIO (pickerHide picker >> pickerSetDate picker d)) curDate
-
-            dateInput <- textInput $ def
-                & textInputConfig_initialValue .~ (showGregorian initialDay)
-                & setValue .~ (showGregorian <$> updated curDate)
+            -- close the datepicker & update its date on day change.
+            performOnChange (\d -> liftIO $ do
+                eltStripClass (_el_element label) "active"
+                postGui (handleTrigger runWithActions False dayToggleEvtTrigger)
+                pickerSetDate picker d) curDate
+            -- open or close the datepicker when the user clicks on the toggle button
             performOnChange
-                (\focus -> liftIO ((if focus then pickerShow else pickerHide) picker))
-                (_textInput_hasFocus dateInput)
-            nextDayBtn <- button ">>"
+                (\focus -> liftIO $ (if focus then pickerShow else pickerHide) picker)
+                cbDyn
+
+            -- the bootstrap toggle button doesn't update the underlying checkbox (!!!)
+            -- => must catch the click event myself & look at the active class of the label...
+            (dayToggleEvt, dayToggleEvtTrigger) <- newEventWithTriggerRef
+            postGui <- askPostGui
+            runWithActions <- askRunWithActions
+            performEvent_ $ fmap (const $ liftIO $ do
+                (cn :: String) <- elementGetClassName (_el_element label)
+                postGui $ handleTrigger runWithActions ("active" `isInfixOf` cn) dayToggleEvtTrigger) $ domEvent Click label
+            cbDyn <- holdDyn False dayToggleEvt
+
+            -- the date picker has position: absolute & will position itself
+            -- relative to the nearest ancestor with position: relative.
+            (previousDayBtn, label, nextDayBtn) <- elAttr "div" ("class" =: "btn-group" <> "data-toggle" =: "buttons" <> "style" =: "position: relative") $ do
+                pDayBtn <- button' "<<"
+                (lbel, _) <- elAttr' "label" ("class" =: "btn btn-primary-outline btn-sm" <> "style" =: "margin-bottom: 0px") $ do
+                    -- TODO i would expect the checkbox to check or uncheck propertly but it doesn't.
+                    -- it's completely user-invisible though.
+                    void $ checkbox False $ def
+                        & setValue .~ dayToggleEvt
+                    dynText =<< mapDyn showGregorian curDate
+                nDayBtn <- button' ">>"
+                return (pDayBtn, lbel, nDayBtn)
             (pickedDateEvt, picker) <- datePicker
+            liftIO $ pickerHide picker
         let req url = xhrRequest "GET" ("/timesheet/" ++ url) def
         loadRecordsEvent <- mergeWith const <$> sequence [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
         asyncReq <- performRequestAsync (req <$> showGregorian <$> loadRecordsEvent)
         resp <- holdDyn Nothing $ fmap decodeXhrResponse asyncReq
         void (mapDyn eventsTable resp >>= dyn)
+
+eltStripClass :: IsElement self => self -> Text -> IO ()
+eltStripClass elt className = do
+    curClasses <- T.splitOn " " <$> T.pack <$> elementGetClassName elt
+    let newClasses = T.unpack <$> filter (/= className) curClasses
+    elementSetClassName elt (intercalate " " newClasses)
 
 -- https://m.reddit.com/r/reflexfrp/comments/3h3s72/rendering_dynamic_html_table/
 eventsTable :: MonadWidget t m => Maybe FetchResponse -> m ()
@@ -131,25 +167,27 @@ datePicker = do
     (evt, evtTrigger) <- newEventWithTriggerRef
     postGui <- askPostGui
     runWithActions <- askRunWithActions
-    -- very similar to fireEventRef from Reflex.Host.Class
-    -- which I don't have right now.
-    -- #reflex-frp on freenode.net, 2015-12-25:
-    -- [21:38] <ryantrinkle> the only thing you might want to improve later
-    --         is that you could make it so that it subscribes to the event lazily
-    -- [21:39] <ryantrinkle> and it unsubscribes when the event gets garbage collected
-    -- [21:39] <ryantrinkle> https://hackage.haskell.org/package/reflex-dom-0.2/docs/src/Reflex-Dom-Widget-Basic.html#wrapDomEventMaybe
-    let handleTrigger v trigger = liftIO (readIORef trigger) >>= \case
-            Nothing       -> return ()
-            Just eTrigger -> runWithActions [eTrigger :=> v]
     picker <- liftIO $ do
         cb <- syncCallback1 AlwaysRetain False $ \date ->
             case parsePikadayDate (fromJSString date) of
                 Nothing -> return ()
-                Just dt -> postGui $ handleTrigger dt evtTrigger
+                Just dt -> postGui $ handleTrigger runWithActions dt evtTrigger
         picker <- initPikaday (unElement $ toElement $ _el_element e) cb
         pickerSetDate picker initialDay
         return picker
     return (evt, picker)
+
+-- very similar to fireEventRef from Reflex.Host.Class
+-- which I don't have right now.
+-- #reflex-frp on freenode.net, 2015-12-25:
+-- [21:38] <ryantrinkle> the only thing you might want to improve later
+--         is that you could make it so that it subscribes to the event lazily
+-- [21:39] <ryantrinkle> and it unsubscribes when the event gets garbage collected
+-- [21:39] <ryantrinkle> https://hackage.haskell.org/package/reflex-dom-0.2/docs/src/Reflex-Dom-Widget-Basic.html#wrapDomEventMaybe
+handleTrigger :: MonadIO m => ([DSum tag] -> m ()) -> a -> IORef (Maybe (tag a)) -> m ()
+handleTrigger runWithActions v trigger = liftIO (readIORef trigger) >>= \case
+        Nothing       -> return ()
+        Just eTrigger -> runWithActions [eTrigger :=> v]
 
 -- the format from pikaday is "Tue Dec 22 2015 00:00:00 GMT+0100 (CET)" for me.
 parsePikadayDate :: String -> Maybe Day

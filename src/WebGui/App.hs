@@ -4,11 +4,15 @@
 import GHCJS.Types
 import GHCJS.Foreign
 import GHCJS.DOM.Element
-import GHCJS.DOM.Types hiding (Text)
+import GHCJS.DOM.Types hiding (Text, Event)
 
 import Reflex
 import Reflex.Dom
+import Reflex.Host.Class
 
+import Data.Dependent.Sum (DSum ((:=>)))
+
+import Data.IORef
 import GHC.Generics
 import Data.Time.Clock
 import qualified Data.Text as T
@@ -66,15 +70,16 @@ cigaleView = do
             curDate <- foldDyn ($) initialDay $ mergeWith (.)
                 [
                     fmap (const $ addDays (-1)) previousDayBtn,
-                    fmap (const $ addDays 1) nextDayBtn --,
-                    -- fmap const $ tagDyn (_textInput_value dateInput) (textInputGetEnter dateInput)
+                    fmap (const $ addDays 1) nextDayBtn,
+                    --fmap const $ tagDyn (_textInput_value dateInput) pickedDateEvt
+                    fmap const pickedDateEvt
                 ]
 
             dateInput <- textInput $ def
                 & textInputConfig_initialValue .~ (showGregorian initialDay)
                 & setValue .~ (showGregorian <$> updated curDate)
             nextDayBtn <- button ">>"
-            datePicker
+            pickedDateEvt <- datePicker
         let req url = xhrRequest "GET" ("/timesheet/" ++ url) def
         loadRecordsEvent <- mergeWith const <$> sequence [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
         asyncReq <- performRequestAsync (req <$> showGregorian <$> loadRecordsEvent)
@@ -92,14 +97,30 @@ showRecord TsEvent{..} = do
         el "td" $ text_ desc
         el "td" $ text $ show eventDate
 
-datePicker :: MonadWidget t m => m ()
+datePicker :: MonadWidget t m => m (Event t Day)
 datePicker = do
     (e, _) <- elAttr' "div" ("style" =: "width: 250px;") $ return ()
+    (evt, evtTrigger) <- newEventWithTriggerRef
+    postGui <- askPostGui
+    runWithActions <- askRunWithActions
+    -- very similar to fireEventRef from Reflex.Host.Class
+    -- which I don't have right now.
+    -- #reflex-frp on freenode.net, 2015-12-25:
+    -- [21:38] <ryantrinkle> the only thing you might want to improve later
+    --         is that you could make it so that it subscribes to the event lazily
+    -- [21:39] <ryantrinkle> and it unsubscribes when the event gets garbage collected
+    -- [21:39] <ryantrinkle> https://hackage.haskell.org/package/reflex-dom-0.2/docs/src/Reflex-Dom-Widget-Basic.html#wrapDomEventMaybe
+    let handleTrigger v trigger = liftIO (readIORef trigger) >>= \case
+            Nothing       -> return ()
+            Just eTrigger -> runWithActions [eTrigger :=> v]
     datePickerElt <- liftIO $ do
-        cb <- syncCallback1 AlwaysRetain False $ \date -> print $ parsePikadayDate $ fromJSString date
+        cb <- syncCallback1 AlwaysRetain False $ \date ->
+            case parsePikadayDate (fromJSString date) of
+                Nothing -> return ()
+                Just dt -> postGui $ handleTrigger dt evtTrigger
         initPikaday (unElement $ toElement $ _el_element e) cb
         return e
-    return ()
+    return evt
 
 -- the format from pikaday is "Tue Dec 22 2015 00:00:00 GMT+0100 (CET)" for me.
 parsePikadayDate :: String -> Maybe Day

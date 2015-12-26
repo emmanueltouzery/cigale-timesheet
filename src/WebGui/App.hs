@@ -28,7 +28,7 @@ import Control.Monad.IO.Class
 newtype PikadayPicker = PikadayPicker { unPicker :: JSRef Any }
 
 foreign import javascript unsafe
-    "$r = new Pikaday({onSelect: function(picker) { $2(picker.toString()) }}); $1.appendChild($r.el)"
+    "$r = new Pikaday({firstDay: 1,onSelect: function(picker) { $2(picker.toString()) }}); $1.appendChild($r.el)"
     _initPikaday :: JSRef Element -> JSFun (JSString -> IO ()) -> IO (JSRef a)
 
 initPikaday :: JSRef Element -> JSFun (JSString -> IO ()) -> IO PikadayPicker
@@ -122,7 +122,7 @@ cigaleView = do
                     nDayBtn <- button' ">>"
                     return (pDayBtn, lbelDeac, nDayBtn, cbDn)
             (pickedDateEvt, picker) <- datePicker
-            liftIO $ pickerHide picker
+        liftIO $ pickerHide picker
         let req url = xhrRequest "GET" ("/timesheet/" ++ url) def
         loadRecordsEvent <- mergeWith const <$> sequence [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
         asyncReq <- performRequestAsync (req <$> showGregorian <$> loadRecordsEvent)

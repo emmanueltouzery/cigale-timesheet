@@ -131,24 +131,24 @@ cigaleView = do
 
 createDateLabel :: MonadWidget t m => Dynamic t Day -> m (Dynamic t Bool, IO ())
 createDateLabel curDate = do
-    rec
-        -- the bootstrap toggle button doesn't update the underlying checkbox (!!!)
-        -- => must catch the click event myself & look at the active class of the label...
-        -- I create a new event because I need IO to check the class of the element
-        (dayToggleEvt, dayToggleEvtTrigger) <- newEventWithTriggerRef
-        postGui <- askPostGui
-        runWithActions <- askRunWithActions
-        performEvent_ $ fmap (const $ liftIO $ do
-            (cn :: String) <- elementGetClassName (_el_element label)
-            postGui $ handleTrigger runWithActions ("active" `isInfixOf` cn) dayToggleEvtTrigger) $ domEvent Click label
-        cbDyn <- holdDyn False dayToggleEvt
+    -- the bootstrap toggle button doesn't update the underlying checkbox (!!!)
+    -- => must catch the click event myself & look at the active class of the label...
+    -- I create a new event because I need IO to check the class of the element
+    (dayToggleEvt, dayToggleEvtTrigger) <- newEventWithTriggerRef
+    postGui <- askPostGui
+    runWithActions <- askRunWithActions
+    cbDyn <- holdDyn False dayToggleEvt
 
-        (label, _) <- elAttr' "label" ("class" =: "btn btn-primary-outline btn-sm" <> "style" =: "margin-bottom: 0px") $ do
-            -- TODO i would expect the checkbox to check or uncheck propertly but it doesn't.
-            -- it's completely user-invisible though.
-            void $ checkbox False $ def
-                & setValue .~ dayToggleEvt
-            dynText =<< mapDyn showGregorian curDate
+    (label, _) <- elAttr' "label" ("class" =: "btn btn-primary-outline btn-sm" <> "style" =: "margin-bottom: 0px") $ do
+        -- TODO i would expect the checkbox to check or uncheck propertly but it doesn't.
+        -- it's completely user-invisible though.
+        void $ checkbox False $ def
+            & setValue .~ dayToggleEvt
+        dynText =<< mapDyn showGregorian curDate
+
+    performEvent_ $ fmap (const $ liftIO $ do
+        (cn :: String) <- elementGetClassName (_el_element label)
+        postGui $ handleTrigger runWithActions ("active" `isInfixOf` cn) dayToggleEvtTrigger) $ domEvent Click label
 
     let dateLabelDeactivate = do
         eltStripClass (_el_element label) "active"

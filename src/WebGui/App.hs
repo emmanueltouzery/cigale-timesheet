@@ -139,12 +139,12 @@ createDateLabel curDate = do
     runWithActions <- askRunWithActions
     cbDyn <- holdDyn False dayToggleEvt
 
-    (label, _) <- elAttr' "label" ("class" =: "btn btn-primary-outline btn-sm" <> "style" =: "margin-bottom: 0px") $ do
+    (label, _) <- elAttr' "label" ("class" =: "btn btn-secondary btn-sm" <> "style" =: "margin-bottom: 0px") $ do
         -- TODO i would expect the checkbox to check or uncheck propertly but it doesn't.
         -- it's completely user-invisible though.
         void $ checkbox False $ def
             & setValue .~ dayToggleEvt
-        dynText =<< mapDyn showGregorian curDate
+        dynText =<< mapDyn (formatTime defaultTimeLocale "%A, %F") curDate
 
     performEvent_ $ fmap (const $ liftIO $ do
         (cn :: String) <- elementGetClassName (_el_element label)

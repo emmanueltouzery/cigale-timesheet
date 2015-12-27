@@ -127,9 +127,10 @@ cigaleView = do
         loadRecordsEvent <- mergeWith const <$> sequence [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
         asyncReq <- performRequestAsync (req <$> showGregorian <$> loadRecordsEvent)
         respDyn <- holdDyn Nothing $ fmap decodeXhrResponse asyncReq
-        -- that's a mess. Surely there must be a better way.
-        curEvtDyn <- joinDyn <$> (mapDyn eventsTable respDyn >>= dyn >>= holdDyn (constDyn Nothing))
-        void $ mapDyn displayDetails curEvtDyn >>= dyn
+        elAttr "div" ("style" =: "display: flex") $ do
+            -- that's a mess. Surely there must be a better way to extract the event from the table.
+            curEvtDyn <- joinDyn <$> (mapDyn eventsTable respDyn >>= dyn >>= holdDyn (constDyn Nothing))
+            void $ mapDyn displayDetails curEvtDyn >>= dyn
         return ()
 
 createDateLabel :: MonadWidget t m => Dynamic t Day -> m (Dynamic t Bool, IO ())
@@ -167,7 +168,7 @@ eltStripClass elt className = do
 -- https://m.reddit.com/r/reflexfrp/comments/3h3s72/rendering_dynamic_html_table/
 eventsTable :: MonadWidget t m => Maybe FetchResponse -> m (Dynamic t (Maybe TsEvent))
 eventsTable Nothing = text "Error reading the server's message!" >> return (constDyn Nothing)
-eventsTable (Just (FetchResponse tsEvents errors)) = elAttr "table" ("class" =: "table") $ do
+eventsTable (Just (FetchResponse tsEvents errors)) = elAttr "div" ("style" =: "width: 500px; flex-shrink: 0") $ elAttr "table" ("class" =: "table") $ do
     rec
         events <- mapM (showRecord curEventDyn) tsEvents
         curEventDyn <- holdDyn Nothing $ mergeWith const $ fmap (fmap Just) events
@@ -183,12 +184,12 @@ showRecord curEventDyn tsEvt@TsEvent{..} = do
 
 displayDetails :: MonadWidget t m => Maybe TsEvent -> m ()
 displayDetails Nothing = return ()
-displayDetails (Just TsEvent{..}) = do
+displayDetails (Just TsEvent{..}) = elAttr "div" ("style" =: "flex-grow: 1" <> "height" =: "100%") $ do
     el "h3" $ text_ desc
     el "h4" $ text_ extraInfo
     case fullContents of
         Nothing   -> return ()
-        Just cts  -> text_ cts
+        Just cts  -> elAttr "iframe" ("srcdoc" =: T.unpack cts <> "frameBorder" =: "0" <> "width" =: "100%" <> "height" =: "100%") $ return ()
 
 datePicker :: MonadWidget t m => m (Event t Day, PikadayPicker)
 datePicker = do

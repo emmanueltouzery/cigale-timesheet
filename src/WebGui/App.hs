@@ -86,7 +86,8 @@ css :: ByteString
 css = BS.intercalate "\n"
       [
           "html { height: 100%;}",
-          "html > body { overflow: hidden; position:absolute; top:0; bottom:0; right:0; left:0; padding-top: 10px; padding-left: 10px;}"
+          "html > body { overflow: hidden; position:absolute; top:0; bottom:0; right:0; left:0; padding-top: 10px; padding-left: 10px;}",
+          ".ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }"
       ]
 
 main :: IO ()
@@ -192,7 +193,9 @@ showRecord curEventDyn tsEvt@TsEvent{..} = do
     rowAttrs <- mapDyn (\curEvt -> "class" =: if curEvt == Just tsEvt then "table-active" else "") curEventDyn
     (e, _) <- elDynAttr' "tr" rowAttrs $ do
         el "td" $ text $ formatTime defaultTimeLocale "%R" eventDate
-        el "td" $ text_ desc
+        elAttr "td" ("style" =: "height: 60px; width: 500px;") $
+            elAttr "div" ("style" =: "position: relative;") $
+                elAttr "span" ("class" =: "ellipsis" <> "style" =: "width: 400px; max-width: 400px; position: absolute") $ text_ desc
     return (const tsEvt <$> domEvent Click e)
 
 displayDetails :: MonadWidget t m => Maybe TsEvent -> m ()

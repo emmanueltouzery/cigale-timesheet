@@ -26,7 +26,8 @@ Executable cigale-web
        aeson,
        transformers,
        containers,
-       dependent-sum
+       dependent-sum,
+       bytestring
    js-sources:
         ../../lib/Pikaday-1.4.0/pikaday.js
         ../../lib/jquery.min.js

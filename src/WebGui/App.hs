@@ -18,6 +18,8 @@ import GHC.Generics
 import Data.Time.Clock
 import qualified Data.Text as T
 import Data.Text (Text)
+import Data.ByteString (ByteString)
+import qualified Data.ByteString as BS
 import Data.Aeson
 import Control.Monad
 import Data.Time.Calendar
@@ -79,8 +81,16 @@ data FetchResponse = FetchResponse
     } deriving (Show, Generic)
 instance FromJSON FetchResponse
 
+-- TODO migrate to some haskell CSS DSL, like clay?
+css :: ByteString
+css = BS.intercalate "\n"
+      [
+          "html { height: 100%;}",
+          "html > body { overflow: hidden; position:absolute; top:0; bottom:0; right:0; left:0; padding-top: 10px; padding-left: 10px;}"
+      ]
+
 main :: IO ()
-main = mainWidget cigaleView
+main = mainWidgetWithCss css cigaleView
 
 performOnChange :: MonadWidget t m => (a -> WidgetHost m ()) -> Dynamic t a -> m ()
 performOnChange action dynamic = performEvent_ $
@@ -95,7 +105,7 @@ cigaleView :: MonadWidget t m => m ()
 cigaleView = do
     stylesheet "pikaday.css"
     stylesheet "https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.2/css/bootstrap.min.css"
-    el "div" $ do
+    elAttr "div" ("style" =: "height: 100%;") $ do
         rec
             -- update current day based on user actions
             curDate <- foldDyn ($) initialDay $ mergeWith (.)
@@ -127,7 +137,7 @@ cigaleView = do
         loadRecordsEvent <- mergeWith const <$> sequence [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
         asyncReq <- performRequestAsync (req <$> showGregorian <$> loadRecordsEvent)
         respDyn <- holdDyn Nothing $ fmap decodeXhrResponse asyncReq
-        elAttr "div" ("style" =: "display: flex") $ do
+        elAttr "div" ("style" =: "display: flex; height: calc(100% - 50px); margin-top: 10px" <> "overflow" =: "auto") $ do
             -- that's a mess. Surely there must be a better way to extract the event from the table.
             curEvtDyn <- joinDyn <$> (mapDyn eventsTable respDyn >>= dyn >>= holdDyn (constDyn Nothing))
             void $ mapDyn displayDetails curEvtDyn >>= dyn
@@ -168,11 +178,14 @@ eltStripClass elt className = do
 -- https://m.reddit.com/r/reflexfrp/comments/3h3s72/rendering_dynamic_html_table/
 eventsTable :: MonadWidget t m => Maybe FetchResponse -> m (Dynamic t (Maybe TsEvent))
 eventsTable Nothing = text "Error reading the server's message!" >> return (constDyn Nothing)
-eventsTable (Just (FetchResponse tsEvents errors)) = elAttr "div" ("style" =: "width: 500px; flex-shrink: 0") $ elAttr "table" ("class" =: "table") $ do
-    rec
-        events <- mapM (showRecord curEventDyn) tsEvents
-        curEventDyn <- holdDyn Nothing $ mergeWith const $ fmap (fmap Just) events
-    return curEventDyn
+eventsTable (Just (FetchResponse tsEvents errors)) =
+    elAttr "div" ("style" =: "width: 500px; height: 100%; flex-shrink: 0") $
+        -- display: block is needed for overflow to work, http://stackoverflow.com/a/4457290/516188
+        elAttr "table" ("class" =: "table" <> "style" =: "height: 100%; display:block; overflow:auto") $ do
+            rec
+                events <- mapM (showRecord curEventDyn) tsEvents
+                curEventDyn <- holdDyn Nothing $ mergeWith const $ fmap (fmap Just) events
+            return curEventDyn
 
 showRecord :: MonadWidget t m => Dynamic t (Maybe TsEvent) -> TsEvent -> m (Event t TsEvent)
 showRecord curEventDyn tsEvt@TsEvent{..} = do
@@ -184,12 +197,12 @@ showRecord curEventDyn tsEvt@TsEvent{..} = do
 
 displayDetails :: MonadWidget t m => Maybe TsEvent -> m ()
 displayDetails Nothing = return ()
-displayDetails (Just TsEvent{..}) = elAttr "div" ("style" =: "flex-grow: 1" <> "height" =: "100%") $ do
+displayDetails (Just TsEvent{..}) = elAttr "div" ("style" =: "flex-grow: 1; display: flex; flex-direction: column; padding: 7px;" <> "height" =: "100%") $ do
     el "h3" $ text_ desc
     el "h4" $ text_ extraInfo
     case fullContents of
         Nothing   -> return ()
-        Just cts  -> elAttr "iframe" ("srcdoc" =: T.unpack cts <> "frameBorder" =: "0" <> "width" =: "100%" <> "height" =: "100%") $ return ()
+        Just cts  -> elAttr "iframe" ("srcdoc" =: T.unpack cts <> "frameBorder" =: "0" <> "width" =: "100%" <> "style" =: "flex-grow: 1") $ return ()
 
 datePicker :: MonadWidget t m => m (Event t Day, PikadayPicker)
 datePicker = do

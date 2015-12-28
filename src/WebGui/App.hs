@@ -53,6 +53,8 @@ foreign import javascript unsafe "$1.show()" _pickerShow :: JSRef a -> IO ()
 pickerShow :: PikadayPicker -> IO ()
 pickerShow = _pickerShow . unPicker
 
+foreign import javascript unsafe "window.location.hash.substr(1)" getLocationHash :: IO JSString
+
 -- url is http://localhost:8000/static/index.html
 -- start cigale with .stack-work/install/x86_64-linux/lts-3.16/7.10.2/bin/cigale-timesheet
 
@@ -120,25 +122,39 @@ cigaleView = do
     eventsView activeViewDyn
     configView activeViewDyn
 
+data NavLinkItem = NavLinkItem
+     {
+         nliActiveView :: ActiveView,
+         nliUrl :: String,
+         nliDesc :: String
+     }
+navLinkItems :: [NavLinkItem]
+navLinkItems =
+    [
+        NavLinkItem ActiveViewEvents "events" "Activities",
+        NavLinkItem ActiveViewConfig "event-providers" "Event providers"
+    ]
+
 navBar :: MonadWidget t m => m (Dynamic t ActiveView)
 navBar = do
+    urlLocationHash <- liftIO $ fromJSString <$> getLocationHash
     rec
         viewEvts <-
             elAttr "nav" ("class" =: "navbar navbar-light bg-faded") $
                 elAttr "div" ("class" =: "nav navbar-nav") $ do
                     elAttr "a" ("href" =: "#events" <> "class" =: "navbar-brand") $ text "Cigale"
-                    eventsL <- navLink ActiveViewEvents "events" "Activities" activeViewDyn
-                    configL <- navLink ActiveViewConfig "event-providers" "Event providers" activeViewDyn
-                    return [eventsL, configL]
-        activeViewDyn <- holdDyn ActiveViewEvents $ leftmost viewEvts
+                    mapM (navLink activeViewDyn) navLinkItems
+        let curView = fromMaybe ActiveViewEvents $
+                          nliActiveView <$> find ((== urlLocationHash) . nliUrl) navLinkItems
+        activeViewDyn <- holdDyn curView $ leftmost viewEvts
     return activeViewDyn
 
-navLink :: MonadWidget t m => ActiveView -> String -> String -> Dynamic t ActiveView -> m (Event t ActiveView)
-navLink view linkUrl desc activeViewDyn = do
-    attrs <- mapDyn (\curView -> "href" =: ("#" <> linkUrl)
-                                 <> attrOptDyn "class" "active" (curView == view) "nav-item nav-link") activeViewDyn
-    (a, _) <- elDynAttr' "a" attrs $ text desc
-    return $ fmap (const view) $ domEvent Click a
+navLink :: MonadWidget t m => Dynamic t ActiveView -> NavLinkItem -> m (Event t ActiveView)
+navLink activeViewDyn NavLinkItem{..} = do
+    attrs <- mapDyn (\curView -> "href" =: ("#" <> nliUrl)
+                                 <> attrOptDyn "class" "active" (curView == nliActiveView) "nav-item nav-link") activeViewDyn
+    (a, _) <- elDynAttr' "a" attrs $ text nliDesc
+    return $ fmap (const nliActiveView) $ domEvent Click a
 
 eventsView :: MonadWidget t m => Dynamic t ActiveView -> m ()
 eventsView activeViewDyn = do

@@ -135,7 +135,7 @@ cigaleView = do
             (pickedDateEvt, picker) <- datePicker
         liftIO $ pickerHide picker
         let req url = xhrRequest "GET" ("/timesheet/" ++ url) def
-        loadRecordsEvent <- mergeWith const <$> sequence [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
+        loadRecordsEvent <- leftmost <$> sequence [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
         asyncReq <- performRequestAsync (req <$> showGregorian <$> loadRecordsEvent)
         respDyn <- holdDyn Nothing $ fmap decodeXhrResponse asyncReq
         elAttr "div" ("style" =: "display: flex; height: calc(100% - 50px); margin-top: 10px" <> "overflow" =: "auto") $ do
@@ -185,7 +185,7 @@ eventsTable (Just (FetchResponse tsEvents errors)) =
         elAttr "table" ("class" =: "table" <> "style" =: "height: 100%; display:block; overflow:auto") $ do
             rec
                 events <- mapM (showRecord curEventDyn) tsEvents
-                curEventDyn <- holdDyn Nothing $ mergeWith const $ fmap (fmap Just) events
+                curEventDyn <- holdDyn Nothing $ leftmost $ fmap (fmap Just) events
             return curEventDyn
 
 showRecord :: MonadWidget t m => Dynamic t (Maybe TsEvent) -> TsEvent -> m (Event t TsEvent)

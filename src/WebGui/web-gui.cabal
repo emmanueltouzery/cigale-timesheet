@@ -27,7 +27,8 @@ Executable cigale-web
        transformers,
        containers,
        dependent-sum,
-       bytestring
+       bytestring,
+       errors
    js-sources:
         ../../lib/Pikaday-1.4.0/pikaday.js
         ../../lib/jquery.min.js

@@ -11,6 +11,7 @@ import Reflex.Dom
 import Reflex.Host.Class
 import Data.Dependent.Sum (DSum ((:=>)))
 
+import Control.Error
 import Data.Map (Map)
 import Data.Maybe
 import Data.List
@@ -238,7 +239,7 @@ eventsTable (RemoteData (FetchResponse tsEvents errors)) =
         elAttr "table" ("class" =: "table" <> "style" =: "height: 100%; display:block; overflow:auto") $ do
             rec
                 events <- mapM (showRecord curEventDyn) tsEvents
-                curEventDyn <- holdDyn Nothing $ leftmost $ fmap (fmap Just) events
+                curEventDyn <- holdDyn (headZ tsEvents) $ leftmost $ fmap (fmap Just) events
             return curEventDyn
 
 showRecord :: MonadWidget t m => Dynamic t (Maybe TsEvent) -> TsEvent -> m (Event t TsEvent)

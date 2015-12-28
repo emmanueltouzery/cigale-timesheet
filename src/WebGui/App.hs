@@ -12,14 +12,11 @@ import Reflex.Host.Class
 import Data.Dependent.Sum (DSum ((:=>)))
 
 import Control.Error
-import Data.Map (Map)
-import Data.Maybe
 import Data.List
 import Data.IORef
 import GHC.Generics
 import Data.Time.Clock
 import qualified Data.Text as T
-import Data.Text (Text)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import Data.Aeson
@@ -28,6 +25,9 @@ import Data.Time.Calendar
 import Data.Time.Format
 import Data.Monoid
 import Control.Monad.IO.Class
+
+import Common
+import Config
 
 newtype PikadayPicker = PikadayPicker { unPicker :: JSRef Any }
 
@@ -59,9 +59,6 @@ pickerShow = _pickerShow . unPicker
 -- TODO unhardcode
 initialDay :: Day
 initialDay = fromGregorian 2015 11 10
-
-text_ :: MonadWidget t m => Text -> m ()
-text_ = text . T.unpack
 
 -- TODO share code with the server
 -- instead of copy-pasting
@@ -119,7 +116,34 @@ cigaleView :: MonadWidget t m => m ()
 cigaleView = do
     stylesheet "pikaday.css"
     stylesheet "https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.2/css/bootstrap.min.css"
-    elAttr "div" ("style" =: "height: 100%;") $ do
+    activeViewDyn <- navBar
+    eventsView activeViewDyn
+    configView activeViewDyn
+
+navBar :: MonadWidget t m => m (Dynamic t ActiveView)
+navBar = do
+    rec
+        viewEvts <-
+            elAttr "nav" ("class" =: "navbar navbar-light bg-faded") $
+                elAttr "div" ("class" =: "nav navbar-nav") $ do
+                    elAttr "a" ("href" =: "#events" <> "class" =: "navbar-brand") $ text "Cigale"
+                    eventsL <- navLink ActiveViewEvents "events" "Activities" activeViewDyn
+                    configL <- navLink ActiveViewConfig "event-providers" "Event providers" activeViewDyn
+                    return [eventsL, configL]
+        activeViewDyn <- holdDyn ActiveViewEvents $ leftmost viewEvts
+    return activeViewDyn
+
+navLink :: MonadWidget t m => ActiveView -> String -> String -> Dynamic t ActiveView -> m (Event t ActiveView)
+navLink view linkUrl desc activeViewDyn = do
+    attrs <- mapDyn (\curView -> "href" =: ("#" <> linkUrl)
+                                 <> attrOptDyn "class" "active" (curView == view) "nav-item nav-link") activeViewDyn
+    (a, _) <- elDynAttr' "a" attrs $ text desc
+    return $ fmap (const view) $ domEvent Click a
+
+eventsView :: MonadWidget t m => Dynamic t ActiveView -> m ()
+eventsView activeViewDyn = do
+    attrsDyn <- mapDyn (\curView -> styleWithHideIf (curView /= ActiveViewEvents) "height: 100%;") activeViewDyn
+    elDynAttr "div" attrsDyn $ do
         curDate <- addDatePicker
         let req url = xhrRequest "GET" ("/timesheet/" ++ url) def
         loadRecordsEvent <- leftmost <$> sequence [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
@@ -198,19 +222,6 @@ createDateLabel curDate = do
         eltStripClass (_el_element label) "active"
         postGui (handleTrigger runWithActions False dayToggleEvtTrigger)
     return (cbDyn, dateLabelDeactivate)
-
-eltStripClass :: IsElement self => self -> Text -> IO ()
-eltStripClass elt className = do
-    curClasses <- T.splitOn " " <$> T.pack <$> elementGetClassName elt
-    let newClasses = T.unpack <$> filter (/= className) curClasses
-    elementSetClassName elt (intercalate " " newClasses)
-
-styleWithHideIf :: Bool -> String -> Map String String
-styleWithHideIf p s = "style" =: (rest <> if p then "display: none" else "display: block")
-    where rest = if null s then "" else s <> "; "
-
-styleHideIf :: Bool -> Map String String
-styleHideIf p = styleWithHideIf p ""
 
 displayWarningBanner :: MonadWidget t m => Dynamic t (RemoteData FetchResponse) -> m ()
 displayWarningBanner respDyn = do
@@ -292,6 +303,3 @@ handleTrigger runWithActions v trigger = liftIO (readIORef trigger) >>= \case
 -- the format from pikaday is "Tue Dec 22 2015 00:00:00 GMT+0100 (CET)" for me.
 parsePikadayDate :: String -> Maybe Day
 parsePikadayDate = parseTimeM False defaultTimeLocale "%a %b %d %Y %X GMT%z (%Z)"
-
-stylesheet :: MonadWidget t m => String -> m ()
-stylesheet s = elAttr "link" ("rel" =: "stylesheet" <> "href" =: s) blank

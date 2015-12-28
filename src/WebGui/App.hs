@@ -12,6 +12,9 @@ import Reflex.Host.Class
 
 import Data.Dependent.Sum (DSum ((:=>)))
 
+
+import Data.Map (Map)
+import Data.Maybe
 import Data.List
 import Data.IORef
 import GHC.Generics
@@ -151,6 +154,8 @@ cigaleView = do
         let responseEvt = fmap (readRemoteData . decodeXhrResponse) asyncReq
         -- the leftmost makes sure that we reset the respDyn to loading state when loadRecordsEvent is triggered.
         respDyn <- holdDyn RemoteDataLoading $ leftmost [fmap (const RemoteDataLoading) loadRecordsEvent, responseEvt]
+        displayWarningBanner respDyn
+
         elAttr "div" ("style" =: "display: flex; height: calc(100% - 50px); margin-top: 10px" <> "overflow" =: "auto") $ do
             -- that's a mess. Surely there must be a better way to extract the event from the table.
             curEvtDyn <- joinDyn <$> (mapDyn eventsTable respDyn >>= dyn >>= holdDyn (constDyn Nothing))
@@ -159,9 +164,34 @@ cigaleView = do
         -- display the progress indicator if needed.
         holdAttrs <- mapDyn (\curEvt ->
                               "id" =: "pleasehold" <>
-                              "style" =: if isRemoteDataLoading curEvt then "display: block" else "display: none") respDyn
+                              styleHideIf (not $ isRemoteDataLoading curEvt)) respDyn
         elDynAttr "div" holdAttrs $ text "Please hold..."
         return ()
+
+styleWithHideIf :: Bool -> String -> Map String String
+styleWithHideIf p s = "style" =: (rest <> if p then "display: none" else "display: block")
+    where rest = if null s then "" else s <> "; "
+
+styleHideIf :: Bool -> Map String String
+styleHideIf p = styleWithHideIf p ""
+
+displayWarningBanner :: MonadWidget t m => Dynamic t (RemoteData FetchResponse) -> m ()
+displayWarningBanner respDyn = do
+    let basicAttrs = "class" =: "alert alert-warning alert-dismissible" <> "role" =: "alert"
+    let getErrorTxt = \case
+            RemoteData (FetchResponse _ errors@(_:_)) -> Just (intercalate ", " errors)
+            _ -> Nothing
+    errorTxtDyn <- mapDyn getErrorTxt respDyn
+
+    let styleContents e = styleWithHideIf (isNothing e) "width: 65%; margin-left: auto; margin-right: auto"
+    blockAttrs <- mapDyn (\e -> basicAttrs <> styleContents e) errorTxtDyn
+    elDynAttr "div" blockAttrs $ do
+        elAttr "button" ("type" =: "button" <> "class" =: "close" <> "data-dismiss" =: "alert") $ do
+            void $ elDynHtmlAttr' "span" ("aria-hidden" =: "true") (constDyn "&times;")
+            elAttr "span" ("class" =: "sr-only") $ text "Close"
+        el "strong" $ text "Warning!"
+        el "span" $ dynText =<< mapDyn (fromMaybe "") errorTxtDyn
+
 
 createDateLabel :: MonadWidget t m => Dynamic t Day -> m (Dynamic t Bool, IO ())
 createDateLabel curDate = do

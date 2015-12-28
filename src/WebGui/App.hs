@@ -87,8 +87,19 @@ css = BS.intercalate "\n"
       [
           "html { height: 100%;}",
           "html > body { overflow: hidden; position:absolute; top:0; bottom:0; right:0; left:0; padding-top: 10px; padding-left: 10px;}",
-          ".ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }"
+          ".ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
+          "#pleasehold { position: absolute; width: 200px; height: 50px; background: aliceblue; text-align: center; top: 50%; left: 50%; margin-left: -100px; margin-top: -25px; line-height: 50px; z-index: 2001; }"
       ]
+
+data RemoteData a = RemoteDataInvalid | RemoteDataLoading | RemoteData a
+
+readRemoteData :: Maybe a -> RemoteData a
+readRemoteData (Just x) = RemoteData x
+readRemoteData Nothing = RemoteDataInvalid
+
+isRemoteDataLoading :: RemoteData a -> Bool
+isRemoteDataLoading RemoteDataLoading = True
+isRemoteDataLoading _ = False
 
 main :: IO ()
 main = mainWidgetWithCss css cigaleView
@@ -137,11 +148,19 @@ cigaleView = do
         let req url = xhrRequest "GET" ("/timesheet/" ++ url) def
         loadRecordsEvent <- leftmost <$> sequence [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
         asyncReq <- performRequestAsync (req <$> showGregorian <$> loadRecordsEvent)
-        respDyn <- holdDyn Nothing $ fmap decodeXhrResponse asyncReq
+        let responseEvt = fmap (readRemoteData . decodeXhrResponse) asyncReq
+        -- the leftmost makes sure that we reset the respDyn to loading state when loadRecordsEvent is triggered.
+        respDyn <- holdDyn RemoteDataLoading $ leftmost [fmap (const RemoteDataLoading) loadRecordsEvent, responseEvt]
         elAttr "div" ("style" =: "display: flex; height: calc(100% - 50px); margin-top: 10px" <> "overflow" =: "auto") $ do
             -- that's a mess. Surely there must be a better way to extract the event from the table.
             curEvtDyn <- joinDyn <$> (mapDyn eventsTable respDyn >>= dyn >>= holdDyn (constDyn Nothing))
             void $ mapDyn displayDetails curEvtDyn >>= dyn
+
+        -- display the progress indicator if needed.
+        holdAttrs <- mapDyn (\curEvt ->
+                              "id" =: "pleasehold" <>
+                              "style" =: if isRemoteDataLoading curEvt then "display: block" else "display: none") respDyn
+        elDynAttr "div" holdAttrs $ text "Please hold..."
         return ()
 
 createDateLabel :: MonadWidget t m => Dynamic t Day -> m (Dynamic t Bool, IO ())
@@ -177,9 +196,10 @@ eltStripClass elt className = do
     elementSetClassName elt (intercalate " " newClasses)
 
 -- https://m.reddit.com/r/reflexfrp/comments/3h3s72/rendering_dynamic_html_table/
-eventsTable :: MonadWidget t m => Maybe FetchResponse -> m (Dynamic t (Maybe TsEvent))
-eventsTable Nothing = text "Error reading the server's message!" >> return (constDyn Nothing)
-eventsTable (Just (FetchResponse tsEvents errors)) =
+eventsTable :: MonadWidget t m => RemoteData FetchResponse -> m (Dynamic t (Maybe TsEvent))
+eventsTable RemoteDataInvalid = text "Error reading the server's message!" >> return (constDyn Nothing)
+eventsTable RemoteDataLoading = return (constDyn Nothing)
+eventsTable (RemoteData (FetchResponse tsEvents errors)) =
     elAttr "div" ("style" =: "width: 500px; height: 100%; flex-shrink: 0") $
         -- display: block is needed for overflow to work, http://stackoverflow.com/a/4457290/516188
         elAttr "table" ("class" =: "table" <> "style" =: "height: 100%; display:block; overflow:auto") $ do

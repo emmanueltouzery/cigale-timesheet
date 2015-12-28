@@ -1,6 +1,8 @@
 module Event where
 
 import Data.Time.Clock
+import Data.Time.LocalTime
+import Data.Time.Calendar
 import qualified Data.Text as T
 
 data Event = Event

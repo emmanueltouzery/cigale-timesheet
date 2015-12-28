@@ -9,9 +9,7 @@ import GHCJS.DOM.Types hiding (Text, Event)
 import Reflex
 import Reflex.Dom
 import Reflex.Host.Class
-
 import Data.Dependent.Sum (DSum ((:=>)))
-
 
 import Data.Map (Map)
 import Data.Maybe
@@ -121,33 +119,7 @@ cigaleView = do
     stylesheet "pikaday.css"
     stylesheet "https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.2/css/bootstrap.min.css"
     elAttr "div" ("style" =: "height: 100%;") $ do
-        rec
-            -- update current day based on user actions
-            curDate <- foldDyn ($) initialDay $ mergeWith (.)
-                [
-                    fmap (const $ addDays (-1)) previousDayBtn,
-                    fmap (const $ addDays 1) nextDayBtn,
-                    fmap const pickedDateEvt
-                ]
-            -- close the datepicker & update its date on day change.
-            performOnChange (\d -> liftIO $ do
-                dateLabelDeactivate
-                pickerSetDate picker d) curDate
-            -- open or close the datepicker when the user clicks on the toggle button
-            performOnChange
-                (\focus -> liftIO $ (if focus then pickerShow else pickerHide) picker)
-                cbDyn
-
-            -- the date picker has position: absolute & will position itself
-            -- relative to the nearest ancestor with position: relative.
-            (previousDayBtn, dateLabelDeactivate, nextDayBtn, cbDyn) <-
-                elAttr "div" ("class" =: "btn-group" <> "data-toggle" =: "buttons" <> "style" =: "position: relative") $ do
-                    pDayBtn <- button' "<<"
-                    (cbDn, lbelDeac) <- createDateLabel curDate
-                    nDayBtn <- button' ">>"
-                    return (pDayBtn, lbelDeac, nDayBtn, cbDn)
-            (pickedDateEvt, picker) <- datePicker
-        liftIO $ pickerHide picker
+        curDate <- addDatePicker
         let req url = xhrRequest "GET" ("/timesheet/" ++ url) def
         loadRecordsEvent <- leftmost <$> sequence [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
         asyncReq <- performRequestAsync (req <$> showGregorian <$> loadRecordsEvent)
@@ -167,6 +139,70 @@ cigaleView = do
                               styleHideIf (not $ isRemoteDataLoading curEvt)) respDyn
         elDynAttr "div" holdAttrs $ text "Please hold..."
         return ()
+
+addDatePicker :: MonadWidget t m => m (Dynamic t Day)
+addDatePicker = do
+    rec
+        -- update current day based on user actions
+        curDate <- foldDyn ($) initialDay $ mergeWith (.)
+            [
+                fmap (const $ addDays (-1)) previousDayBtn,
+                fmap (const $ addDays 1) nextDayBtn,
+                fmap const pickedDateEvt
+            ]
+        -- the date picker has position: absolute & will position itself
+        -- relative to the nearest ancestor with position: relative.
+        (previousDayBtn, dateLabelDeactivate, nextDayBtn, cbDyn) <-
+            elAttr "div" ("class" =: "btn-group" <> "data-toggle" =: "buttons" <> "style" =: "position: relative") $ do
+                pDayBtn <- button' "<<"
+                (cbDn, lbelDeac) <- createDateLabel curDate
+                nDayBtn <- button' ">>"
+                return (pDayBtn, lbelDeac, nDayBtn, cbDn)
+        (pickedDateEvt, picker) <- datePicker
+
+    -- close the datepicker & update its date on day change.
+    performOnChange (\d -> liftIO $ do
+        dateLabelDeactivate
+        pickerSetDate picker d) curDate
+    -- open or close the datepicker when the user clicks on the toggle button
+    performOnChange
+        (\focus -> liftIO $ (if focus then pickerShow else pickerHide) picker)
+        cbDyn
+    liftIO $ pickerHide picker
+    return curDate
+
+createDateLabel :: MonadWidget t m => Dynamic t Day -> m (Dynamic t Bool, IO ())
+createDateLabel curDate = do
+    -- the bootstrap toggle button doesn't update the underlying checkbox (!!!)
+    -- => must catch the click event myself & look at the active class of the label...
+    -- I create a new event because I need IO to check the class of the element
+    (dayToggleEvt, dayToggleEvtTrigger) <- newEventWithTriggerRef
+    postGui <- askPostGui
+    runWithActions <- askRunWithActions
+    cbDyn <- holdDyn False dayToggleEvt
+
+    (label, _) <- elAttr' "label" ("class" =: "btn btn-secondary btn-sm" <> "style" =: "margin-bottom: 0px") $ do
+        -- TODO i would expect the checkbox to check or uncheck propertly but it doesn't.
+        -- it's completely user-invisible though.
+        void $ checkbox False $ def
+            & setValue .~ dayToggleEvt
+        dynText =<< mapDyn (formatTime defaultTimeLocale "%A, %F") curDate
+
+    -- trigger day toggle event when the day button is pressed
+    performEvent_ $ fmap (const $ liftIO $ do
+        (cn :: String) <- elementGetClassName (_el_element label)
+        postGui $ handleTrigger runWithActions ("active" `isInfixOf` cn) dayToggleEvtTrigger) $ domEvent Click label
+
+    let dateLabelDeactivate = do
+        eltStripClass (_el_element label) "active"
+        postGui (handleTrigger runWithActions False dayToggleEvtTrigger)
+    return (cbDyn, dateLabelDeactivate)
+
+eltStripClass :: IsElement self => self -> Text -> IO ()
+eltStripClass elt className = do
+    curClasses <- T.splitOn " " <$> T.pack <$> elementGetClassName elt
+    let newClasses = T.unpack <$> filter (/= className) curClasses
+    elementSetClassName elt (intercalate " " newClasses)
 
 styleWithHideIf :: Bool -> String -> Map String String
 styleWithHideIf p s = "style" =: (rest <> if p then "display: none" else "display: block")
@@ -191,39 +227,6 @@ displayWarningBanner respDyn = do
             elAttr "span" ("class" =: "sr-only") $ text "Close"
         el "strong" $ text "Warning!"
         el "span" $ dynText =<< mapDyn (fromMaybe "") errorTxtDyn
-
-
-createDateLabel :: MonadWidget t m => Dynamic t Day -> m (Dynamic t Bool, IO ())
-createDateLabel curDate = do
-    -- the bootstrap toggle button doesn't update the underlying checkbox (!!!)
-    -- => must catch the click event myself & look at the active class of the label...
-    -- I create a new event because I need IO to check the class of the element
-    (dayToggleEvt, dayToggleEvtTrigger) <- newEventWithTriggerRef
-    postGui <- askPostGui
-    runWithActions <- askRunWithActions
-    cbDyn <- holdDyn False dayToggleEvt
-
-    (label, _) <- elAttr' "label" ("class" =: "btn btn-secondary btn-sm" <> "style" =: "margin-bottom: 0px") $ do
-        -- TODO i would expect the checkbox to check or uncheck propertly but it doesn't.
-        -- it's completely user-invisible though.
-        void $ checkbox False $ def
-            & setValue .~ dayToggleEvt
-        dynText =<< mapDyn (formatTime defaultTimeLocale "%A, %F") curDate
-
-    performEvent_ $ fmap (const $ liftIO $ do
-        (cn :: String) <- elementGetClassName (_el_element label)
-        postGui $ handleTrigger runWithActions ("active" `isInfixOf` cn) dayToggleEvtTrigger) $ domEvent Click label
-
-    let dateLabelDeactivate = do
-        eltStripClass (_el_element label) "active"
-        postGui (handleTrigger runWithActions False dayToggleEvtTrigger)
-    return (cbDyn, dateLabelDeactivate)
-
-eltStripClass :: IsElement self => self -> Text -> IO ()
-eltStripClass elt className = do
-    curClasses <- T.splitOn " " <$> T.pack <$> elementGetClassName elt
-    let newClasses = T.unpack <$> filter (/= className) curClasses
-    elementSetClassName elt (intercalate " " newClasses)
 
 -- https://m.reddit.com/r/reflexfrp/comments/3h3s72/rendering_dynamic_html_table/
 eventsTable :: MonadWidget t m => RemoteData FetchResponse -> m (Dynamic t (Maybe TsEvent))

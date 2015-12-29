@@ -7,6 +7,7 @@ import Reflex.Dom
 import Data.Aeson as A
 import GHC.Generics
 import Control.Applicative
+import Control.Monad
 
 import Common
 
@@ -40,19 +41,21 @@ data FetchedData = FetchedData
         fetchedConfigVal  :: [ConfigItem]
     }
 
+makeSimpleXhr :: (MonadWidget t m, FromJSON a) => String -> Event t b -> m (Dynamic t (RemoteData a))
+makeSimpleXhr url postBuild = do
+    req <- performRequestAsync $ const (xhrRequest "GET" url def) <$> postBuild
+    holdDyn RemoteDataLoading $ fmap (readRemoteData . decodeXhrResponse) req
+
 configView :: MonadWidget t m => Dynamic t ActiveView -> m ()
 configView activeViewDyn = do
     attrsDyn <- mapDyn (\curView -> styleWithHideIf (curView /= ActiveViewConfig) "height: 100%;") activeViewDyn
     elDynAttr "div" attrsDyn $ do
         -- TODO getPostBuild ... maybe when the tab is loaded instead?
         postBuild <- getPostBuild
-        cfgDescReq <- performRequestAsync $ const (xhrRequest "GET" "/configdesc" def) <$> postBuild -- [PluginConfig]
-        cfgDescDyn <- holdDyn RemoteDataLoading $ fmap (readRemoteData . decodeXhrResponse) cfgDescReq
-        cfgValReq <- performRequestAsync $ const (xhrRequest "GET" "/configVal" def) <$> postBuild -- [ConfigItem]
-        cfgValDyn <- holdDyn RemoteDataLoading $ fmap (readRemoteData . decodeXhrResponse) cfgValReq
+        cfgDescDyn <- makeSimpleXhr "/configdesc" postBuild
+        cfgValDyn <- makeSimpleXhr "/configVal" postBuild
         readAllDyn <- combineDyn (liftA2 FetchedData) cfgDescDyn cfgValDyn
-        mapDyn displayConfig readAllDyn >>= dyn
-        return ()
+        void $ mapDyn displayConfig readAllDyn >>= dyn
 
 displayConfig :: MonadWidget t m => RemoteData FetchedData -> m ()
 displayConfig RemoteDataLoading = return ()

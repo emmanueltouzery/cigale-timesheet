@@ -5,11 +5,15 @@ module Config where
 import Reflex.Dom
 
 import Data.Aeson as A
+import Data.Aeson.Types as A
 import GHC.Generics
 import Control.Applicative
 import Control.Monad
 import Data.List
 import Data.Function
+import Data.Maybe
+import Data.Bifunctor
+import qualified Data.Text as T
 
 import Common
 
@@ -33,7 +37,7 @@ data ConfigItem = ConfigItem
     {
         configItemName :: String,
         providerName :: String,
-        configuration :: A.Value
+        configuration :: A.Object
     } deriving (Show, Generic)
 instance FromJSON ConfigItem
 
@@ -63,27 +67,47 @@ displayConfig :: MonadWidget t m => RemoteData FetchedData -> m ()
 displayConfig RemoteDataLoading = return ()
 displayConfig RemoteDataInvalid = text "Error loading the server data!"
 displayConfig (RemoteData (FetchedData configDesc configVal)) = do
-    let cfgByProvider = buckets providerName configVal
+    let cfgByProvider =
+            fmap (first fromJust) $ filter (isJust . fst) $  -- only keep Just providers.
+            fmap (first $ providerByName configDesc) $       -- replace provider name by provider (Maybe)
+            buckets providerName configVal                   -- bucket by provider name
     mapM_ (displayConfigSection configDesc) cfgByProvider
 
-displayConfigSection :: MonadWidget t m => [PluginConfig] -> (String, [ConfigItem]) -> m ()
-displayConfigSection pluginConfigs (secTitle, secItems) =
-    void $ elAttr "div" ("class" =: "card") $ do
-        elAttr "h5" ("class" =: "card-header") $ text secTitle
-        elAttr "div" ("class" =: "card-block") $
-            elAttr "table" ("class" =: "table") $
-                mapM displaySectionItem secItems
+providerByName :: [PluginConfig] -> String -> Maybe PluginConfig
+providerByName pluginConfigs name = find ((== name) . cfgPluginName) pluginConfigs
 
-displaySectionItem :: MonadWidget t m => ConfigItem -> m ()
-displaySectionItem ConfigItem{..} =
+displayConfigSection :: MonadWidget t m => [PluginConfig] -> (PluginConfig, [ConfigItem]) -> m ()
+displayConfigSection pluginConfigs (secInfo, secItems) =
+    void $ elAttr "div" ("class" =: "card") $ do
+        elAttr "h5" ("class" =: "card-header") $ text $ cfgPluginName secInfo
+        elAttr "div" ("class" =: "card-block") $
+            mapM (displaySectionItem secInfo) secItems
+
+displaySectionItem :: MonadWidget t m => PluginConfig -> ConfigItem -> m ()
+displaySectionItem pluginConfig ci@ConfigItem{..} =
     elAttr "div" ("class" =: "card") $ do
         elAttr "div" ("class" =: "card-header") $
             text configItemName
         elAttr "div" ("class" =: "card-block") $
-            text "TODO"
+            pluginContents pluginConfig ci
 
 buckets :: Ord b => (a -> b) -> [a] -> [(b, [a])]
 buckets f = map (\g -> (fst $ head g, map snd g))
           . groupBy ((==) `on` fst)
           . sortBy (compare `on` fst)
           . map (\x -> (f x, x))
+
+pluginContents :: MonadWidget t m => PluginConfig -> ConfigItem -> m ()
+pluginContents pluginConfig configContents = elAttr "table" ("class" =: "table") $
+    mapM_ (getPluginElement $ configuration configContents) (cfgPluginConfig pluginConfig)
+
+getPluginElement :: MonadWidget t m => A.Object -> ConfigDataInfo -> m ()
+getPluginElement config dataInfo = el "div" $ do
+    let memberNameV = memberName dataInfo
+    let memberValue = fromMaybe "" (A.parseMaybe (\obj -> obj .: T.pack memberNameV) config)
+    let memberValueDisplay = case memberType dataInfo of
+            "Password" -> replicate (length memberValue) '*'
+            _          -> memberValue
+    el "tr" $ do
+        el "td" $ text memberNameV
+        el "td" $ text memberValueDisplay

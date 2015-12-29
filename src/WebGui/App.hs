@@ -62,7 +62,8 @@ navBar = do
     urlLocationHash <- liftIO $ fromJSString <$> getLocationHash
     rec
         viewEvts <-
-            elAttr "nav" ("class" =: "navbar navbar-light bg-faded") $
+            elAttr "nav" ("class" =: "navbar navbar-light bg-faded"
+                          <> "style" =: "margin-right: 10px; margin-bottom: 10px;") $
                 elAttr "div" ("class" =: "nav navbar-nav") $ do
                     elAttr "a" ("href" =: "#events" <> "class" =: "navbar-brand") $ text "Cigale"
                     mapM (navLink activeViewDyn) navLinkItems

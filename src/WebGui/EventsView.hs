@@ -75,22 +75,13 @@ data FetchResponse = FetchResponse
     } deriving (Show, Generic)
 instance FromJSON FetchResponse
 
-data RemoteData a = RemoteDataInvalid | RemoteDataLoading | RemoteData a
-
-readRemoteData :: Maybe a -> RemoteData a
-readRemoteData (Just x) = RemoteData x
-readRemoteData Nothing = RemoteDataInvalid
-
-isRemoteDataLoading :: RemoteData a -> Bool
-isRemoteDataLoading RemoteDataLoading = True
-isRemoteDataLoading _ = False
-
 eventsView :: MonadWidget t m => Dynamic t ActiveView -> m ()
 eventsView activeViewDyn = do
     attrsDyn <- mapDyn (\curView -> styleWithHideIf (curView /= ActiveViewEvents) "height: 100%;") activeViewDyn
     elDynAttr "div" attrsDyn $ do
         curDate <- addDatePicker
         let req url = xhrRequest "GET" ("/timesheet/" ++ url) def
+        -- TODO getPostBuild ... maybe when the tab is loaded instead?
         loadRecordsEvent <- leftmost <$> sequence [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
         asyncReq <- performRequestAsync (req <$> showGregorian <$> loadRecordsEvent)
         let responseEvt = fmap (readRemoteData . decodeXhrResponse) asyncReq

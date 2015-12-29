@@ -58,3 +58,29 @@ handleTrigger :: MonadIO m => ([DSum tag] -> m ()) -> a -> IORef (Maybe (tag a))
 handleTrigger runWithActions v trigger = liftIO (readIORef trigger) >>= \case
         Nothing       -> return ()
         Just eTrigger -> runWithActions [eTrigger :=> v]
+
+data RemoteData a = RemoteDataInvalid | RemoteDataLoading | RemoteData a
+
+instance Functor RemoteData where
+    fmap _ RemoteDataLoading = RemoteDataLoading
+    fmap _ RemoteDataInvalid = RemoteDataInvalid
+    fmap f (RemoteData a) = RemoteData (f a)
+
+instance Applicative RemoteData where
+    pure = RemoteData
+    RemoteData f <*> r = fmap f r
+    RemoteDataInvalid <*> _ = RemoteDataInvalid
+    RemoteDataLoading <*> _ = RemoteDataLoading
+
+instance Monad RemoteData where
+    RemoteDataInvalid >>= _ = RemoteDataInvalid
+    RemoteDataLoading >>= _ = RemoteDataLoading
+    RemoteData x >>= f = f x
+
+readRemoteData :: Maybe a -> RemoteData a
+readRemoteData (Just x) = RemoteData x
+readRemoteData Nothing = RemoteDataInvalid
+
+isRemoteDataLoading :: RemoteData a -> Bool
+isRemoteDataLoading RemoteDataLoading = True
+isRemoteDataLoading _ = False

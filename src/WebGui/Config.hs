@@ -92,14 +92,15 @@ data ProviderDialogInfo t = ProviderDialogInfo
          pdProviderName :: String,
          pdSourceNameEntry :: TextInput t,
          pdTextEntries :: Map String (TextInput t),
-         pdOkEvent :: Event t ()
+         pdOkEvent :: Event t (),
+         pdCloseEvent :: Event t ()
      }
 
 addProviderDialog :: MonadWidget t m => PluginConfig -> m (String, ProviderDialogInfo t)
 addProviderDialog pluginConfig@PluginConfig{..} = do
      modalResult <- buildModalDialog cfgPluginName "Edit" "Save" (editConfigItem pluginConfig)
      let (srcNameInput, fieldInputs) = bodyResult modalResult
-     return (cfgPluginName, ProviderDialogInfo cfgPluginName srcNameInput fieldInputs (okEvent modalResult))
+     return (cfgPluginName, ProviderDialogInfo cfgPluginName srcNameInput fieldInputs (okEvent modalResult) (closeEvent modalResult))
 
 editConfigItem :: MonadWidget t m => PluginConfig -> m (TextInput t, Map String (TextInput t))
 editConfigItem PluginConfig{..} =
@@ -143,6 +144,17 @@ displaySectionItem pluginConfig@PluginConfig{..} dialogInfo ci@ConfigItem{..} =
                                               <> "data-toggle" =: "modal"
                                               <> "data-target" =: ("#" <> cfgPluginName)) $ text "Edit"
             performEvent_ $ fmap (const $ liftIO $ fillDialog dialogInfo ci) $ domEvent Click editBtn
+            -- to save, i give to the server the old name and the new full ConfigItem.
+            -- listen to the OK & close events. stop listening to OK on close (using gate)
+            let popupOpenCloseEvent = leftmost
+                    [
+                        fmap (const True) $ domEvent Click editBtn,
+                        fmap (const False) $ pdCloseEvent dialogInfo
+                    ]
+            isDisplayed <- holdDyn False popupOpenCloseEvent
+            performEvent_ $ fmap
+                (const $ liftIO $ putStrLn ("save " <> configItemName))
+                $ gate (current isDisplayed) (pdOkEvent dialogInfo)
         elAttr "div" ("class" =: "card-block") $
             pluginContents pluginConfig ci
 

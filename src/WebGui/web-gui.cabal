@@ -26,6 +26,7 @@ Executable cigale-web
        aeson,
        transformers,
        containers,
+       unordered-containers,
        dependent-sum,
        bytestring,
        errors

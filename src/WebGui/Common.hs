@@ -59,6 +59,33 @@ handleTrigger runWithActions v trigger = liftIO (readIORef trigger) >>= \case
         Nothing       -> return ()
         Just eTrigger -> runWithActions [eTrigger :=> v]
 
+data ModalDialogResult t a = ModalDialogResult
+     {
+         bodyResult :: a,
+         okEvent    :: Event t (),
+         closeEvent :: Event t ()
+     }
+
+buildModalDialog :: MonadWidget t m => String -> String -> String
+                 -> m a -> m (ModalDialogResult t a)
+buildModalDialog modalId title okLabel modalBodyBuild =
+    elAttr "div" ("class" =: "modal fade" <> "id" =: modalId) $
+        elAttr "div" ("class" =: "modal-dialog" <> "role" =: "document") $
+            elAttr "div" ("class" =: "modal-content") $ do
+                elAttr "div" ("class" =: "modal-header") $
+                    elAttr "h4" ("class" =: "modal-title") $ text title
+                bodyRes <- elAttr "div" ("class" =: "modal-body") modalBodyBuild
+                (okEvt, closeEvt)  <- elAttr "div" ("class" =: "modal-footer") $ do
+                    (closeEl, _) <- elAttr' "button" ("type" =: "button"
+                                                      <> "class" =: "btn btn-secondary"
+                                                      <> "data-dismiss" =: "modal")
+                        $ text "Close"
+                    (okEl, _) <- elAttr' "button" ("type" =: "button"
+                                                   <> "class" =: "btn btn-primary")
+                        $ text okLabel
+                    return (domEvent Click okEl, domEvent Click closeEl)
+                return $ ModalDialogResult bodyRes okEvt closeEvt
+
 data RemoteData a = RemoteDataInvalid | RemoteDataLoading | RemoteData a
 
 instance Functor RemoteData where

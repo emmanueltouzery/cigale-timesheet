@@ -2,6 +2,8 @@
 
 module Config where
 
+import GHCJS.DOM.HTMLInputElement
+
 import Reflex.Dom
 
 import Data.Aeson as A
@@ -13,7 +15,12 @@ import Data.List
 import Data.Function
 import Data.Maybe
 import Data.Bifunctor
+import Data.Monoid
 import qualified Data.Text as T
+import Data.Map (Map)
+import qualified Data.HashMap.Strict as HashMap
+import qualified Data.Map as Map
+import Control.Monad.IO.Class
 
 import Common
 
@@ -67,35 +74,88 @@ displayConfig :: MonadWidget t m => RemoteData FetchedData -> m ()
 displayConfig RemoteDataLoading = return ()
 displayConfig RemoteDataInvalid = text "Error loading the server data!"
 displayConfig (RemoteData (FetchedData configDesc configVal)) = do
+    -- add all providers editing modal dialog to add or edit.
+    -- they are retrieved through their DOM ID, the provider name.
+    modalDialogInfos <- Map.fromList <$> mapM addProviderDialog configDesc
     let cfgByProvider =
             fmap (first fromJust) $ filter (isJust . fst) $  -- only keep Just providers.
             fmap (first $ providerByName configDesc) $       -- replace provider name by provider (Maybe)
             buckets providerName configVal                   -- bucket by provider name
-    mapM_ (displayConfigSection configDesc) cfgByProvider
+    mapM_ (\(pluginConfig, configItems) -> displayConfigSection pluginConfig configItems
+                                           (fromJust $ Map.lookup (cfgPluginName pluginConfig) modalDialogInfos)) cfgByProvider
 
 providerByName :: [PluginConfig] -> String -> Maybe PluginConfig
 providerByName pluginConfigs name = find ((== name) . cfgPluginName) pluginConfigs
 
-displayConfigSection :: MonadWidget t m => [PluginConfig] -> (PluginConfig, [ConfigItem]) -> m ()
-displayConfigSection pluginConfigs (secInfo, secItems) =
-    void $ elAttr "div" ("class" =: "card") $ do
-        elAttr "h5" ("class" =: "card-header") $ text $ cfgPluginName secInfo
-        elAttr "div" ("class" =: "card-block") $
-            mapM (displaySectionItem secInfo) secItems
+data ProviderDialogInfo t = ProviderDialogInfo
+     {
+         pdProviderName :: String,
+         pdSourceNameEntry :: TextInput t,
+         pdTextEntries :: Map String (TextInput t),
+         pdOkEvent :: Event t ()
+     }
 
-displaySectionItem :: MonadWidget t m => PluginConfig -> ConfigItem -> m ()
-displaySectionItem pluginConfig ci@ConfigItem{..} =
-    elAttr "div" ("class" =: "card") $ do
-        elAttr "div" ("class" =: "card-header") $
-            text configItemName
-        elAttr "div" ("class" =: "card-block") $
-            pluginContents pluginConfig ci
+addProviderDialog :: MonadWidget t m => PluginConfig -> m (String, ProviderDialogInfo t)
+addProviderDialog pluginConfig@PluginConfig{..} = do
+     modalResult <- buildModalDialog cfgPluginName "Edit" "Save" (editConfigItem pluginConfig)
+     let (srcNameInput, fieldInputs) = bodyResult modalResult
+     return (cfgPluginName, ProviderDialogInfo cfgPluginName srcNameInput fieldInputs (okEvent modalResult))
+
+editConfigItem :: MonadWidget t m => PluginConfig -> m (TextInput t, Map String (TextInput t))
+editConfigItem PluginConfig{..} =
+    el "form" $ do
+        srcNameInput <- elAttr "fieldset" ("class" =: "form-group") $ fieldEntry "sourceName" "Enter source name:"
+        fieldInputs  <- Map.fromList <$> mapM editConfigDataInfo cfgPluginConfig
+        return (srcNameInput, fieldInputs)
+
+editConfigDataInfo :: MonadWidget t m => ConfigDataInfo -> m (String, TextInput t)
+editConfigDataInfo ConfigDataInfo{..} = do
+    -- TODO different display based on member type: String, Text, ByteString, FilePath, FolderPath, Password
+    field <- fieldEntry memberName memberName
+    return (memberName, field)
+
+fieldEntry :: MonadWidget t m => String -> String -> m (TextInput t)
+fieldEntry fieldId desc = do
+    elAttr "label" ("for" =: fieldId) $ text desc
+    textInput $ def
+        & textInputConfig_attributes .~ constDyn ("id" =: fieldId <> "class" =: "form-control")
 
 buckets :: Ord b => (a -> b) -> [a] -> [(b, [a])]
 buckets f = map (\g -> (fst $ head g, map snd g))
           . groupBy ((==) `on` fst)
           . sortBy (compare `on` fst)
           . map (\x -> (f x, x))
+
+displayConfigSection :: MonadWidget t m => PluginConfig -> [ConfigItem] -> ProviderDialogInfo t -> m ()
+displayConfigSection secInfo secItems dialogInfo =
+    void $ elAttr "div" ("class" =: "card") $ do
+        elAttr "h5" ("class" =: "card-header") $ text $ cfgPluginName secInfo
+        elAttr "div" ("class" =: "card-block") $
+            mapM_ (displaySectionItem secInfo dialogInfo) secItems
+
+displaySectionItem :: MonadWidget t m => PluginConfig -> ProviderDialogInfo t -> ConfigItem -> m ()
+displaySectionItem pluginConfig@PluginConfig{..} dialogInfo ci@ConfigItem{..} =
+    elAttr "div" ("class" =: "card") $ do
+        elAttr "div" ("class" =: "card-header") $ do
+            text configItemName
+            (editBtn, _) <- elAttr' "button" ("class" =: "btn btn-default btn-sm"
+                                              <> "style" =: "float: right"
+                                              <> "data-toggle" =: "modal"
+                                              <> "data-target" =: ("#" <> cfgPluginName)) $ text "Edit"
+            performEvent_ $ fmap (const $ liftIO $ fillDialog dialogInfo ci) $ domEvent Click editBtn
+        elAttr "div" ("class" =: "card-block") $
+            pluginContents pluginConfig ci
+
+-- this is almost certainly not the proper way to do this with reflex...
+fillDialog :: ProviderDialogInfo t -> ConfigItem -> IO ()
+fillDialog dialogInfo ConfigItem{..} = do
+    htmlInputElementSetValue (_textInput_element $ pdSourceNameEntry dialogInfo) configItemName
+    forM_ (HashMap.keys configuration) $ \key -> do
+        let txtInput = fromJust $ Map.lookup (T.unpack key) (pdTextEntries dialogInfo)
+        htmlInputElementSetValue (_textInput_element txtInput) (readObjectField (T.unpack key) configuration)
+
+readObjectField :: String -> A.Object -> String
+readObjectField fieldName aObject = fromMaybe "" (A.parseMaybe (\obj -> obj .: T.pack fieldName) aObject)
 
 pluginContents :: MonadWidget t m => PluginConfig -> ConfigItem -> m ()
 pluginContents pluginConfig configContents = elAttr "table" ("class" =: "table") $
@@ -104,7 +164,7 @@ pluginContents pluginConfig configContents = elAttr "table" ("class" =: "table")
 getPluginElement :: MonadWidget t m => A.Object -> ConfigDataInfo -> m ()
 getPluginElement config dataInfo = el "div" $ do
     let memberNameV = memberName dataInfo
-    let memberValue = fromMaybe "" (A.parseMaybe (\obj -> obj .: T.pack memberNameV) config)
+    let memberValue = readObjectField memberNameV config
     let memberValueDisplay = case memberType dataInfo of
             "Password" -> replicate (length memberValue) '*'
             _          -> memberValue

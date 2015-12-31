@@ -5,6 +5,7 @@ module Config where
 import GHCJS.DOM.HTMLInputElement
 
 import Reflex.Dom
+import Reflex.Host.Class
 
 import Data.Aeson as A
 import Data.Aeson.Types as A
@@ -21,6 +22,8 @@ import Data.Map (Map)
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Map as Map
 import Control.Monad.IO.Class
+import qualified Data.ByteString.Lazy as BS
+import Data.Char
 
 import Common
 
@@ -47,6 +50,7 @@ data ConfigItem = ConfigItem
         configuration :: A.Object
     } deriving (Show, Generic)
 instance FromJSON ConfigItem
+instance ToJSON ConfigItem
 
 data FetchedData = FetchedData
     {
@@ -61,7 +65,8 @@ makeSimpleXhr url postBuild = do
 
 configView :: MonadWidget t m => Dynamic t ActiveView -> m ()
 configView activeViewDyn = do
-    attrsDyn <- mapDyn (\curView -> styleWithHideIf (curView /= ActiveViewConfig) "height: 100%; padding-right: 10px;") activeViewDyn
+    attrsDyn <- mapDyn (\curView -> styleWithHideIf (curView /= ActiveViewConfig)
+                                    "height: 100%; padding-right: 10px;") activeViewDyn
     elDynAttr "div" attrsDyn $ do
         -- TODO getPostBuild ... maybe when the tab is loaded instead?
         postBuild <- getPostBuild
@@ -81,8 +86,9 @@ displayConfig (RemoteData (FetchedData configDesc configVal)) = do
             fmap (first fromJust) $ filter (isJust . fst) $  -- only keep Just providers.
             fmap (first $ providerByName configDesc) $       -- replace provider name by provider (Maybe)
             buckets providerName configVal                   -- bucket by provider name
-    mapM_ (\(pluginConfig, configItems) -> displayConfigSection pluginConfig configItems
-                                           (fromJust $ Map.lookup (cfgPluginName pluginConfig) modalDialogInfos)) cfgByProvider
+    mapM_ (\(pluginConfig, configItems) ->
+            displayConfigSection pluginConfig configItems
+            (fromJust $ Map.lookup (cfgPluginName pluginConfig) modalDialogInfos)) cfgByProvider
 
 providerByName :: [PluginConfig] -> String -> Maybe PluginConfig
 providerByName pluginConfigs name = find ((== name) . cfgPluginName) pluginConfigs
@@ -152,14 +158,36 @@ displaySectionItem pluginConfig@PluginConfig{..} dialogInfo ci@ConfigItem{..} =
                         fmap (const False) $ pdCloseEvent dialogInfo
                     ]
             isDisplayed <- holdDyn False popupOpenCloseEvent
+
+            -- need IO to read the contents of the modal => build a new event
+            -- that I populate reading using IO.
+            (editConfigEvt, editConfigEvtTrigger) <- newEventWithTriggerRef
+            postGui <- askPostGui
+            runWithActions <- askRunWithActions
             performEvent_ $ fmap
-                (const $ liftIO $ readDialog dialogInfo pluginConfig >>= saveConfigItem configItemName)
+                (const $ liftIO $ do
+                      dlgInfo <- readDialog dialogInfo pluginConfig
+                      postGui (handleTrigger runWithActions (configItemName, dlgInfo) editConfigEvtTrigger))
                 $ gate (current isDisplayed) (pdOkEvent dialogInfo)
+            saveConfigItem editConfigEvt
         elAttr "div" ("class" =: "card-block") $
             pluginContents pluginConfig ci
 
-saveConfigItem :: String -> ConfigItem -> IO ()
-saveConfigItem oldConfigItemName newConfigItem = print newConfigItem
+byteStringToString :: BS.ByteString -> String
+byteStringToString = map (chr . fromEnum) . BS.unpack
+
+saveConfigItem :: MonadWidget t m => Event t (String, ConfigItem) -> m (Event t (RemoteData String))
+saveConfigItem configEditEvent = do
+    let reqEvt = fmap buildXhrRequest configEditEvent
+    req <- performRequestAsync reqEvt
+    return $ fmap (readRemoteData . decodeXhrResponse) req
+
+buildXhrRequest :: (String, ConfigItem) -> XhrRequest
+buildXhrRequest (oldConfigItemName, newConfigItem) =
+    xhrRequest "PUT" url $ def { _xhrRequestConfig_sendData = xhrData }
+    where
+      xhrData = Just (byteStringToString $ encode newConfigItem)
+      url = "/config?oldConfigItemName=" <> oldConfigItemName
 
 -- this is almost certainly not the proper way to do this with reflex...
 fillDialog :: ProviderDialogInfo t -> ConfigItem -> IO ()

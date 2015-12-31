@@ -153,10 +153,13 @@ displaySectionItem pluginConfig@PluginConfig{..} dialogInfo ci@ConfigItem{..} =
                     ]
             isDisplayed <- holdDyn False popupOpenCloseEvent
             performEvent_ $ fmap
-                (const $ liftIO $ putStrLn ("save " <> configItemName))
+                (const $ liftIO $ readDialog dialogInfo pluginConfig >>= saveConfigItem configItemName)
                 $ gate (current isDisplayed) (pdOkEvent dialogInfo)
         elAttr "div" ("class" =: "card-block") $
             pluginContents pluginConfig ci
+
+saveConfigItem :: String -> ConfigItem -> IO ()
+saveConfigItem oldConfigItemName newConfigItem = print newConfigItem
 
 -- this is almost certainly not the proper way to do this with reflex...
 fillDialog :: ProviderDialogInfo t -> ConfigItem -> IO ()
@@ -166,6 +169,16 @@ fillDialog dialogInfo ConfigItem{..} = do
         let txtInput = fromJust $ Map.lookup (T.unpack key) (pdTextEntries dialogInfo)
         htmlInputElementSetValue (_textInput_element txtInput) (readObjectField (T.unpack key) configuration)
 
+readDialog :: ProviderDialogInfo t -> PluginConfig -> IO ConfigItem
+readDialog dialogInfo PluginConfig{..} = do
+    newName <- htmlInputElementGetValue $ _textInput_element $ pdSourceNameEntry dialogInfo
+    cfgList <- sequence $ flip map cfgPluginConfig $ \cfgDataInfo -> do
+        let mName = memberName cfgDataInfo
+        let inputField = fromJust $ Map.lookup mName $ pdTextEntries dialogInfo
+        val <- htmlInputElementGetValue (_textInput_element inputField)
+        return (T.pack mName, A.String $ T.pack val)
+    return $ ConfigItem newName cfgPluginName (HashMap.fromList cfgList)
+
 readObjectField :: String -> A.Object -> String
 readObjectField fieldName aObject = fromMaybe "" (A.parseMaybe (\obj -> obj .: T.pack fieldName) aObject)
 
@@ -174,7 +187,7 @@ pluginContents pluginConfig configContents = elAttr "table" ("class" =: "table")
     mapM_ (getPluginElement $ configuration configContents) (cfgPluginConfig pluginConfig)
 
 getPluginElement :: MonadWidget t m => A.Object -> ConfigDataInfo -> m ()
-getPluginElement config dataInfo = el "div" $ do
+getPluginElement config dataInfo = do
     let memberNameV = memberName dataInfo
     let memberValue = readObjectField memberNameV config
     let memberValueDisplay = case memberType dataInfo of

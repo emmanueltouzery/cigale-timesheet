@@ -24,6 +24,7 @@ import Control.Monad
 import Data.Maybe
 import Data.List
 import Control.Error
+import qualified Data.Map as Map
 
 import Common
 
@@ -89,7 +90,8 @@ eventsView activeViewDyn = do
         respDyn <- holdDyn RemoteDataLoading $ leftmost [fmap (const RemoteDataLoading) loadRecordsEvent, responseEvt]
         displayWarningBanner respDyn
 
-        elAttr "div" ("style" =: "display: flex; height: calc(100% - 50px); margin-top: 10px" <> "overflow" =: "auto") $ do
+        elAttr "div" ("style" =: "display: flex; height: calc(100% - 50px); margin-top: 10px"
+                      <> "overflow" =: "auto") $ do
             -- that's a mess. Surely there must be a better way to extract the event from the table.
             curEvtDyn <- joinDyn <$> (mapDyn eventsTable respDyn >>= dyn >>= holdDyn (constDyn Nothing))
             void $ mapDyn displayDetails curEvtDyn >>= dyn
@@ -113,51 +115,45 @@ addDatePicker = do
             ]
         -- the date picker has position: absolute & will position itself
         -- relative to the nearest ancestor with position: relative.
-        (previousDayBtn, dateLabelDeactivate, nextDayBtn, cbDyn) <-
-            elAttr "div" ("class" =: "btn-group" <> "data-toggle" =: "buttons" <> "style" =: "position: relative") $ do
+        (previousDayBtn, nextDayBtn) <-
+            elAttr "div" ("class" =: "btn-group"
+                          <> "data-toggle" =: "buttons"
+                          <> "style" =: "position: relative") $ do
                 pDayBtn <- button' "<<"
-                (cbDn, lbelDeac) <- createDateLabel curDate
+                createDateLabel curDate picker
                 nDayBtn <- button' ">>"
-                return (pDayBtn, lbelDeac, nDayBtn, cbDn)
+                return (pDayBtn, nDayBtn)
         (pickedDateEvt, picker) <- datePicker
 
-    -- close the datepicker & update its date on day change.
-    performOnChange (\d -> liftIO $ do
-        dateLabelDeactivate
-        pickerSetDate picker d) curDate
+    liftIO $ pickerHide picker
+    return curDate
+
+createDateLabel :: MonadWidget t m => Dynamic t Day -> PikadayPicker -> m ()
+createDateLabel curDate picker = do
+    rec
+        cbDyn <- holdDyn True (leftmost [dayToggleEvt, pickerAutoCloseEvt])
+
+        (label, _) <- elAttr' "label" ("class" =: "btn btn-secondary btn-sm"
+                                       <> "style" =: "margin-bottom: 0px") $ do
+            void $ checkboxView (constDyn Map.empty) cbDyn
+            dynText =<< mapDyn (formatTime defaultTimeLocale "%A, %F") curDate
+
+        -- trigger day toggle event when the day button is pressed
+        dayToggleEvt <- performEvent $ fmap (const $ liftIO $ do
+            (cn :: String) <- elementGetClassName (_el_element label)
+            return ("active" `isInfixOf` cn)) $ domEvent Click label
+
+        -- close the datepicker & update its date on day change.
+        pickerAutoCloseEvt <- performEvent $ fmap
+            (\d -> liftIO $ do
+                  eltStripClass (_el_element label) "active"
+                  pickerSetDate picker d
+                  return False) (updated curDate)
+
     -- open or close the datepicker when the user clicks on the toggle button
     performOnChange
         (\focus -> liftIO $ (if focus then pickerShow else pickerHide) picker)
         cbDyn
-    liftIO $ pickerHide picker
-    return curDate
-
-createDateLabel :: MonadWidget t m => Dynamic t Day -> m (Dynamic t Bool, IO ())
-createDateLabel curDate = do
-    -- the bootstrap toggle button doesn't update the underlying checkbox (!!!)
-    -- => must catch the click event myself & look at the active class of the label...
-    -- I create a new event because I need IO to check the class of the element
-    (dayToggleEvt, dayToggleEvtTrigger) <- newEventWithTriggerRef
-    postGui <- askPostGui
-    runWithActions <- askRunWithActions
-    cbDyn <- holdDyn False dayToggleEvt
-
-    (label, _) <- elAttr' "label" ("class" =: "btn btn-secondary btn-sm" <> "style" =: "margin-bottom: 0px") $ do
-        -- TODO i would expect the checkbox to check or uncheck propertly but it doesn't.
-        -- it's completely user-invisible though.
-        void $ checkbox False $ def
-            & setValue .~ dayToggleEvt
-        dynText =<< mapDyn (formatTime defaultTimeLocale "%A, %F") curDate
-
-    -- trigger day toggle event when the day button is pressed
-    performEvent_ $ fmap (const $ liftIO $ do
-        (cn :: String) <- elementGetClassName (_el_element label)
-        postGui $ handleTrigger runWithActions ("active" `isInfixOf` cn) dayToggleEvtTrigger) $ domEvent Click label
-
-    let dateLabelDeactivate = do
-        eltStripClass (_el_element label) "active"
-        postGui (handleTrigger runWithActions False dayToggleEvtTrigger)
-    return (cbDyn, dateLabelDeactivate)
 
 displayWarningBanner :: MonadWidget t m => Dynamic t (RemoteData FetchResponse) -> m ()
 displayWarningBanner respDyn = do
@@ -196,17 +192,22 @@ showRecord curEventDyn tsEvt@TsEvent{..} = do
         el "td" $ text $ formatTime defaultTimeLocale "%R" eventDate
         elAttr "td" ("style" =: "height: 60px; width: 500px;") $
             elAttr "div" ("style" =: "position: relative;") $
-                elAttr "span" ("class" =: "ellipsis" <> "style" =: "width: 400px; max-width: 400px; position: absolute") $ text_ desc
+                elAttr "span" ("class" =: "ellipsis"
+                               <> "style" =: "width: 400px; max-width: 400px; position: absolute") $ text_ desc
     return (const tsEvt <$> domEvent Click e)
 
 displayDetails :: MonadWidget t m => Maybe TsEvent -> m ()
 displayDetails Nothing = return ()
-displayDetails (Just TsEvent{..}) = elAttr "div" ("style" =: "flex-grow: 1; display: flex; flex-direction: column; padding: 7px;" <> "height" =: "100%") $ do
+displayDetails (Just TsEvent{..}) = elAttr "div" ("style" =: "flex-grow: 1; display: flex; flex-direction: column; padding: 7px;"
+                                                  <> "height" =: "100%") $ do
     el "h3" $ text_ desc
     el "h4" $ text_ extraInfo
     case fullContents of
         Nothing   -> return ()
-        Just cts  -> elAttr "iframe" ("srcdoc" =: T.unpack cts <> "frameBorder" =: "0" <> "width" =: "100%" <> "style" =: "flex-grow: 1") $ return ()
+        Just cts  -> elAttr "iframe" ("srcdoc" =: T.unpack cts
+                                      <> "frameBorder" =: "0"
+                                      <> "width" =: "100%"
+                                      <> "style" =: "flex-grow: 1") $ return ()
 
 datePicker :: MonadWidget t m => m (Event t Day, PikadayPicker)
 datePicker = do

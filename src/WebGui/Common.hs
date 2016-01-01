@@ -1,7 +1,8 @@
-{-# LANGUAGE ScopedTypeVariables, LambdaCase, OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables, LambdaCase, OverloadedStrings, JavaScriptFFI, ForeignFunctionInterface #-}
 
 module Common where
 
+import GHCJS.Types
 import GHCJS.DOM.Element
 
 import Reflex.Dom
@@ -15,6 +16,8 @@ import Data.Map (Map)
 import Control.Monad.IO.Class
 
 data ActiveView = ActiveViewEvents | ActiveViewConfig deriving (Eq, Show)
+
+foreign import javascript unsafe "$('#'+$1).modal('hide')" hideModalDialog :: JSString -> IO ()
 
 eltStripClass :: IsElement self => self -> Text -> IO ()
 eltStripClass elt className = do
@@ -67,14 +70,26 @@ data ModalDialogResult t a = ModalDialogResult
      }
 
 buildModalDialog :: MonadWidget t m => String -> String -> String
-                 -> m a -> m (ModalDialogResult t a)
-buildModalDialog modalId title okLabel modalBodyBuild =
+                 -> m a -> Maybe (Event t String) -> m (ModalDialogResult t a)
+buildModalDialog modalId title okLabel modalBodyBuild errorEvent =
     elAttr "div" ("class" =: "modal fade" <> "id" =: modalId) $
         elAttr "div" ("class" =: "modal-dialog" <> "role" =: "document") $
             elAttr "div" ("class" =: "modal-content") $ do
                 elAttr "div" ("class" =: "modal-header") $
                     elAttr "h4" ("class" =: "modal-title") $ text title
-                bodyRes <- elAttr "div" ("class" =: "modal-body") modalBodyBuild
+                bodyRes <- elAttr "div" ("class" =: "modal-body") $ do
+                    case errorEvent of
+                        Nothing -> return ()
+                        Just errEvt -> do
+                            dynErrMsg <- holdDyn "" errEvt
+                            dynAttrs <- mapDyn (\errMsg ->
+                                                 "class" =: "alert alert-danger"
+                                                 <> "role" =: "alert"
+                                                 <> styleHideIf (null errMsg)) dynErrMsg
+                            elDynAttr "div" dynAttrs $ do
+                                elAttr "strong" ("style" =: "padding-right: 7px") $ text "Error"
+                                dynText dynErrMsg
+                    modalBodyBuild
                 (okEvt, closeEvt)  <- elAttr "div" ("class" =: "modal-footer") $ do
                     (closeEl, _) <- elAttr' "button" ("type" =: "button"
                                                       <> "class" =: "btn btn-secondary"
@@ -86,7 +101,7 @@ buildModalDialog modalId title okLabel modalBodyBuild =
                     return (domEvent Click okEl, domEvent Click closeEl)
                 return $ ModalDialogResult bodyRes okEvt closeEvt
 
-data RemoteData a = RemoteDataInvalid | RemoteDataLoading | RemoteData a
+data RemoteData a = RemoteDataInvalid | RemoteDataLoading | RemoteData a deriving Show
 
 instance Functor RemoteData where
     fmap _ RemoteDataLoading = RemoteDataLoading

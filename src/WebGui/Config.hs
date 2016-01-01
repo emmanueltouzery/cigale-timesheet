@@ -3,6 +3,7 @@
 module Config where
 
 import GHCJS.DOM.HTMLInputElement
+import GHCJS.Foreign
 
 import Reflex.Dom
 import Reflex.Host.Class
@@ -24,6 +25,7 @@ import qualified Data.Map as Map
 import Control.Monad.IO.Class
 import qualified Data.ByteString.Lazy as BS
 import Data.Char
+import Data.IORef
 
 import Common
 
@@ -99,14 +101,16 @@ data ProviderDialogInfo t = ProviderDialogInfo
          pdSourceNameEntry :: TextInput t,
          pdTextEntries :: Map String (TextInput t),
          pdOkEvent :: Event t (),
-         pdCloseEvent :: Event t ()
+         pdCloseEvent :: Event t (),
+         pdErrorTrigger :: IORef (Maybe (EventTrigger t String))
      }
 
 addProviderDialog :: MonadWidget t m => PluginConfig -> m (String, ProviderDialogInfo t)
 addProviderDialog pluginConfig@PluginConfig{..} = do
-     modalResult <- buildModalDialog cfgPluginName "Edit" "Save" (editConfigItem pluginConfig)
+     (errorDisplayEvt, errorDisplayEvtTrigger) <- newEventWithTriggerRef
+     modalResult <- buildModalDialog cfgPluginName "Edit" "Save" (editConfigItem pluginConfig) (Just errorDisplayEvt)
      let (srcNameInput, fieldInputs) = bodyResult modalResult
-     return (cfgPluginName, ProviderDialogInfo cfgPluginName srcNameInput fieldInputs (okEvent modalResult) (closeEvent modalResult))
+     return (cfgPluginName, ProviderDialogInfo cfgPluginName srcNameInput fieldInputs (okEvent modalResult) (closeEvent modalResult) errorDisplayEvtTrigger)
 
 editConfigItem :: MonadWidget t m => PluginConfig -> m (TextInput t, Map String (TextInput t))
 editConfigItem PluginConfig{..} =
@@ -144,12 +148,20 @@ displaySectionItem :: MonadWidget t m => PluginConfig -> ProviderDialogInfo t ->
 displaySectionItem pluginConfig@PluginConfig{..} dialogInfo ci@ConfigItem{..} =
     elAttr "div" ("class" =: "card") $ do
         elAttr "div" ("class" =: "card-header") $ do
+            postGui <- askPostGui
+            runWithActions <- askRunWithActions
             text configItemName
             (editBtn, _) <- elAttr' "button" ("class" =: "btn btn-default btn-sm"
                                               <> "style" =: "float: right"
                                               <> "data-toggle" =: "modal"
                                               <> "data-target" =: ("#" <> cfgPluginName)) $ text "Edit"
-            performEvent_ $ fmap (const $ liftIO $ fillDialog dialogInfo ci) $ domEvent Click editBtn
+            performEvent_ $ fmap
+                (const $ liftIO $ do
+                      -- remove error displays
+                      postGui $ handleTrigger runWithActions "" (pdErrorTrigger dialogInfo)
+                      -- fill the dialog
+                      fillDialog dialogInfo ci) $
+                domEvent Click editBtn
             -- to save, i give to the server the old name and the new full ConfigItem.
             -- listen to the OK & close events. stop listening to OK on close (using gate)
             let popupOpenCloseEvent = leftmost
@@ -162,14 +174,17 @@ displaySectionItem pluginConfig@PluginConfig{..} dialogInfo ci@ConfigItem{..} =
             -- need IO to read the contents of the modal => build a new event
             -- that I populate reading using IO.
             (editConfigEvt, editConfigEvtTrigger) <- newEventWithTriggerRef
-            postGui <- askPostGui
-            runWithActions <- askRunWithActions
             performEvent_ $ fmap
                 (const $ liftIO $ do
                       dlgInfo <- readDialog dialogInfo pluginConfig
                       postGui (handleTrigger runWithActions (configItemName, dlgInfo) editConfigEvtTrigger))
                 $ gate (current isDisplayed) (pdOkEvent dialogInfo)
-            saveConfigItem editConfigEvt
+            saveEvt <- saveConfigItem editConfigEvt
+            let handleEditResponse = \case
+                    RemoteDataLoading -> return ()
+                    RemoteDataInvalid -> postGui $ handleTrigger runWithActions "Oops" (pdErrorTrigger dialogInfo)
+                    (RemoteData x) -> liftIO $ hideModalDialog $ toJSString cfgPluginName -- TODO refresh display
+            performEvent_ $ fmap (liftIO . handleEditResponse) saveEvt
         elAttr "div" ("class" =: "card-block") $
             pluginContents pluginConfig ci
 

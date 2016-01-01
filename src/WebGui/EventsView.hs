@@ -80,15 +80,16 @@ eventsView :: MonadWidget t m => Dynamic t ActiveView -> m ()
 eventsView activeViewDyn = do
     attrsDyn <- mapDyn (\curView -> styleWithHideIf (curView /= ActiveViewEvents) "height: 100%;") activeViewDyn
     elDynAttr "div" attrsDyn $ do
-        curDate <- addDatePicker
         let req url = xhrRequest "GET" ("/timesheet/" ++ url) def
-        -- TODO getPostBuild ... maybe when the tab is loaded instead?
-        loadRecordsEvent <- leftmost <$> sequence [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
-        asyncReq <- performRequestAsync (req <$> showGregorian <$> loadRecordsEvent)
-        let responseEvt = fmap readRemoteData asyncReq
-        -- the leftmost makes sure that we reset the respDyn to loading state when loadRecordsEvent is triggered.
-        respDyn <- holdDyn RemoteDataLoading $ leftmost [fmap (const RemoteDataLoading) loadRecordsEvent, responseEvt]
-        displayWarningBanner respDyn
+        rec
+            -- TODO getPostBuild ... maybe when the tab is loaded instead?
+            loadRecordsEvent <- leftmost <$> sequence [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
+            asyncReq <- performRequestAsync (req <$> showGregorian <$> loadRecordsEvent)
+            let responseEvt = fmap readRemoteData asyncReq
+            -- the leftmost makes sure that we reset the respDyn to loading state when loadRecordsEvent is triggered.
+            respDyn <- holdDyn RemoteDataLoading $ leftmost [fmap (const RemoteDataLoading) loadRecordsEvent, responseEvt]
+            displayWarningBanner respDyn
+            curDate <- addDatePicker
 
         elAttr "div" ("style" =: "display: flex; height: calc(100% - 50px); margin-top: 10px"
                       <> "overflow" =: "auto") $ do
@@ -160,6 +161,7 @@ displayWarningBanner respDyn = do
     let basicAttrs = "class" =: "alert alert-warning alert-dismissible" <> "role" =: "alert"
     let getErrorTxt = \case
             RemoteData (FetchResponse _ errors@(_:_)) -> Just (intercalate ", " errors)
+            RemoteDataInvalid msg -> Just msg
             _ -> Nothing
     errorTxtDyn <- mapDyn getErrorTxt respDyn
 
@@ -169,12 +171,12 @@ displayWarningBanner respDyn = do
         elAttr "button" ("type" =: "button" <> "class" =: "close" <> "data-dismiss" =: "alert") $ do
             void $ elDynHtmlAttr' "span" ("aria-hidden" =: "true") (constDyn "&times;")
             elAttr "span" ("class" =: "sr-only") $ text "Close"
-        el "strong" $ text "Warning!"
+        elAttr "strong" ("style" =: "padding-right: 7px") $ text "Error"
         el "span" $ dynText =<< mapDyn (fromMaybe "") errorTxtDyn
 
 -- https://m.reddit.com/r/reflexfrp/comments/3h3s72/rendering_dynamic_html_table/
 eventsTable :: MonadWidget t m => RemoteData FetchResponse -> m (Dynamic t (Maybe TsEvent))
-eventsTable (RemoteDataInvalid msg) = text msg >> return (constDyn Nothing)
+eventsTable (RemoteDataInvalid _) = return (constDyn Nothing)
 eventsTable RemoteDataLoading = return (constDyn Nothing)
 eventsTable (RemoteData (FetchResponse tsEvents errors)) =
     elAttr "div" ("style" =: "width: 500px; height: 100%; flex-shrink: 0") $

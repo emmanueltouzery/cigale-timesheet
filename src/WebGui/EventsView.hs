@@ -84,7 +84,7 @@ eventsView activeViewDyn = do
         -- TODO getPostBuild ... maybe when the tab is loaded instead?
         loadRecordsEvent <- leftmost <$> sequence [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
         asyncReq <- performRequestAsync (req <$> showGregorian <$> loadRecordsEvent)
-        let responseEvt = fmap (readRemoteData . decodeXhrResponse) asyncReq
+        let responseEvt = fmap readRemoteData asyncReq
         -- the leftmost makes sure that we reset the respDyn to loading state when loadRecordsEvent is triggered.
         respDyn <- holdDyn RemoteDataLoading $ leftmost [fmap (const RemoteDataLoading) loadRecordsEvent, responseEvt]
         displayWarningBanner respDyn
@@ -178,7 +178,7 @@ displayWarningBanner respDyn = do
 
 -- https://m.reddit.com/r/reflexfrp/comments/3h3s72/rendering_dynamic_html_table/
 eventsTable :: MonadWidget t m => RemoteData FetchResponse -> m (Dynamic t (Maybe TsEvent))
-eventsTable RemoteDataInvalid = text "Error reading the server's message!" >> return (constDyn Nothing)
+eventsTable (RemoteDataInvalid msg) = text msg >> return (constDyn Nothing)
 eventsTable RemoteDataLoading = return (constDyn Nothing)
 eventsTable (RemoteData (FetchResponse tsEvents errors)) =
     elAttr "div" ("style" =: "width: 500px; height: 100%; flex-shrink: 0") $

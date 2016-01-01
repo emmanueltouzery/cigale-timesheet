@@ -63,7 +63,7 @@ data FetchedData = FetchedData
 makeSimpleXhr :: (MonadWidget t m, FromJSON a) => String -> Event t b -> m (Dynamic t (RemoteData a))
 makeSimpleXhr url postBuild = do
     req <- performRequestAsync $ const (xhrRequest "GET" url def) <$> postBuild
-    holdDyn RemoteDataLoading $ fmap (readRemoteData . decodeXhrResponse) req
+    holdDyn RemoteDataLoading $ fmap readRemoteData req
 
 configView :: MonadWidget t m => Dynamic t ActiveView -> m ()
 configView activeViewDyn = do
@@ -79,7 +79,7 @@ configView activeViewDyn = do
 
 displayConfig :: MonadWidget t m => RemoteData FetchedData -> m ()
 displayConfig RemoteDataLoading = return ()
-displayConfig RemoteDataInvalid = text "Error loading the server data!"
+displayConfig (RemoteDataInvalid msg) = text msg
 displayConfig (RemoteData (FetchedData configDesc configVal)) = do
     -- add all providers editing modal dialog to add or edit.
     -- they are retrieved through their DOM ID, the provider name.
@@ -182,7 +182,7 @@ displaySectionItem pluginConfig@PluginConfig{..} dialogInfo ci@ConfigItem{..} =
             saveEvt <- saveConfigItem editConfigEvt
             let handleEditResponse = \case
                     RemoteDataLoading -> return ()
-                    RemoteDataInvalid -> postGui $ handleTrigger runWithActions "Oops" (pdErrorTrigger dialogInfo)
+                    RemoteDataInvalid msg -> postGui $ handleTrigger runWithActions msg (pdErrorTrigger dialogInfo)
                     (RemoteData x) -> liftIO $ hideModalDialog $ toJSString cfgPluginName -- TODO refresh display
             performEvent_ $ fmap (liftIO . handleEditResponse) saveEvt
         elAttr "div" ("class" =: "card-block") $
@@ -191,11 +191,11 @@ displaySectionItem pluginConfig@PluginConfig{..} dialogInfo ci@ConfigItem{..} =
 byteStringToString :: BS.ByteString -> String
 byteStringToString = map (chr . fromEnum) . BS.unpack
 
-saveConfigItem :: MonadWidget t m => Event t (String, ConfigItem) -> m (Event t (RemoteData String))
+saveConfigItem :: MonadWidget t m => Event t (String, ConfigItem) -> m (Event t (RemoteData ()))
 saveConfigItem configEditEvent = do
     let reqEvt = fmap buildXhrRequest configEditEvent
     req <- performRequestAsync reqEvt
-    return $ fmap (readRemoteData . decodeXhrResponse) req
+    return $ fmap readEmptyRemoteData req
 
 buildXhrRequest :: (String, ConfigItem) -> XhrRequest
 buildXhrRequest (oldConfigItemName, newConfigItem) =

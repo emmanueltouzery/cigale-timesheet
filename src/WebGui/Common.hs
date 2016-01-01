@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, LambdaCase, OverloadedStrings, JavaScriptFFI, ForeignFunctionInterface #-}
+{-# LANGUAGE ScopedTypeVariables, LambdaCase, OverloadedStrings, JavaScriptFFI, ForeignFunctionInterface, RecordWildCards #-}
 
 module Common where
 
@@ -8,12 +8,14 @@ import GHCJS.DOM.Element
 import Reflex.Dom
 import Data.Dependent.Sum (DSum ((:=>)))
 
+import Data.Maybe
 import Data.IORef
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Monoid
 import Data.Map (Map)
 import Control.Monad.IO.Class
+import Data.Aeson
 
 data ActiveView = ActiveViewEvents | ActiveViewConfig deriving (Eq, Show)
 
@@ -101,27 +103,41 @@ buildModalDialog modalId title okLabel modalBodyBuild errorEvent =
                     return (domEvent Click okEl, domEvent Click closeEl)
                 return $ ModalDialogResult bodyRes okEvt closeEvt
 
-data RemoteData a = RemoteDataInvalid | RemoteDataLoading | RemoteData a deriving Show
+data RemoteData a = RemoteDataInvalid String | RemoteDataLoading | RemoteData a deriving Show
 
 instance Functor RemoteData where
     fmap _ RemoteDataLoading = RemoteDataLoading
-    fmap _ RemoteDataInvalid = RemoteDataInvalid
+    fmap _ (RemoteDataInvalid x) = RemoteDataInvalid x
     fmap f (RemoteData a) = RemoteData (f a)
 
 instance Applicative RemoteData where
     pure = RemoteData
     RemoteData f <*> r = fmap f r
-    RemoteDataInvalid <*> _ = RemoteDataInvalid
+    (RemoteDataInvalid x) <*> _ = RemoteDataInvalid x
     RemoteDataLoading <*> _ = RemoteDataLoading
 
 instance Monad RemoteData where
-    RemoteDataInvalid >>= _ = RemoteDataInvalid
+    (RemoteDataInvalid x) >>= _ = RemoteDataInvalid x
     RemoteDataLoading >>= _ = RemoteDataLoading
     RemoteData x >>= f = f x
 
-readRemoteData :: Maybe a -> RemoteData a
-readRemoteData (Just x) = RemoteData x
-readRemoteData Nothing = RemoteDataInvalid
+readEmptyRemoteData :: XhrResponse -> RemoteData ()
+readEmptyRemoteData XhrResponse{..} = case _xhrResponse_status of
+    200 -> case _xhrResponse_body of
+        Nothing -> RemoteData ()
+        Just "" -> RemoteData ()
+        Just x -> RemoteDataInvalid $ "Expected empty response, got" <> T.unpack x
+    _ -> RemoteDataInvalid $ "HTTP response code " <> show _xhrResponse_status
+
+readRemoteData :: FromJSON a => XhrResponse -> RemoteData a
+readRemoteData XhrResponse{..} = case _xhrResponse_status of
+    200 -> case _xhrResponse_body of
+        Nothing -> RemoteDataInvalid "Empty server response"
+        Just rawData -> case decodeText rawData of
+            Nothing -> RemoteDataInvalid $
+                "JSON has invalid format: " <> T.unpack (fromMaybe "Nothing" _xhrResponse_body)
+            Just decoded -> RemoteData decoded
+    _ -> RemoteDataInvalid $ "HTTP response code " <> show _xhrResponse_status
 
 isRemoteDataLoading :: RemoteData a -> Bool
 isRemoteDataLoading RemoteDataLoading = True

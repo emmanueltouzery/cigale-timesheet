@@ -154,7 +154,9 @@ editConfigItem PluginConfig{..} =
 editConfigDataInfo :: MonadWidget t m => ConfigDataInfo -> m (String, TextInput t)
 editConfigDataInfo ConfigDataInfo{..} = do
     -- TODO different display based on member type: String, Text, ByteString, FilePath, FolderPath, Password
-    field <- fieldEntry memberName memberName
+    field <- case memberType of
+        "Password" -> passwordEntry memberName memberName
+        _ -> fieldEntry memberName memberName
     return (memberName, field)
 
 fieldEntry :: MonadWidget t m => String -> String -> m (TextInput t)
@@ -162,6 +164,14 @@ fieldEntry fieldId desc = do
     elAttr "label" ("for" =: fieldId) $ text desc
     textInput $ def
         & textInputConfig_attributes .~ constDyn ("id" =: fieldId <> "class" =: "form-control")
+
+-- TODO add button "show password"
+passwordEntry :: MonadWidget t m => String -> String -> m (TextInput t)
+passwordEntry fieldId desc = do
+    elAttr "label" ("for" =: fieldId) $ text desc
+    textInput $ def
+        & textInputConfig_attributes .~ constDyn ("id" =: fieldId <> "class" =: "form-control")
+        & textInputConfig_inputType .~ "password"
 
 buckets :: Ord b => (a -> b) -> [a] -> [(b, [a])]
 buckets f = map (\g -> (fst $ head g, map snd g))

@@ -142,3 +142,7 @@ readRemoteData XhrResponse{..} = case _xhrResponse_status of
 isRemoteDataLoading :: RemoteData a -> Bool
 isRemoteDataLoading RemoteDataLoading = True
 isRemoteDataLoading _ = False
+
+fromRemoteData :: RemoteData a -> Maybe a
+fromRemoteData (RemoteData x) = Just x
+fromRemoteData _ = Nothing

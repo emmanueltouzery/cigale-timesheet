@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, DeriveGeneric, LambdaCase, OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables, DeriveGeneric, LambdaCase, OverloadedStrings, RecordWildCards, RecursiveDo #-}
 
 module Config where
 
@@ -75,11 +75,43 @@ configView activeViewDyn = do
         cfgDescDyn <- makeSimpleXhr "/configdesc" postBuild
         cfgValDyn <- makeSimpleXhr "/configVal" postBuild
         readAllDyn <- combineDyn (liftA2 FetchedData) cfgDescDyn cfgValDyn
-        void $ mapDyn displayConfig readAllDyn >>= dyn
 
-displayConfig :: MonadWidget t m => RemoteData FetchedData -> m ()
-displayConfig RemoteDataLoading = return ()
-displayConfig (RemoteDataInvalid msg) = text msg
+        rec
+            configDataDyn <- foldDyn ($) RemoteDataLoading $ mergeWith (.)
+                [
+                    fmap const (updated readAllDyn),
+                    fmap updateConfigItem configUpdateEvt
+                ]
+
+            -- leaving the types here because I find that part confusing.
+            -- I think there must be a better way. Asked on #reflex-frp IRC
+            -- on 2015-01-02 without answer.
+            (render :: Dynamic t (m (Event t ConfigUpdate))) <- mapDyn displayConfig configDataDyn
+            (render2 :: Event t (Event t ConfigUpdate)) <- dyn render
+            (render3 :: Behavior t (Event t ConfigUpdate)) <- current <$> holdDyn never render2
+            -- delaying by 0.1s because... we are destroying the part of the
+            -- DOM tree containing the display. But that part also contains the
+            -- modal window. If we destroy it too early, it doesn't disappear
+            -- from the screen properly => delay a little. TODO: generate the modal
+            -- somewhere else, then we can drop that delay.
+            configUpdateEvt <- delay 0.1 $ switch render3
+        return ()
+
+data ConfigUpdate = ConfigUpdate
+     {
+         oldConfigItemName :: String,
+         newConfigItem :: ConfigItem
+     }
+
+updateConfigItem :: ConfigUpdate -> RemoteData FetchedData -> RemoteData FetchedData
+updateConfigItem (ConfigUpdate oldCiName newCi) (RemoteData (FetchedData desc val)) =
+    RemoteData (FetchedData desc updatedVal)
+    where updatedVal = newCi : filter ((/= oldCiName) . configItemName) val
+updateConfigItem _ soFar = soFar
+
+displayConfig :: MonadWidget t m => RemoteData FetchedData -> m (Event t ConfigUpdate)
+displayConfig RemoteDataLoading = return never
+displayConfig (RemoteDataInvalid msg) = text msg >> return never
 displayConfig (RemoteData (FetchedData configDesc configVal)) = do
     -- add all providers editing modal dialog to add or edit.
     -- they are retrieved through their DOM ID, the provider name.
@@ -88,7 +120,7 @@ displayConfig (RemoteData (FetchedData configDesc configVal)) = do
             fmap (first fromJust) $ filter (isJust . fst) $  -- only keep Just providers.
             fmap (first $ providerByName configDesc) $       -- replace provider name by provider (Maybe)
             buckets providerName configVal                   -- bucket by provider name
-    mapM_ (\(pluginConfig, configItems) ->
+    leftmost <$> mapM (\(pluginConfig, configItems) ->
             displayConfigSection pluginConfig configItems
             (fromJust $ Map.lookup (cfgPluginName pluginConfig) modalDialogInfos)) cfgByProvider
 
@@ -137,17 +169,18 @@ buckets f = map (\g -> (fst $ head g, map snd g))
           . sortBy (compare `on` fst)
           . map (\x -> (f x, x))
 
-displayConfigSection :: MonadWidget t m => PluginConfig -> [ConfigItem] -> ProviderDialogInfo t -> m ()
+displayConfigSection :: MonadWidget t m => PluginConfig -> [ConfigItem] -> ProviderDialogInfo t -> m (Event t ConfigUpdate)
 displayConfigSection secInfo secItems dialogInfo =
-    void $ elAttr "div" ("class" =: "card") $ do
+    elAttr "div" ("class" =: "card") $ do
         elAttr "h5" ("class" =: "card-header") $ text $ cfgPluginName secInfo
         elAttr "div" ("class" =: "card-block") $
-            mapM_ (displaySectionItem secInfo dialogInfo) secItems
+            leftmost <$> mapM (displaySectionItem secInfo dialogInfo) secItems
 
-displaySectionItem :: MonadWidget t m => PluginConfig -> ProviderDialogInfo t -> ConfigItem -> m ()
+-- TODO this function is too long. Try to get rid of the handleTrigger stuff.
+displaySectionItem :: MonadWidget t m => PluginConfig -> ProviderDialogInfo t -> ConfigItem -> m (Event t ConfigUpdate)
 displaySectionItem pluginConfig@PluginConfig{..} dialogInfo ci@ConfigItem{..} =
     elAttr "div" ("class" =: "card") $ do
-        elAttr "div" ("class" =: "card-header") $ do
+        cfgUpdEvt <- elAttr "div" ("class" =: "card-header") $ do
             postGui <- askPostGui
             runWithActions <- askRunWithActions
             text configItemName
@@ -171,34 +204,37 @@ displaySectionItem pluginConfig@PluginConfig{..} dialogInfo ci@ConfigItem{..} =
                     ]
             isDisplayed <- holdDyn False popupOpenCloseEvent
 
-            -- need IO to read the contents of the modal => build a new event
-            -- that I populate reading using IO.
-            (editConfigEvt, editConfigEvtTrigger) <- newEventWithTriggerRef
-            performEvent_ $ fmap
+            editConfigEvt <- performEvent $ fmap
                 (const $ liftIO $ do
                       dlgInfo <- readDialog dialogInfo pluginConfig
-                      postGui (handleTrigger runWithActions (configItemName, dlgInfo) editConfigEvtTrigger))
+                      return (ConfigUpdate configItemName dlgInfo))
                 $ gate (current isDisplayed) (pdOkEvent dialogInfo)
             saveEvt <- saveConfigItem editConfigEvt
             let handleEditResponse = \case
                     RemoteDataLoading -> return ()
                     RemoteDataInvalid msg -> postGui $ handleTrigger runWithActions msg (pdErrorTrigger dialogInfo)
-                    (RemoteData x) -> liftIO $ hideModalDialog $ toJSString cfgPluginName -- TODO refresh display
+                    (RemoteData _) -> liftIO $ hideModalDialog $ toJSString cfgPluginName
             performEvent_ $ fmap (liftIO . handleEditResponse) saveEvt
+
+            return $ fmapMaybe fromRemoteData saveEvt
         elAttr "div" ("class" =: "card-block") $
             pluginContents pluginConfig ci
+        return cfgUpdEvt
 
 byteStringToString :: BS.ByteString -> String
 byteStringToString = map (chr . fromEnum) . BS.unpack
 
-saveConfigItem :: MonadWidget t m => Event t (String, ConfigItem) -> m (Event t (RemoteData ()))
+saveConfigItem :: MonadWidget t m => Event t ConfigUpdate -> m (Event t (RemoteData ConfigUpdate))
 saveConfigItem configEditEvent = do
-    let reqEvt = fmap buildXhrRequest configEditEvent
-    req <- performRequestAsync reqEvt
-    return $ fmap readEmptyRemoteData req
+    -- take advantage of the Traversable instance for pairs, which
+    -- will apply the function to the second element only, to pass
+    -- on the ConfigUpdate besides the XhrResponse in the resulting event.
+    let reqEvt = fmap (\x -> (x, buildXhrRequest x)) configEditEvent
+    resp <- performRequestsAsync reqEvt
+    return $ fmap (\(cu, rsp) -> const cu <$> readEmptyRemoteData rsp) resp
 
-buildXhrRequest :: (String, ConfigItem) -> XhrRequest
-buildXhrRequest (oldConfigItemName, newConfigItem) =
+buildXhrRequest :: ConfigUpdate -> XhrRequest
+buildXhrRequest ConfigUpdate{..} =
     xhrRequest "PUT" url $ def { _xhrRequestConfig_sendData = xhrData }
     where
       xhrData = Just (byteStringToString $ encode newConfigItem)

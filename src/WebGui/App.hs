@@ -27,8 +27,6 @@ foreign import javascript unsafe "window.location.hash.substr(1)" getLocationHas
 css :: ByteString
 css = BS.intercalate "\n"
       [
-          "html { height: 100%;}",
-          "html > body { overflow: hidden; position:absolute; top:0; bottom:0; right:0; left:0; padding-top: 10px; padding-left: 10px;}",
           ".ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
           "#pleasehold { position: absolute; width: 200px; height: 50px; background: aliceblue; text-align: center; top: 50%; left: 50%; margin-left: -100px; margin-top: -25px; line-height: 50px; z-index: 2001; }"
       ]

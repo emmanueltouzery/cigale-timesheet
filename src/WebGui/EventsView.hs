@@ -78,7 +78,10 @@ instance FromJSON FetchResponse
 
 eventsView :: MonadWidget t m => Dynamic t ActiveView -> m ()
 eventsView activeViewDyn = do
-    attrsDyn <- mapDyn (\curView -> styleWithHideIf (curView /= ActiveViewEvents) "height: 100%;") activeViewDyn
+    let cssPos = "overflow: hidden; position: absolute; bottom 0; right: 0; left: 0;"
+    -- TODO the hardcoded 70px is no good! (height of navigation bar)
+    attrsDyn <- mapDyn (\curView -> styleWithHideIf (curView /= ActiveViewEvents)
+                                    ("height: calc(100% - 70px);" <> cssPos)) activeViewDyn
     elDynAttr "div" attrsDyn $ do
         let req url = xhrRequest "GET" ("/timesheet/" ++ url) def
         rec
@@ -91,7 +94,8 @@ eventsView activeViewDyn = do
             displayWarningBanner respDyn
             curDate <- addDatePicker
 
-        elAttr "div" ("style" =: "display: flex; height: calc(100% - 50px); margin-top: 10px"
+        -- TODO 40px is ugly (date picker height)
+        elAttr "div" ("style" =: "display: flex; height: calc(100% - 40px); margin-top: 10px"
                       <> "overflow" =: "auto") $ do
             -- that's a mess. Surely there must be a better way to extract the event from the table.
             curEvtDyn <- joinDyn <$> (mapDyn eventsTable respDyn >>= dyn >>= holdDyn (constDyn Nothing))
@@ -190,6 +194,8 @@ eventsTable (RemoteData (FetchResponse tsEvents errors)) =
 showRecord :: MonadWidget t m => Dynamic t (Maybe TsEvent) -> TsEvent -> m (Event t TsEvent)
 showRecord curEventDyn tsEvt@TsEvent{..} = do
     rowAttrs <- mapDyn (\curEvt -> "class" =: if curEvt == Just tsEvt then "table-active" else "") curEventDyn
+    -- TODO date is currently displayed in UTC
+    -- TODO nicer layout & icon.
     (e, _) <- elDynAttr' "tr" rowAttrs $ do
         el "td" $ text $ formatTime defaultTimeLocale "%R" eventDate
         elAttr "td" ("style" =: "height: 60px; width: 500px;") $

@@ -90,7 +90,8 @@ configView activeViewDyn = do
             -- DOM tree containing the display. But that part also contains the
             -- modal window. If we destroy it too early, it doesn't disappear
             -- from the screen properly => delay a little. TODO: generate the modal
-            -- somewhere else, then we can drop that delay.
+            -- somewhere else, then we can drop that delay, or block the updateconfig event
+            -- until the popup was closed to the end.
             configUpdateEvt <- delay 0.1 $ switch render3
         return ()
 

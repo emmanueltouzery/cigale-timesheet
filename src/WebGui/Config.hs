@@ -209,7 +209,7 @@ displaySectionItem pluginConfig@PluginConfig{..} dialogInfo ci@ConfigItem{..} =
             editConfigEvt <- performEvent $ fmap
                 (const $ do
                       bodyR <- sample $ current $ bodyResult dialogInfo
-                      dlgInfo <- liftIO $ readDialog bodyR pluginConfig
+                      dlgInfo <- readDialog bodyR pluginConfig
                       return (ConfigUpdate configItemName dlgInfo))
                 $ gate (current isDisplayed) (okEvent dialogInfo)
             saveEvt <- saveConfigItem editConfigEvt
@@ -247,14 +247,15 @@ buildXhrRequest ConfigUpdate{..} =
       xhrData = Just (byteStringToString $ encode newConfigItem)
       url = "/config?oldConfigItemName=" <> oldConfigItemName
 
--- TODO read from the dynamics instead, without the IO monad and ghcjs-dom unwrapping!
-readDialog :: Maybe (TextInput t, Map String (TextInput t)) -> PluginConfig -> IO ConfigItem
+readDialog :: MonadSample t m =>
+              Maybe (TextInput t, Map String (TextInput t)) -> PluginConfig
+              -> m ConfigItem
 readDialog (Just (nameInput, cfgInputs)) PluginConfig{..} = do
-    newName <- htmlInputElementGetValue $ _textInput_element nameInput
+    newName <- sample $ current $ _textInput_value nameInput
     cfgList <- sequence $ flip map cfgPluginConfig $ \cfgDataInfo -> do
         let mName = memberName cfgDataInfo
         let inputField = fromJust $ Map.lookup mName cfgInputs
-        val <- htmlInputElementGetValue (_textInput_element inputField)
+        val <- sample $ current $ _textInput_value inputField
         return (T.pack mName, A.String $ T.pack val)
     return $ ConfigItem newName cfgPluginName (HashMap.fromList cfgList)
 

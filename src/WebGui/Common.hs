@@ -128,6 +128,7 @@ readEmptyRemoteData XhrResponse{..} = case _xhrResponse_status of
         Just "" -> RemoteData ()
         Just x -> RemoteDataInvalid $ "Expected empty response, got" <> T.unpack x
     _ -> RemoteDataInvalid $ "HTTP response code " <> show _xhrResponse_status
+             <> "; details: " <> T.unpack (fromMaybe "none" _xhrResponse_body)
 
 readRemoteData :: FromJSON a => XhrResponse -> RemoteData a
 readRemoteData XhrResponse{..} = case _xhrResponse_status of
@@ -138,6 +139,7 @@ readRemoteData XhrResponse{..} = case _xhrResponse_status of
                 "JSON has invalid format: " <> T.unpack (fromMaybe "Nothing" _xhrResponse_body)
             Just decoded -> RemoteData decoded
     _ -> RemoteDataInvalid $ "HTTP response code " <> show _xhrResponse_status
+             <> "; details: " <> T.unpack (fromMaybe "none" _xhrResponse_body)
 
 isRemoteDataLoading :: RemoteData a -> Bool
 isRemoteDataLoading RemoteDataLoading = True

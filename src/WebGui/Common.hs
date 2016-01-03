@@ -66,14 +66,14 @@ handleTrigger runWithActions v trigger = liftIO (readIORef trigger) >>= \case
 
 data ModalDialogResult t a = ModalDialogResult
      {
-         bodyResult :: a,
+         bodyResult :: Dynamic t (Maybe a),
          okEvent    :: Event t (),
          closeEvent :: Event t ()
      }
 
 buildModalDialog :: MonadWidget t m => String -> String -> String
-                 -> m a -> Maybe (Event t String) -> m (ModalDialogResult t a)
-buildModalDialog modalId title okLabel modalBodyBuild errorEvent =
+                 -> Event t (m (Maybe a)) -> Maybe (Event t String) -> m (ModalDialogResult t a)
+buildModalDialog modalId title okLabel contentsEvent errorEvent =
     elAttr "div" ("class" =: "modal fade" <> "id" =: modalId) $
         elAttr "div" ("class" =: "modal-dialog" <> "role" =: "document") $
             elAttr "div" ("class" =: "modal-content") $ do
@@ -91,7 +91,7 @@ buildModalDialog modalId title okLabel modalBodyBuild errorEvent =
                             elDynAttr "div" dynAttrs $ do
                                 elAttr "strong" ("style" =: "padding-right: 7px") $ text "Error"
                                 dynText dynErrMsg
-                    modalBodyBuild
+                    widgetHold (return Nothing) contentsEvent
                 (okEvt, closeEvt)  <- elAttr "div" ("class" =: "modal-footer") $ do
                     (closeEl, _) <- elAttr' "button" ("type" =: "button"
                                                       <> "class" =: "btn btn-secondary"
@@ -144,6 +144,10 @@ readRemoteData XhrResponse{..} = case _xhrResponse_status of
 isRemoteDataLoading :: RemoteData a -> Bool
 isRemoteDataLoading RemoteDataLoading = True
 isRemoteDataLoading _ = False
+
+remoteDataInvalidDesc :: RemoteData a -> Maybe String
+remoteDataInvalidDesc (RemoteDataInvalid x) = Just x
+remoteDataInvalidDesc _ = Nothing
 
 fromRemoteData :: RemoteData a -> Maybe a
 fromRemoteData (RemoteData x) = Just x

@@ -6,13 +6,11 @@ import GHCJS.DOM.HTMLInputElement
 import GHCJS.Foreign
 
 import Reflex.Dom
-import Reflex.Host.Class
 
 import Data.Aeson as A
 import Data.Aeson.Types as A
 import GHC.Generics
 import Control.Applicative
-import Control.Monad
 import Data.List
 import Data.Function
 import Data.Maybe
@@ -25,7 +23,6 @@ import qualified Data.Map as Map
 import Control.Monad.IO.Class
 import qualified Data.ByteString.Lazy as BS
 import Data.Char
-import Data.IORef
 
 import Common
 
@@ -113,65 +110,57 @@ displayConfig :: MonadWidget t m => RemoteData FetchedData -> m (Event t ConfigU
 displayConfig RemoteDataLoading = return never
 displayConfig (RemoteDataInvalid msg) = text msg >> return never
 displayConfig (RemoteData (FetchedData configDesc configVal)) = do
-    -- add all providers editing modal dialog to add or edit.
-    -- they are retrieved through their DOM ID, the provider name.
-    modalDialogInfos <- Map.fromList <$> mapM addProviderDialog configDesc
-    let cfgByProvider =
-            fmap (first fromJust) $ filter (isJust . fst) $  -- only keep Just providers.
-            fmap (first $ providerByName configDesc) $       -- replace provider name by provider (Maybe)
-            buckets providerName configVal                   -- bucket by provider name
-    leftmost <$> mapM (\(pluginConfig, configItems) ->
-            displayConfigSection pluginConfig configItems
-            (fromJust $ Map.lookup (cfgPluginName pluginConfig) modalDialogInfos)) cfgByProvider
+    rec
+        let modalDialogInfo = Map.fromList $ map
+                (\pn -> (pn, buildModalDialog pn "Edit" "Save" modalDlgEvt (Just errorEvent)))
+                (cfgPluginName <$> configDesc)
+        let cfgByProvider =
+                fmap (first fromJust) $ filter (isJust . fst) $  -- only keep Just providers.
+                fmap (first $ providerByName configDesc) $       -- replace provider name by provider (Maybe)
+                buckets providerName configVal                   -- bucket by provider name
+        (editConfigEvt, modalDlgEvt, errorEvent) <-
+            mergeEvents3 <$> mapM (\(pluginConfig, configItems) -> do
+                modalDialog <- fromJust $ Map.lookup (cfgPluginName pluginConfig) modalDialogInfo
+                displayConfigSection pluginConfig configItems modalDialog) cfgByProvider
+    return editConfigEvt
 
 providerByName :: [PluginConfig] -> String -> Maybe PluginConfig
 providerByName pluginConfigs name = find ((== name) . cfgPluginName) pluginConfigs
 
-data ProviderDialogInfo t = ProviderDialogInfo
-     {
-         pdProviderName :: String,
-         pdSourceNameEntry :: TextInput t,
-         pdTextEntries :: Map String (TextInput t),
-         pdOkEvent :: Event t (),
-         pdCloseEvent :: Event t (),
-         pdErrorTrigger :: IORef (Maybe (EventTrigger t String))
-     }
+type EditConfigItemRender t = (TextInput t, Map String (TextInput t))
+type EditConfigItemModal m t = m (Maybe (EditConfigItemRender t))
 
-addProviderDialog :: MonadWidget t m => PluginConfig -> m (String, ProviderDialogInfo t)
-addProviderDialog pluginConfig@PluginConfig{..} = do
-     (errorDisplayEvt, errorDisplayEvtTrigger) <- newEventWithTriggerRef
-     modalResult <- buildModalDialog cfgPluginName "Edit" "Save" (editConfigItem pluginConfig) (Just errorDisplayEvt)
-     let (srcNameInput, fieldInputs) = bodyResult modalResult
-     return (cfgPluginName, ProviderDialogInfo cfgPluginName srcNameInput fieldInputs (okEvent modalResult) (closeEvent modalResult) errorDisplayEvtTrigger)
-
-editConfigItem :: MonadWidget t m => PluginConfig -> m (TextInput t, Map String (TextInput t))
-editConfigItem PluginConfig{..} =
+editConfigItem :: MonadWidget t m => PluginConfig -> ConfigItem -> EditConfigItemModal m t
+editConfigItem PluginConfig{..} ConfigItem{..} =
     el "form" $ do
-        srcNameInput <- elAttr "fieldset" ("class" =: "form-group") $ fieldEntry "sourceName" "Enter source name:"
-        fieldInputs  <- Map.fromList <$> mapM editConfigDataInfo cfgPluginConfig
-        return (srcNameInput, fieldInputs)
+        srcNameInput <- elAttr "fieldset" ("class" =: "form-group") $ fieldEntry "sourceName" "Enter source name:" configItemName
+        fieldInputs  <- Map.fromList <$> mapM (editConfigDataInfo configuration) cfgPluginConfig
+        return $ Just (srcNameInput, fieldInputs)
 
-editConfigDataInfo :: MonadWidget t m => ConfigDataInfo -> m (String, TextInput t)
-editConfigDataInfo ConfigDataInfo{..} = do
+editConfigDataInfo :: MonadWidget t m => A.Object -> ConfigDataInfo -> m (String, TextInput t)
+editConfigDataInfo obj ConfigDataInfo{..} = do
     -- TODO different display based on member type: String, Text, ByteString, FilePath, FolderPath, Password
+    let fieldValue = readObjectField memberName obj
     field <- case memberType of
-        "Password" -> passwordEntry memberName memberName
-        _ -> fieldEntry memberName memberName
+        "Password" -> passwordEntry memberName memberName fieldValue
+        _ -> fieldEntry memberName memberName fieldValue
     return (memberName, field)
 
-fieldEntry :: MonadWidget t m => String -> String -> m (TextInput t)
-fieldEntry fieldId desc = do
+fieldEntry :: MonadWidget t m => String -> String -> String -> m (TextInput t)
+fieldEntry fieldId desc fieldValue = do
     elAttr "label" ("for" =: fieldId) $ text desc
     textInput $ def
         & textInputConfig_attributes .~ constDyn ("id" =: fieldId <> "class" =: "form-control")
+        & textInputConfig_initialValue .~ fieldValue
 
 -- TODO add button "show password"
-passwordEntry :: MonadWidget t m => String -> String -> m (TextInput t)
-passwordEntry fieldId desc = do
+passwordEntry :: MonadWidget t m => String -> String -> String -> m (TextInput t)
+passwordEntry fieldId desc fieldValue = do
     elAttr "label" ("for" =: fieldId) $ text desc
     textInput $ def
         & textInputConfig_attributes .~ constDyn ("id" =: fieldId <> "class" =: "form-control")
         & textInputConfig_inputType .~ "password"
+        & textInputConfig_initialValue .~ fieldValue
 
 buckets :: Ord b => (a -> b) -> [a] -> [(b, [a])]
 buckets f = map (\g -> (fst $ head g, map snd g))
@@ -179,57 +168,65 @@ buckets f = map (\g -> (fst $ head g, map snd g))
           . sortBy (compare `on` fst)
           . map (\x -> (f x, x))
 
-displayConfigSection :: MonadWidget t m => PluginConfig -> [ConfigItem] -> ProviderDialogInfo t -> m (Event t ConfigUpdate)
+displayConfigSection :: MonadWidget t m => PluginConfig -> [ConfigItem] -> ModalDialogResult t (EditConfigItemRender t)
+                     -> m (Event t ConfigUpdate, Event t (EditConfigItemModal m t), Event t String)
 displayConfigSection secInfo secItems dialogInfo =
     elAttr "div" ("class" =: "card") $ do
         elAttr "h5" ("class" =: "card-header") $ text $ cfgPluginName secInfo
         elAttr "div" ("class" =: "card-block") $
-            leftmost <$> mapM (displaySectionItem secInfo dialogInfo) secItems
+            mergeEvents3 <$> mapM (displaySectionItem secInfo dialogInfo) secItems
 
--- TODO this function is too long. Try to get rid of the handleTrigger stuff.
-displaySectionItem :: MonadWidget t m => PluginConfig -> ProviderDialogInfo t -> ConfigItem -> m (Event t ConfigUpdate)
+mergeEvents3 :: Reflex t => [(Event t a, Event t b, Event t c)] -> (Event t a, Event t b, Event t c)
+mergeEvents3 evts = (leftmost $ fmap (\(a,_,_) -> a) evts,
+                     leftmost $ fmap (\(_,b,_) -> b) evts,
+                     leftmost $ fmap (\(_,_,c) -> c) evts)
+
+displaySectionItem :: MonadWidget t m => PluginConfig -> ModalDialogResult t (EditConfigItemRender t) -> ConfigItem
+                   -> m (Event t ConfigUpdate, Event t (EditConfigItemModal m t), Event t String)
 displaySectionItem pluginConfig@PluginConfig{..} dialogInfo ci@ConfigItem{..} =
     elAttr "div" ("class" =: "card") $ do
-        cfgUpdEvt <- elAttr "div" ("class" =: "card-header") $ do
-            postGui <- askPostGui
-            runWithActions <- askRunWithActions
+        (cfgUpdEvt, modalEvt, errorEvent) <- elAttr "div" ("class" =: "card-header") $ do
             text configItemName
-            (editBtn, _) <- elAttr' "button" ("class" =: "btn btn-default btn-sm"
+            (deleteBtn, _) <- elAttr' "button" ("class" =: "btn btn-danger btn-sm"
                                               <> "style" =: "float: right"
                                               <> "data-toggle" =: "modal"
+                                              <> "data-target" =: ("#delete-" <> cfgPluginName)) $ text "Delete"
+            (editBtn, _) <- elAttr' "button" ("class" =: "btn btn-default btn-sm"
+                                              <> "style" =: "float: right; margin-right: 5px"
+                                              <> "data-toggle" =: "modal"
                                               <> "data-target" =: ("#" <> cfgPluginName)) $ text "Edit"
-            performEvent_ $ fmap
-                (const $ liftIO $ do
-                      -- remove error displays
-                      postGui $ handleTrigger runWithActions "" (pdErrorTrigger dialogInfo)
-                      -- fill the dialog
-                      fillDialog dialogInfo ci) $
-                domEvent Click editBtn
+            let modalEvent = fmap (const $ editConfigItem pluginConfig ci) $ domEvent Click editBtn
+
             -- to save, i give to the server the old name and the new full ConfigItem.
             -- listen to the OK & close events. stop listening to OK on close (using gate)
             let popupOpenCloseEvent = leftmost
                     [
                         fmap (const True) $ domEvent Click editBtn,
-                        fmap (const False) $ pdCloseEvent dialogInfo
+                        fmap (const False) $ closeEvent dialogInfo
                     ]
             isDisplayed <- holdDyn False popupOpenCloseEvent
 
             editConfigEvt <- performEvent $ fmap
-                (const $ liftIO $ do
-                      dlgInfo <- readDialog dialogInfo pluginConfig
+                (const $ do
+                      bodyR <- sample $ current $ bodyResult dialogInfo
+                      dlgInfo <- liftIO $ readDialog bodyR pluginConfig
                       return (ConfigUpdate configItemName dlgInfo))
-                $ gate (current isDisplayed) (pdOkEvent dialogInfo)
+                $ gate (current isDisplayed) (okEvent dialogInfo)
             saveEvt <- saveConfigItem editConfigEvt
+            let errorEvt = fmapMaybe remoteDataInvalidDesc saveEvt
+            -- whenever the user opens the modal, we want to clear the error display.
+            let errorEvtWithClear = leftmost [errorEvt, fmap (const "") modalEvent]
+
+            -- maybe should be handled through normal events.
             let handleEditResponse = \case
-                    RemoteDataLoading -> return ()
-                    RemoteDataInvalid msg -> postGui $ handleTrigger runWithActions msg (pdErrorTrigger dialogInfo)
                     (RemoteData _) -> liftIO $ hideModalDialog $ toJSString cfgPluginName
+                    _ -> return ()
             performEvent_ $ fmap (liftIO . handleEditResponse) saveEvt
 
-            return $ fmapMaybe fromRemoteData saveEvt
+            return (fmapMaybe fromRemoteData saveEvt, modalEvent, errorEvtWithClear)
         elAttr "div" ("class" =: "card-block") $
             pluginContents pluginConfig ci
-        return cfgUpdEvt
+        return (cfgUpdEvt, modalEvt, errorEvent)
 
 byteStringToString :: BS.ByteString -> String
 byteStringToString = map (chr . fromEnum) . BS.unpack
@@ -250,20 +247,13 @@ buildXhrRequest ConfigUpdate{..} =
       xhrData = Just (byteStringToString $ encode newConfigItem)
       url = "/config?oldConfigItemName=" <> oldConfigItemName
 
--- this is almost certainly not the proper way to do this with reflex...
-fillDialog :: ProviderDialogInfo t -> ConfigItem -> IO ()
-fillDialog dialogInfo ConfigItem{..} = do
-    htmlInputElementSetValue (_textInput_element $ pdSourceNameEntry dialogInfo) configItemName
-    forM_ (HashMap.keys configuration) $ \key -> do
-        let txtInput = fromJust $ Map.lookup (T.unpack key) (pdTextEntries dialogInfo)
-        htmlInputElementSetValue (_textInput_element txtInput) (readObjectField (T.unpack key) configuration)
-
-readDialog :: ProviderDialogInfo t -> PluginConfig -> IO ConfigItem
-readDialog dialogInfo PluginConfig{..} = do
-    newName <- htmlInputElementGetValue $ _textInput_element $ pdSourceNameEntry dialogInfo
+-- TODO read from the dynamics instead, without the IO monad and ghcjs-dom unwrapping!
+readDialog :: Maybe (TextInput t, Map String (TextInput t)) -> PluginConfig -> IO ConfigItem
+readDialog (Just (nameInput, cfgInputs)) PluginConfig{..} = do
+    newName <- htmlInputElementGetValue $ _textInput_element nameInput
     cfgList <- sequence $ flip map cfgPluginConfig $ \cfgDataInfo -> do
         let mName = memberName cfgDataInfo
-        let inputField = fromJust $ Map.lookup mName $ pdTextEntries dialogInfo
+        let inputField = fromJust $ Map.lookup mName cfgInputs
         val <- htmlInputElementGetValue (_textInput_element inputField)
         return (T.pack mName, A.String $ T.pack val)
     return $ ConfigItem newName cfgPluginName (HashMap.fromList cfgList)

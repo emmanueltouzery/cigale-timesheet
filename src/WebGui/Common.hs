@@ -3,10 +3,13 @@
 module Common where
 
 import GHCJS.Types
+import GHCJS.Foreign
 import GHCJS.DOM.Element
+import GHCJS.DOM.Types hiding (Text, Event)
 
 import Reflex.Dom
 import Data.Dependent.Sum (DSum ((:=>)))
+import Reflex.Host.Class
 
 import Data.Maybe
 import Data.IORef
@@ -20,6 +23,10 @@ import Data.Aeson
 data ActiveView = ActiveViewEvents | ActiveViewConfig deriving (Eq, Show)
 
 foreign import javascript unsafe "$('#'+$1).modal('hide')" hideModalDialog :: JSString -> IO ()
+
+foreign import javascript unsafe
+    "$($1).on('hidden.bs.modal', $2)"
+    onModalHidden :: JSRef Element -> JSFun(IO ()) -> IO ()
 
 eltStripClass :: IsElement self => self -> Text -> IO ()
 eltStripClass elt className = do
@@ -66,15 +73,16 @@ handleTrigger runWithActions v trigger = liftIO (readIORef trigger) >>= \case
 
 data ModalDialogResult t a = ModalDialogResult
      {
-         bodyResult :: Dynamic t (Maybe a),
-         okEvent    :: Event t (),
-         closeEvent :: Event t ()
+         bodyResult    ::  Dynamic t (Maybe a),
+         okBtnEvent    ::  Event t (),
+         closeBtnEvent ::  Event t (),
+         closedEvent   :: Event t ()
      }
 
 buildModalDialog :: MonadWidget t m => String -> String -> String
                  -> Event t (m (Maybe a)) -> Maybe (Event t String) -> m (ModalDialogResult t a)
-buildModalDialog modalId title okLabel contentsEvent errorEvent =
-    elAttr "div" ("class" =: "modal fade" <> "id" =: modalId) $
+buildModalDialog modalId title okLabel contentsEvent errorEvent = do
+    (modalDiv, (br, oke, ce)) <- elAttr' "div" ("class" =: "modal fade" <> "id" =: modalId) $
         elAttr "div" ("class" =: "modal-dialog" <> "role" =: "document") $
             elAttr "div" ("class" =: "modal-content") $ do
                 elAttr "div" ("class" =: "modal-header") $
@@ -101,7 +109,16 @@ buildModalDialog modalId title okLabel contentsEvent errorEvent =
                                                    <> "class" =: "btn btn-primary")
                         $ text okLabel
                     return (domEvent Click okEl, domEvent Click closeEl)
-                return $ ModalDialogResult bodyRes okEvt closeEvt
+                return (bodyRes, okEvt, closeEvt)
+    -- now prepare the event for when the dialog gets closed
+    (closedEvent, closedEvtTrigger) <- newEventWithTriggerRef
+    postGui <- askPostGui
+    runWithActions <- askRunWithActions
+    liftIO $ do
+        hiddenCb <- syncCallback AlwaysRetain False $
+            postGui $ handleTrigger runWithActions () closedEvtTrigger
+        onModalHidden (unElement $ toElement $ _el_element modalDiv) hiddenCb
+    return $ ModalDialogResult br oke ce closedEvent
 
 data RemoteData a = RemoteDataInvalid String | RemoteDataLoading | RemoteData a deriving Show
 

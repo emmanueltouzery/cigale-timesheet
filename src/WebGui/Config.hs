@@ -2,7 +2,6 @@
 
 module Config where
 
-import GHCJS.DOM.HTMLInputElement
 import GHCJS.Foreign
 
 import Reflex.Dom
@@ -86,13 +85,7 @@ configView activeViewDyn = do
             (render :: Dynamic t (m (Event t ConfigUpdate))) <- mapDyn displayConfig configDataDyn
             (render2 :: Event t (Event t ConfigUpdate)) <- dyn render
             (render3 :: Behavior t (Event t ConfigUpdate)) <- current <$> holdDyn never render2
-            -- delaying by 0.1s because... we are destroying the part of the
-            -- DOM tree containing the display. But that part also contains the
-            -- modal window. If we destroy it too early, it doesn't disappear
-            -- from the screen properly => delay a little. TODO: generate the modal
-            -- somewhere else, then we can drop that delay, or block the updateconfig event
-            -- until the popup was closed to the end.
-            configUpdateEvt <- delay 0.1 $ switch render3
+            let configUpdateEvt = switch render3
         return ()
 
 data ConfigUpdate = ConfigUpdate
@@ -203,28 +196,38 @@ displaySectionItem pluginConfig@PluginConfig{..} dialogInfo ci@ConfigItem{..} =
             let popupOpenCloseEvent = leftmost
                     [
                         fmap (const True) $ domEvent Click editBtn,
-                        fmap (const False) $ closeEvent dialogInfo
+                        fmap (const False) $ closeBtnEvent dialogInfo
                     ]
             isDisplayed <- holdDyn False popupOpenCloseEvent
 
-            editConfigEvt <- performEvent $ fmap
-                (const $ do
-                      bodyR <- sample $ current $ bodyResult dialogInfo
-                      dlgInfo <- readDialog bodyR pluginConfig
-                      return (ConfigUpdate configItemName dlgInfo))
-                $ gate (current isDisplayed) (okEvent dialogInfo)
-            saveEvt <- saveConfigItem editConfigEvt
-            let errorEvt = fmapMaybe remoteDataInvalidDesc saveEvt
-            -- whenever the user opens the modal, we want to clear the error display.
-            let errorEvtWithClear = leftmost [errorEvt, fmap (const "") modalEvent]
+            rec
+                -- first set up some events that'll trigger after saving
 
-            -- maybe should be handled through normal events.
-            let handleEditResponse = \case
-                    (RemoteData _) -> liftIO $ hideModalDialog $ toJSString cfgPluginName
-                    _ -> return ()
-            performEvent_ $ fmap (liftIO . handleEditResponse) saveEvt
+                let errorEvt = fmapMaybe remoteDataInvalidDesc saveEvt
+                -- whenever the user opens the modal, we want to clear the error display.
+                let errorEvtWithClear = leftmost [errorEvt, fmap (const "") modalEvent]
 
-            return (fmapMaybe fromRemoteData saveEvt, modalEvent, errorEvtWithClear)
+                let savedCfgChangeEvt = fmapMaybe fromRemoteData saveEvt
+                -- request to close the dialog upon success
+                performEvent_ $ fmap (const $ liftIO $
+                      hideModalDialog $ toJSString cfgPluginName) savedCfgChangeEvt
+                -- trigger the config update event to refresh the display
+                -- when the dialog is actually closed, and if the save info is present.
+                -- (when we refresh, the modal gets removed from the DOM
+                -- and doesn't disappear properly)
+                saveInfoDyn <- holdDyn Nothing $ fmap Just savedCfgChangeEvt
+                let cfgUpdEvt = fmapMaybe id $ tagDyn saveInfoDyn (closedEvent dialogInfo)
+
+                -- now trigger the actual saving
+                editConfigEvt <- performEvent $ fmap
+                    (const $ do
+                          bodyR <- sample $ current $ bodyResult dialogInfo
+                          dlgInfo <- readDialog bodyR pluginConfig
+                          return (ConfigUpdate configItemName dlgInfo))
+                    $ gate (current isDisplayed) (okBtnEvent dialogInfo)
+                saveEvt <- saveConfigItem editConfigEvt
+
+            return (cfgUpdEvt, modalEvent, errorEvtWithClear)
         elAttr "div" ("class" =: "card-block") $
             pluginContents pluginConfig ci
         return (cfgUpdEvt, modalEvt, errorEvent)

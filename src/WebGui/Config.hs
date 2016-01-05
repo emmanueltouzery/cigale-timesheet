@@ -219,12 +219,9 @@ displaySectionItem pluginConfig@PluginConfig{..} dialogInfo ci@ConfigItem{..} =
                 let cfgUpdEvt = fmapMaybe id $ tagDyn saveInfoDyn (closedEvent dialogInfo)
 
                 -- now trigger the actual saving
-                editConfigEvt <- performEvent $ fmap
-                    (const $ do
-                          bodyR <- sample $ current $ bodyResult dialogInfo
-                          dlgInfo <- readDialog bodyR pluginConfig
-                          return (ConfigUpdate configItemName dlgInfo))
-                    $ gate (current isDisplayed) (okBtnEvent dialogInfo)
+                editConfigEvt <- fmapMaybe id <$> performEvent (fmap
+                    (const $ readDialogInfo dialogInfo pluginConfig configItemName)
+                    $ gate (current isDisplayed) (okBtnEvent dialogInfo))
                 saveEvt <- saveConfigItem editConfigEvt
 
             return (cfgUpdEvt, modalEvent, errorEvtWithClear)
@@ -251,10 +248,22 @@ buildXhrRequest ConfigUpdate{..} =
       xhrData = Just (byteStringToString $ encode newConfigItem)
       url = "/config?oldConfigItemName=" <> oldConfigItemName
 
+
+readDialogInfo :: MonadSample t m =>
+                  ModalDialogResult t (TextInput t, Map String (TextInput t))
+                  -> PluginConfig -> String -> m (Maybe ConfigUpdate)
+readDialogInfo dialogInfo pluginConfig configItemName = do
+    bodyR <- sample $ current $ bodyResult dialogInfo
+    case bodyR of
+        Nothing -> return Nothing
+        Just bodyR_ -> do
+            dlgInfo <- readDialog bodyR_ pluginConfig
+            return (Just $ ConfigUpdate configItemName dlgInfo)
+
 readDialog :: MonadSample t m =>
-              Maybe (TextInput t, Map String (TextInput t)) -> PluginConfig
+              (TextInput t, Map String (TextInput t)) -> PluginConfig
               -> m ConfigItem
-readDialog (Just (nameInput, cfgInputs)) PluginConfig{..} = do
+readDialog (nameInput, cfgInputs) PluginConfig{..} = do
     newName <- sample $ current $ _textInput_value nameInput
     cfgList <- sequence $ flip map cfgPluginConfig $ \cfgDataInfo -> do
         let mName = memberName cfgDataInfo

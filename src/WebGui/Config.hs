@@ -178,7 +178,7 @@ displaySectionItem pluginConfig@PluginConfig{..} ci@ConfigItem{..} =
 addEditButton :: MonadWidget t m => PluginConfig -> ConfigItem -> m (Event t ConfigUpdate)
 addEditButton pluginConfig@PluginConfig{..} ci@ConfigItem{..} = do
     rec
-        dialogInfo <- buildModalDialog cfgPluginName "Edit" "Save"
+        dialogInfo <- buildModalDialog "Edit" "Save"
             (Just errorEvt) (editConfigItem pluginConfig ci)
 
         (editBtn, _) <- elAttr' "button" ("class" =: "btn btn-default btn-sm"

@@ -89,10 +89,10 @@ data ModalDialogResult t a = ModalDialogResult
          closedEvent   :: Event t ()
      }
 
-buildModalDialog :: MonadWidget t m => String -> String -> String
+buildModalDialog :: MonadWidget t m => String -> String
                  -> Maybe (Event t String) -> m a -> m (ModalDialogResult t a)
-buildModalDialog modalId title okLabel errorEvent contents = do
-    (modalDiv, (br, oke, ce)) <- elAttr' "div" ("class" =: "modal fade" <> "id" =: modalId) $
+buildModalDialog title okLabel errorEvent contents = do
+    (modalDiv, (br, oke, ce)) <- elAttr' "div" ("class" =: "modal fade") $
         elAttr "div" ("class" =: "modal-dialog" <> "role" =: "document") $
             elAttr "div" ("class" =: "modal-content") $ do
                 elAttr "div" ("class" =: "modal-header") $

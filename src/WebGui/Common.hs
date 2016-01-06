@@ -83,15 +83,15 @@ handleTrigger runWithActions v trigger = liftIO (readIORef trigger) >>= \case
 data ModalDialogResult t a = ModalDialogResult
      {
          modalElt      :: El t,
-         bodyResult    :: a,
+         bodyResult    :: Dynamic t a,
          okBtnEvent    :: Event t (),
          closeBtnEvent :: Event t (),
          closedEvent   :: Event t ()
      }
 
-buildModalDialog :: MonadWidget t m => String -> String
+buildModalDialog :: MonadWidget t m => String -> String -> Event t ()
                  -> Maybe (Event t String) -> m a -> m (ModalDialogResult t a)
-buildModalDialog title okLabel errorEvent contents = do
+buildModalDialog title okLabel showEvent errorEvent contents = do
     (modalDiv, (br, oke, ce)) <- elAttr' "div" ("class" =: "modal fade") $
         elAttr "div" ("class" =: "modal-dialog" <> "role" =: "document") $
             elAttr "div" ("class" =: "modal-content") $ do
@@ -109,7 +109,11 @@ buildModalDialog title okLabel errorEvent contents = do
                             elDynAttr "div" dynAttrs $ do
                                 elAttr "strong" ("style" =: "padding-right: 7px") $ text "Error"
                                 dynText dynErrMsg
-                    contents
+                    -- for "form entry" modals, we must regenerate the modal html
+                    -- everytime the user wants to display it.
+                    -- Example: open modal, edit contents, cancel.
+                    -- You don't want to see the discarded values when reopening.
+                    widgetHold contents (fmap (const contents) showEvent)
                 (okEvt, closeEvt)  <- elAttr "div" ("class" =: "modal-footer") $ do
                     (closeEl, _) <- elAttr' "button" ("type" =: "button"
                                                       <> "class" =: "btn btn-secondary"
@@ -128,7 +132,9 @@ buildModalDialog title okLabel errorEvent contents = do
         hiddenCb <- syncCallback AlwaysRetain False $
             postGui $ handleTrigger runWithActions () closedEvtTrigger
         onModalHidden (unwrapElt modalDiv) hiddenCb
-    return $ ModalDialogResult modalDiv br oke ce closedEvent
+    let dialogInfo = ModalDialogResult modalDiv br oke ce closedEvent
+    performEvent_ $ fmap (const $ liftIO $ showModalDialog dialogInfo) showEvent
+    return dialogInfo
 
 data RemoteData a = RemoteDataInvalid String | RemoteDataLoading | RemoteData a deriving Show
 

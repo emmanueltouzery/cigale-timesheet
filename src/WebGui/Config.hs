@@ -178,12 +178,10 @@ displaySectionItem pluginConfig@PluginConfig{..} ci@ConfigItem{..} =
 addEditButton :: MonadWidget t m => PluginConfig -> ConfigItem -> m (Event t ConfigUpdate)
 addEditButton pluginConfig@PluginConfig{..} ci@ConfigItem{..} = do
     rec
-        dialogInfo <- buildModalDialog "Edit" "Save"
-            (Just errorEvt) (editConfigItem pluginConfig ci)
-
         (editBtn, _) <- elAttr' "button" ("class" =: "btn btn-default btn-sm"
                                           <> "style" =: "float: right; margin-right: 5px") $ text "Edit"
-        performEvent_ $ fmap (const $ liftIO $ showModalDialog dialogInfo) $ domEvent Click editBtn
+        dialogInfo <- buildModalDialog "Edit" "Save"
+            (domEvent Click editBtn) (Just errorEvt) (editConfigItem pluginConfig ci)
 
         let errorEvt = leftmost
                 [
@@ -193,7 +191,9 @@ addEditButton pluginConfig@PluginConfig{..} ci@ConfigItem{..} = do
                 ]
 
         editConfigEvt <- performEvent $ fmap
-            (const $ readDialog (bodyResult dialogInfo) pluginConfig configItemName)
+            (const $ do
+                  modalResult <- sample $ current $ bodyResult dialogInfo
+                  readDialog modalResult pluginConfig configItemName)
             $ okBtnEvent dialogInfo
         saveEvt <- saveConfigItem editConfigEvt
 

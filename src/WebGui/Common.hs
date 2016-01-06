@@ -22,11 +22,20 @@ import Data.Aeson
 
 data ActiveView = ActiveViewEvents | ActiveViewConfig deriving (Eq, Show)
 
-foreign import javascript unsafe "$('#'+$1).modal('hide')" hideModalDialog :: JSString -> IO ()
+foreign import javascript unsafe "$($1).modal('hide')" _hideModalDialog :: JSRef Element -> IO ()
+hideModalDialog :: ModalDialogResult t a -> IO ()
+hideModalDialog = _hideModalDialog . unwrapElt . modalElt
+
+foreign import javascript unsafe "$($1).modal('show')" _showModalDialog :: JSRef Element -> IO ()
+showModalDialog :: ModalDialogResult t a -> IO ()
+showModalDialog = _showModalDialog . unwrapElt . modalElt
 
 foreign import javascript unsafe
     "$($1).on('hidden.bs.modal', $2)"
     onModalHidden :: JSRef Element -> JSFun(IO ()) -> IO ()
+
+unwrapElt :: El t -> JSRef Element
+unwrapElt = unElement . toElement . _el_element
 
 eltStripClass :: IsElement self => self -> Text -> IO ()
 eltStripClass elt className = do
@@ -73,15 +82,16 @@ handleTrigger runWithActions v trigger = liftIO (readIORef trigger) >>= \case
 
 data ModalDialogResult t a = ModalDialogResult
      {
-         bodyResult    ::  Dynamic t (Maybe a),
-         okBtnEvent    ::  Event t (),
-         closeBtnEvent ::  Event t (),
+         modalElt      :: El t,
+         bodyResult    :: a,
+         okBtnEvent    :: Event t (),
+         closeBtnEvent :: Event t (),
          closedEvent   :: Event t ()
      }
 
 buildModalDialog :: MonadWidget t m => String -> String -> String
-                 -> Event t (m (Maybe a)) -> Maybe (Event t String) -> m (ModalDialogResult t a)
-buildModalDialog modalId title okLabel contentsEvent errorEvent = do
+                 -> Maybe (Event t String) -> m a -> m (ModalDialogResult t a)
+buildModalDialog modalId title okLabel errorEvent contents = do
     (modalDiv, (br, oke, ce)) <- elAttr' "div" ("class" =: "modal fade" <> "id" =: modalId) $
         elAttr "div" ("class" =: "modal-dialog" <> "role" =: "document") $
             elAttr "div" ("class" =: "modal-content") $ do
@@ -99,7 +109,7 @@ buildModalDialog modalId title okLabel contentsEvent errorEvent = do
                             elDynAttr "div" dynAttrs $ do
                                 elAttr "strong" ("style" =: "padding-right: 7px") $ text "Error"
                                 dynText dynErrMsg
-                    widgetHold (return Nothing) contentsEvent
+                    contents
                 (okEvt, closeEvt)  <- elAttr "div" ("class" =: "modal-footer") $ do
                     (closeEl, _) <- elAttr' "button" ("type" =: "button"
                                                       <> "class" =: "btn btn-secondary"
@@ -117,8 +127,8 @@ buildModalDialog modalId title okLabel contentsEvent errorEvent = do
     liftIO $ do
         hiddenCb <- syncCallback AlwaysRetain False $
             postGui $ handleTrigger runWithActions () closedEvtTrigger
-        onModalHidden (unElement $ toElement $ _el_element modalDiv) hiddenCb
-    return $ ModalDialogResult br oke ce closedEvent
+        onModalHidden (unwrapElt modalDiv) hiddenCb
+    return $ ModalDialogResult modalDiv br oke ce closedEvent
 
 data RemoteData a = RemoteDataInvalid String | RemoteDataLoading | RemoteData a deriving Show
 

@@ -6,7 +6,6 @@ module EventsView where
 import GHCJS.Types
 import GHCJS.Foreign
 import GHCJS.DOM.Element
-import GHCJS.DOM.Types hiding (Text, Event)
 
 import Reflex
 import Reflex.Dom
@@ -228,7 +227,7 @@ datePicker = do
             case parsePikadayDate (fromJSString date) of
                 Nothing -> return ()
                 Just dt -> postGui $ handleTrigger runWithActions dt evtTrigger
-        picker <- initPikaday (unElement $ toElement $ _el_element e) cb
+        picker <- initPikaday (unwrapElt e) cb
         pickerSetDate picker initialDay
         return picker
     return (evt, picker)

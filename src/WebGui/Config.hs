@@ -20,6 +20,7 @@ import qualified Data.Map as Map
 import Control.Monad.IO.Class
 import qualified Data.ByteString.Lazy as BS
 import Data.Char
+import Data.Ord
 
 import Common
 
@@ -104,9 +105,10 @@ displayConfig (RemoteDataInvalid msg) = text msg >> return never
 displayConfig (RemoteData (FetchedData configDesc configVal)) = do
     rec
         let cfgByProvider =
-                fmap (first fromJust) $ filter (isJust . fst) $  -- only keep Just providers.
-                fmap (first $ providerByName configDesc) $       -- replace provider name by provider (Maybe)
-                buckets providerName configVal                   -- bucket by provider name
+                fmap (second $ sortBy (comparing configItemName)) $ -- sort config items by name
+                fmap (first fromJust) $ filter (isJust . fst) $     -- only keep Just providers.
+                fmap (first $ providerByName configDesc) $          -- replace provider name by provider (Maybe)
+                buckets providerName configVal                      -- bucket by provider name
         editConfigEvt <- leftmost <$> mapM (uncurry displayConfigSection) cfgByProvider
     return editConfigEvt
 
@@ -150,7 +152,7 @@ passwordEntry fieldId desc fieldValue = do
 buckets :: Ord b => (a -> b) -> [a] -> [(b, [a])]
 buckets f = map (\g -> (fst $ head g, map snd g))
           . groupBy ((==) `on` fst)
-          . sortBy (compare `on` fst)
+          . sortBy (comparing fst)
           . map (\x -> (f x, x))
 
 displayConfigSection :: MonadWidget t m => PluginConfig -> [ConfigItem]

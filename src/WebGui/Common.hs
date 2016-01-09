@@ -10,6 +10,7 @@ import GHCJS.DOM.Types hiding (Text, Event)
 import Reflex.Dom
 import Data.Dependent.Sum (DSum ((:=>)))
 import Reflex.Host.Class
+import Data.String
 
 import Data.Maybe
 import Data.IORef
@@ -89,9 +90,14 @@ data ModalDialogResult t a = ModalDialogResult
          closedEvent   :: Event t ()
      }
 
-buildModalDialog :: MonadWidget t m => String -> String -> Event t ()
+data ButtonInfo = PrimaryBtn String | DangerBtn String
+
+buildModalDialog :: MonadWidget t m => String -> ButtonInfo -> Event t ()
                  -> Maybe (Event t String) -> m a -> m (ModalDialogResult t a)
-buildModalDialog title okLabel showEvent errorEvent contents = do
+buildModalDialog title okBtnInfo showEvent errorEvent contents = do
+    let (okBtnText, okBtnClass) = case okBtnInfo of
+            PrimaryBtn txt -> (txt, "primary")
+            DangerBtn txt -> (txt, "danger")
     (modalDiv, (br, oke, ce)) <- elAttr' "div" ("class" =: "modal fade") $
         elAttr "div" ("class" =: "modal-dialog" <> "role" =: "document") $
             elAttr "div" ("class" =: "modal-content") $ do
@@ -120,8 +126,8 @@ buildModalDialog title okLabel showEvent errorEvent contents = do
                                                       <> "data-dismiss" =: "modal")
                         $ text "Close"
                     (okEl, _) <- elAttr' "button" ("type" =: "button"
-                                                   <> "class" =: "btn btn-primary")
-                        $ text okLabel
+                                                   <> "class" =: ("btn btn-" <> okBtnClass))
+                        $ text okBtnText
                     return (domEvent Click okEl, domEvent Click closeEl)
                 return (bodyRes, okEvt, closeEvt)
     -- now prepare the event for when the dialog gets closed
@@ -161,7 +167,7 @@ readEmptyRemoteData XhrResponse{..} = case _xhrResponse_status of
         Just "" -> RemoteData ()
         Just x -> RemoteDataInvalid $ "Expected empty response, got" <> T.unpack x
     _ -> RemoteDataInvalid $ "HTTP response code " <> show _xhrResponse_status
-             <> "; details: " <> T.unpack (fromMaybe "none" _xhrResponse_body)
+             <> "; details: " <> T.unpack (fromMaybeEmpty "none" _xhrResponse_body)
 
 readRemoteData :: FromJSON a => XhrResponse -> RemoteData a
 readRemoteData XhrResponse{..} = case _xhrResponse_status of
@@ -172,7 +178,12 @@ readRemoteData XhrResponse{..} = case _xhrResponse_status of
                 "JSON has invalid format: " <> T.unpack (fromMaybe "Nothing" _xhrResponse_body)
             Just decoded -> RemoteData decoded
     _ -> RemoteDataInvalid $ "HTTP response code " <> show _xhrResponse_status
-             <> "; details: " <> T.unpack (fromMaybe "none" _xhrResponse_body)
+             <> "; details: " <> T.unpack (fromMaybeEmpty "none" _xhrResponse_body)
+
+fromMaybeEmpty :: (IsString a, Eq a) => a -> Maybe a -> a
+fromMaybeEmpty val Nothing = val
+fromMaybeEmpty val (Just "") = val
+fromMaybeEmpty _ (Just r) = r
 
 isRemoteDataLoading :: RemoteData a -> Bool
 isRemoteDataLoading RemoteDataLoading = True

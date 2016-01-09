@@ -45,7 +45,7 @@ data ConfigItem = ConfigItem
         configItemName :: String,
         providerName :: String,
         configuration :: A.Object
-    } deriving (Show, Generic)
+    } deriving (Eq, Show, Generic)
 instance FromJSON ConfigItem
 instance ToJSON ConfigItem
 
@@ -75,31 +75,32 @@ configView activeViewDyn = do
             configDataDyn <- foldDyn ($) RemoteDataLoading $ mergeWith (.)
                 [
                     fmap const (updated readAllDyn),
-                    fmap updateConfigItem configUpdateEvt
+                    fmap applyConfigChange configUpdateEvt
                 ]
 
-            -- leaving the types here because I find that part confusing.
-            -- I think there must be a better way. Asked on #reflex-frp IRC
-            -- on 2015-01-02 without answer.
-            (render :: Dynamic t (m (Event t ConfigUpdate))) <- mapDyn displayConfig configDataDyn
-            (render2 :: Event t (Event t ConfigUpdate)) <- dyn render
-            (render3 :: Behavior t (Event t ConfigUpdate)) <- current <$> holdDyn never render2
-            let configUpdateEvt = switch render3
+            renderDyn <- mapDyn displayConfig configDataDyn >>= dyn
+            render <- current <$> holdDyn never renderDyn
+            let configUpdateEvt = switch render
         return ()
 
 data ConfigUpdate = ConfigUpdate
-     {
-         oldConfigItemName :: String,
-         newConfigItem :: ConfigItem
-     }
+    {
+        oldConfigItemName :: String,
+        newConfigItem :: ConfigItem
+    }
+data ConfigDelete = ConfigDelete ConfigItem
+data ConfigChange = ChangeUpdate ConfigUpdate | ChangeDelete ConfigDelete
 
-updateConfigItem :: ConfigUpdate -> RemoteData FetchedData -> RemoteData FetchedData
-updateConfigItem (ConfigUpdate oldCiName newCi) (RemoteData (FetchedData desc val)) =
+applyConfigChange :: ConfigChange -> RemoteData FetchedData -> RemoteData FetchedData
+applyConfigChange (ChangeUpdate (ConfigUpdate oldCiName newCi)) (RemoteData (FetchedData desc val)) =
     RemoteData (FetchedData desc updatedVal)
     where updatedVal = newCi : filter ((/= oldCiName) . configItemName) val
-updateConfigItem _ soFar = soFar
+applyConfigChange (ChangeDelete (ConfigDelete ci)) (RemoteData (FetchedData desc val)) =
+    RemoteData (FetchedData desc updatedVal)
+    where updatedVal = filter (/= ci) val
+applyConfigChange _ soFar = soFar
 
-displayConfig :: MonadWidget t m => RemoteData FetchedData -> m (Event t ConfigUpdate)
+displayConfig :: MonadWidget t m => RemoteData FetchedData -> m (Event t ConfigChange)
 displayConfig RemoteDataLoading = return never
 displayConfig (RemoteDataInvalid msg) = text msg >> return never
 displayConfig (RemoteData (FetchedData configDesc configVal)) = do
@@ -156,33 +157,54 @@ buckets f = map (\g -> (fst $ head g, map snd g))
           . map (\x -> (f x, x))
 
 displayConfigSection :: MonadWidget t m => PluginConfig -> [ConfigItem]
-                     -> m (Event t ConfigUpdate)
+                     -> m (Event t ConfigChange)
 displayConfigSection secInfo secItems =
     elAttr "div" ("class" =: "card") $ do
         elAttr "h5" ("class" =: "card-header") $ text $ cfgPluginName secInfo
         elAttr "div" ("class" =: "card-block") $
             leftmost <$> mapM (displaySectionItem secInfo) secItems
 
-displaySectionItem :: MonadWidget t m => PluginConfig -> ConfigItem -> m (Event t ConfigUpdate)
+displaySectionItem :: MonadWidget t m => PluginConfig -> ConfigItem -> m (Event t ConfigChange)
 displaySectionItem pluginConfig@PluginConfig{..} ci@ConfigItem{..} =
     elAttr "div" ("class" =: "card") $ do
-        cfgUpdEvt <- elAttr "div" ("class" =: "card-header") $ do
+        cfgChgEvt <- elAttr "div" ("class" =: "card-header") $ do
             text configItemName
-            (deleteBtn, _) <- elAttr' "button" ("class" =: "btn btn-danger btn-sm"
-                                              <> "style" =: "float: right"
-                                              <> "data-toggle" =: "modal"
-                                              <> "data-target" =: ("#delete-" <> cfgPluginName)) $ text "Delete"
-            addEditButton pluginConfig ci
+            delEvt <- addDeleteButton ci
+            updEvt <- addEditButton pluginConfig ci
+            -- leftmost is ok, they can't both happen at the same time
+            return $ leftmost [fmap ChangeDelete delEvt, fmap ChangeUpdate updEvt]
         elAttr "div" ("class" =: "card-block") $
             pluginContents pluginConfig ci
-        return cfgUpdEvt
+        return cfgChgEvt
+
+addDeleteButton :: MonadWidget t m => ConfigItem -> m (Event t ConfigDelete)
+addDeleteButton ci@ConfigItem{..} = do
+    (deleteBtn, _) <- elAttr' "button"
+        ("class" =: "btn btn-danger btn-sm"
+         <> "style" =: "float: right") $ text "Delete"
+    rec
+        dialogInfo <- buildModalDialog "Delete" (DangerBtn "Delete")
+            (domEvent Click deleteBtn) (Just errorEvt)
+            (text $ "Delete the config item " <> configItemName <> "?")
+
+        let errorEvt = leftmost
+                [
+                    fmapMaybe remoteDataInvalidDesc saveEvt,
+                    -- whenever the user opens the modal, clear the error display.
+                    fmap (const "") $ domEvent Click deleteBtn
+                ]
+
+        let deleteEvt = fmap (const $ ConfigDelete ci) (okBtnEvent dialogInfo)
+        saveEvt <- saveConfigDelete deleteEvt
+
+    handleSaveAction dialogInfo saveEvt
 
 addEditButton :: MonadWidget t m => PluginConfig -> ConfigItem -> m (Event t ConfigUpdate)
 addEditButton pluginConfig@PluginConfig{..} ci@ConfigItem{..} = do
     rec
         (editBtn, _) <- elAttr' "button" ("class" =: "btn btn-default btn-sm"
                                           <> "style" =: "float: right; margin-right: 5px") $ text "Edit"
-        dialogInfo <- buildModalDialog "Edit" "Save"
+        dialogInfo <- buildModalDialog "Edit" (PrimaryBtn "Save")
             (domEvent Click editBtn) (Just errorEvt) (editConfigItem pluginConfig ci)
 
         let errorEvt = leftmost
@@ -197,38 +219,50 @@ addEditButton pluginConfig@PluginConfig{..} ci@ConfigItem{..} = do
                   modalResult <- sample $ current $ bodyResult dialogInfo
                   readDialog modalResult pluginConfig configItemName)
             $ okBtnEvent dialogInfo
-        saveEvt <- saveConfigItem editConfigEvt
-
-        let savedCfgChangeEvt = fmapMaybe fromRemoteData saveEvt
-        -- request to close the dialog upon success
-        performEvent_ $ fmap (const $ liftIO $ hideModalDialog dialogInfo) savedCfgChangeEvt
-        -- trigger the config update event to refresh the display
-        -- when the dialog is actually closed, and if the save info is present.
-        -- (when we refresh, the modal gets removed from the DOM
-        -- and doesn't disappear properly, so refresh only after confirmed modal close)
-        saveInfoDyn <- holdDyn Nothing $ fmap Just savedCfgChangeEvt
-        let cfgUpdEvt = fmapMaybe id $ tagDyn saveInfoDyn (closedEvent dialogInfo)
+        saveEvt <- saveConfigEdit editConfigEvt
+        cfgUpdEvt <- handleSaveAction dialogInfo saveEvt
 
     return cfgUpdEvt
 
-byteStringToString :: BS.ByteString -> String
-byteStringToString = map (chr . fromEnum) . BS.unpack
+handleSaveAction :: MonadWidget t m => ModalDialogResult t a -> Event t (RemoteData b) -> m (Event t b)
+handleSaveAction dialogInfo saveEvt = do
+    let savedCfgEditEvt = fmapMaybe fromRemoteData saveEvt
+    -- request to close the dialog upon success
+    performEvent_ $ fmap (const $ liftIO $ hideModalDialog dialogInfo) savedCfgEditEvt
+    -- trigger the config update event to refresh the display
+    -- when the dialog is actually closed, and if the save info is present.
+    -- (when we refresh, the modal gets removed from the DOM
+    -- and doesn't disappear properly, so refresh only after confirmed modal close)
+    saveInfoDyn <- holdDyn Nothing $ fmap Just savedCfgEditEvt
+    return $ fmapMaybe id $ tagDyn saveInfoDyn (closedEvent dialogInfo)
 
-saveConfigItem :: MonadWidget t m => Event t ConfigUpdate -> m (Event t (RemoteData ConfigUpdate))
-saveConfigItem configEditEvent = do
+encodeToStr :: ToJSON a => a -> String
+encodeToStr = bsToStr . encode
+    where bsToStr = map (chr . fromEnum) . BS.unpack
+
+saveConfigEdit :: MonadWidget t m => Event t ConfigUpdate -> m (Event t (RemoteData ConfigUpdate))
+saveConfigEdit configEditEvt = do
+    let makeReq cfgEdit = do
+            let url = "/config?oldConfigItemName=" <> oldConfigItemName cfgEdit
+            xhrRequest "PUT" url $
+                def { _xhrRequestConfig_sendData = Just (encodeToStr $ newConfigItem cfgEdit) }
+    httpVoidRequest makeReq configEditEvt
+
+saveConfigDelete :: MonadWidget t m => Event t ConfigDelete -> m (Event t (RemoteData ConfigDelete))
+saveConfigDelete cfgDelEvt = do
+    let makeReq (ConfigDelete cfg) = do
+            let url = "/config?configItemName=" <> configItemName cfg
+            xhrRequest "DELETE" url def
+    httpVoidRequest makeReq cfgDelEvt
+
+httpVoidRequest :: MonadWidget t m => (a -> XhrRequest) -> Event t a -> m (Event t (RemoteData a))
+httpVoidRequest makeReq evt = do
     -- take advantage of the Traversable instance for pairs, which
     -- will apply the function to the second element only, to pass
     -- on the ConfigUpdate besides the XhrResponse in the resulting event.
-    let reqEvt = fmap (\x -> (x, buildXhrRequest x)) configEditEvent
+    let reqEvt = fmap (\x -> (x, makeReq x)) evt
     resp <- performRequestsAsync reqEvt
     return $ fmap (\(cu, rsp) -> const cu <$> readEmptyRemoteData rsp) resp
-
-buildXhrRequest :: ConfigUpdate -> XhrRequest
-buildXhrRequest ConfigUpdate{..} =
-    xhrRequest "PUT" url $ def { _xhrRequestConfig_sendData = xhrData }
-    where
-      xhrData = Just (byteStringToString $ encode newConfigItem)
-      url = "/config?oldConfigItemName=" <> oldConfigItemName
 
 readDialog :: MonadSample t m =>
               (TextInput t, Map String (TextInput t)) -> PluginConfig -> String
@@ -251,12 +285,11 @@ pluginContents pluginConfig configContents = elAttr "table" ("class" =: "table")
     mapM_ (getPluginElement $ configuration configContents) (cfgPluginConfig pluginConfig)
 
 getPluginElement :: MonadWidget t m => A.Object -> ConfigDataInfo -> m ()
-getPluginElement config dataInfo = do
-    let memberNameV = memberName dataInfo
-    let memberValue = readObjectField memberNameV config
-    let memberValueDisplay = case memberType dataInfo of
+getPluginElement config ConfigDataInfo{..} = do
+    let memberValue = readObjectField memberName config
+    let memberValueDisplay = case memberType of
             "Password" -> replicate (length memberValue) '*'
             _          -> memberValue
     el "tr" $ do
-        el "td" $ text memberNameV
+        el "td" $ text memberName
         el "td" $ text memberValueDisplay

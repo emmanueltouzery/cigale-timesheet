@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, DeriveGeneric, LambdaCase, OverloadedStrings, RecordWildCards, RecursiveDo #-}
+{-# LANGUAGE ScopedTypeVariables, DeriveGeneric, LambdaCase, OverloadedStrings, RecordWildCards, RecursiveDo, TupleSections #-}
 
 module Config where
 
@@ -30,7 +30,7 @@ data PluginConfig = PluginConfig
     {
         cfgPluginName :: String,
         cfgPluginConfig :: [ConfigDataInfo]
-    } deriving Generic
+    } deriving (Generic, Show, Eq)
 instance FromJSON PluginConfig
 
 data ConfigDataInfo = ConfigDataInfo
@@ -53,7 +53,7 @@ data FetchedData = FetchedData
     {
         fetchedConfigDesc :: [PluginConfig],
         fetchedConfigVal  :: [ConfigItem]
-    }
+    } deriving Show
 
 makeSimpleXhr :: (MonadWidget t m, FromJSON a) => String -> Event t b -> m (Dynamic t (RemoteData a))
 makeSimpleXhr url postBuild = do
@@ -78,18 +78,17 @@ configView activeViewDyn = do
                     fmap applyConfigChange configUpdateEvt
                 ]
 
-            renderDyn <- mapDyn displayConfig configDataDyn >>= dyn
-            render <- current <$> holdDyn never renderDyn
-            let configUpdateEvt = switch render
+            renderDyn <- displayConfig =<< mapDyn fromRemoteData configDataDyn
+            let configUpdateEvt = switch $ current renderDyn
         return ()
 
 data ConfigUpdate = ConfigUpdate
     {
         oldConfigItemName :: String,
         newConfigItem :: ConfigItem
-    }
-data ConfigDelete = ConfigDelete ConfigItem
-data ConfigChange = ChangeUpdate ConfigUpdate | ChangeDelete ConfigDelete
+    } deriving Show
+data ConfigDelete = ConfigDelete ConfigItem deriving Show
+data ConfigChange = ChangeUpdate ConfigUpdate | ChangeDelete ConfigDelete deriving Show
 
 applyConfigChange :: ConfigChange -> RemoteData FetchedData -> RemoteData FetchedData
 applyConfigChange (ChangeUpdate (ConfigUpdate oldCiName newCi)) (RemoteData (FetchedData desc val)) =
@@ -100,18 +99,20 @@ applyConfigChange (ChangeDelete (ConfigDelete ci)) (RemoteData (FetchedData desc
     where updatedVal = filter (/= ci) val
 applyConfigChange _ soFar = soFar
 
-displayConfig :: MonadWidget t m => RemoteData FetchedData -> m (Event t ConfigChange)
-displayConfig RemoteDataLoading = return never
-displayConfig (RemoteDataInvalid msg) = text msg >> return never
-displayConfig (RemoteData (FetchedData configDesc configVal)) = do
+displayConfig :: MonadWidget t m => Dynamic t (Maybe FetchedData)
+              -> m (Dynamic t (Event t ConfigChange))
+displayConfig dynFetchedData = do
     rec
-        let cfgByProvider =
-                fmap (second $ sortBy (comparing configItemName)) $ -- sort config items by name
-                fmap (first fromJust) $ filter (isJust . fst) $     -- only keep Just providers.
-                fmap (first $ providerByName configDesc) $          -- replace provider name by provider (Maybe)
-                buckets providerName configVal                      -- bucket by provider name
-        editConfigEvt <- leftmost <$> mapM (uncurry displayConfigSection) cfgByProvider
-    return editConfigEvt
+        cfgByProvider <- mapDyn (fromMaybe []) =<< mapDyn (liftA groupByProvider) dynFetchedData
+        cfgChgEvt <- mapDyn leftmost =<< simpleList cfgByProvider displayConfigSection
+    return cfgChgEvt
+
+groupByProvider :: FetchedData -> [(PluginConfig, [ConfigItem])]
+groupByProvider (FetchedData configDesc configVal) =
+    fmap (second $ sortBy (comparing configItemName)) $ -- sort config items by name
+    fmap (first fromJust) $ filter (isJust . fst) $     -- only keep Just providers.
+    fmap (first $ providerByName configDesc) $          -- replace provider name by provider (Maybe)
+    buckets providerName configVal                      -- bucket by provider name
 
 providerByName :: [PluginConfig] -> String -> Maybe PluginConfig
 providerByName pluginConfigs name = find ((== name) . cfgPluginName) pluginConfigs
@@ -121,7 +122,8 @@ type EditConfigItemRender t = (TextInput t, Map String (TextInput t))
 editConfigItem :: MonadWidget t m => PluginConfig -> ConfigItem -> m (EditConfigItemRender t)
 editConfigItem PluginConfig{..} ConfigItem{..} =
     el "form" $ do
-        srcNameInput <- elAttr "fieldset" ("class" =: "form-group") $ fieldEntry "sourceName" "Enter source name:" configItemName
+        srcNameInput <- elAttr "fieldset" ("class" =: "form-group") $
+            fieldEntry "sourceName" "Enter source name:" configItemName
         fieldInputs  <- Map.fromList <$> mapM (editConfigDataInfo configuration) cfgPluginConfig
         return (srcNameInput, fieldInputs)
 
@@ -156,13 +158,19 @@ buckets f = map (\g -> (fst $ head g, map snd g))
           . sortBy (comparing fst)
           . map (\x -> (f x, x))
 
-displayConfigSection :: MonadWidget t m => PluginConfig -> [ConfigItem]
+displayConfigSection :: MonadWidget t m => Dynamic t (PluginConfig, [ConfigItem])
                      -> m (Event t ConfigChange)
-displayConfigSection secInfo secItems =
+displayConfigSection dynSecInfo_ = do
+    let dynSecInfo = nubDyn dynSecInfo_
+    dynPluginConfig <- mapDyn fst dynSecInfo
+    dynConfigItems  <- mapDyn snd dynSecInfo
     elAttr "div" ("class" =: "card") $ do
-        elAttr "h5" ("class" =: "card-header") $ text $ cfgPluginName secInfo
-        elAttr "div" ("class" =: "card-block") $
-            leftmost <$> mapM (displaySectionItem secInfo) secItems
+        elAttr "h5" ("class" =: "card-header") $ dynText =<< mapDyn cfgPluginName dynPluginConfig
+        elAttr "div" ("class" =: "card-block") $ do
+            dynParams <- combineDyn (\cfg dataInfos -> map (cfg,) dataInfos) dynPluginConfig dynConfigItems
+            dynEvtsAr <- mapDyn (sequence . fmap (uncurry displaySectionItem)) dynParams
+            dynEvts <- fmap leftmost <$> dyn dynEvtsAr
+            (switch . current) <$> holdDyn never dynEvts
 
 displaySectionItem :: MonadWidget t m => PluginConfig -> ConfigItem -> m (Event t ConfigChange)
 displaySectionItem pluginConfig@PluginConfig{..} ci@ConfigItem{..} =

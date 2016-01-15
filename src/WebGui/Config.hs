@@ -147,14 +147,8 @@ addCfgPluginAdd pc clickEvt = do
     rec
         dialogInfo <- elAttr "div" ("style" =: "position: absolute") $
             buildModalDialog "Add" (PrimaryBtn "Save")
-                clickEvt (Just errorEvt) (editConfigItem pc ci)
-
-        let errorEvt = leftmost
-                [
-                    fmapMaybe remoteDataInvalidDesc saveEvt,
-                    -- whenever the user opens the modal, clear the error display.
-                    fmap (const "") clickEvt
-                ]
+                clickEvt errorEvt (editConfigItem pc ci)
+        let errorEvt = fmapMaybe remoteDataInvalidDesc saveEvt
 
         editConfigEvt <- performEvent $ fmap
             (const $ do
@@ -249,15 +243,9 @@ addDeleteButton ci@ConfigItem{..} = do
          <> "style" =: "float: right") $ text "Delete"
     rec
         dialogInfo <- buildModalDialog "Delete" (DangerBtn "Delete")
-            (domEvent Click deleteBtn) (Just errorEvt)
+            (domEvent Click deleteBtn) errorEvt
             (text $ "Delete the config item " <> configItemName <> "?")
-
-        let errorEvt = leftmost
-                [
-                    fmapMaybe remoteDataInvalidDesc saveEvt,
-                    -- whenever the user opens the modal, clear the error display.
-                    fmap (const "") $ domEvent Click deleteBtn
-                ]
+        let errorEvt = fmapMaybe remoteDataInvalidDesc saveEvt
 
         let deleteEvt = fmap (const $ ConfigDelete ci) (okBtnEvent dialogInfo)
         saveEvt <- saveConfigDelete deleteEvt
@@ -270,14 +258,8 @@ addEditButton pluginConfig@PluginConfig{..} ci@ConfigItem{..} = do
         (editBtn, _) <- elAttr' "button" ("class" =: "btn btn-default btn-sm"
                                           <> "style" =: "float: right; margin-right: 5px") $ text "Edit"
         dialogInfo <- buildModalDialog "Edit" (PrimaryBtn "Save")
-            (domEvent Click editBtn) (Just errorEvt) (editConfigItem pluginConfig ci)
-
-        let errorEvt = leftmost
-                [
-                    fmapMaybe remoteDataInvalidDesc saveEvt,
-                    -- whenever the user opens the modal, clear the error display.
-                    fmap (const "") $ domEvent Click editBtn
-                ]
+            (domEvent Click editBtn) errorEvt (editConfigItem pluginConfig ci)
+        let errorEvt = fmapMaybe remoteDataInvalidDesc saveEvt
 
         editConfigEvt <- performEvent $ fmap
             (const $ do

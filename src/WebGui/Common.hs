@@ -93,8 +93,10 @@ data ModalDialogResult t a = ModalDialogResult
 data ButtonInfo = PrimaryBtn String | DangerBtn String
 
 buildModalDialog :: MonadWidget t m => String -> ButtonInfo -> Event t ()
-                 -> Maybe (Event t String) -> m a -> m (ModalDialogResult t a)
-buildModalDialog title okBtnInfo showEvent errorEvent contents = do
+                 -> Event t String -> m a -> m (ModalDialogResult t a)
+buildModalDialog title okBtnInfo showEvent _errorEvent contents = do
+    -- whenever the user opens the modal, clear the error display.
+    let errorEvent = leftmost [_errorEvent, const "" <$> showEvent]
     let (okBtnText, okBtnClass) = case okBtnInfo of
             PrimaryBtn txt -> (txt, "primary")
             DangerBtn txt -> (txt, "danger")
@@ -104,17 +106,14 @@ buildModalDialog title okBtnInfo showEvent errorEvent contents = do
                 elAttr "div" ("class" =: "modal-header") $
                     elAttr "h4" ("class" =: "modal-title") $ text title
                 bodyRes <- elAttr "div" ("class" =: "modal-body") $ do
-                    case errorEvent of
-                        Nothing -> return ()
-                        Just errEvt -> do
-                            dynErrMsg <- holdDyn "" errEvt
-                            dynAttrs <- mapDyn (\errMsg ->
-                                                 "class" =: "alert alert-danger"
-                                                 <> "role" =: "alert"
-                                                 <> styleHideIf (null errMsg)) dynErrMsg
-                            elDynAttr "div" dynAttrs $ do
-                                elAttr "strong" ("style" =: "padding-right: 7px") $ text "Error"
-                                dynText dynErrMsg
+                    dynErrMsg <- holdDyn "" errorEvent
+                    dynAttrs <- mapDyn (\errMsg ->
+                                         "class" =: "alert alert-danger"
+                                         <> "role" =: "alert"
+                                         <> styleHideIf (null errMsg)) dynErrMsg
+                    elDynAttr "div" dynAttrs $ do
+                        elAttr "strong" ("style" =: "padding-right: 7px") $ text "Error"
+                        dynText dynErrMsg
                     -- for "form entry" modals, we must regenerate the modal html
                     -- everytime the user wants to display it.
                     -- Example: open modal, edit contents, cancel.

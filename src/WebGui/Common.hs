@@ -20,6 +20,7 @@ import Data.Monoid
 import Data.Map (Map)
 import Control.Monad.IO.Class
 import Data.Aeson
+import Control.Monad
 
 data ActiveView = ActiveViewEvents | ActiveViewConfig deriving (Eq, Show)
 
@@ -100,10 +101,14 @@ buildModalDialog title okBtnInfo showEvent _errorEvent contents = do
     let (okBtnText, okBtnClass) = case okBtnInfo of
             PrimaryBtn txt -> (txt, "primary")
             DangerBtn txt -> (txt, "danger")
-    (modalDiv, (br, oke, ce)) <- elAttr' "div" ("class" =: "modal fade") $
+    -- for tabindex=-1, see http://stackoverflow.com/a/12630531/516188
+    (modalDiv, (br, oke, ce)) <- elAttr' "div" ("class" =: "modal fade" <> "tabindex" =: "-1") $
         elAttr "div" ("class" =: "modal-dialog" <> "role" =: "document") $
             elAttr "div" ("class" =: "modal-content") $ do
-                elAttr "div" ("class" =: "modal-header") $
+                elAttr "div" ("class" =: "modal-header") $ do
+                    void $ elAttr "button" ("type" =: "button" <> "class" =: "close"
+                                    <> "data-dismiss" =: "modal" <> "aria-label" =: "Close") $
+                        elDynHtmlAttr' "span" ("aria-hidden" =: "true") (constDyn "&times;")
                     elAttr "h4" ("class" =: "modal-title") $ text title
                 bodyRes <- elAttr "div" ("class" =: "modal-body") $ do
                     dynErrMsg <- holdDyn "" errorEvent

@@ -2,6 +2,8 @@
 
 module Config where
 
+import GHCJS.DOM.HTMLInputElement
+
 import Reflex.Dom
 
 import Data.Aeson as A
@@ -168,7 +170,7 @@ groupByProvider (FetchedData configDesc configVal) =
 providerByName :: [PluginConfig] -> String -> Maybe PluginConfig
 providerByName pluginConfigs name = find ((== name) . cfgPluginName) pluginConfigs
 
-type EditConfigItemRender t = (TextInput t, Map String (TextInput t))
+type EditConfigItemRender t = (Dynamic t String, Map String (Dynamic t String))
 
 editConfigItem :: MonadWidget t m => PluginConfig -> ConfigItem -> m (EditConfigItemRender t)
 editConfigItem PluginConfig{..} ConfigItem{..} =
@@ -178,7 +180,7 @@ editConfigItem PluginConfig{..} ConfigItem{..} =
         fieldInputs  <- Map.fromList <$> mapM (editConfigDataInfo configuration) cfgPluginConfig
         return (srcNameInput, fieldInputs)
 
-editConfigDataInfo :: MonadWidget t m => A.Object -> ConfigDataInfo -> m (String, TextInput t)
+editConfigDataInfo :: MonadWidget t m => A.Object -> ConfigDataInfo -> m (String, Dynamic t String)
 editConfigDataInfo obj ConfigDataInfo{..} = do
     -- TODO different display based on member type: String, Text, ByteString, FilePath, FolderPath, Password
     let fieldValue = readObjectField memberName obj
@@ -187,21 +189,33 @@ editConfigDataInfo obj ConfigDataInfo{..} = do
         _ -> fieldEntry memberName memberName fieldValue
     return (memberName, field)
 
-fieldEntry :: MonadWidget t m => String -> String -> String -> m (TextInput t)
+fieldEntry :: MonadWidget t m => String -> String -> String -> m (Dynamic t String)
 fieldEntry fieldId desc fieldValue = do
     elAttr "label" ("for" =: fieldId) $ text desc
-    textInput $ def
+    _textInput_value <$> textInput (def
         & textInputConfig_attributes .~ constDyn ("id" =: fieldId <> "class" =: "form-control")
-        & textInputConfig_initialValue .~ fieldValue
+        & textInputConfig_initialValue .~ fieldValue)
 
--- TODO add button "show password"
-passwordEntry :: MonadWidget t m => String -> String -> String -> m (TextInput t)
+-- TODO display warning on top of popup that warnings are stored in plain text
+passwordEntry :: MonadWidget t m => String -> String -> String -> m (Dynamic t String)
 passwordEntry fieldId desc fieldValue = do
     elAttr "label" ("for" =: fieldId) $ text desc
-    textInput $ def
-        & textInputConfig_attributes .~ constDyn ("id" =: fieldId <> "class" =: "form-control")
-        & textInputConfig_inputType .~ "password"
-        & textInputConfig_initialValue .~ fieldValue
+    elAttr "div" ("class" =: "input-group") $ do
+        rec
+            attrsDyn <- forDyn showPaswd
+                (\p -> "class" =: "form-control"
+                       <> "id" =: fieldId
+                       <> "value" =: fieldValue
+                       <> "type" =: if p then "password" else "text")
+            (inputField, _) <- elDynAttr' "input" attrsDyn $ return ()
+            showPaswd <- foldDyn ($) True $ leftmost [fmap (const not) padlockEvt]
+            (padlock, _) <- elAttr' "div" ("class" =: "input-group-addon") $ do
+                padlockContents <- forDyn showPaswd (\case; True -> "&#128274;"; False -> "&#128275;")
+                elDynHtmlAttr' "span" ("style" =: "cursor: pointer") padlockContents
+            let padlockEvt = domEvent Click padlock
+        let inputGetValue = htmlInputElementGetValue . castToHTMLInputElement . _el_element
+        holdDyn fieldValue =<< performEvent
+            (fmap (const $ liftIO $ inputGetValue inputField) $ domEvent Change inputField)
 
 buckets :: Ord b => (a -> b) -> [a] -> [(b, [a])]
 buckets f = map (\g -> (fst $ head g, map snd g))
@@ -320,14 +334,14 @@ httpVoidRequest makeReq evt = do
     return $ fmap (\(cu, rsp) -> const cu <$> readEmptyRemoteData rsp) resp
 
 readDialog :: MonadSample t m =>
-              (TextInput t, Map String (TextInput t)) -> PluginConfig
+              EditConfigItemRender t -> PluginConfig
               -> m ConfigItem
 readDialog (nameInput, cfgInputs) PluginConfig{..} = do
-    newName <- sample $ current $ _textInput_value nameInput
+    newName <- sample $ current nameInput
     cfgList <- sequence $ flip map cfgPluginConfig $ \cfgDataInfo -> do
         let mName = memberName cfgDataInfo
         let inputField = fromJust $ Map.lookup mName cfgInputs
-        val <- sample $ current $ _textInput_value inputField
+        val <- sample $ current inputField
         return (T.pack mName, A.String $ T.pack val)
     return $ ConfigItem newName cfgPluginName (HashMap.fromList cfgList)
 

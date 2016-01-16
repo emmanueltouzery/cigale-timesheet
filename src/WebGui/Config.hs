@@ -173,7 +173,11 @@ providerByName pluginConfigs name = find ((== name) . cfgPluginName) pluginConfi
 type EditConfigItemRender t = (Dynamic t String, Map String (Dynamic t String))
 
 editConfigItem :: MonadWidget t m => PluginConfig -> ConfigItem -> m (EditConfigItemRender t)
-editConfigItem PluginConfig{..} ConfigItem{..} =
+editConfigItem PluginConfig{..} ConfigItem{..} = do
+    when (isJust $ find (== "Password") (memberType <$> cfgPluginConfig)) $
+        elAttr "div" ("class" =: "alert alert-warning" <> "role" =: "alert") $
+            el "strong" (text "Warning") >>
+                text " passwords are stored in plain text in the configuration file!"
     el "form" $ do
         srcNameInput <- elAttr "fieldset" ("class" =: "form-group") $
             fieldEntry "sourceName" "Enter source name:" configItemName
@@ -196,7 +200,6 @@ fieldEntry fieldId desc fieldValue = do
         & textInputConfig_attributes .~ constDyn ("id" =: fieldId <> "class" =: "form-control")
         & textInputConfig_initialValue .~ fieldValue)
 
--- TODO display warning on top of popup that warnings are stored in plain text
 passwordEntry :: MonadWidget t m => String -> String -> String -> m (Dynamic t String)
 passwordEntry fieldId desc fieldValue = do
     elAttr "label" ("for" =: fieldId) $ text desc

@@ -29,7 +29,8 @@ Executable cigale-web
        unordered-containers,
        dependent-sum,
        bytestring,
-       errors
+       errors,
+       filepath
    js-sources:
         ../../lib/Pikaday-1.4.0/pikaday.js
         ../../lib/jquery.min.js

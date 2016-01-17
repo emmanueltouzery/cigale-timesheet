@@ -26,6 +26,7 @@ import Data.Char
 import Data.Ord
 
 import Common
+import FilePicker
 
 -- TODO stop copy-pasting this between client & server
 
@@ -57,11 +58,6 @@ data FetchedData = FetchedData
         fetchedConfigDesc :: [PluginConfig],
         fetchedConfigVal  :: [ConfigItem]
     } deriving Show
-
-makeSimpleXhr :: (MonadWidget t m, FromJSON a) => String -> Event t b -> m (Dynamic t (RemoteData a))
-makeSimpleXhr url postBuild = do
-    req <- performRequestAsync $ const (xhrRequest "GET" url def) <$> postBuild
-    holdDyn RemoteDataLoading $ fmap readRemoteData req
 
 configView :: MonadWidget t m => Dynamic t ActiveView -> m ()
 configView activeViewDyn = do
@@ -189,16 +185,34 @@ editConfigDataInfo obj ConfigDataInfo{..} = do
     -- TODO different display based on member type: String, Text, ByteString, FilePath, FolderPath, Password
     let fieldValue = readObjectField memberName obj
     field <- case memberType of
-        "Password" -> passwordEntry memberName memberName fieldValue
+        "Password"   -> passwordEntry memberName memberName fieldValue
+        "FolderPath" -> folderEntry memberName fieldValue
         _ -> fieldEntry memberName memberName fieldValue
     return (memberName, field)
+
+folderEntry :: MonadWidget t m => String -> String -> m (Dynamic t String)
+folderEntry memberName value = do
+    elAttr "label" ("for" =: memberName) $ text memberName
+    elAttr "div" ("class" =: "input-group") $ do
+        rec
+            inputVal <- _textInput_value <$> textInput
+                (def
+                 & textInputConfig_attributes .~ constDyn ("id" =: memberName <> "class" =: "form-control")
+                 & textInputConfig_initialValue .~ value)
+            (browseBtn, _) <- elAttr' "div" ("class" =: "input-group-addon") $
+                elAttr' "span" ("style" =: "cursor: pointer") $ text "Browse..."
+            buildFolderPicker $ domEvent Click browseBtn
+            return inputVal
+        --let inputGetValue = htmlInputElementGetValue . castToHTMLInputElement . _el_element
+        return inputVal
 
 fieldEntry :: MonadWidget t m => String -> String -> String -> m (Dynamic t String)
 fieldEntry fieldId desc fieldValue = do
     elAttr "label" ("for" =: fieldId) $ text desc
-    _textInput_value <$> textInput (def
-        & textInputConfig_attributes .~ constDyn ("id" =: fieldId <> "class" =: "form-control")
-        & textInputConfig_initialValue .~ fieldValue)
+    _textInput_value <$> textInput
+        (def
+         & textInputConfig_attributes .~ constDyn ("id" =: fieldId <> "class" =: "form-control")
+         & textInputConfig_initialValue .~ fieldValue)
 
 passwordEntry :: MonadWidget t m => String -> String -> String -> m (Dynamic t String)
 passwordEntry fieldId desc fieldValue = do

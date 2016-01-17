@@ -200,3 +200,11 @@ remoteDataInvalidDesc _ = Nothing
 fromRemoteData :: RemoteData a -> Maybe a
 fromRemoteData (RemoteData x) = Just x
 fromRemoteData _ = Nothing
+
+makeSimpleXhr :: (MonadWidget t m, FromJSON a) => String -> Event t b -> m (Dynamic t (RemoteData a))
+makeSimpleXhr url = makeSimpleXhr' (const url)
+
+makeSimpleXhr' :: (MonadWidget t m, FromJSON a) => (b -> String) -> Event t b -> m (Dynamic t (RemoteData a))
+makeSimpleXhr' getUrl evt = do
+    req <- performRequestAsync $ (\evtVal -> xhrRequest "GET" (getUrl evtVal) def) <$> evt
+    holdDyn RemoteDataLoading $ fmap readRemoteData req

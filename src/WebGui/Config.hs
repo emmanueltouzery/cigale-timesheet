@@ -139,6 +139,8 @@ addCfgDropdownBtn PluginConfig{..} = do
         text cfgPluginName
     return (domEvent Click pcLnk)
 
+-- TODO obvious duplication in the way the add/edit/delete modals are handled.
+-- setupModal then buildModalBody, then error event, save event, then handle save...
 addCfgPluginAdd :: MonadWidget t m => PluginConfig -> Event t () -> m (Event t ConfigAdd)
 addCfgPluginAdd pc clickEvt = do
     let ci = ConfigItem "" "" HashMap.empty

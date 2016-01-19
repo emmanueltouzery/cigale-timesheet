@@ -142,19 +142,24 @@ addCfgDropdownBtn PluginConfig{..} = do
 addCfgPluginAdd :: MonadWidget t m => PluginConfig -> Event t () -> m (Event t ConfigAdd)
 addCfgPluginAdd pc clickEvt = do
     let ci = ConfigItem "" "" HashMap.empty
-    rec
-        dialogInfo <- elAttr "div" ("style" =: "position: absolute") $
-            buildModalDialog "Add" (PrimaryBtn "Save")
-                clickEvt errorEvt (editConfigItem pc ci)
-        let errorEvt = fmapMaybe remoteDataInvalidDesc saveEvt
+    modalDyn <- holdDyn pc $ fmap (const pc) clickEvt
+    dynModalVal <- forDyn modalDyn $ \_ -> do
+        rec
+            (dialogResult, addDlgOkEvt, _) <- elAttr "div" ("style" =: "position: absolute") $
+                buildModalBody' "Add" (PrimaryBtn "Save")
+                    clickEvt errorEvt (editConfigItem pc ci)
+            let errorEvt = fmapMaybe remoteDataInvalidDesc saveEvt
 
-        editConfigEvt <- performEvent $ fmap
-            (const $ do
-                  modalResult <- sample $ current $ bodyResult dialogInfo
-                  ConfigAdd <$> readDialog modalResult pc)
-            $ okBtnEvent dialogInfo
-        saveEvt <- saveConfigAdd editConfigEvt
-    handleSaveAction dialogInfo saveEvt
+            editConfigEvt <- performEvent $ fmap
+                (const $ do
+                      ConfigAdd <$> readDialog dialogResult pc)
+                addDlgOkEvt
+            saveEvt <- saveConfigAdd editConfigEvt
+        return saveEvt
+
+    dynModalEvtEvt <- dynModal dynModalVal
+    dynModalDynEvt <- holdDyn never dynModalEvtEvt
+    modalHandleSaveAction $ switch $ current dynModalDynEvt
 
 groupByProvider :: FetchedData -> [(PluginConfig, [ConfigItem])]
 groupByProvider (FetchedData configDesc configVal) =
@@ -315,19 +320,6 @@ modalHandleSaveAction saveEvt = do
     -- request to close the dialog upon success
     performEvent_ $ fmap (const $ liftIO $ hideModalIdDialog topLevelModalId) savedCfgEditEvt
     return savedCfgEditEvt
-
--- TODO this is obsolete, delete me
-handleSaveAction :: MonadWidget t m => ModalDialogResult t a -> Event t (RemoteData b) -> m (Event t b)
-handleSaveAction dialogInfo saveEvt = do
-    let savedCfgEditEvt = fmapMaybe fromRemoteData saveEvt
-    -- request to close the dialog upon success
-    performEvent_ $ fmap (const $ liftIO $ hideModalDialog dialogInfo) savedCfgEditEvt
-    -- trigger the config update event to refresh the display
-    -- when the dialog is actually closed, and if the save info is present.
-    -- (when we refresh, the modal gets removed from the DOM
-    -- and doesn't disappear properly, so refresh only after confirmed modal close)
-    saveInfoDyn <- holdDyn Nothing $ fmap Just savedCfgEditEvt
-    return $ fmapMaybe id $ tagDyn saveInfoDyn (closedEvent dialogInfo)
 
 encodeToStr :: ToJSON a => a -> String
 encodeToStr = bsToStr . encode

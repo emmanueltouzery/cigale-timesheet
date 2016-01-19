@@ -44,6 +44,7 @@ getChangeFolder :: PickerEventType -> Maybe FilePath
 getChangeFolder (ChangeFolder x) = Just x
 getChangeFolder _ = Nothing
 
+-- TODO display error if the XHR fails (eg server is down)
 buildFolderPicker :: MonadWidget t m => Event t () -> m (Event t FilePath)
 buildFolderPicker clickEvt = do
     rec
@@ -94,8 +95,3 @@ displayBreadcrumb [level] = do
 displayBreadcrumb (level:xs) = do
     (lnk, _) <- el "li" $ elAttr' "a" ("href" =: "javascript:void(0)") $ text (prettyName level)
     (:) <$> return (fmap (const $ fullPath level) $ domEvent Click lnk) <*> displayBreadcrumb xs
-
--- todo get me a [(String, FilePath)] so i can interpret the click to a full path.
-prettyPrintPathLevel :: String -> String
-prettyPrintPathLevel level = if null withoutSlashes then "root" else withoutSlashes
-    where withoutSlashes = filter (/= '/') level

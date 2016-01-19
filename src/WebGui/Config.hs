@@ -142,24 +142,18 @@ addCfgDropdownBtn PluginConfig{..} = do
 addCfgPluginAdd :: MonadWidget t m => PluginConfig -> Event t () -> m (Event t ConfigAdd)
 addCfgPluginAdd pc clickEvt = do
     let ci = ConfigItem "" "" HashMap.empty
-    modalDyn <- holdDyn pc $ fmap (const pc) clickEvt
-    dynModalVal <- forDyn modalDyn $ \_ -> do
+    setupModalR <- setupModal ModalLevelBasic pc clickEvt $ do
         rec
-            (dialogResult, addDlgOkEvt, _) <- elAttr "div" ("style" =: "position: absolute") $
-                buildModalBody "Add" (PrimaryBtn "Save")
+            (dialogResult, addDlgOkEvt, _) <- buildModalBody "Add" (PrimaryBtn "Save")
                     clickEvt errorEvt (editConfigItem pc ci)
             let errorEvt = fmapMaybe remoteDataInvalidDesc saveEvt
 
             editConfigEvt <- performEvent $ fmap
-                (const $ do
-                      ConfigAdd <$> readDialog dialogResult pc)
+                (const $ ConfigAdd <$> readDialog dialogResult pc)
                 addDlgOkEvt
             saveEvt <- saveConfigAdd editConfigEvt
         return saveEvt
-
-    dynModalEvtEvt <- dynModal dynModalVal
-    dynModalDynEvt <- holdDyn never dynModalEvtEvt
-    modalHandleSaveAction $ switch $ current dynModalDynEvt
+    modalHandleSaveAction ModalLevelBasic setupModalR
 
 groupByProvider :: FetchedData -> [(PluginConfig, [ConfigItem])]
 groupByProvider (FetchedData configDesc configVal) =
@@ -277,8 +271,7 @@ addDeleteButton ci@ConfigItem{..} = do
     (deleteBtn, _) <- elAttr' "button"
         ("class" =: "btn btn-danger btn-sm"
          <> "style" =: "float: right") $ text "Delete"
-    modalDyn <- holdDyn ci $ fmap (const ci) (domEvent Click deleteBtn)
-    dynModalVal <- forDyn modalDyn $ \_ -> do
+    setupModalR <- setupModal ModalLevelBasic ci (domEvent Click deleteBtn) $ do
         rec
             (_, deleteDlgOkEvt, _) <- buildModalBody "Delete" (DangerBtn "Delete")
                 (domEvent Click deleteBtn) errorEvt
@@ -288,17 +281,13 @@ addDeleteButton ci@ConfigItem{..} = do
             let deleteEvt = fmap (const $ ConfigDelete ci) deleteDlgOkEvt
             saveEvt <- saveConfigDelete deleteEvt
         return saveEvt
-
-    dynModalEvtEvt <- dynModal dynModalVal
-    dynModalDynEvt <- holdDyn never dynModalEvtEvt
-    modalHandleSaveAction $ switch $ current dynModalDynEvt
+    modalHandleSaveAction ModalLevelBasic setupModalR
 
 addEditButton :: MonadWidget t m => PluginConfig -> ConfigItem -> m (Event t ConfigUpdate)
 addEditButton pluginConfig@PluginConfig{..} ci@ConfigItem{..} = do
     (editBtn, _) <- elAttr' "button" ("class" =: "btn btn-default btn-sm"
                                       <> "style" =: "float: right; margin-right: 5px") $ text "Edit"
-    modalDyn <- holdDyn ci $ fmap (const ci) (domEvent Click editBtn)
-    dynModalVal <- forDyn modalDyn $ \_ -> do
+    setupModalR <- setupModal ModalLevelBasic ci (domEvent Click editBtn) $ do
         rec
             (dialogResult, editDlgOkEvt, _) <- buildModalBody "Edit" (PrimaryBtn "Save")
                 (domEvent Click editBtn) errorEvt (editConfigItem pluginConfig ci)
@@ -309,16 +298,13 @@ addEditButton pluginConfig@PluginConfig{..} ci@ConfigItem{..} = do
                 editDlgOkEvt
             saveEvt <- saveConfigEdit editConfigEvt
         return saveEvt
+    modalHandleSaveAction ModalLevelBasic setupModalR
 
-    dynModalEvtEvt <- dynModal dynModalVal
-    dynModalDynEvt <- holdDyn never dynModalEvtEvt
-    modalHandleSaveAction $ switch $ current dynModalDynEvt
-
-modalHandleSaveAction :: MonadWidget t m => Event t (RemoteData b) -> m (Event t b)
-modalHandleSaveAction saveEvt = do
+modalHandleSaveAction :: MonadWidget t m => ModalLevel -> Event t (RemoteData b) -> m (Event t b)
+modalHandleSaveAction modalLevel saveEvt = do
     let savedCfgEditEvt = fmapMaybe fromRemoteData saveEvt
     -- request to close the dialog upon success
-    performEvent_ $ fmap (const $ liftIO $ hideModalIdDialog topLevelModalId) savedCfgEditEvt
+    performEvent_ $ fmap (const $ liftIO $ hideModalIdDialog $ topLevelModalId modalLevel) savedCfgEditEvt
     return savedCfgEditEvt
 
 encodeToStr :: ToJSON a => a -> String

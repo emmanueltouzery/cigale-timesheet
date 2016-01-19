@@ -40,23 +40,23 @@ cigaleView = do
     stylesheet "pikaday.css"
     stylesheet "https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.2/css/bootstrap.min.css"
     activeViewDyn <- navBar
-    addModalDialogSkeleton 5000 topLevelModalId topLevelModalContentsId
-    addModalDialogSkeleton 99999999 topLevelSecModalId topLevelSecModalContentsId
+    addModalDialogSkeleton 5000 ModalLevelBasic
+    addModalDialogSkeleton 99999999 ModalLevelSecondary
     eventsView activeViewDyn
     configView activeViewDyn
 
 -- | add the skeleton of a modal dialog that can be reused by
 -- other parts of the application. They'll refer to the toplevelmodal
 -- and toplevelmodalcontents DOM IDs.
-addModalDialogSkeleton :: MonadWidget t m => Int -> String -> String -> m ()
-addModalDialogSkeleton zIndex modalId modalContentsId =
+addModalDialogSkeleton :: MonadWidget t m => Int -> ModalLevel -> m ()
+addModalDialogSkeleton zIndex modalLevel =
     void $ elAttr' "div" ("class" =: "modal fade"
                           <> "tabindex" =: "-1"
-                          <> "id" =: modalId
+                          <> "id" =: topLevelModalId modalLevel
                           <> "style" =: ("z-index: " <> show zIndex)) $
         elAttr "div" ("class" =: "modal-dialog"
                       <> "role" =: "document"
-                      <> "id" =: modalContentsId) $ text ""
+                      <> "id" =: topLevelModalContentsId modalLevel) $ text ""
 
 data NavLinkItem = NavLinkItem
      {

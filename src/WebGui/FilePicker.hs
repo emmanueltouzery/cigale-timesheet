@@ -8,6 +8,7 @@ import Data.Aeson as A
 import GHC.Generics
 import System.FilePath.Posix
 import Data.List
+import Control.Monad.IO.Class
 
 import Common
 
@@ -53,7 +54,9 @@ buildFolderPicker clickEvt = do
             ]
         browseDataDyn <- foldDyn const RemoteDataLoading $ leftmost (updated <$> dynUpdateEvents)
         (bla :: Dynamic t (m (Event t PickerEventType))) <- forDyn browseDataDyn $ \remoteBrowseData -> do
-            (r :: Event t PickerEventType, okEvt, _) <- buildSecModalBody "Pick a folder" (PrimaryBtn "OK") clickEvt never $ do
+            let modalId = topLevelModalId ModalLevelSecondary
+            performEvent_ $ fmap (const $ liftIO $ showModalIdDialog modalId) clickEvt
+            (r :: Event t PickerEventType, okEvt, _) <- buildModalBody "Pick a folder" (PrimaryBtn "OK") clickEvt never $ do
                 case fromRemoteData remoteBrowseData of
                     Nothing -> return never
                     Just browseData -> do
@@ -66,11 +69,7 @@ buildFolderPicker clickEvt = do
                             leftmost <$> mapM displayFile files
                         return $ leftmost [fmap ChangeFolder breadcrumbR, fmap (PickFileFolder . filename) tableR] -- ## filename is not ok, need the full path
             return r
-        -- TODO that's messy.. ask on irc or something,
-        -- there's probably a nicer way?
-        (eer :: Event t (Event t PickerEventType)) <- dynSecModal bla
-        (eet :: Dynamic t (Event t PickerEventType)) <- holdDyn never eer
-        let rx = switch $ current eet
+        rx <- readModalResult ModalLevelSecondary bla
         --(rDynEvent :: Dynamic t (Event t PickerEventType)) <- holdDyn never (bodyResult r)
         --let rx = switch $ current (bodyResult r)
         --let x = fmapMaybe getPickData rx

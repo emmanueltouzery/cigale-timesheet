@@ -104,23 +104,24 @@ data ModalDialogResult t a = ModalDialogResult
 
 data ButtonInfo = PrimaryBtn String | DangerBtn String
 
--- if I ETA reduce, I hit a ghcjs bug.
+setupModal :: MonadWidget t m => ModalLevel -> a -> Event t () -> m (Event t b) -> m (Event t b)
+setupModal modalLevel displayData showEvent buildDialog = do
+    let modalId = topLevelModalId modalLevel
+    performEvent_ $ fmap (const $ liftIO $ showModalIdDialog modalId) showEvent
+    modalDyn <- holdDyn displayData $ fmap (const displayData) showEvent
+    dynModalVal <- forDyn modalDyn $ const buildDialog
+    readModalResult modalLevel dynModalVal
+
+readModalResult :: MonadWidget t m => ModalLevel -> Dynamic t (m (Event t a)) -> m (Event t a)
+readModalResult modalLevel dynModalVal = do
+    dynModalEvtEvt <- dynModal modalLevel dynModalVal
+    dynModalDynEvt <- holdDyn never dynModalEvtEvt
+    return (switch $ current dynModalDynEvt)
+
 buildModalBody :: MonadWidget t m => String -> ButtonInfo -> Event t ()
                  -> Event t String -> m a -> m (a, Event t (), Event t ())
-buildModalBody title okBtnInfo showEvent _errorEvent contents= buildModalBody' topLevelModalId
-    title okBtnInfo showEvent _errorEvent contents
-
--- if I ETA reduce, I hit a ghcjs bug.
-buildSecModalBody :: MonadWidget t m => String -> ButtonInfo -> Event t ()
-                 -> Event t String -> m a -> m (a, Event t (), Event t ())
-buildSecModalBody title okBtnInfo showEvent _errorEvent contents = buildModalBody' topLevelSecModalId
-    title okBtnInfo showEvent _errorEvent contents
-
-buildModalBody' :: MonadWidget t m => String -> String -> ButtonInfo -> Event t ()
-                 -> Event t String -> m a -> m (a, Event t (), Event t ())
-buildModalBody' modalId title okBtnInfo showEvent _errorEvent contents = do
+buildModalBody title okBtnInfo showEvent _errorEvent contents = do
     -- open on showEvent
-    performEvent_ $ fmap (const $ liftIO $ showModalIdDialog modalId) showEvent
     -- whenever the user opens the modal, clear the error display.
     let errorEvent = leftmost [_errorEvent, const "" <$> showEvent]
     let (okBtnText, okBtnClass) = case okBtnInfo of
@@ -153,23 +154,19 @@ buildModalBody' modalId title okBtnInfo showEvent _errorEvent contents = do
             return (domEvent Click okEl, domEvent Click closeEl)
         return (bodyRes, okEvt, closeEvt)
 
-topLevelModalId :: String
-topLevelModalId = "toplevelmodal"
-topLevelModalContentsId :: String
-topLevelModalContentsId = "toplevelmodalcontents"
+-- a secondary modal is on top of the basic one (modal in modal)
+data ModalLevel = ModalLevelBasic | ModalLevelSecondary
 
--- secondary modal, on top of the first one.
-topLevelSecModalId :: String
-topLevelSecModalId = "toplevelsecmodal"
-topLevelSecModalContentsId :: String
-topLevelSecModalContentsId = "toplevelsecmodalcontents"
+topLevelModalId :: ModalLevel -> String
+topLevelModalId ModalLevelBasic = "toplevelmodal"
+topLevelModalId ModalLevelSecondary = "toplevelsecmodal"
 
--- the API is very, very lame. buildSecModal, then dynSecModal. YUCK.
-dynModal :: MonadWidget t m => Dynamic t (m a) -> m (Event t a)
-dynModal = dynAtEltId topLevelModalContentsId
+topLevelModalContentsId :: ModalLevel -> String
+topLevelModalContentsId ModalLevelBasic = "toplevelmodalcontents"
+topLevelModalContentsId ModalLevelSecondary = "toplevelsecmodalcontents"
 
-dynSecModal :: MonadWidget t m => Dynamic t (m a) -> m (Event t a)
-dynSecModal = dynAtEltId topLevelSecModalContentsId
+dynModal :: MonadWidget t m => ModalLevel -> Dynamic t (m a) -> m (Event t a)
+dynModal modalLevel = dynAtEltId (topLevelModalContentsId modalLevel)
 
 -- | this is copy-pasted & modified from 'dyn' from reflex-dom
 -- instead of appending the nodes at the current position in the

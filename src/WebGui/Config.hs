@@ -202,7 +202,6 @@ folderEntry cfgItemName memberName val = do
             (browseBtn, _) <- elAttr' "div" ("class" =: "input-group-addon") $
                 elAttr' "span" ("style" =: "cursor: pointer") $ text "Browse..."
             buildFolderPicker (domEvent Click browseBtn)
-            performEvent_ $ fmap (const $ liftIO $ showModalIdDialog topLevelModalId) $ domEvent Click browseBtn
             return inputVal
         --let inputGetValue = htmlInputElementGetValue . castToHTMLInputElement . _el_element
         return inputVal
@@ -273,16 +272,21 @@ addDeleteButton ci@ConfigItem{..} = do
     (deleteBtn, _) <- elAttr' "button"
         ("class" =: "btn btn-danger btn-sm"
          <> "style" =: "float: right") $ text "Delete"
-    rec
-        dialogInfo <- buildModalDialog "Delete" (DangerBtn "Delete")
-            (domEvent Click deleteBtn) errorEvt
-            (text $ "Delete the config item " <> configItemName <> "?")
-        let errorEvt = fmapMaybe remoteDataInvalidDesc saveEvt
+    modalDyn <- holdDyn ci $ fmap (const ci) (domEvent Click deleteBtn)
+    dynModalVal <- forDyn modalDyn $ \_ -> do
+        rec
+            (_, deleteDlgOkEvt, _) <- buildModalBody' "Delete" (DangerBtn "Delete")
+                (domEvent Click deleteBtn) errorEvt
+                (text $ "Delete the config item " <> configItemName <> "?")
+            let errorEvt = fmapMaybe remoteDataInvalidDesc saveEvt
 
-        let deleteEvt = fmap (const $ ConfigDelete ci) (okBtnEvent dialogInfo)
-        saveEvt <- saveConfigDelete deleteEvt
+            let deleteEvt = fmap (const $ ConfigDelete ci) deleteDlgOkEvt
+            saveEvt <- saveConfigDelete deleteEvt
+        return saveEvt
 
-    handleSaveAction dialogInfo saveEvt
+    dynModalEvtEvt <- dynModal dynModalVal
+    dynModalDynEvt <- holdDyn never dynModalEvtEvt
+    modalHandleSaveAction $ switch $ current dynModalDynEvt
 
 addEditButton :: MonadWidget t m => PluginConfig -> ConfigItem -> m (Event t ConfigUpdate)
 addEditButton pluginConfig@PluginConfig{..} ci@ConfigItem{..} = do
@@ -303,6 +307,14 @@ addEditButton pluginConfig@PluginConfig{..} ci@ConfigItem{..} = do
 
     return cfgUpdEvt
 
+modalHandleSaveAction :: MonadWidget t m => Event t (RemoteData b) -> m (Event t b)
+modalHandleSaveAction saveEvt = do
+    let savedCfgEditEvt = fmapMaybe fromRemoteData saveEvt
+    -- request to close the dialog upon success
+    performEvent_ $ fmap (const $ liftIO $ hideModalIdDialog topLevelModalId) savedCfgEditEvt
+    return savedCfgEditEvt
+
+-- TODO this is obsolete, delete me
 handleSaveAction :: MonadWidget t m => ModalDialogResult t a -> Event t (RemoteData b) -> m (Event t b)
 handleSaveAction dialogInfo saveEvt = do
     let savedCfgEditEvt = fmapMaybe fromRemoteData saveEvt

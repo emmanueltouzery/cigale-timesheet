@@ -35,6 +35,10 @@ foreign import javascript unsafe "$($1).modal('show')" _showModalDialog :: JSRef
 showModalDialog :: ModalDialogResult t a -> IO ()
 showModalDialog = _showModalDialog . unwrapElt . modalElt
 
+foreign import javascript unsafe "$('#'+$1).modal('hide')" _hideModalIdDialog :: JSString -> IO ()
+hideModalIdDialog :: String -> IO ()
+hideModalIdDialog = _hideModalIdDialog . toJSString
+
 foreign import javascript unsafe "$('#'+$1).modal('show')" _showModalIdDialog :: JSString -> IO ()
 showModalIdDialog :: String -> IO ()
 showModalIdDialog = _showModalIdDialog . toJSString
@@ -163,6 +167,8 @@ buildModalBody title okBtnInfo showEvent _errorEvent contents = do
 buildModalBody' :: MonadWidget t m => String -> ButtonInfo -> Event t ()
                  -> Event t String -> m a -> m (a, Event t (), Event t ())
 buildModalBody' title okBtnInfo showEvent _errorEvent contents = do
+    -- open on showEvent
+    performEvent_ $ fmap (const $ liftIO $ showModalIdDialog topLevelModalId) showEvent
     -- whenever the user opens the modal, clear the error display.
     let errorEvent = leftmost [_errorEvent, const "" <$> showEvent]
     let (okBtnText, okBtnClass) = case okBtnInfo of

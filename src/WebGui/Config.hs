@@ -290,22 +290,24 @@ addDeleteButton ci@ConfigItem{..} = do
 
 addEditButton :: MonadWidget t m => PluginConfig -> ConfigItem -> m (Event t ConfigUpdate)
 addEditButton pluginConfig@PluginConfig{..} ci@ConfigItem{..} = do
-    rec
-        (editBtn, _) <- elAttr' "button" ("class" =: "btn btn-default btn-sm"
-                                          <> "style" =: "float: right; margin-right: 5px") $ text "Edit"
-        dialogInfo <- buildModalDialog "Edit" (PrimaryBtn "Save")
-            (domEvent Click editBtn) errorEvt (editConfigItem pluginConfig ci)
-        let errorEvt = fmapMaybe remoteDataInvalidDesc saveEvt
+    (editBtn, _) <- elAttr' "button" ("class" =: "btn btn-default btn-sm"
+                                      <> "style" =: "float: right; margin-right: 5px") $ text "Edit"
+    modalDyn <- holdDyn ci $ fmap (const ci) (domEvent Click editBtn)
+    dynModalVal <- forDyn modalDyn $ \_ -> do
+        rec
+            (dialogResult, editDlgOkEvt, _) <- buildModalBody' "Edit" (PrimaryBtn "Save")
+                (domEvent Click editBtn) errorEvt (editConfigItem pluginConfig ci)
+            let errorEvt = fmapMaybe remoteDataInvalidDesc saveEvt
 
-        editConfigEvt <- performEvent $ fmap
-            (const $ do
-                  modalResult <- sample $ current $ bodyResult dialogInfo
-                  ConfigUpdate configItemName <$> readDialog modalResult pluginConfig)
-            $ okBtnEvent dialogInfo
-        saveEvt <- saveConfigEdit editConfigEvt
-        cfgUpdEvt <- handleSaveAction dialogInfo saveEvt
+            editConfigEvt <- performEvent $ fmap
+                (const $ ConfigUpdate configItemName <$> readDialog dialogResult pluginConfig)
+                editDlgOkEvt
+            saveEvt <- saveConfigEdit editConfigEvt
+        return saveEvt
 
-    return cfgUpdEvt
+    dynModalEvtEvt <- dynModal dynModalVal
+    dynModalDynEvt <- holdDyn never dynModalEvtEvt
+    modalHandleSaveAction $ switch $ current dynModalDynEvt
 
 modalHandleSaveAction :: MonadWidget t m => Event t (RemoteData b) -> m (Event t b)
 modalHandleSaveAction saveEvt = do

@@ -40,18 +40,23 @@ cigaleView = do
     stylesheet "pikaday.css"
     stylesheet "https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.2/css/bootstrap.min.css"
     activeViewDyn <- navBar
-    -- add the skeleton of a modal dialog that can be reused by
-    -- other parts of the application. They'll refer to the toplevelmodal
-    -- and toplevelmodalcontents DOM IDs.
-    void $ elAttr' "div" ("class" =: "modal fade"
-                          <> "tabindex" =: "-1"
-                          <> "id" =: topLevelModalId
-                          <> "style" =: "z-index: 99999999") $
-        elAttr "div" ("class" =: "modal-dialog"
-                      <> "role" =: "document"
-                      <> "id" =: topLevelModalContentsId) $ text ""
+    addModalDialogSkeleton 5000 topLevelModalId topLevelModalContentsId
+    addModalDialogSkeleton 99999999 topLevelSecModalId topLevelSecModalContentsId
     eventsView activeViewDyn
     configView activeViewDyn
+
+-- | add the skeleton of a modal dialog that can be reused by
+-- other parts of the application. They'll refer to the toplevelmodal
+-- and toplevelmodalcontents DOM IDs.
+addModalDialogSkeleton :: MonadWidget t m => Int -> String -> String -> m ()
+addModalDialogSkeleton zIndex modalId modalContentsId =
+    void $ elAttr' "div" ("class" =: "modal fade"
+                          <> "tabindex" =: "-1"
+                          <> "id" =: modalId
+                          <> "style" =: ("z-index: " <> show zIndex)) $
+        elAttr "div" ("class" =: "modal-dialog"
+                      <> "role" =: "document"
+                      <> "id" =: modalContentsId) $ text ""
 
 data NavLinkItem = NavLinkItem
      {

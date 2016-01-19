@@ -104,11 +104,23 @@ data ModalDialogResult t a = ModalDialogResult
 
 data ButtonInfo = PrimaryBtn String | DangerBtn String
 
-buildModalBody' :: MonadWidget t m => String -> ButtonInfo -> Event t ()
+-- if I ETA reduce, I hit a ghcjs bug.
+buildModalBody :: MonadWidget t m => String -> ButtonInfo -> Event t ()
                  -> Event t String -> m a -> m (a, Event t (), Event t ())
-buildModalBody' title okBtnInfo showEvent _errorEvent contents = do
+buildModalBody title okBtnInfo showEvent _errorEvent contents= buildModalBody' topLevelModalId
+    title okBtnInfo showEvent _errorEvent contents
+
+-- if I ETA reduce, I hit a ghcjs bug.
+buildSecModalBody :: MonadWidget t m => String -> ButtonInfo -> Event t ()
+                 -> Event t String -> m a -> m (a, Event t (), Event t ())
+buildSecModalBody title okBtnInfo showEvent _errorEvent contents = buildModalBody' topLevelSecModalId
+    title okBtnInfo showEvent _errorEvent contents
+
+buildModalBody' :: MonadWidget t m => String -> String -> ButtonInfo -> Event t ()
+                 -> Event t String -> m a -> m (a, Event t (), Event t ())
+buildModalBody' modalId title okBtnInfo showEvent _errorEvent contents = do
     -- open on showEvent
-    performEvent_ $ fmap (const $ liftIO $ showModalIdDialog topLevelModalId) showEvent
+    performEvent_ $ fmap (const $ liftIO $ showModalIdDialog modalId) showEvent
     -- whenever the user opens the modal, clear the error display.
     let errorEvent = leftmost [_errorEvent, const "" <$> showEvent]
     let (okBtnText, okBtnClass) = case okBtnInfo of
@@ -143,12 +155,21 @@ buildModalBody' title okBtnInfo showEvent _errorEvent contents = do
 
 topLevelModalId :: String
 topLevelModalId = "toplevelmodal"
-
 topLevelModalContentsId :: String
 topLevelModalContentsId = "toplevelmodalcontents"
 
+-- secondary modal, on top of the first one.
+topLevelSecModalId :: String
+topLevelSecModalId = "toplevelsecmodal"
+topLevelSecModalContentsId :: String
+topLevelSecModalContentsId = "toplevelsecmodalcontents"
+
+-- the API is very, very lame. buildSecModal, then dynSecModal. YUCK.
 dynModal :: MonadWidget t m => Dynamic t (m a) -> m (Event t a)
 dynModal = dynAtEltId topLevelModalContentsId
+
+dynSecModal :: MonadWidget t m => Dynamic t (m a) -> m (Event t a)
+dynSecModal = dynAtEltId topLevelSecModalContentsId
 
 -- | this is copy-pasted & modified from 'dyn' from reflex-dom
 -- instead of appending the nodes at the current position in the

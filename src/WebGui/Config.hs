@@ -146,7 +146,7 @@ addCfgPluginAdd pc clickEvt = do
     dynModalVal <- forDyn modalDyn $ \_ -> do
         rec
             (dialogResult, addDlgOkEvt, _) <- elAttr "div" ("style" =: "position: absolute") $
-                buildModalBody' "Add" (PrimaryBtn "Save")
+                buildModalBody "Add" (PrimaryBtn "Save")
                     clickEvt errorEvt (editConfigItem pc ci)
             let errorEvt = fmapMaybe remoteDataInvalidDesc saveEvt
 
@@ -280,7 +280,7 @@ addDeleteButton ci@ConfigItem{..} = do
     modalDyn <- holdDyn ci $ fmap (const ci) (domEvent Click deleteBtn)
     dynModalVal <- forDyn modalDyn $ \_ -> do
         rec
-            (_, deleteDlgOkEvt, _) <- buildModalBody' "Delete" (DangerBtn "Delete")
+            (_, deleteDlgOkEvt, _) <- buildModalBody "Delete" (DangerBtn "Delete")
                 (domEvent Click deleteBtn) errorEvt
                 (text $ "Delete the config item " <> configItemName <> "?")
             let errorEvt = fmapMaybe remoteDataInvalidDesc saveEvt
@@ -300,7 +300,7 @@ addEditButton pluginConfig@PluginConfig{..} ci@ConfigItem{..} = do
     modalDyn <- holdDyn ci $ fmap (const ci) (domEvent Click editBtn)
     dynModalVal <- forDyn modalDyn $ \_ -> do
         rec
-            (dialogResult, editDlgOkEvt, _) <- buildModalBody' "Edit" (PrimaryBtn "Save")
+            (dialogResult, editDlgOkEvt, _) <- buildModalBody "Edit" (PrimaryBtn "Save")
                 (domEvent Click editBtn) errorEvt (editConfigItem pluginConfig ci)
             let errorEvt = fmapMaybe remoteDataInvalidDesc saveEvt
 

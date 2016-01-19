@@ -53,7 +53,7 @@ buildFolderPicker clickEvt = do
             ]
         browseDataDyn <- foldDyn const RemoteDataLoading $ leftmost (updated <$> dynUpdateEvents)
         (bla :: Dynamic t (m (Event t PickerEventType))) <- forDyn browseDataDyn $ \remoteBrowseData -> do
-            (r :: Event t PickerEventType, okEvt, _) <- buildModalBody' "Pick a folder" (PrimaryBtn "OK") clickEvt never $ do
+            (r :: Event t PickerEventType, okEvt, _) <- buildSecModalBody "Pick a folder" (PrimaryBtn "OK") clickEvt never $ do
                 case fromRemoteData remoteBrowseData of
                     Nothing -> return never
                     Just browseData -> do
@@ -68,7 +68,7 @@ buildFolderPicker clickEvt = do
             return r
         -- TODO that's messy.. ask on irc or something,
         -- there's probably a nicer way?
-        (eer :: Event t (Event t PickerEventType)) <- dynModal bla
+        (eer :: Event t (Event t PickerEventType)) <- dynSecModal bla
         (eet :: Dynamic t (Event t PickerEventType)) <- holdDyn never eer
         let rx = switch $ current eet
         --(rDynEvent :: Dynamic t (Event t PickerEventType)) <- holdDyn never (bodyResult r)

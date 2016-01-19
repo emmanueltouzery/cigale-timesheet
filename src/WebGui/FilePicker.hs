@@ -52,34 +52,30 @@ buildFolderPicker clickEvt = do
                 makeSimpleXhr' ("/browseFolder?path=" ++) (fmapMaybe getChangeFolder rx)
             ]
         browseDataDyn <- foldDyn const RemoteDataLoading $ leftmost (updated <$> dynUpdateEvents)
-        -- and tie it to the event for appearance.
-        (r :: ModalDialogResult t (Event t PickerEventType)) <- buildModalDialog "Pick a folder" (PrimaryBtn "OK") clickEvt never $ do
-            bla <- forDyn browseDataDyn $ \remoteBrowseData -> do
+        (bla :: Dynamic t (m (Event t PickerEventType))) <- forDyn browseDataDyn $ \remoteBrowseData -> do
+            (r :: Event t PickerEventType, okEvt, _) <- buildModalBody' "Pick a folder" (PrimaryBtn "OK") clickEvt never $ do
                 case fromRemoteData remoteBrowseData of
                     Nothing -> return never
                     Just browseData -> do
                         breadcrumbR <- elAttr "ol" ("class" =: "breadcrumb") $ do
-                            --breadcrumb <- do
                             let path = browseFolderPath browseData
                             let pathLevels = reverse $ foldl' formatPathLinks [] (splitPath path)
                             leftmost <$> displayBreadcrumb pathLevels
-                            -- TODO that's messy.. ask on irc or something,
-                            -- there's probably a nicer way?
-                            -- bDynEvent <- dyn breadcrumb >>= holdDyn never
-                            -- return $ fmap ChangeFolder (switch $ current bDynEvent)
                         tableR <- el "table" $ do
                             let files = browseFiles browseData
                             leftmost <$> mapM displayFile files
                         return $ leftmost [fmap ChangeFolder breadcrumbR, fmap (PickFileFolder . filename) tableR] -- ## filename is not ok, need the full path
-            -- TODO that's messy.. ask on irc or something,
-            -- there's probably a nicer way?
-            (eer :: Event t (Event t PickerEventType)) <- dyn bla
-            (eet :: Dynamic t (Event t PickerEventType)) <- holdDyn never eer
-            return $ switch $ current eet
+            return r
+        -- TODO that's messy.. ask on irc or something,
+        -- there's probably a nicer way?
+        (eer :: Event t (Event t PickerEventType)) <- dynModal bla
+        (eet :: Dynamic t (Event t PickerEventType)) <- holdDyn never eer
+        let rx = switch $ current eet
         --(rDynEvent :: Dynamic t (Event t PickerEventType)) <- holdDyn never (bodyResult r)
-        let rx = switch $ current (bodyResult r)
-        let x = fmapMaybe getPickData rx
-    return x
+        --let rx = switch $ current (bodyResult r)
+        --let x = fmapMaybe getPickData rx
+    --return x
+    return never
 
 displayFile :: MonadWidget t m => FileInfo -> m (Event t FileInfo)
 displayFile file@FileInfo{..} = do

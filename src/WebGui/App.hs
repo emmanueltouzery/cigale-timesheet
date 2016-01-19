@@ -13,6 +13,7 @@ import qualified Data.ByteString as BS
 import Data.Monoid
 import Control.Monad.IO.Class
 import Data.Maybe
+import Control.Monad
 
 import Common
 import Config
@@ -39,6 +40,16 @@ cigaleView = do
     stylesheet "pikaday.css"
     stylesheet "https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.2/css/bootstrap.min.css"
     activeViewDyn <- navBar
+    -- add the skeleton of a modal dialog that can be reused by
+    -- other parts of the application. They'll refer to the toplevelmodal
+    -- and toplevelmodalcontents DOM IDs.
+    void $ elAttr' "div" ("class" =: "modal fade"
+                          <> "tabindex" =: "-1"
+                          <> "id" =: topLevelModalId
+                          <> "style" =: "z-index: 99999999") $
+        elAttr "div" ("class" =: "modal-dialog"
+                      <> "role" =: "document"
+                      <> "id" =: topLevelModalContentsId) $ text ""
     eventsView activeViewDyn
     configView activeViewDyn
 

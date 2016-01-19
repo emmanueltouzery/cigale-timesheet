@@ -177,31 +177,32 @@ editConfigItem PluginConfig{..} ConfigItem{..} = do
     el "form" $ do
         srcNameInput <- elAttr "fieldset" ("class" =: "form-group") $
             fieldEntry "sourceName" "Enter source name:" configItemName
-        fieldInputs  <- Map.fromList <$> mapM (editConfigDataInfo configuration) cfgPluginConfig
+        fieldInputs  <- Map.fromList <$> mapM (editConfigDataInfo configItemName configuration) cfgPluginConfig
         return (srcNameInput, fieldInputs)
 
-editConfigDataInfo :: MonadWidget t m => A.Object -> ConfigDataInfo -> m (String, Dynamic t String)
-editConfigDataInfo obj ConfigDataInfo{..} = do
+editConfigDataInfo :: MonadWidget t m => String -> A.Object -> ConfigDataInfo -> m (String, Dynamic t String)
+editConfigDataInfo cfgItemName obj ConfigDataInfo{..} = do
     -- TODO different display based on member type: String, Text, ByteString, FilePath, FolderPath, Password
     let fieldValue = readObjectField memberName obj
     field <- case memberType of
         "Password"   -> passwordEntry memberName memberName fieldValue
-        "FolderPath" -> folderEntry memberName fieldValue
+        "FolderPath" -> folderEntry cfgItemName memberName fieldValue
         _ -> fieldEntry memberName memberName fieldValue
     return (memberName, field)
 
-folderEntry :: MonadWidget t m => String -> String -> m (Dynamic t String)
-folderEntry memberName value = do
+folderEntry :: MonadWidget t m => String -> String -> String -> m (Dynamic t String)
+folderEntry cfgItemName memberName val = do
     elAttr "label" ("for" =: memberName) $ text memberName
     elAttr "div" ("class" =: "input-group") $ do
         rec
             inputVal <- _textInput_value <$> textInput
                 (def
                  & textInputConfig_attributes .~ constDyn ("id" =: memberName <> "class" =: "form-control")
-                 & textInputConfig_initialValue .~ value)
+                 & textInputConfig_initialValue .~ val)
             (browseBtn, _) <- elAttr' "div" ("class" =: "input-group-addon") $
                 elAttr' "span" ("style" =: "cursor: pointer") $ text "Browse..."
-            buildFolderPicker $ domEvent Click browseBtn
+            buildFolderPicker (domEvent Click browseBtn)
+            performEvent_ $ fmap (const $ liftIO $ showModalIdDialog topLevelModalId) $ domEvent Click browseBtn
             return inputVal
         --let inputGetValue = htmlInputElementGetValue . castToHTMLInputElement . _el_element
         return inputVal

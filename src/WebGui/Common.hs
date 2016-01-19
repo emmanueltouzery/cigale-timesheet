@@ -1,10 +1,13 @@
-{-# LANGUAGE ScopedTypeVariables, LambdaCase, OverloadedStrings, JavaScriptFFI, ForeignFunctionInterface, RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables, LambdaCase, OverloadedStrings, JavaScriptFFI #-}
+{-# LANGUAGE ForeignFunctionInterface, RecordWildCards, OverloadedStrings, TypeFamilies #-}
 
 module Common where
 
 import GHCJS.Types
 import GHCJS.Foreign
 import GHCJS.DOM.Element
+import GHCJS.DOM.Node
+import GHCJS.DOM.Document
 import GHCJS.DOM.Types hiding (Text, Event)
 
 import Reflex.Dom
@@ -31,6 +34,10 @@ hideModalDialog = _hideModalDialog . unwrapElt . modalElt
 foreign import javascript unsafe "$($1).modal('show')" _showModalDialog :: JSRef Element -> IO ()
 showModalDialog :: ModalDialogResult t a -> IO ()
 showModalDialog = _showModalDialog . unwrapElt . modalElt
+
+foreign import javascript unsafe "$('#'+$1).modal('show')" _showModalIdDialog :: JSString -> IO ()
+showModalIdDialog :: String -> IO ()
+showModalIdDialog = _showModalIdDialog . toJSString
 
 foreign import javascript unsafe
     "$($1).on('hidden.bs.modal', $2)"
@@ -93,47 +100,14 @@ data ModalDialogResult t a = ModalDialogResult
 
 data ButtonInfo = PrimaryBtn String | DangerBtn String
 
+-- TODO this is obsolete, get rid of this
 buildModalDialog :: MonadWidget t m => String -> ButtonInfo -> Event t ()
                  -> Event t String -> m a -> m (ModalDialogResult t a)
-buildModalDialog title okBtnInfo showEvent _errorEvent contents = do
-    -- whenever the user opens the modal, clear the error display.
-    let errorEvent = leftmost [_errorEvent, const "" <$> showEvent]
-    let (okBtnText, okBtnClass) = case okBtnInfo of
-            PrimaryBtn txt -> (txt, "primary")
-            DangerBtn txt -> (txt, "danger")
+buildModalDialog title okBtnInfo showEvent errorEvent contents = do
     -- for tabindex=-1, see http://stackoverflow.com/a/12630531/516188
     (modalDiv, (br, oke, ce)) <- elAttr' "div" ("class" =: "modal fade" <> "tabindex" =: "-1") $
         elAttr "div" ("class" =: "modal-dialog" <> "role" =: "document") $
-            elAttr "div" ("class" =: "modal-content") $ do
-                elAttr "div" ("class" =: "modal-header") $ do
-                    void $ elAttr "button" ("type" =: "button" <> "class" =: "close"
-                                    <> "data-dismiss" =: "modal" <> "aria-label" =: "Close") $
-                        elDynHtmlAttr' "span" ("aria-hidden" =: "true") (constDyn "&times;")
-                    elAttr "h4" ("class" =: "modal-title") $ text title
-                bodyRes <- elAttr "div" ("class" =: "modal-body") $ do
-                    dynErrMsg <- holdDyn "" errorEvent
-                    dynAttrs <- mapDyn (\errMsg ->
-                                         "class" =: "alert alert-danger"
-                                         <> "role" =: "alert"
-                                         <> styleHideIf (null errMsg)) dynErrMsg
-                    elDynAttr "div" dynAttrs $ do
-                        elAttr "strong" ("style" =: "padding-right: 7px") $ text "Error"
-                        dynText dynErrMsg
-                    -- for "form entry" modals, we must regenerate the modal html
-                    -- everytime the user wants to display it.
-                    -- Example: open modal, edit contents, cancel.
-                    -- You don't want to see the discarded values when reopening.
-                    widgetHold contents (fmap (const contents) showEvent)
-                (okEvt, closeEvt)  <- elAttr "div" ("class" =: "modal-footer") $ do
-                    (closeEl, _) <- elAttr' "button" ("type" =: "button"
-                                                      <> "class" =: "btn btn-secondary"
-                                                      <> "data-dismiss" =: "modal")
-                        $ text "Close"
-                    (okEl, _) <- elAttr' "button" ("type" =: "button"
-                                                   <> "class" =: ("btn btn-" <> okBtnClass))
-                        $ text okBtnText
-                    return (domEvent Click okEl, domEvent Click closeEl)
-                return (bodyRes, okEvt, closeEvt)
+            buildModalBody title okBtnInfo showEvent errorEvent contents
     -- now prepare the event for when the dialog gets closed
     (closedEvent, closedEvtTrigger) <- newEventWithTriggerRef
     postGui <- askPostGui
@@ -145,6 +119,117 @@ buildModalDialog title okBtnInfo showEvent _errorEvent contents = do
     let dialogInfo = ModalDialogResult modalDiv br oke ce closedEvent
     performEvent_ $ fmap (const $ liftIO $ showModalDialog dialogInfo) showEvent
     return dialogInfo
+
+-- TODO this is obsolete, get rid of this
+buildModalBody :: MonadWidget t m => String -> ButtonInfo -> Event t ()
+                 -> Event t String -> m a -> m (Dynamic t a, Event t (), Event t ())
+buildModalBody title okBtnInfo showEvent _errorEvent contents = do
+    -- whenever the user opens the modal, clear the error display.
+    let errorEvent = leftmost [_errorEvent, const "" <$> showEvent]
+    let (okBtnText, okBtnClass) = case okBtnInfo of
+            PrimaryBtn txt -> (txt, "primary")
+            DangerBtn txt -> (txt, "danger")
+    elAttr "div" ("class" =: "modal-content") $ do
+        elAttr "div" ("class" =: "modal-header") $ do
+            void $ elAttr "button" ("type" =: "button" <> "class" =: "close"
+                            <> "data-dismiss" =: "modal" <> "aria-label" =: "Close") $
+                elDynHtmlAttr' "span" ("aria-hidden" =: "true") (constDyn "&times;")
+            elAttr "h4" ("class" =: "modal-title") $ text title
+        bodyRes <- elAttr "div" ("class" =: "modal-body") $ do
+            dynErrMsg <- holdDyn "" errorEvent
+            dynAttrs <- mapDyn (\errMsg ->
+                                 "class" =: "alert alert-danger"
+                                 <> "role" =: "alert"
+                                 <> styleHideIf (null errMsg)) dynErrMsg
+            elDynAttr "div" dynAttrs $ do
+                elAttr "strong" ("style" =: "padding-right: 7px") $ text "Error"
+                dynText dynErrMsg
+            -- for "form entry" modals, we must regenerate the modal html
+            -- everytime the user wants to display it.
+            -- Example: open modal, edit contents, cancel.
+            -- You don't want to see the discarded values when reopening.
+            widgetHold contents (fmap (const contents) showEvent)
+        (okEvt, closeEvt)  <- elAttr "div" ("class" =: "modal-footer") $ do
+            (closeEl, _) <- elAttr' "button" ("type" =: "button"
+                                              <> "class" =: "btn btn-secondary"
+                                              <> "data-dismiss" =: "modal")
+                $ text "Close"
+            (okEl, _) <- elAttr' "button" ("type" =: "button"
+                                           <> "class" =: ("btn btn-" <> okBtnClass))
+                $ text okBtnText
+            return (domEvent Click okEl, domEvent Click closeEl)
+        return (bodyRes, okEvt, closeEvt)
+
+buildModalBody' :: MonadWidget t m => String -> ButtonInfo -> Event t ()
+                 -> Event t String -> m a -> m (a, Event t (), Event t ())
+buildModalBody' title okBtnInfo showEvent _errorEvent contents = do
+    -- whenever the user opens the modal, clear the error display.
+    let errorEvent = leftmost [_errorEvent, const "" <$> showEvent]
+    let (okBtnText, okBtnClass) = case okBtnInfo of
+            PrimaryBtn txt -> (txt, "primary")
+            DangerBtn txt -> (txt, "danger")
+    elAttr "div" ("class" =: "modal-content") $ do
+        elAttr "div" ("class" =: "modal-header") $ do
+            void $ elAttr "button" ("type" =: "button" <> "class" =: "close"
+                            <> "data-dismiss" =: "modal" <> "aria-label" =: "Close") $
+                elDynHtmlAttr' "span" ("aria-hidden" =: "true") (constDyn "&times;")
+            elAttr "h4" ("class" =: "modal-title") $ text title
+        bodyRes <- elAttr "div" ("class" =: "modal-body") $ do
+            dynErrMsg <- holdDyn "" errorEvent
+            dynAttrs <- mapDyn (\errMsg ->
+                                 "class" =: "alert alert-danger"
+                                 <> "role" =: "alert"
+                                 <> styleHideIf (null errMsg)) dynErrMsg
+            elDynAttr "div" dynAttrs $ do
+                elAttr "strong" ("style" =: "padding-right: 7px") $ text "Error"
+                dynText dynErrMsg
+            contents
+        (okEvt, closeEvt)  <- elAttr "div" ("class" =: "modal-footer") $ do
+            (closeEl, _) <- elAttr' "button" ("type" =: "button"
+                                              <> "class" =: "btn btn-secondary"
+                                              <> "data-dismiss" =: "modal")
+                $ text "Close"
+            (okEl, _) <- elAttr' "button" ("type" =: "button"
+                                           <> "class" =: ("btn btn-" <> okBtnClass))
+                $ text okBtnText
+            return (domEvent Click okEl, domEvent Click closeEl)
+        return (bodyRes, okEvt, closeEvt)
+
+topLevelModalId :: String
+topLevelModalId = "toplevelmodal"
+
+topLevelModalContentsId :: String
+topLevelModalContentsId = "toplevelmodalcontents"
+
+dynModal :: MonadWidget t m => Dynamic t (m a) -> m (Event t a)
+dynModal = dynAtEltId topLevelModalContentsId
+
+-- | this is copy-pasted & modified from 'dyn' from reflex-dom
+-- instead of appending the nodes at the current position in the
+-- DOM, append them under the node by the ID which you give.
+dynAtEltId :: MonadWidget t m => String -> Dynamic t (m a) -> m (Event t a)
+dynAtEltId eltId child = do
+    (newChildBuilt, newChildBuiltTriggerRef) <- newEventWithTriggerRef
+    let e = fmap snd newChildBuilt
+    childVoidAction <- hold never e
+    performEvent_ $ fmap (const $ return ()) e
+    addVoidAction $ switch childVoidAction
+    doc <- askDocument
+    runW <- getRunWidget
+    let build c = do
+        Just df <- liftIO $ documentCreateDocumentFragment doc
+        (result, postBuild, voidActions) <- runW df c
+        runFrameWithTriggerRef newChildBuiltTriggerRef (result, voidActions)
+        postBuild
+        Just root <- liftIO $ documentGetElementById doc eltId
+        lastChild <- liftIO $ nodeGetLastChild root
+        void $ liftIO $ nodeReplaceChild root (Just df) lastChild
+    schedulePostBuild $ do
+        c <- sample $ current child
+        build c
+    addVoidAction $ ffor (updated child) $ \newChild -> do
+        build newChild
+    return $ fmap fst newChildBuilt
 
 data RemoteData a = RemoteDataInvalid String | RemoteDataLoading | RemoteData a deriving Show
 

@@ -229,7 +229,7 @@ passwordEntry fieldId desc fieldValue = do
             showPaswd <- foldDyn ($) True $ leftmost [fmap (const not) padlockEvt]
             (padlock, _) <- elAttr' "div" ("class" =: "input-group-addon") $ do
                 padlockContents <- forDyn showPaswd (\case; True -> "&#128274;"; False -> "&#128275;")
-                elDynHtmlAttr' "span" ("style" =: "cursor: pointer") padlockContents
+                rawPointerSpan padlockContents
             let padlockEvt = domEvent Click padlock
         let inputGetValue = htmlInputElementGetValue . castToHTMLInputElement . _el_element
         holdDyn fieldValue =<< performEvent

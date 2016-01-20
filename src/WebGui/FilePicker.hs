@@ -39,6 +39,9 @@ data PathElem = PathElem
 
 data PickerEventType = ChangeFolder FilePath | PickFileFolder FilePath
 
+isDirectoryFileInfo :: FileInfo -> Bool
+isDirectoryFileInfo = (== -1) . filesize
+
 getPickData :: PickerEventType -> Maybe FilePath
 getPickData (PickFileFolder x) = Just x
 getPickData _ = Nothing
@@ -63,13 +66,7 @@ buildFolderPicker clickEvt = do
             (r :: Event t PickerEventType, okEvt, _) <- buildModalBody "Pick a folder" (PrimaryBtn "OK") clickEvt never $ do
                 case fromRemoteData remoteBrowseData of
                     Nothing -> return never
-                    Just browseData -> do
-                        breadcrumbR <- elAttr "ol" ("class" =: "breadcrumb") $ do
-                            let path = browseFolderPath browseData
-                            let pathLevels = reverse $ foldl' formatPathLinks [] (splitPath path)
-                            leftmost <$> displayBreadcrumb pathLevels
-                        tableR <- displayFiles browseData
-                        return $ leftmost [fmap ChangeFolder breadcrumbR, fmap (PickFileFolder . filename) tableR] -- ## filename is not ok, need the full path
+                    Just browseData -> displayPickerContents browseData
             return r
         rx <- readModalResult ModalLevelSecondary bla
         --(rDynEvent :: Dynamic t (Event t PickerEventType)) <- holdDyn never (bodyResult r)
@@ -77,6 +74,19 @@ buildFolderPicker clickEvt = do
         --let x = fmapMaybe getPickData rx
     --return x
     return never
+
+displayPickerContents :: MonadWidget t m => BrowseResponse -> m (Event t PickerEventType)
+displayPickerContents browseData = do
+    let path = browseFolderPath browseData
+    breadcrumbR <- elAttr "ol" ("class" =: "breadcrumb") $ do
+        let pathLevels = reverse $ foldl' formatPathLinks [] (splitPath path)
+        leftmost <$> displayBreadcrumb pathLevels
+    tableR <- displayFiles browseData
+    let readTableEvent fi = let fullPath = path </> filename fi in
+            if isDirectoryFileInfo fi
+            then ChangeFolder fullPath
+            else PickFileFolder fullPath
+    return $ leftmost [fmap ChangeFolder breadcrumbR, fmap readTableEvent tableR]
 
 displayBreadcrumb :: MonadWidget t m => [PathElem] -> m [Event t FilePath]
 displayBreadcrumb [] = return []
@@ -97,18 +107,21 @@ displayFiles browseData = do
         elAttr "table" ("class" =: "table table-sm") $
             leftmost <$> mapM displayFile files
 
--- directories first then alphabetical sorting
 filesSort :: FileInfo -> FileInfo -> Ordering
 filesSort a b
-    | filesize a == -1 && filesize b >= 0 = LT
-    | filesize a >= 0 && filesize b == -1 = GT
+    | isDirectoryFileInfo a && not (isDirectoryFileInfo b) = LT
+    | not (isDirectoryFileInfo a) && isDirectoryFileInfo b = GT
     | otherwise = filenameComp a b
   where
     filenameComp = compare `on` (fmap toLower . filename)
 
 displayFile :: MonadWidget t m => FileInfo -> m (Event t FileInfo)
 displayFile file@FileInfo{..} = do
-    (row, _) <- el' "tr" $ el "td" (text filename)
+    (row, _) <- el' "tr" $ do
+        elAttr "td" ("align" =: "center"
+                     <> "style" =: "width: 30px") $ rawPointerSpan $
+            constDyn (if isDirectoryFileInfo file then "&#x1f5c1;" else "&#x1f5ce;")
+        elAttr "td" ("style" =: "cursor: pointer") $ text filename
     return $ fmap (const file) (domEvent Click row)
 
 formatPathLinks :: [PathElem] -> String -> [PathElem]

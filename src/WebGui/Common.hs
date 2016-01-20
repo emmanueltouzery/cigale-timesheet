@@ -27,14 +27,6 @@ import Control.Monad
 
 data ActiveView = ActiveViewEvents | ActiveViewConfig deriving (Eq, Show)
 
-foreign import javascript unsafe "$($1).modal('hide')" _hideModalDialog :: JSRef Element -> IO ()
-hideModalDialog :: ModalDialogResult t a -> IO ()
-hideModalDialog = _hideModalDialog . unwrapElt . modalElt
-
-foreign import javascript unsafe "$($1).modal('show')" _showModalDialog :: JSRef Element -> IO ()
-showModalDialog :: ModalDialogResult t a -> IO ()
-showModalDialog = _showModalDialog . unwrapElt . modalElt
-
 foreign import javascript unsafe "$('#'+$1).modal('hide')" _hideModalIdDialog :: JSString -> IO ()
 hideModalIdDialog :: String -> IO ()
 hideModalIdDialog = _hideModalIdDialog . toJSString
@@ -42,10 +34,6 @@ hideModalIdDialog = _hideModalIdDialog . toJSString
 foreign import javascript unsafe "$('#'+$1).modal('show')" _showModalIdDialog :: JSString -> IO ()
 showModalIdDialog :: String -> IO ()
 showModalIdDialog = _showModalIdDialog . toJSString
-
-foreign import javascript unsafe
-    "$($1).on('hidden.bs.modal', $2)"
-    onModalHidden :: JSRef Element -> JSFun(IO ()) -> IO ()
 
 unwrapElt :: El t -> JSRef Element
 unwrapElt = unElement . toElement . _el_element
@@ -194,6 +182,12 @@ dynAtEltId eltId child = do
     addVoidAction $ ffor (updated child) $ \newChild -> do
         build newChild
     return $ fmap fst newChildBuilt
+
+rawPointerSpan :: MonadWidget t m => Dynamic t String -> m ()
+rawPointerSpan = rawSpan ("style" =: "cursor: pointer")
+
+rawSpan :: MonadWidget t m => Map String String -> Dynamic t String -> m ()
+rawSpan attrs = void . elDynHtmlAttr' "span" attrs
 
 data RemoteData a = RemoteDataInvalid String | RemoteDataLoading | RemoteData a deriving Show
 

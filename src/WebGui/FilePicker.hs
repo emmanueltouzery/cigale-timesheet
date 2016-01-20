@@ -9,6 +9,9 @@ import GHC.Generics
 import System.FilePath.Posix
 import Data.List
 import Control.Monad.IO.Class
+import Data.Monoid
+import Data.Char
+import Data.Function
 
 import Common
 
@@ -65,9 +68,7 @@ buildFolderPicker clickEvt = do
                             let path = browseFolderPath browseData
                             let pathLevels = reverse $ foldl' formatPathLinks [] (splitPath path)
                             leftmost <$> displayBreadcrumb pathLevels
-                        tableR <- el "table" $ do
-                            let files = browseFiles browseData
-                            leftmost <$> mapM displayFile files
+                        tableR <- displayFiles browseData
                         return $ leftmost [fmap ChangeFolder breadcrumbR, fmap (PickFileFolder . filename) tableR] -- ## filename is not ok, need the full path
             return r
         rx <- readModalResult ModalLevelSecondary bla
@@ -76,6 +77,34 @@ buildFolderPicker clickEvt = do
         --let x = fmapMaybe getPickData rx
     --return x
     return never
+
+displayBreadcrumb :: MonadWidget t m => [PathElem] -> m [Event t FilePath]
+displayBreadcrumb [] = return []
+displayBreadcrumb [level] = do
+    (li, _) <- elAttr' "li" ("class" =: "active") $ text (prettyName level)
+    return [fmap (const "/") $ domEvent Click li]
+displayBreadcrumb (level:xs) = do
+    (lnk, _) <- el "li" $ elAttr' "a" ("href" =: "javascript:void(0)") $ text (prettyName level)
+    (:) <$> return (fmap (const $ fullPath level) $ domEvent Click lnk) <*> displayBreadcrumb xs
+
+displayFiles :: MonadWidget t m => BrowseResponse -> m (Event t FileInfo)
+displayFiles browseData = do
+    let files = browseFiles browseData
+            & sortBy filesSort
+            & filter (\fi -> filename fi `notElem` [".", ".."])
+    elAttr "div" ("style" =: ("overflow-y: auto; overflow-x: hidden"
+                              <> "min-height: 370px; max-height: 370px; width: 100%")) $
+        elAttr "table" ("class" =: "table table-sm") $
+            leftmost <$> mapM displayFile files
+
+-- directories first then alphabetical sorting
+filesSort :: FileInfo -> FileInfo -> Ordering
+filesSort a b
+    | filesize a == -1 && filesize b >= 0 = LT
+    | filesize a >= 0 && filesize b == -1 = GT
+    | otherwise = filenameComp a b
+  where
+    filenameComp = compare `on` (fmap toLower . filename)
 
 displayFile :: MonadWidget t m => FileInfo -> m (Event t FileInfo)
 displayFile file@FileInfo{..} = do
@@ -86,12 +115,3 @@ formatPathLinks :: [PathElem] -> String -> [PathElem]
 formatPathLinks [] _ = [PathElem "root" "/"]
 formatPathLinks l@(previous:_) n =  PathElem (withoutSlashes n) (fullPath previous </> n):l
     where withoutSlashes = filter (/= '/')
-
-displayBreadcrumb :: MonadWidget t m => [PathElem] -> m [Event t FilePath]
-displayBreadcrumb [] = return []
-displayBreadcrumb [level] = do
-    (li, _) <- elAttr' "li" ("class" =: "active") $ text (prettyName level)
-    return [fmap (const "/") $ domEvent Click li]
-displayBreadcrumb (level:xs) = do
-    (lnk, _) <- el "li" $ elAttr' "a" ("href" =: "javascript:void(0)") $ text (prettyName level)
-    (:) <$> return (fmap (const $ fullPath level) $ domEvent Click lnk) <*> displayBreadcrumb xs

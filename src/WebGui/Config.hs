@@ -199,13 +199,11 @@ folderEntry cfgItemName memberName val = do
             inputVal <- _textInput_value <$> textInput
                 (def
                  & textInputConfig_attributes .~ constDyn ("id" =: memberName <> "class" =: "form-control")
-                 & textInputConfig_initialValue .~ val)
+                 & textInputConfig_initialValue .~ val
+                 & textInputConfig_setValue .~ updatedFilePath)
             (browseBtn, _) <- elAttr' "div" ("class" =: "input-group-addon") $
                 elAttr' "span" ("style" =: "cursor: pointer") $ text "Browse..."
             updatedFilePath <- buildFolderPicker (tagDyn inputVal $ domEvent Click browseBtn)
-            performEvent_ $ fmap (liftIO . putStrLn) updatedFilePath
-            return inputVal
-        --let inputGetValue = htmlInputElementGetValue . castToHTMLInputElement . _el_element
         return inputVal
 
 fieldEntry :: MonadWidget t m => String -> String -> String -> m (Dynamic t String)

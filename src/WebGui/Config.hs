@@ -202,7 +202,8 @@ folderEntry cfgItemName memberName val = do
                  & textInputConfig_initialValue .~ val)
             (browseBtn, _) <- elAttr' "div" ("class" =: "input-group-addon") $
                 elAttr' "span" ("style" =: "cursor: pointer") $ text "Browse..."
-            buildFolderPicker (tagDyn inputVal $ domEvent Click browseBtn)
+            updatedFilePath <- buildFolderPicker (tagDyn inputVal $ domEvent Click browseBtn)
+            performEvent_ $ fmap (liftIO . putStrLn) updatedFilePath
             return inputVal
         --let inputGetValue = htmlInputElementGetValue . castToHTMLInputElement . _el_element
         return inputVal

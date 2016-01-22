@@ -68,20 +68,18 @@ buildFolderPicker openEvt = do
         let browseInfoEvt = leftmost (updated <$> dynBrowseInfo)
         browseDataDyn <- foldDyn const RemoteDataLoading browseInfoEvt
         fetchErrorDyn <- mapDyn (fromMaybe "" . remoteDataInvalidDesc) browseDataDyn
-        (bla :: Dynamic t (m (Event t PickerEventType))) <- forDyn browseDataDyn $ \remoteBrowseData -> do
+        dynMonPickerEvt <- forDyn browseDataDyn (\remoteBrowseData -> do
             let modalId = topLevelModalId ModalLevelSecondary
             performEvent_ $ fmap (const $ liftIO $ showModalIdDialog modalId) openEvt
             (r, okEvt, _) <- buildModalBody "Pick a folder" (PrimaryBtn "OK") fetchErrorDyn $
                 case fromRemoteData remoteBrowseData of
                     Nothing -> return never
                     Just browseData -> displayPickerContents browseData
-            return r
-        rx <- readModalResult ModalLevelSecondary bla
-        --(rDynEvent :: Dynamic t (Event t PickerEventType)) <- holdDyn never (bodyResult r)
-        --let rx = switch $ current (bodyResult r)
-        --let x = fmapMaybe getPickData rx
-    --return x
-    return never
+            let pickedFolderEvt = fmap (PickFileFolder . browseFolderPath)
+                    $ fmapMaybe (const $ fromRemoteData remoteBrowseData) okEvt
+            return $ leftmost [r, pickedFolderEvt])
+        rx <- readModalResult ModalLevelSecondary dynMonPickerEvt
+    return $ fmapMaybe getPickData rx
 
 displayPickerContents :: MonadWidget t m => BrowseResponse -> m (Event t PickerEventType)
 displayPickerContents browseData = do
@@ -123,6 +121,7 @@ getFiles browseData showHidden =
             & sortBy filesSort
             & filter (\fi -> filename fi `notElem` [".", ".."])
             & filter (\fi -> showHidden || not (isHiddenFileInfo fi))
+            & filter isDirectoryFileInfo
 
 filesSort :: FileInfo -> FileInfo -> Ordering
 filesSort a b

@@ -12,6 +12,7 @@ import Control.Monad.IO.Class
 import Data.Monoid
 import Data.Char
 import Data.Function
+import Data.Maybe
 
 import Common
 
@@ -53,20 +54,21 @@ getChangeFolder :: PickerEventType -> Maybe FilePath
 getChangeFolder (ChangeFolder x) = Just x
 getChangeFolder _ = Nothing
 
--- TODO display error if the XHR fails (eg server is down)
 buildFolderPicker :: MonadWidget t m => Event t () -> m (Event t FilePath)
 buildFolderPicker clickEvt = do
     rec
-        (dynUpdateEvents :: [Dynamic t (RemoteData BrowseResponse)]) <- sequence
+        dynBrowseInfo <- sequence
             [
                 makeSimpleXhr "/browseFolder" clickEvt,
                 makeSimpleXhr' ("/browseFolder?path=" ++) (fmapMaybe getChangeFolder rx)
             ]
-        browseDataDyn <- foldDyn const RemoteDataLoading $ leftmost (updated <$> dynUpdateEvents)
+        let browseInfoEvt = leftmost (updated <$> dynBrowseInfo)
+        browseDataDyn <- foldDyn const RemoteDataLoading browseInfoEvt
+        fetchErrorDyn <- mapDyn (fromMaybe "" . remoteDataInvalidDesc) browseDataDyn
         (bla :: Dynamic t (m (Event t PickerEventType))) <- forDyn browseDataDyn $ \remoteBrowseData -> do
             let modalId = topLevelModalId ModalLevelSecondary
             performEvent_ $ fmap (const $ liftIO $ showModalIdDialog modalId) clickEvt
-            (r :: Event t PickerEventType, okEvt, _) <- buildModalBody "Pick a folder" (PrimaryBtn "OK") clickEvt never $ do
+            (r, okEvt, _) <- buildModalBody "Pick a folder" (PrimaryBtn "OK") fetchErrorDyn $
                 case fromRemoteData remoteBrowseData of
                     Nothing -> return never
                     Just browseData -> displayPickerContents browseData

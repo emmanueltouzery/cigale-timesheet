@@ -147,8 +147,8 @@ addCfgPluginAdd pc clickEvt = do
     setupModalR <- setupModal ModalLevelBasic pc clickEvt $ do
         rec
             (dialogResult, addDlgOkEvt, _) <- buildModalBody "Add" (PrimaryBtn "Save")
-                    clickEvt errorEvt (editConfigItem pc ci)
-            let errorEvt = fmapMaybe remoteDataInvalidDesc saveEvt
+                    errorDyn (editConfigItem pc ci)
+            errorDyn <- remoteDataErrorDescDyn saveEvt
 
             editConfigEvt <- performEvent $ fmap
                 (const $ ConfigAdd <$> readDialog dialogResult pc)
@@ -276,9 +276,8 @@ addDeleteButton ci@ConfigItem{..} = do
     setupModalR <- setupModal ModalLevelBasic ci (domEvent Click deleteBtn) $ do
         rec
             (_, deleteDlgOkEvt, _) <- buildModalBody "Delete" (DangerBtn "Delete")
-                (domEvent Click deleteBtn) errorEvt
-                (text $ "Delete the config item " <> configItemName <> "?")
-            let errorEvt = fmapMaybe remoteDataInvalidDesc saveEvt
+                errorDyn (text $ "Delete the config item " <> configItemName <> "?")
+            errorDyn <- remoteDataErrorDescDyn saveEvt
 
             let deleteEvt = fmap (const $ ConfigDelete ci) deleteDlgOkEvt
             saveEvt <- saveConfigDelete deleteEvt
@@ -292,8 +291,8 @@ addEditButton pluginConfig@PluginConfig{..} ci@ConfigItem{..} = do
     setupModalR <- setupModal ModalLevelBasic ci (domEvent Click editBtn) $ do
         rec
             (dialogResult, editDlgOkEvt, _) <- buildModalBody "Edit" (PrimaryBtn "Save")
-                (domEvent Click editBtn) errorEvt (editConfigItem pluginConfig ci)
-            let errorEvt = fmapMaybe remoteDataInvalidDesc saveEvt
+                errorDyn (editConfigItem pluginConfig ci)
+            errorDyn <- remoteDataErrorDescDyn saveEvt
 
             editConfigEvt <- performEvent $ fmap
                 (const $ ConfigUpdate configItemName <$> readDialog dialogResult pluginConfig)

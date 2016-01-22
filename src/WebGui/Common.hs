@@ -112,27 +112,24 @@ readDynMonadicEvent dynMonadicEvent = do
     dynEvt <- holdDyn never eventEvt
     return $ switch (current dynEvt)
 
-buildModalBody :: MonadWidget t m => String -> ButtonInfo -> Event t ()
-                 -> Event t String -> m a -> m (a, Event t (), Event t ())
-buildModalBody title okBtnInfo showEvent _errorEvent contents = do
-    -- open on showEvent
-    -- whenever the user opens the modal, clear the error display.
-    let errorEvent = leftmost [_errorEvent, const "" <$> showEvent]
+buildModalBody :: MonadWidget t m => String -> ButtonInfo
+                 -> Dynamic t String -> m a -> m (a, Event t (), Event t ())
+buildModalBody title okBtnInfo dynErrMsg contents = do
     let (okBtnText, okBtnClass) = case okBtnInfo of
             PrimaryBtn txt -> (txt, "primary")
             DangerBtn txt -> (txt, "danger")
     elAttr "div" ("class" =: "modal-content") $ do
         elAttr "div" ("class" =: "modal-header") $ do
             void $ elAttr "button" ("type" =: "button" <> "class" =: "close"
-                            <> "data-dismiss" =: "modal" <> "aria-label" =: "Close") $
+                                    <> "data-dismiss" =: "modal"
+                                    <> "aria-label" =: "Close") $
                 elDynHtmlAttr' "span" ("aria-hidden" =: "true") (constDyn "&times;")
             elAttr "h4" ("class" =: "modal-title") $ text title
         bodyRes <- elAttr "div" ("class" =: "modal-body") $ do
-            dynErrMsg <- holdDyn "" errorEvent
-            dynAttrs <- mapDyn (\errMsg ->
-                                 "class" =: "alert alert-danger"
-                                 <> "role" =: "alert"
-                                 <> styleHideIf (null errMsg)) dynErrMsg
+            dynAttrs <- forDyn dynErrMsg $ \errMsg ->
+                "class" =: "alert alert-danger"
+                <> "role" =: "alert"
+                <> styleHideIf (null errMsg)
             elDynAttr "div" dynAttrs $ do
                 elAttr "strong" ("style" =: "padding-right: 7px") $ text "Error"
                 dynText dynErrMsg
@@ -245,6 +242,9 @@ isRemoteDataLoading _ = False
 remoteDataInvalidDesc :: RemoteData a -> Maybe String
 remoteDataInvalidDesc (RemoteDataInvalid x) = Just x
 remoteDataInvalidDesc _ = Nothing
+
+remoteDataErrorDescDyn :: MonadWidget t m => Event t (RemoteData a) -> m (Dynamic t String)
+remoteDataErrorDescDyn evt = holdDyn "" (fmapMaybe remoteDataInvalidDesc evt)
 
 fromRemoteData :: RemoteData a -> Maybe a
 fromRemoteData (RemoteData x) = Just x

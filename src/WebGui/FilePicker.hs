@@ -42,6 +42,9 @@ data PickerEventType = ChangeFolder FilePath | PickFileFolder FilePath
 isDirectoryFileInfo :: FileInfo -> Bool
 isDirectoryFileInfo = (== -1) . filesize
 
+isHiddenFileInfo :: FileInfo -> Bool
+isHiddenFileInfo = isPrefixOf "." . filename
+
 getPickData :: PickerEventType -> Maybe FilePath
 getPickData (PickFileFolder x) = Just x
 getPickData _ = Nothing
@@ -81,7 +84,10 @@ displayPickerContents browseData = do
     breadcrumbR <- elAttr "ol" ("class" =: "breadcrumb") $ do
         let pathLevels = reverse $ foldl' formatPathLinks [] (splitPath path)
         leftmost <$> displayBreadcrumb pathLevels
-    tableR <- displayFiles browseData
+    rec
+        tableR <- displayFiles browseData dynShowHidden
+        dynShowHidden <- fmap _checkbox_value $ el "label" $
+            checkbox False def <* text "Show hidden files"
     let readTableEvent fi = let fullPath = path </> filename fi in
             if isDirectoryFileInfo fi
             then ChangeFolder fullPath
@@ -97,15 +103,21 @@ displayBreadcrumb (level:xs) = do
     (lnk, _) <- el "li" $ elAttr' "a" ("href" =: "javascript:void(0)") $ text (prettyName level)
     (:) <$> return (fmap (const $ fullPath level) $ domEvent Click lnk) <*> displayBreadcrumb xs
 
-displayFiles :: MonadWidget t m => BrowseResponse -> m (Event t FileInfo)
-displayFiles browseData = do
-    let files = browseFiles browseData
-            & sortBy filesSort
-            & filter (\fi -> filename fi `notElem` [".", ".."])
+displayFiles :: MonadWidget t m => BrowseResponse -> Dynamic t Bool -> m (Event t FileInfo)
+displayFiles browseData dynShowHidden =
     elAttr "div" ("style" =: ("overflow-y: auto; overflow-x: hidden"
                               <> "min-height: 370px; max-height: 370px; width: 100%")) $
-        elAttr "table" ("class" =: "table table-sm") $
-            leftmost <$> mapM displayFile files
+        elAttr "table" ("class" =: "table table-sm") $ do
+            dynEvt <- forDyn dynShowHidden $ \showHidden ->
+                leftmost <$> mapM displayFile (getFiles browseData showHidden)
+            readDynMonadicEvent dynEvt
+
+getFiles :: BrowseResponse -> Bool -> [FileInfo]
+getFiles browseData showHidden =
+    browseFiles browseData
+            & sortBy filesSort
+            & filter (\fi -> filename fi `notElem` [".", ".."])
+            & filter (\fi -> showHidden || not (isHiddenFileInfo fi))
 
 filesSort :: FileInfo -> FileInfo -> Ordering
 filesSort a b

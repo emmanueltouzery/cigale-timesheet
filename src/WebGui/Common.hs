@@ -106,6 +106,12 @@ readModalResult modalLevel dynModalVal = do
     dynModalDynEvt <- holdDyn never dynModalEvtEvt
     return (switch $ current dynModalDynEvt)
 
+readDynMonadicEvent :: MonadWidget t m => Dynamic t (m (Event t a)) -> m (Event t a)
+readDynMonadicEvent dynMonadicEvent = do
+    eventEvt <- dyn dynMonadicEvent
+    dynEvt <- holdDyn never eventEvt
+    return $ switch (current dynEvt)
+
 buildModalBody :: MonadWidget t m => String -> ButtonInfo -> Event t ()
                  -> Event t String -> m a -> m (a, Event t (), Event t ())
 buildModalBody title okBtnInfo showEvent _errorEvent contents = do

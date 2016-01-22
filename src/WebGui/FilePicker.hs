@@ -54,12 +54,15 @@ getChangeFolder :: PickerEventType -> Maybe FilePath
 getChangeFolder (ChangeFolder x) = Just x
 getChangeFolder _ = Nothing
 
-buildFolderPicker :: MonadWidget t m => Event t () -> m (Event t FilePath)
-buildFolderPicker clickEvt = do
+buildFolderPicker :: MonadWidget t m => Event t FilePath  -> m (Event t FilePath)
+buildFolderPicker openEvt = do
+    let noFileEvt = ffilter null openEvt
+    let fileEvent = ffilter (not . null) openEvt
     rec
         dynBrowseInfo <- sequence
             [
-                makeSimpleXhr "/browseFolder" clickEvt,
+                makeSimpleXhr "/browseFolder" noFileEvt,
+                makeSimpleXhr' ("/browseFolder?path=" ++) fileEvent,
                 makeSimpleXhr' ("/browseFolder?path=" ++) (fmapMaybe getChangeFolder rx)
             ]
         let browseInfoEvt = leftmost (updated <$> dynBrowseInfo)
@@ -67,7 +70,7 @@ buildFolderPicker clickEvt = do
         fetchErrorDyn <- mapDyn (fromMaybe "" . remoteDataInvalidDesc) browseDataDyn
         (bla :: Dynamic t (m (Event t PickerEventType))) <- forDyn browseDataDyn $ \remoteBrowseData -> do
             let modalId = topLevelModalId ModalLevelSecondary
-            performEvent_ $ fmap (const $ liftIO $ showModalIdDialog modalId) clickEvt
+            performEvent_ $ fmap (const $ liftIO $ showModalIdDialog modalId) openEvt
             (r, okEvt, _) <- buildModalBody "Pick a folder" (PrimaryBtn "OK") fetchErrorDyn $
                 case fromRemoteData remoteBrowseData of
                     Nothing -> return never

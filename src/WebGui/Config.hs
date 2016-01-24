@@ -187,23 +187,28 @@ editConfigDataInfo cfgItemName obj ConfigDataInfo{..} = do
     let fieldValue = readObjectField memberName obj
     field <- case memberType of
         "Password"   -> passwordEntry memberName memberName fieldValue
-        "FolderPath" -> folderEntry cfgItemName memberName fieldValue
+        "FolderPath" -> fileEntry PickFolder cfgItemName memberName fieldValue
+        "FilePath"   -> fileEntry PickFile cfgItemName memberName fieldValue
         _ -> fieldEntry memberName memberName fieldValue
     return (memberName, field)
 
-folderEntry :: MonadWidget t m => String -> String -> String -> m (Dynamic t String)
-folderEntry cfgItemName memberName val = do
+fileEntry :: MonadWidget t m => PickerOperationMode -> String -> String -> String
+          -> m (Dynamic t String)
+fileEntry pickerOpMode cfgItemName memberName val = do
     elAttr "label" ("for" =: memberName) $ text memberName
     elAttr "div" ("class" =: "input-group") $ do
         rec
             inputVal <- _textInput_value <$> textInput
                 (def
-                 & textInputConfig_attributes .~ constDyn ("id" =: memberName <> "class" =: "form-control")
+                 & textInputConfig_attributes .~ constDyn ("id" =: memberName
+                                                           <> "class" =: "form-control")
                  & textInputConfig_initialValue .~ val
                  & textInputConfig_setValue .~ updatedFilePath)
             (browseBtn, _) <- elAttr' "div" ("class" =: "input-group-addon") $
                 elAttr' "span" ("style" =: "cursor: pointer") $ text "Browse..."
-            updatedFilePath <- buildFolderPicker (tagDyn inputVal $ domEvent Click browseBtn)
+            updatedFilePath <- buildFilePicker
+                pickerDefaultOptions { pickerMode = pickerOpMode }
+                (tagDyn inputVal $ domEvent Click browseBtn)
         return inputVal
 
 fieldEntry :: MonadWidget t m => String -> String -> String -> m (Dynamic t String)

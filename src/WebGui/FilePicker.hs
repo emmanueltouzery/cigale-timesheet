@@ -13,6 +13,7 @@ import Data.Monoid
 import Data.Char
 import Data.Function
 import Data.Maybe
+import qualified Data.Map as Map
 
 import Common
 
@@ -38,7 +39,21 @@ data PathElem = PathElem
         fullPath :: FilePath
     } deriving Show
 
-data PickerEventType = ChangeFolder FilePath | PickFileFolder FilePath
+data PickerOperationMode = PickFile | PickFolder deriving Eq
+data PickerEventType = ChangeFolderEvt FilePath | PickFileEvt FilePath
+
+data FilePickerOptions = FilePickerOptions
+    {
+        pickerMode :: PickerOperationMode,
+        showHiddenFiles :: Bool
+    }
+
+pickerDefaultOptions :: FilePickerOptions
+pickerDefaultOptions = FilePickerOptions
+    {
+        pickerMode = PickFile,
+        showHiddenFiles = False
+    }
 
 isDirectoryFileInfo :: FileInfo -> Bool
 isDirectoryFileInfo = (== -1) . filesize
@@ -47,17 +62,19 @@ isHiddenFileInfo :: FileInfo -> Bool
 isHiddenFileInfo = isPrefixOf "." . filename
 
 getPickData :: PickerEventType -> Maybe FilePath
-getPickData (PickFileFolder x) = Just x
+getPickData (PickFileEvt x) = Just x
 getPickData _ = Nothing
 
 getChangeFolder :: PickerEventType -> Maybe FilePath
-getChangeFolder (ChangeFolder x) = Just x
+getChangeFolder (ChangeFolderEvt x) = Just x
 getChangeFolder _ = Nothing
 
-buildFolderPicker :: MonadWidget t m => Event t FilePath  -> m (Event t FilePath)
-buildFolderPicker openEvt = do
+buildFilePicker :: MonadWidget t m => FilePickerOptions -> Event t FilePath -> m (Event t FilePath)
+buildFilePicker options openEvt = do
+    urlAtLoad <- holdDyn Nothing $ Just <$> openEvt
     let noFileEvt = ffilter null openEvt
-    let fileEvent = ffilter (not . null) openEvt
+    let fileEvent = fixFile <$> ffilter (not . null) openEvt
+          where fixFile = if pickerMode options == PickFile then dropFileName else id
     let modalId = topLevelModalId ModalLevelSecondary
     rec
         dynBrowseInfo <- sequence
@@ -70,34 +87,45 @@ buildFolderPicker openEvt = do
         browseDataDyn <- foldDyn const RemoteDataLoading browseInfoEvt
         fetchErrorDyn <- mapDyn (fromMaybe "" . remoteDataInvalidDesc) browseDataDyn
         dynMonPickerEvt <- forDyn browseDataDyn (\remoteBrowseData -> do
-            performEvent_ $ fmap (const $ liftIO $ showModalIdDialog modalId) openEvt
-            (r, okEvt, _) <- buildModalBody "Pick a folder" (PrimaryBtn "OK") fetchErrorDyn $
-                case fromRemoteData remoteBrowseData of
-                    Nothing -> return never
-                    Just browseData -> displayPickerContents browseData
-            let pickedFolderEvt = fmap (PickFileFolder . browseFolderPath)
-                    $ fmapMaybe (const $ fromRemoteData remoteBrowseData) okEvt
-            return $ leftmost [r, pickedFolderEvt])
+            rec
+                performEvent_ $ fmap (const $ liftIO $ showModalIdDialog modalId) openEvt
+                curSelected <- sample $ current urlAtLoad
+                dynSelectedFile <- holdDyn curSelected
+                    $ fmap Just
+                    $ fmapMaybe getPickData pickerEvt
+                (pickerEvt, okEvt, _) <- buildModalBody "Pick a folder" (PrimaryBtn "OK") fetchErrorDyn $
+                    case fromRemoteData remoteBrowseData of
+                        Nothing -> return never
+                        Just browseData -> displayPickerContents options dynSelectedFile browseData
+                let pickedItemEvt = fmap PickFileEvt $ case pickerMode options of
+                        PickFolder -> fmap browseFolderPath
+                            $ fmapMaybe (const $ fromRemoteData remoteBrowseData) okEvt
+                        PickFile -> fmapMaybe id $ tagDyn dynSelectedFile okEvt
+                performEvent_ $ fmap (const $ liftIO $ hideModalIdDialog modalId) pickedItemEvt
+            return $ leftmost [pickerEvt, pickedItemEvt])
         rx <- readModalResult ModalLevelSecondary dynMonPickerEvt
     let pickedEvent = fmapMaybe getPickData rx
-    performEvent_ $ fmap (const $ liftIO $ hideModalIdDialog modalId) pickedEvent
     return pickedEvent
 
-displayPickerContents :: MonadWidget t m => BrowseResponse -> m (Event t PickerEventType)
-displayPickerContents browseData = do
+displayPickerContents :: MonadWidget t m => FilePickerOptions
+                      -> Dynamic t (Maybe FilePath) -> BrowseResponse
+                      -> m (Event t PickerEventType)
+displayPickerContents options dynSelectedFile browseData = do
     let path = browseFolderPath browseData
     breadcrumbR <- elAttr "ol" ("class" =: "breadcrumb") $ do
         let pathLevels = reverse $ foldl' formatPathLinks [] (splitPath path)
         leftmost <$> displayBreadcrumb pathLevels
     rec
-        tableR <- displayFiles browseData dynShowHidden
+        fileInfoEvent <- displayFiles browseData dynSelectedFile dynPickerOptions
         dynShowHidden <- fmap _checkbox_value $ el "label" $
-            checkbox False def <* text "Show hidden files"
+            checkbox (showHiddenFiles options) def <* text "Show hidden files"
+        dynPickerOptions <- forDyn dynShowHidden $ \sh ->
+            FilePickerOptions { showHiddenFiles = sh, pickerMode = pickerMode options }
     let readTableEvent fi = let fullPath = path </> filename fi in
             if isDirectoryFileInfo fi
-            then ChangeFolder fullPath
-            else PickFileFolder fullPath
-    return $ leftmost [fmap ChangeFolder breadcrumbR, fmap readTableEvent tableR]
+            then ChangeFolderEvt fullPath
+            else PickFileEvt fullPath
+    return $ leftmost [fmap ChangeFolderEvt breadcrumbR, fmap readTableEvent fileInfoEvent]
 
 displayBreadcrumb :: MonadWidget t m => [PathElem] -> m [Event t FilePath]
 displayBreadcrumb [] = return []
@@ -108,22 +136,25 @@ displayBreadcrumb (level:xs) = do
     (lnk, _) <- el "li" $ elAttr' "a" ("href" =: "javascript:void(0)") $ text (prettyName level)
     (:) <$> return (fmap (const $ fullPath level) $ domEvent Click lnk) <*> displayBreadcrumb xs
 
-displayFiles :: MonadWidget t m => BrowseResponse -> Dynamic t Bool -> m (Event t FileInfo)
-displayFiles browseData dynShowHidden =
+displayFiles :: MonadWidget t m => BrowseResponse -> Dynamic t (Maybe FilePath)
+             -> Dynamic t FilePickerOptions -> m (Event t FileInfo)
+displayFiles browseData dynSelectedFile dynPickerOptions =
     elAttr "div" ("style" =: ("overflow-y: auto; overflow-x: hidden"
                               <> "min-height: 370px; max-height: 370px; width: 100%")) $
         elAttr "table" ("class" =: "table table-sm") $ do
-            dynEvt <- forDyn dynShowHidden $ \showHidden ->
-                leftmost <$> mapM displayFile (getFiles browseData showHidden)
+            dynEvt <- forDyn dynPickerOptions $ \pickerOptions ->
+                leftmost <$> mapM
+                    (displayFile dynSelectedFile)
+                    (getFiles browseData pickerOptions)
             readDynMonadicEvent dynEvt
 
-getFiles :: BrowseResponse -> Bool -> [FileInfo]
-getFiles browseData showHidden =
+getFiles :: BrowseResponse -> FilePickerOptions -> [FileInfo]
+getFiles browseData FilePickerOptions{..} =
     browseFiles browseData
             & sortBy filesSort
             & filter (\fi -> filename fi `notElem` [".", ".."])
-            & filter (\fi -> showHidden || not (isHiddenFileInfo fi))
-            & filter isDirectoryFileInfo
+            & filter (\fi -> showHiddenFiles || not (isHiddenFileInfo fi))
+            & filter (\fi -> pickerMode == PickFile || isDirectoryFileInfo fi)
 
 filesSort :: FileInfo -> FileInfo -> Ordering
 filesSort a b
@@ -133,9 +164,13 @@ filesSort a b
   where
     filenameComp = compare `on` (fmap toLower . filename)
 
-displayFile :: MonadWidget t m => FileInfo -> m (Event t FileInfo)
-displayFile file@FileInfo{..} = do
-    (row, _) <- el' "tr" $ do
+displayFile :: MonadWidget t m => Dynamic t (Maybe FilePath) -> FileInfo
+            -> m (Event t FileInfo)
+displayFile dynSelectedFile file@FileInfo{..} = do
+    dynRowAttr <- forDyn dynSelectedFile $ \selFile ->
+        if fmap takeFileName selFile == Just filename
+            then ("class" =: "table-active") else Map.empty
+    (row, _) <- elDynAttr' "tr" dynRowAttr $ do
         elAttr "td" ("align" =: "center"
                      <> "style" =: "width: 30px") $ rawPointerSpan $
             constDyn (if isDirectoryFileInfo file then "&#x1f5c1;" else "&#x1f5ce;")

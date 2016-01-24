@@ -7,33 +7,26 @@ import System.FilePath ((</>))
 import GHC.Generics
 import Snap.Core
 import Data.Maybe (fromMaybe)
-import Control.Applicative
 import Control.Exception (catch, SomeException)
 import qualified Data.Text.Encoding as TE
 import Control.Monad.IO.Class (liftIO)
 import qualified Data.Text as T
 import Data.Aeson (encode, ToJSON, ToJSON(..))
-import Data.Aeson.TH (deriveFromJSON, mkToJSON, defaultOptions)
-import qualified FayAeson
 
 data FileInfo = FileInfo
     {
         filename :: String,
         -- filesize will be -1 for a directory
         filesize :: Integer
-    } deriving (Show)
-$(deriveFromJSON defaultOptions ''FileInfo)
-instance ToJSON FileInfo where
-     toJSON = FayAeson.addInstance "FileInfo" . $(mkToJSON defaultOptions ''FileInfo)
+    } deriving (Show, Generic)
+instance ToJSON FileInfo
 
 data BrowseResponse = BrowseResponse
     {
         browseFolderPath :: String,
         browseFiles :: [FileInfo]
     } deriving (Show, Generic)
-$(deriveFromJSON defaultOptions ''BrowseResponse)
-instance ToJSON BrowseResponse where
-     toJSON = FayAeson.addInstance "BrowseResponse" . $(mkToJSON defaultOptions ''BrowseResponse)
+instance ToJSON BrowseResponse
 
 browseFolder :: Snap ()
 browseFolder = do

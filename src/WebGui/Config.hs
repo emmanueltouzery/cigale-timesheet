@@ -9,7 +9,6 @@ import Reflex.Dom
 import Data.Aeson as A
 import Data.Aeson.Types as A
 import GHC.Generics
-import Control.Applicative
 import Data.List
 import Data.Function
 import Data.Maybe

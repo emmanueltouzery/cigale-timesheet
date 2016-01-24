@@ -15,9 +15,6 @@ interesting, 2014-02-05, 10:47, same mail present twice. 2014-03-10 thrice!
 
 ugly to in email, example 2014-02-04 15:38
 
-the knockout API could be so. much. nicer... i think it needs operators and also a typeclass for Observable and ObservableList.
-Obviously for the typeclass, for now Fay doesn't support it...
-
 remove lib/ folder and instead install JS dependencies using NPM?
 
 I avoided the problem of heteregenous lists by putting in the module data types the Value (IIRC) therefore tying me to Aeson.

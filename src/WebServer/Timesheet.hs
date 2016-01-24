@@ -8,11 +8,9 @@ import qualified Data.ByteString as BS
 import Data.List
 import Data.Time
 import Data.Aeson
-import Data.Aeson.TH (mkToJSON, defaultOptions)
 import Control.Error hiding (err)
 import Data.List.Utils (mergeBy)
 import Data.Function (on)
-import Control.Applicative
 import Control.Monad (when)
 import Text.Printf
 import qualified Data.Text as T
@@ -29,7 +27,6 @@ import qualified Config
 import qualified EventProviders
 import EventProvider
 import Event
-import qualified FayAeson
 import Communication
 
 -- 15 seconds max runtime before a fetch is aborted.
@@ -38,19 +35,6 @@ maxRuntimeFetchMicros = 15000000
 
 fetchingConcurrentThreads :: Int
 fetchingConcurrentThreads = 3
-
--- must define those in a different module than
--- the definition of the item itself with GHC 7.8:
--- https://github.com/mchakravarty/language-c-inline/issues/25
-instance ToJSON Event where
-     toJSON = FayAeson.addInstance "Event" . $(mkToJSON defaultOptions ''Event)
-
-instance ToJSON PluginConfig where
-    toJSON = FayAeson.addInstance "PluginConfig" . $(mkToJSON defaultOptions ''PluginConfig)
-
-instance ToJSON FetchResponse where
-     toJSON = FayAeson.addInstance "FetchResponse" . $(mkToJSON defaultOptions ''FetchResponse)
-
 
 process :: Day -> IO (Bool, BL.ByteString)
 process month = do

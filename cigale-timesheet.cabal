@@ -59,8 +59,7 @@ Library
     EventProviders,
     Event,
     EventProvider,
-    Util,
-    FayAeson
+    Util
   other-modules:
     Redmine,
     Git,

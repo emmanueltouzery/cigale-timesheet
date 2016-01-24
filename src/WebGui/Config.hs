@@ -183,7 +183,7 @@ editConfigItem PluginConfig{..} ConfigItem{..} = do
 
 editConfigDataInfo :: MonadWidget t m => String -> A.Object -> ConfigDataInfo -> m (String, Dynamic t String)
 editConfigDataInfo cfgItemName obj ConfigDataInfo{..} = do
-    -- TODO different display based on member type: String, Text, ByteString, FilePath, FolderPath, Password
+    -- TODO it's crappy to case on the string member types -- should use some sum type!
     let fieldValue = readObjectField memberName obj
     field <- case memberType of
         "Password"   -> passwordEntry memberName memberName fieldValue

@@ -139,16 +139,15 @@ openApp = do
         rawSystem "epiphany" ["--application-mode", "--profile=" ++ profileDir, url]
     else rawSystem "xdg-open" [url]
     where
-        url = "http://localhost:" ++ show appPort
+        url = "http://localhost:" ++ show appPort ++ "/cigale"
 
 hasProgram :: String -> IO Bool
 hasProgram prog = isJust <$> findExecutable prog
 
 site :: FilePath -> Snap ()
 site installPath =
-    ifTop (serveFile $ installPath ++ "/FayApp.html") <|>
+    ifTop (redirect "/cigale") <|>
     route [ ("timesheet/:tsparam", timesheet),
-            ("config", method GET (serveFile $ installPath ++ "/FayConfig.html")),
             ("configdesc", configdesc),
             ("configVal", configVal),
             ("config", method POST addConfigEntry),
@@ -157,7 +156,7 @@ site installPath =
             ("browseFolder", browseFolder),
         ("getExtraData", httpGetExtraData)
           ] <|>
-    dir "static" (serveDirectory installPath)
+    dir "cigale" (serveDirectory installPath)
 
 timesheet :: Snap ()
 timesheet = setActionResponse $ do

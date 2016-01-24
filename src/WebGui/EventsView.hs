@@ -15,6 +15,8 @@ import Data.Aeson
 import Data.Time.Clock
 import Data.Time.Calendar
 import Data.Time.Format
+import Data.Time.LocalTime
+import Data.Time.Clock.POSIX
 import qualified Data.Text as T
 import GHC.Generics
 import Data.Monoid
@@ -190,13 +192,22 @@ eventsTable (RemoteData (FetchResponse tsEvents errors)) =
                 curEventDyn <- holdDyn (headZ tsEvents) $ leftmost $ fmap (fmap Just) events
             return curEventDyn
 
+-- https://github.com/ghcjs/ghcjs-base/issues/16
+-- passing long as string as i'm unsure how to pass longs.
+foreign import javascript unsafe
+    "-(new Date(parseInt($1)).getTimezoneOffset())" -- the offset is the wrong way...
+    _getTimezoneOffsetMinsForDateMs :: JSString -> IO Int
+getTimezoneOffsetMinsForDateMs :: UTCTime -> IO Int
+getTimezoneOffsetMinsForDateMs = _getTimezoneOffsetMinsForDateMs . toJSString . show . (*1000) . (floor :: NominalDiffTime -> Integer) . utcTimeToPOSIXSeconds
+
 showRecord :: MonadWidget t m => Dynamic t (Maybe TsEvent) -> TsEvent -> m (Event t TsEvent)
 showRecord curEventDyn tsEvt@TsEvent{..} = do
     rowAttrs <- mapDyn (\curEvt -> "class" =: if curEvt == Just tsEvt then "table-active" else "") curEventDyn
-    -- TODO date is currently displayed in UTC
     -- TODO nicer layout & icon.
+
+    tz <- liftIO (minutesToTimeZone <$> getTimezoneOffsetMinsForDateMs eventDate)
     (e, _) <- elDynAttr' "tr" rowAttrs $ do
-        el "td" $ text $ formatTime defaultTimeLocale "%R" eventDate
+        el "td" $ text $ formatTime defaultTimeLocale "%R" $ utcToZonedTime tz eventDate
         elAttr "td" ("style" =: "height: 60px; width: 500px;") $
             elAttr "div" ("style" =: "position: relative;") $
                 elAttr "span" ("class" =: "ellipsis"

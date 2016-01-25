@@ -11,7 +11,6 @@ import Data.Maybe
 import System.Directory
 import qualified Data.ByteString as BS
 import qualified Data.Text.Encoding as TE
-import Control.Applicative
 import Control.Error
 import Control.Monad.Trans (liftIO)
 import Data.Aeson.TH (deriveJSON, defaultOptions)

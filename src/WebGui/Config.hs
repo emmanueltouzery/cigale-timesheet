@@ -14,6 +14,7 @@ import Data.Function
 import Data.Maybe
 import Data.Bifunctor
 import Data.Monoid
+import Control.Applicative
 import qualified Data.Text as T
 import Data.Map (Map)
 import qualified Data.HashMap.Strict as HashMap

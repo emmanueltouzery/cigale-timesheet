@@ -196,9 +196,14 @@ configdesc = do
     modifyResponse $ setContentType "application/json"
     writeLBS Timesheet.getEventProvidersConfig
 
+disableCaching :: MonadSnap m => m a -> m a
+disableCaching h = do
+    modifyResponse $ setHeader "Cache-Control" "no-cache, no-store, must-revalidate"
+    modifyResponse $ setHeader "Pragma" "no-cache"
+    h
+
 configVal :: Snap ()
-configVal = do
-    modifyResponse $ setContentType "application/json"
+configVal = disableCaching $ do
     settingsFile <- liftIO Config.getConfigFileName
     isSettings   <- liftIO $ doesFileExist settingsFile
     if isSettings

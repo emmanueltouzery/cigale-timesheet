@@ -4,7 +4,7 @@ Synopsis:            Timesheet helper
 Description:         Reverse-engineer your timesheet from records of your past
                      activity left in your computer.
 License:             MIT
-License-file:        LICENSE.txt
+License-file:        ../../LICENSE.txt
 Author:              Emmanuel Touzery
 Maintainer:          etouzery@gmail.com
 Stability:           Experimental

@@ -109,7 +109,11 @@ parsePrefetchFilename = parseDate <* T.string ".json"
 
 startWebApp :: IO ()
 startWebApp = do
-    installPath <- Paths_cigale_timesheet.getDataFileName ""
+    -- set up the folder where the html/js from the cigale-web
+    -- project where copied.
+    appDataDir <- Paths_cigale_timesheet.getDataFileName "."
+    createDirectoryIfMissing True appDataDir
+    let installPath = appDataDir </> "../../cigale-web.jsexe/"
     let snapConfig = setPort appPort .
                      setAccessLog ConfigNoLog .
                      setErrorLog ConfigNoLog $

@@ -124,7 +124,7 @@ addDatePicker initialDay = do
         (previousDayBtn, nextDayBtn) <-
             elAttr "div" ("class" =: "btn-group"
                           <> "data-toggle" =: "buttons"
-                          <> "style" =: "position: relative") $ do
+                          <> "style" =: "position: relative; margin: 10px") $ do
                 pDayBtn <- button' "<<"
                 createDateLabel curDate picker
                 nDayBtn <- button' ">>"
@@ -179,11 +179,10 @@ displayWarningBanner respDyn = do
         elAttr "strong" ("style" =: "padding-right: 7px") $ text "Error"
         el "span" $ dynText =<< mapDyn (fromMaybe "") errorTxtDyn
 
--- https://m.reddit.com/r/reflexfrp/comments/3h3s72/rendering_dynamic_html_table/
 eventsTable :: MonadWidget t m => RemoteData FetchResponse -> m (Dynamic t (Maybe TsEvent))
 eventsTable (RemoteDataInvalid _) = return (constDyn Nothing)
 eventsTable RemoteDataLoading = return (constDyn Nothing)
-eventsTable (RemoteData (FetchResponse tsEvents errors)) =
+eventsTable (RemoteData (FetchResponse tsEvents _)) =
     elAttr "div" ("style" =: "width: 500px; height: 100%; flex-shrink: 0") $
         -- display: block is needed for overflow to work, http://stackoverflow.com/a/4457290/516188
         elAttr "table" ("class" =: "table" <> "style" =: "height: 100%; display:block; overflow:auto") $ do
@@ -207,30 +206,43 @@ getCurrentTimeZoneJS = fmap minutesToTimeZone . getTimezoneOffsetMinsForDateMs
 showRecord :: MonadWidget t m => Dynamic t (Maybe TsEvent) -> TsEvent -> m (Event t TsEvent)
 showRecord curEventDyn tsEvt@TsEvent{..} = do
     rowAttrs <- mapDyn (\curEvt -> "class" =: if curEvt == Just tsEvt then "table-active" else "") curEventDyn
-    -- TODO nicer layout & icon.
-
     tz <- liftIO (getCurrentTimeZoneJS eventDate)
+    let fixedWidthStyle (w :: Int) = "position: absolute;" ++
+           "width: " ++ show w ++ "px; max-width: " ++ show w ++ "px;"
+    let absTop (y :: Int) = "position: absolute; top: " ++ show y ++ "px;"
+    let imgWidth = "38px"
     (e, _) <- elDynAttr' "tr" rowAttrs $ do
-        el "td" $ text $ formatTime defaultTimeLocale "%R" $ utcToZonedTime tz eventDate
         elAttr "td" ("style" =: "height: 60px; width: 500px;") $
             elAttr "div" ("style" =: "position: relative;") $ do
-                elAttr "img" ("src" =: (getGlyphiconUrl eventIcon)) $ return ()
-                elAttr "span" ("class" =: "ellipsis"
-                               <> "style" =: "width: 400px; max-width: 400px; position: absolute") $ text_ desc
+               let divFlexSetup = ";display: flex; justify-content: center; align-items: center; flex-direction: column"
+               elAttr "div" ("style" =: ("width: " ++ imgWidth <> divFlexSetup)) $ do
+                   elAttr "img" ("src" =: (getGlyphiconUrl eventIcon) <> "style" =: "flex-item-align: center") $ return ()
+                   let pluginNameStyle = "color: gray; font-size: 0.8em; text-align: center"
+                   elAttr "span" ("style" =: pluginNameStyle) $ text pluginName
+               let detailsDivStyle = "position: absolute; left: " ++ imgWidth ++
+                     "; top: 0px; width: calc(100% - " ++ imgWidth ++ "); margin-left: 5px"
+               elAttr "div" ("style" =: detailsDivStyle) $ do
+                   elAttr "b" ("style" =: (absTop 0 <> "font-size: 1.1em")) $ text $
+                       formatTime defaultTimeLocale "%R" $ utcToZonedTime tz eventDate
+                   elAttr "span" ("class" =: "ellipsis"
+                                  <> "style" =: (fixedWidthStyle 400 <> absTop 20)) $ text_ desc
+                   elAttr "span" ("class" =: "ellipsis"
+                                  <> "style" =: ("right: 0px; " ++ fixedWidthStyle 365)) $ text_ extraInfo
     return (const tsEvt <$> domEvent Click e)
 
 displayDetails :: MonadWidget t m => Maybe TsEvent -> m ()
 displayDetails Nothing = return ()
-displayDetails (Just TsEvent{..}) = elAttr "div" ("style" =: "flex-grow: 1; display: flex; flex-direction: column; padding: 7px;"
-                                                  <> "height" =: "100%") $ do
-    el "h3" $ text_ desc
-    el "h4" $ text_ extraInfo
-    case fullContents of
-        Nothing   -> return ()
-        Just cts  -> elAttr "iframe" ("srcdoc" =: T.unpack cts
-                                      <> "frameBorder" =: "0"
-                                      <> "width" =: "100%"
-                                      <> "style" =: "flex-grow: 1") $ return ()
+displayDetails (Just TsEvent{..}) =
+    elAttr "div" ("style" =: "flex-grow: 1; display: flex; flex-direction: column; padding: 7px;"
+                  <> "height" =: "100%") $ do
+        el "h3" $ text_ desc
+        el "h4" $ text_ extraInfo
+        case fullContents of
+            Nothing   -> return ()
+            Just cts  -> elAttr "iframe" ("srcdoc" =: T.unpack cts
+                                          <> "frameBorder" =: "0"
+                                          <> "width" =: "100%"
+                                          <> "style" =: "flex-grow: 1") $ return ()
 
 datePicker :: MonadWidget t m => Day -> m (Event t Day, PikadayPicker)
 datePicker initialDay = do

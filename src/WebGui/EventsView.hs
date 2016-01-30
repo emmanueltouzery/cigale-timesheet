@@ -53,10 +53,6 @@ foreign import javascript unsafe "$1.show()" _pickerShow :: JSRef a -> IO ()
 pickerShow :: PikadayPicker -> IO ()
 pickerShow = _pickerShow . unPicker
 
--- TODO unhardcode
-initialDay :: Day
-initialDay = fromGregorian 2015 11 10
-
 -- TODO share code with the server
 -- instead of copy-pasting
 data TsEvent = TsEvent
@@ -87,13 +83,17 @@ eventsView activeViewDyn = do
         let req url = xhrRequest "GET" ("/timesheet/" ++ url) def
         rec
             -- TODO getPostBuild ... maybe when the tab is loaded instead?
+            tz <- liftIO (getCurrentTimeZoneJS =<< getCurrentTime)
+            curLocalTime <- liftIO (utcToLocalTime tz <$> getCurrentTime)
+            -- initialize on yesterday, because it's finished i can cache it.
+            let initialDay = addDays (-1) (localDay curLocalTime)
             loadRecordsEvent <- leftmost <$> sequence [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
             asyncReq <- performRequestAsync (req <$> showGregorian <$> loadRecordsEvent)
             let responseEvt = fmap readRemoteData asyncReq
             -- the leftmost makes sure that we reset the respDyn to loading state when loadRecordsEvent is triggered.
             respDyn <- holdDyn RemoteDataLoading $ leftmost [fmap (const RemoteDataLoading) loadRecordsEvent, responseEvt]
             displayWarningBanner respDyn
-            curDate <- addDatePicker
+            curDate <- addDatePicker initialDay
 
         -- TODO 40px is ugly (date picker height)
         elAttr "div" ("style" =: "display: flex; height: calc(100% - 40px); margin-top: 10px"
@@ -109,8 +109,8 @@ eventsView activeViewDyn = do
         elDynAttr "div" holdAttrs $ text "Please hold..."
         return ()
 
-addDatePicker :: MonadWidget t m => m (Dynamic t Day)
-addDatePicker = do
+addDatePicker :: MonadWidget t m => Day -> m (Dynamic t Day)
+addDatePicker initialDay = do
     rec
         -- update current day based on user actions
         curDate <- foldDyn ($) initialDay $ mergeWith (.)
@@ -129,7 +129,7 @@ addDatePicker = do
                 createDateLabel curDate picker
                 nDayBtn <- button' ">>"
                 return (pDayBtn, nDayBtn)
-        (pickedDateEvt, picker) <- datePicker
+        (pickedDateEvt, picker) <- datePicker initialDay
 
     liftIO $ pickerHide picker
     return curDate
@@ -201,12 +201,15 @@ getTimezoneOffsetMinsForDateMs :: UTCTime -> IO Int
 getTimezoneOffsetMinsForDateMs = _getTimezoneOffsetMinsForDateMs . toJSString . show
     . (*1000) . (floor :: NominalDiffTime -> Integer) . utcTimeToPOSIXSeconds
 
+getCurrentTimeZoneJS :: UTCTime -> IO TimeZone
+getCurrentTimeZoneJS = fmap minutesToTimeZone . getTimezoneOffsetMinsForDateMs
+
 showRecord :: MonadWidget t m => Dynamic t (Maybe TsEvent) -> TsEvent -> m (Event t TsEvent)
 showRecord curEventDyn tsEvt@TsEvent{..} = do
     rowAttrs <- mapDyn (\curEvt -> "class" =: if curEvt == Just tsEvt then "table-active" else "") curEventDyn
     -- TODO nicer layout & icon.
 
-    tz <- liftIO (minutesToTimeZone <$> getTimezoneOffsetMinsForDateMs eventDate)
+    tz <- liftIO (getCurrentTimeZoneJS eventDate)
     (e, _) <- elDynAttr' "tr" rowAttrs $ do
         el "td" $ text $ formatTime defaultTimeLocale "%R" $ utcToZonedTime tz eventDate
         elAttr "td" ("style" =: "height: 60px; width: 500px;") $
@@ -229,8 +232,8 @@ displayDetails (Just TsEvent{..}) = elAttr "div" ("style" =: "flex-grow: 1; disp
                                       <> "width" =: "100%"
                                       <> "style" =: "flex-grow: 1") $ return ()
 
-datePicker :: MonadWidget t m => m (Event t Day, PikadayPicker)
-datePicker = do
+datePicker :: MonadWidget t m => Day -> m (Event t Day, PikadayPicker)
+datePicker initialDay = do
     (e, _) <- elAttr' "div" ("style" =: "width: 250px; position: absolute; z-index: 3") $ return ()
     (evt, evtTrigger) <- newEventWithTriggerRef
     postGui <- askPostGui

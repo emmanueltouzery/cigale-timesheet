@@ -198,7 +198,8 @@ foreign import javascript unsafe
     "-(new Date(parseInt($1)).getTimezoneOffset())" -- the offset is the wrong way...
     _getTimezoneOffsetMinsForDateMs :: JSString -> IO Int
 getTimezoneOffsetMinsForDateMs :: UTCTime -> IO Int
-getTimezoneOffsetMinsForDateMs = _getTimezoneOffsetMinsForDateMs . toJSString . show . (*1000) . (floor :: NominalDiffTime -> Integer) . utcTimeToPOSIXSeconds
+getTimezoneOffsetMinsForDateMs = _getTimezoneOffsetMinsForDateMs . toJSString . show
+    . (*1000) . (floor :: NominalDiffTime -> Integer) . utcTimeToPOSIXSeconds
 
 showRecord :: MonadWidget t m => Dynamic t (Maybe TsEvent) -> TsEvent -> m (Event t TsEvent)
 showRecord curEventDyn tsEvt@TsEvent{..} = do
@@ -209,7 +210,8 @@ showRecord curEventDyn tsEvt@TsEvent{..} = do
     (e, _) <- elDynAttr' "tr" rowAttrs $ do
         el "td" $ text $ formatTime defaultTimeLocale "%R" $ utcToZonedTime tz eventDate
         elAttr "td" ("style" =: "height: 60px; width: 500px;") $
-            elAttr "div" ("style" =: "position: relative;") $
+            elAttr "div" ("style" =: "position: relative;") $ do
+                elAttr "img" ("src" =: (getGlyphiconUrl eventIcon)) $ return ()
                 elAttr "span" ("class" =: "ellipsis"
                                <> "style" =: "width: 400px; max-width: 400px; position: absolute") $ text_ desc
     return (const tsEvt <$> domEvent Click e)

@@ -130,7 +130,7 @@ parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) =
         then Event
             {
                 pluginName = getModuleName getRedmineProvider,
-                eventIcon = "glyphicon-tasks",
+                eventIcon = "glyphicons-361-bug",
                 desc = toStrict $ innerText linkNode,
                 extraInfo =  changeInfo >@> [jq|span.description|],
                 fullContents = fmap (\x -> T.concat ["<a href='",

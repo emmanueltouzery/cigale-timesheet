@@ -39,9 +39,9 @@ cigaleView :: MonadWidget t m => m ()
 cigaleView = do
     stylesheet "pikaday.css"
     stylesheet "https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.2/css/bootstrap.min.css"
-    activeViewDyn <- navBar
     addModalDialogSkeleton 5000 ModalLevelBasic
     addModalDialogSkeleton 99999999 ModalLevelSecondary
+    activeViewDyn <- navBar
     eventsView activeViewDyn
     configView activeViewDyn
 
@@ -80,11 +80,27 @@ navBar = do
                           <> "style" =: "margin-right: 10px; margin-bottom: 10px;") $
                 elAttr "div" ("class" =: "nav navbar-nav") $ do
                     elAttr "a" ("href" =: "#events" <> "class" =: "navbar-brand") $ text "Cigale"
-                    mapM (navLink activeViewDyn) navLinkItems
+                    e <- mapM (navLink activeViewDyn) navLinkItems
+                    addAboutButton
+                    return e
         let curView = fromMaybe ActiveViewEvents $
                           nliActiveView <$> find ((== urlLocationHash) . nliUrl) navLinkItems
         activeViewDyn <- holdDyn curView $ leftmost viewEvts
     return activeViewDyn
+
+addAboutButton :: MonadWidget t m => m ()
+addAboutButton = do
+    (img, _) <- elAttr' "img" ("src" =: getGlyphiconUrl "glyphicons-195-question-sign"
+                              <> "class" =: "pull-xs-right"
+                              <> "style" =: "cursor: pointer") $ return ()
+    void $ setupModal ModalLevelBasic () (domEvent Click img) $ do
+        void $ buildModalBody "About" NoBtn
+            (constDyn "") (text "Icons from "
+                   >> elAttr "a" ("href" =: "http://glyphicons.com") (text "Glyphicons")
+                   >> text ", under a "
+                   >> elAttr "a" ("href" =: "http://creativecommons.org/licenses/by/3.0/")
+                       (text "CC BY 3.0 license."))
+        return never
 
 navLink :: MonadWidget t m => Dynamic t ActiveView -> NavLinkItem -> m (Event t ActiveView)
 navLink activeViewDyn NavLinkItem{..} = do

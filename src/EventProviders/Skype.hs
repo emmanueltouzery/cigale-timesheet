@@ -110,7 +110,7 @@ toEvent :: [ChatRecord] -> Event
 toEvent chatRecords = Event
         {
             pluginName = getModuleName getSkypeProvider,
-            eventIcon = "glyphicon-comment",
+            eventIcon = "glyphicons-245-conversation",
             eventDate = messageTime (head chatRecords),
             desc = T.intercalate ", " $ sort participants,
             extraInfo = extraInfoVal,

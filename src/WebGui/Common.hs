@@ -90,17 +90,17 @@ data ModalDialogResult t a = ModalDialogResult
          closedEvent   :: Event t ()
      }
 
-data ButtonInfo = PrimaryBtn String | DangerBtn String
+data ButtonInfo = PrimaryBtn String | DangerBtn String | NoBtn
 
 setupModal :: MonadWidget t m => ModalLevel -> a -> Event t () -> m (Event t b) -> m (Event t b)
 setupModal modalLevel displayData showEvent buildDialog = do
     let modalId = topLevelModalId modalLevel
     performEvent_ $ fmap (const $ liftIO $ showModalIdDialog modalId) showEvent
-    modalDyn <- holdDyn displayData $ fmap (const displayData) showEvent
-    dynModalVal <- forDyn modalDyn $ const buildDialog
+    modalDyn <- holdDyn Nothing $ fmap (const $ Just displayData) showEvent
+    dynModalVal <- forDyn modalDyn $ fmap (const buildDialog)
     readModalResult modalLevel dynModalVal
 
-readModalResult :: MonadWidget t m => ModalLevel -> Dynamic t (m (Event t a)) -> m (Event t a)
+readModalResult :: MonadWidget t m => ModalLevel -> Dynamic t (Maybe (m (Event t a))) -> m (Event t a)
 readModalResult modalLevel dynModalVal = do
     dynModalEvtEvt <- dynModal modalLevel dynModalVal
     dynModalDynEvt <- holdDyn never dynModalEvtEvt
@@ -115,9 +115,10 @@ readDynMonadicEvent dynMonadicEvent = do
 buildModalBody :: MonadWidget t m => String -> ButtonInfo
                  -> Dynamic t String -> m a -> m (a, Event t (), Event t ())
 buildModalBody title okBtnInfo dynErrMsg contents = do
-    let (okBtnText, okBtnClass) = case okBtnInfo of
-            PrimaryBtn txt -> (txt, "primary")
-            DangerBtn txt -> (txt, "danger")
+    let (okBtnText, okBtnClass, okVisible) = case okBtnInfo of
+            PrimaryBtn txt -> (txt, "primary", True)
+            DangerBtn txt  -> (txt, "danger", True)
+            NoBtn          -> ("", "primary", False)
     elAttr "div" ("class" =: "modal-content") $ do
         elAttr "div" ("class" =: "modal-header") $ do
             void $ elAttr "button" ("type" =: "button" <> "class" =: "close"
@@ -139,11 +140,18 @@ buildModalBody title okBtnInfo dynErrMsg contents = do
                                               <> "class" =: "btn btn-secondary"
                                               <> "data-dismiss" =: "modal")
                 $ text "Close"
-            (okEl, _) <- elAttr' "button" ("type" =: "button"
-                                           <> "class" =: ("btn btn-" <> okBtnClass))
-                $ text okBtnText
+            okEl <- addOkButton okBtnClass okBtnText okVisible
             return (domEvent Click okEl, domEvent Click closeEl)
         return (bodyRes, okEvt, closeEvt)
+
+addOkButton :: MonadWidget t m => String -> String -> Bool -> m (El t)
+addOkButton okBtnClass okBtnText visible = do
+    let style = "style" =: if visible then "" else "display: none"
+    (okEl, _) <- elAttr' "button" ("type" =: "button"
+                                   <> "class" =: ("btn btn-" <> okBtnClass)
+                                   <> style)
+        $ text okBtnText
+    return okEl
 
 -- a secondary modal is on top of the basic one (modal in modal)
 data ModalLevel = ModalLevelBasic | ModalLevelSecondary
@@ -156,13 +164,13 @@ topLevelModalContentsId :: ModalLevel -> String
 topLevelModalContentsId ModalLevelBasic = "toplevelmodalcontents"
 topLevelModalContentsId ModalLevelSecondary = "toplevelsecmodalcontents"
 
-dynModal :: MonadWidget t m => ModalLevel -> Dynamic t (m a) -> m (Event t a)
+dynModal :: MonadWidget t m => ModalLevel -> Dynamic t (Maybe (m a)) -> m (Event t a)
 dynModal modalLevel = dynAtEltId (topLevelModalContentsId modalLevel)
 
 -- | this is copy-pasted & modified from 'dyn' from reflex-dom
 -- instead of appending the nodes at the current position in the
 -- DOM, append them under the node by the ID which you give.
-dynAtEltId :: MonadWidget t m => String -> Dynamic t (m a) -> m (Event t a)
+dynAtEltId :: MonadWidget t m => String -> Dynamic t (Maybe (m a)) -> m (Event t a)
 dynAtEltId eltId child = do
     (newChildBuilt, newChildBuiltTriggerRef) <- newEventWithTriggerRef
     let e = fmap snd newChildBuilt
@@ -171,14 +179,16 @@ dynAtEltId eltId child = do
     addVoidAction $ switch childVoidAction
     doc <- askDocument
     runW <- getRunWidget
-    let build c = do
-        Just df <- liftIO $ documentCreateDocumentFragment doc
-        (result, postBuild, voidActions) <- runW df c
-        runFrameWithTriggerRef newChildBuiltTriggerRef (result, voidActions)
-        postBuild
-        Just root <- liftIO $ documentGetElementById doc eltId
-        lastChild <- liftIO $ nodeGetLastChild root
-        void $ liftIO $ nodeReplaceChild root (Just df) lastChild
+    let build = \case
+            Nothing -> return ()
+            Just c  -> do
+                Just df <- liftIO $ documentCreateDocumentFragment doc
+                (result, postBuild, voidActions) <- runW df c
+                runFrameWithTriggerRef newChildBuiltTriggerRef (result, voidActions)
+                postBuild
+                Just root <- liftIO $ documentGetElementById doc eltId
+                lastChild <- liftIO $ nodeGetLastChild root
+                void $ liftIO $ nodeReplaceChild root (Just df) lastChild
     schedulePostBuild $ do
         c <- sample $ current child
         build c
@@ -191,6 +201,9 @@ rawPointerSpan = rawSpan ("style" =: "cursor: pointer")
 
 rawSpan :: MonadWidget t m => Map String String -> Dynamic t String -> m ()
 rawSpan attrs = void . elDynHtmlAttr' "span" attrs
+
+getGlyphiconUrl :: String -> String
+getGlyphiconUrl base = "glyphicons_free/glyphicons/png/" <> base <> ".png"
 
 data RemoteData a = RemoteDataInvalid String | RemoteDataLoading | RemoteData a deriving Show
 

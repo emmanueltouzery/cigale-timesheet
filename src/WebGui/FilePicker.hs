@@ -103,7 +103,7 @@ buildFilePicker options openEvt = do
                         PickFile -> fmapMaybe id $ tagDyn dynSelectedFile okEvt
                 performEvent_ $ fmap (const $ liftIO $ hideModalIdDialog modalId) pickedItemEvt
             return $ leftmost [pickerEvt, pickedItemEvt])
-        rx <- readModalResult ModalLevelSecondary dynMonPickerEvt
+        rx <- readModalResult ModalLevelSecondary =<< mapDyn Just dynMonPickerEvt
     let pickedEvent = fmapMaybe getPickData rx
     return pickedEvent
 

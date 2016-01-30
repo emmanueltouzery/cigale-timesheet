@@ -74,7 +74,7 @@ commitToEvent :: FolderPath -> TimeZone -> Commit -> Event.Event
 commitToEvent gitFolderPath timezone commit = Event.Event
     {
         pluginName = getModuleName getGitProvider,
-        eventIcon = "glyphicon-cog",
+        eventIcon = "glyphicons-423-git-branch",
         eventDate = localTimeToUTC timezone (commitDate commit),
         desc = fromMaybe "no commit message" (commitDesc commit),
         extraInfo = getCommitExtraInfo commit (T.pack gitFolderPath),

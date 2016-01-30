@@ -170,7 +170,7 @@ buildBasicEvent :: Text -> UTCTime -> Event.Event
 buildBasicEvent descV date = Event.Event
    {
        pluginName = getModuleName getIcalProvider,
-       eventIcon = "glyphicon-calendar",
+       eventIcon = "glyphicons-46-calendar",
        eventDate = date,
        desc = descV,
        extraInfo = "",

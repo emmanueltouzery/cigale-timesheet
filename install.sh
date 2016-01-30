@@ -18,3 +18,6 @@ cd ../..
 stack install
 exepath=$(stack path --local-install-root)
 cp -R "$htmljspath/bin/cigale-web.jsexe" "$exepath/share"
+
+find lib/ -name "*.css" -exec cp \{\} "$exepath/share/cigale-web.jsexe/" \;
+cp -R lib/glyphicons_free/ "$exepath/share/cigale-web.jsexe/"

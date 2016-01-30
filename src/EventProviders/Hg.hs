@@ -44,16 +44,15 @@ getRepoCommits (HgRecord _username projectPath) _ day _ = do
     return $ map (toEvent timezone) commits
 
 toEvent :: TimeZone -> Commit -> Event.Event
-toEvent timezone commit =
-    Event.Event
-        {
-            pluginName = getModuleName getHgProvider,
-            eventIcon = "glyphicon-cog",
-            eventDate = localTimeToUTC timezone (commitDate commit),
-            desc = commitDesc commit,
-            extraInfo = T.pack $ Util.getFilesRoot $ commitFiles commit,
-            fullContents = Nothing
-        }
+toEvent timezone commit = Event.Event
+    {
+        pluginName = getModuleName getHgProvider,
+        eventIcon = "glyphicons-423-git-branch",
+        eventDate = localTimeToUTC timezone (commitDate commit),
+        desc = commitDesc commit,
+        extraInfo = T.pack $ Util.getFilesRoot $ commitFiles commit,
+        fullContents = Nothing
+    }
 
 formatDate :: Day -> String
 formatDate (toGregorian -> (year, month, dayOfMonth)) =

@@ -63,16 +63,15 @@ data Commit = Commit
     deriving (Eq, Show)
 
 toEvent :: TimeZone -> Commit -> Event.Event
-toEvent timezone (Commit dateVal _ commentVal cFiles) =
-    Event.Event
-        {
-            pluginName = getModuleName getSvnProvider,
-            eventIcon = "glyphicon-cog",
-            eventDate = localTimeToUTC timezone dateVal,
-            desc = commentVal,
-            extraInfo = T.pack $ Util.getFilesRoot cFilesStr,
-            fullContents = Nothing
-        }
+toEvent timezone (Commit dateVal _ commentVal cFiles) = Event.Event
+    {
+        pluginName = getModuleName getSvnProvider,
+        eventIcon = "glyphicons-423-git-branch",
+        eventDate = localTimeToUTC timezone dateVal,
+        desc = commentVal,
+        extraInfo = T.pack $ Util.getFilesRoot cFilesStr,
+        fullContents = Nothing
+    }
     where
         cFilesStr = map T.unpack cFiles
 

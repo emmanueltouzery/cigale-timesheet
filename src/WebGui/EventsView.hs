@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards, RecursiveDo, JavaScriptFFI, ForeignFunctionInterface, LambdaCase #-}
-{-# LANGUAGE ScopedTypeVariables, DeriveGeneric, LambdaCase, OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables, DeriveGeneric, LambdaCase, OverloadedStrings, FlexibleContexts #-}
 
 module EventsView where
 
@@ -96,7 +96,7 @@ eventsView activeViewDyn = do
             curDate <- addDatePicker initialDay
 
         -- TODO 60px is ugly (date picker height)
-        elAttr "div" ("style" =: "display: flex; height: calc(100% - 60px); margin-top: 10px"
+        elAttr "div" ("style" =: "display: flex; height: calc(100% - 60px); margin-top: 20px"
                       <> "overflow" =: "auto") $ do
             -- that's a mess. Surely there must be a better way to extract the event from the table.
             curEvtDyn <- joinDyn <$> (mapDyn eventsTable respDyn >>= dyn >>= holdDyn (constDyn Nothing))
@@ -124,10 +124,13 @@ addDatePicker initialDay = do
         (previousDayBtn, nextDayBtn) <-
             elAttr "div" ("class" =: "btn-group"
                           <> "data-toggle" =: "buttons"
-                          <> "style" =: "position: relative; margin: 10px") $ do
-                pDayBtn <- button' "<<"
+                          <> "style" =: "position: relative; margin-left: 10px") $ do
+                let iconBtn icon = do
+                        button' $ elAttr "img" ("src" =: getGlyphiconUrl icon
+                                                   <> "style" =: "height: 12px") $ return ()
+                pDayBtn <- iconBtn "glyphicons-171-step-backward"
                 createDateLabel curDate picker
-                nDayBtn <- button' ">>"
+                nDayBtn <- iconBtn "glyphicons-179-step-forward"
                 return (pDayBtn, nDayBtn)
         (pickedDateEvt, picker) <- datePicker initialDay
 
@@ -140,7 +143,7 @@ createDateLabel curDate picker = do
         cbDyn <- holdDyn True (leftmost [dayToggleEvt, pickerAutoCloseEvt])
 
         (label, _) <- elAttr' "label" ("class" =: "btn btn-secondary btn-sm"
-                                       <> "style" =: "margin-bottom: 0px") $ do
+                                       <> "style" =: "margin-bottom: 0px; width: 180px; max-width: 180px") $ do
             void $ checkboxView (constDyn Map.empty) cbDyn
             dynText =<< mapDyn (formatTime defaultTimeLocale "%A, %F") curDate
 
@@ -246,7 +249,7 @@ displayDetails (Just TsEvent{..}) =
 
 datePicker :: MonadWidget t m => Day -> m (Event t Day, PikadayPicker)
 datePicker initialDay = do
-    (e, _) <- elAttr' "div" ("style" =: "width: 250px; position: absolute; z-index: 3") $ return ()
+    (e, _) <- elAttr' "div" ("style" =: "width: 250px; position: absolute; z-index: 3; margin-left: 10px") $ return ()
     (evt, evtTrigger) <- newEventWithTriggerRef
     postGui <- askPostGui
     runWithActions <- askRunWithActions

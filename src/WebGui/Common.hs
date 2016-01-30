@@ -64,10 +64,13 @@ performOnChange :: MonadWidget t m => (a -> WidgetHost m ()) -> Dynamic t a -> m
 performOnChange action dynamic = performEvent_ $
     fmap (const $ sample (current dynamic) >>= action) $ updated dynamic
 
-button' :: MonadWidget t m => String -> m (Event t ())
+button' :: MonadWidget t m => m a -> m (Event t ())
 button' s = do
-  (e, _) <- elAttr' "button" ("class" =: "btn btn-secondary btn-sm") $ text s
-  return $ domEvent Click e
+    -- forcing white background, otherwise it stays to gray after
+    -- being pressed which I find ugly.
+    (e, _) <- elAttr' "button" ("class" =: "btn btn-secondary btn-sm"
+                                <> "style" =: "background-color: white") s
+    return $ domEvent Click e
 
 -- very similar to fireEventRef from Reflex.Host.Class
 -- which I don't have right now.

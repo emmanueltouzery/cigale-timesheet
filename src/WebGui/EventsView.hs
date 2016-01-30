@@ -113,29 +113,35 @@ addDatePicker :: MonadWidget t m => Day -> m (Dynamic t Day)
 addDatePicker initialDay = do
     rec
         -- update current day based on user actions
-        curDate <- foldDyn ($) initialDay $ mergeWith (.)
-            [
-                fmap (const $ addDays (-1)) previousDayBtn,
-                fmap (const $ addDays 1) nextDayBtn,
-                fmap const pickedDateEvt
-            ]
+        curDate <- foldDyn ($) initialDay dayChangeEvt
         -- the date picker has position: absolute & will position itself
         -- relative to the nearest ancestor with position: relative.
-        (previousDayBtn, nextDayBtn) <-
+        let col = elAttr "td" ("style" =: "padding: 5px")
+        dayChangeEvt <-
+            elAttr "table" ("style" =: "margin-left: 10px") $ el "tr" $ do
+                col $ text "Day to display:"
+                col $ displayPickerBlock initialDay curDate
+    return curDate
+
+displayPickerBlock :: MonadWidget t m => Day -> Dynamic t Day -> m (Event t (Day -> Day))
+displayPickerBlock initialDay curDate = do
+    rec
+        previousNextEvt <-
             elAttr "div" ("class" =: "btn-group"
                           <> "data-toggle" =: "buttons"
-                          <> "style" =: "position: relative; margin-left: 10px") $ do
-                let iconBtn icon = do
-                        button' $ elAttr "img" ("src" =: getGlyphiconUrl icon
-                                                   <> "style" =: "height: 12px") $ return ()
-                pDayBtn <- iconBtn "glyphicons-171-step-backward"
+                          <> "style" =: "position: relative") $ do
+                let iconBtn icon = button' $
+                      elAttr "img" ("src" =: getGlyphiconUrl icon
+                                    <> "style" =: "height: 12px") $ return ()
+                previousDay <- fmap (const $ addDays (-1)) <$>
+                    iconBtn "glyphicons-171-step-backward"
                 createDateLabel curDate picker
-                nDayBtn <- iconBtn "glyphicons-179-step-forward"
-                return (pDayBtn, nDayBtn)
+                nextDay <- fmap (const $ addDays 1) <$>
+                    iconBtn "glyphicons-179-step-forward"
+                return (mergeWith (.) [previousDay, nextDay])
         (pickedDateEvt, picker) <- datePicker initialDay
-
-    liftIO $ pickerHide picker
-    return curDate
+    liftIO (pickerHide picker)
+    return (mergeWith (.) [fmap const pickedDateEvt, previousNextEvt])
 
 createDateLabel :: MonadWidget t m => Dynamic t Day -> PikadayPicker -> m ()
 createDateLabel curDate picker = do
@@ -217,7 +223,8 @@ showRecord curEventDyn tsEvt@TsEvent{..} = do
     (e, _) <- elDynAttr' "tr" rowAttrs $ do
         elAttr "td" ("style" =: "height: 60px; width: 500px;") $
             elAttr "div" ("style" =: "position: relative;") $ do
-               let divFlexSetup = ";display: flex; justify-content: center; align-items: center; flex-direction: column"
+               let divFlexSetup = ";display: flex; justify-content: center;" ++
+                     "align-items: center; flex-direction: column"
                elAttr "div" ("style" =: ("width: " ++ imgWidth <> divFlexSetup)) $ do
                    elAttr "img" ("src" =: (getGlyphiconUrl eventIcon) <> "style" =: "flex-item-align: center") $ return ()
                    let pluginNameStyle = "color: gray; font-size: 0.8em; text-align: center"
@@ -249,7 +256,7 @@ displayDetails (Just TsEvent{..}) =
 
 datePicker :: MonadWidget t m => Day -> m (Event t Day, PikadayPicker)
 datePicker initialDay = do
-    (e, _) <- elAttr' "div" ("style" =: "width: 250px; position: absolute; z-index: 3; margin-left: 10px") $ return ()
+    (e, _) <- elAttr' "div" ("style" =: "width: 250px; position: absolute; z-index: 3") $ return ()
     (evt, evtTrigger) <- newEventWithTriggerRef
     postGui <- askPostGui
     runWithActions <- askRunWithActions

@@ -76,10 +76,9 @@ navBar = do
     urlLocationHash <- liftIO $ fromJSString <$> getLocationHash
     rec
         viewEvts <-
-            elAttr "nav" ("class" =: "navbar navbar-light bg-faded"
-                          <> "style" =: "margin-right: 10px; margin-bottom: 10px;") $
-                elAttr "div" ("class" =: "nav navbar-nav") $ do
-                    elAttr "a" ("href" =: "#events" <> "class" =: "navbar-brand") $ text "Cigale"
+            elAttr "div" ("role" =: "navigation" <> "style" =: "padding: 10px") $
+                elAttr "ul" ("class" =: "nav nav-tabs") $ do
+                    elAttr "span" ("class" =: "navbar-brand") $ text "Cigale"
                     e <- mapM (navLink activeViewDyn) navLinkItems
                     addAboutButton
                     return e
@@ -104,7 +103,9 @@ addAboutButton = do
 
 navLink :: MonadWidget t m => Dynamic t ActiveView -> NavLinkItem -> m (Event t ActiveView)
 navLink activeViewDyn NavLinkItem{..} = do
-    attrs <- mapDyn (\curView -> "href" =: ("#" <> nliUrl)
-                                 <> attrOptDyn "class" "active" (curView == nliActiveView) "nav-item nav-link") activeViewDyn
-    (a, _) <- elDynAttr' "a" attrs $ text nliDesc
+    attrs <- forDyn activeViewDyn $ \curView ->
+        "href" =: ("#" <> nliUrl) <> "style" =: "outline: 0" <>
+            attrOptDyn "class" "active" (curView == nliActiveView) "nav-link"
+    (a, _) <- elAttr "li" ("class" =: "nav-item") $
+        elDynAttr' "a" attrs $ text nliDesc
     return $ fmap (const nliActiveView) $ domEvent Click a

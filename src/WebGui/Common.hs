@@ -84,15 +84,6 @@ handleTrigger runWithActions v trigger = liftIO (readIORef trigger) >>= \case
         Nothing       -> return ()
         Just eTrigger -> runWithActions [eTrigger :=> v]
 
-data ModalDialogResult t a = ModalDialogResult
-     {
-         modalElt      :: El t,
-         bodyResult    :: Dynamic t a,
-         okBtnEvent    :: Event t (),
-         closeBtnEvent :: Event t (),
-         closedEvent   :: Event t ()
-     }
-
 data ButtonInfo = PrimaryBtn String | DangerBtn String | NoBtn
 
 setupModal :: MonadWidget t m => ModalLevel -> a -> Event t () -> m (Event t b) -> m (Event t b)

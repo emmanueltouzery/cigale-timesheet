@@ -95,8 +95,8 @@ eventsView activeViewDyn = do
             displayWarningBanner respDyn
             curDate <- addDatePicker initialDay
 
-        -- TODO 40px is ugly (date picker height)
-        elAttr "div" ("style" =: "display: flex; height: calc(100% - 40px); margin-top: 10px"
+        -- TODO 60px is ugly (date picker height)
+        elAttr "div" ("style" =: "display: flex; height: calc(100% - 60px); margin-top: 10px"
                       <> "overflow" =: "auto") $ do
             -- that's a mess. Surely there must be a better way to extract the event from the table.
             curEvtDyn <- joinDyn <$> (mapDyn eventsTable respDyn >>= dyn >>= holdDyn (constDyn Nothing))

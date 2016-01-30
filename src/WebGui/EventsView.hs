@@ -77,8 +77,8 @@ eventsView :: MonadWidget t m => Dynamic t ActiveView -> m ()
 eventsView activeViewDyn = do
     let cssPos = "overflow: hidden; position: absolute; bottom 0; right: 0; left: 0;"
     -- TODO the hardcoded 70px is no good! (height of navigation bar)
-    attrsDyn <- mapDyn (\curView -> styleWithHideIf (curView /= ActiveViewEvents)
-                                    ("height: calc(100% - 70px);" <> cssPos)) activeViewDyn
+    attrsDyn <- forDyn activeViewDyn $ \curView ->
+        styleWithHideIf (curView /= ActiveViewEvents) ("height: calc(100% - 70px);" <> cssPos)
     elDynAttr "div" attrsDyn $ do
         let req url = xhrRequest "GET" ("/timesheet/" ++ url) def
         rec
@@ -103,9 +103,8 @@ eventsView activeViewDyn = do
             void $ mapDyn displayDetails curEvtDyn >>= dyn
 
         -- display the progress indicator if needed.
-        holdAttrs <- mapDyn (\curEvt ->
-                              "id" =: "pleasehold" <>
-                              styleHideIf (not $ isRemoteDataLoading curEvt)) respDyn
+        holdAttrs <- forDyn respDyn $ \curEvt ->
+            "id" =: "pleasehold" <> styleHideIf (not $ isRemoteDataLoading curEvt)
         elDynAttr "div" holdAttrs $ text "Please hold..."
         return ()
 
@@ -180,7 +179,7 @@ displayWarningBanner respDyn = do
     errorTxtDyn <- mapDyn getErrorTxt respDyn
 
     let styleContents e = styleWithHideIf (isNothing e) "width: 65%; margin-left: auto; margin-right: auto"
-    blockAttrs <- mapDyn (\e -> basicAttrs <> styleContents e) errorTxtDyn
+    blockAttrs <- forDyn errorTxtDyn (\e -> basicAttrs <> styleContents e)
     elDynAttr "div" blockAttrs $ do
         elAttr "button" ("type" =: "button" <> "class" =: "close" <> "data-dismiss" =: "alert") $ do
             void $ elDynHtmlAttr' "span" ("aria-hidden" =: "true") (constDyn "&times;")
@@ -214,7 +213,8 @@ getCurrentTimeZoneJS = fmap minutesToTimeZone . getTimezoneOffsetMinsForDateMs
 
 showRecord :: MonadWidget t m => Dynamic t (Maybe TsEvent) -> TsEvent -> m (Event t TsEvent)
 showRecord curEventDyn tsEvt@TsEvent{..} = do
-    rowAttrs <- mapDyn (\curEvt -> "class" =: if curEvt == Just tsEvt then "table-active" else "") curEventDyn
+    rowAttrs <- forDyn curEventDyn $ \curEvt ->
+        "class" =: if curEvt == Just tsEvt then "table-active" else ""
     tz <- liftIO (getCurrentTimeZoneJS eventDate)
     let fixedWidthStyle (w :: Int) = "position: absolute;" ++
            "width: " ++ show w ++ "px; max-width: " ++ show w ++ "px;"

@@ -61,8 +61,8 @@ data FetchedData = FetchedData
 
 configView :: MonadWidget t m => Dynamic t ActiveView -> m ()
 configView activeViewDyn = do
-    attrsDyn <- mapDyn (\curView -> styleWithHideIf (curView /= ActiveViewConfig)
-                                    "height: 100%; padding-right: 10px;") activeViewDyn
+    attrsDyn <- forDyn activeViewDyn $ \curView ->
+        styleWithHideIf (curView /= ActiveViewConfig) "height: 100%; padding-right: 10px;"
     elDynAttr "div" attrsDyn $ do
         -- TODO getPostBuild ... maybe when the tab is loaded instead?
         postBuild <- getPostBuild

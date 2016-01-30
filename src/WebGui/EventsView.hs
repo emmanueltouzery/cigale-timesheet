@@ -226,11 +226,12 @@ showRecord curEventDyn tsEvt@TsEvent{..} = do
                let divFlexSetup = ";display: flex; justify-content: center;" ++
                      "align-items: center; flex-direction: column"
                elAttr "div" ("style" =: ("width: " ++ imgWidth <> divFlexSetup)) $ do
-                   elAttr "img" ("src" =: (getGlyphiconUrl eventIcon) <> "style" =: "flex-item-align: center") $ return ()
+                   elAttr "img" ("src" =: (getGlyphiconUrl eventIcon)
+                                 <> "style" =: "flex-item-align: center") $ return ()
                    let pluginNameStyle = "color: gray; font-size: 0.8em; text-align: center"
                    elAttr "span" ("style" =: pluginNameStyle) $ text pluginName
-               let detailsDivStyle = "position: absolute; left: " ++ imgWidth ++
-                     "; top: 0px; width: calc(100% - " ++ imgWidth ++ "); margin-left: 5px"
+               let detailsDivStyle = absTop 0 ++ "left: " ++ imgWidth ++
+                     "; width: calc(100% - " ++ imgWidth ++ "); margin-left: 5px"
                elAttr "div" ("style" =: detailsDivStyle) $ do
                    elAttr "b" ("style" =: (absTop 0 <> "font-size: 1.1em")) $ text $
                        formatTime defaultTimeLocale "%R" $ utcToZonedTime tz eventDate

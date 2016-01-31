@@ -7,8 +7,11 @@ if [ ! -d "reflex-dom" ]; then
     cd reflex-dom
     git reset --hard 4ce94d0afe35f5642e985800dd89fa457b324a07
     cd ..
+    sed -i.bak -e "s/bifunctors == 4\.2\.\*/bifunctors >= 4\.2/g" reflex-dom/reflex-dom.cabal
 fi
-sed -i.bak -e "s/bifunctors == 4\.2\.\*/bifunctors >= 4\.2/g" reflex-dom/reflex-dom.cabal
+
+# install the ghcjs compiler
+stack setup
 
 # doesn't always rebuild without force dirty :-(
 stack build --force-dirty
@@ -18,6 +21,10 @@ stack build --force-dirty
 # be found.
 htmljspath=$(stack path --local-install-root)
 cd ../..
+
+# install the ghc compiler
+stack setup
+
 stack install
 exepath=$(stack path --local-install-root)
 cp -R "$htmljspath/bin/cigale-web.jsexe" "$exepath/share"

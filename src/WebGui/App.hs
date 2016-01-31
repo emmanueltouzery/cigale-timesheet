@@ -20,6 +20,7 @@ import Config
 import EventsView
 
 foreign import javascript unsafe "window.location.hash.substr(1)" getLocationHash :: IO JSString
+foreign import javascript unsafe "document.title = $1" setTitle :: JSString -> IO ()
 
 -- url is http://localhost:8000/static/index.html
 -- start cigale with .stack-work/install/x86_64-linux/lts-3.16/7.10.2/bin/cigale-timesheet
@@ -39,6 +40,7 @@ cigaleView :: MonadWidget t m => m ()
 cigaleView = do
     stylesheet "pikaday.css"
     stylesheet "https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.2/css/bootstrap.min.css"
+    liftIO (setTitle "Cigale timesheet")
     addModalDialogSkeleton 5000 ModalLevelBasic
     addModalDialogSkeleton 99999999 ModalLevelSecondary
     activeViewDyn <- navBar

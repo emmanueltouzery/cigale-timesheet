@@ -15,6 +15,15 @@ echo "will now install the GHCJS compiler, this should take a while..."
 stack setup
 echo "installed the GHCJS compiler!"
 
+# happy needs GHC in the path to build.
+# add the GHC we just set up to the path.
+cd ../..
+export PATH=$PATH:`stack path --bin-path`
+cd src/WebGui/
+
+stack install happy
+export PATH=$PATH:~/.local/bin
+
 # doesn't always rebuild without force dirty :-(
 echo "building the client-side app"
 stack build --force-dirty

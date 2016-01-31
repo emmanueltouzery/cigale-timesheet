@@ -1,6 +1,6 @@
 # Cigale timesheet
 
-> "La Cigale, ayant chanté tout l'Été, se trouva fort dépourvue quand la bise fut venue."  
+> "La Cigale, ayant chanté tout l'Été, se trouva fort dépourvue quand la bise fut venue."
 >	-- Jean de la Fontaine, The ant and the grasshopper
 
 [![Build Status](https://travis-ci.org/emmanueltouzery/cigale-timesheet.png?branch=master)](https://travis-ci.org/emmanueltouzery/cigale-timesheet)
@@ -28,11 +28,23 @@ The application runs as a web application on your computer.
 
 ## Installation
 
-As it's written in Haskell, it should run fine on linux, OSX and Windows, however I develop it on linux and I expect installing on Windows would be [painful][] because of dependencies.
+As it's written in Haskell, it should run fine on linux and OSX; I develop it on linux and I expect installing on Windows would be [painful][] because of dependencies and in quite some places I assume unix systems.
 
-First you need to install the Haskell platform. Then to install, run:
+Also on linux, installation will take a long (long, long) time, because it will build many dependencies from source (including, if needed, bootstrap a haskell->javascript compiler).
 
-	cabal install
+First you need to install the [stack package manager][]. You also need to install `node.js`, the zlib, sqlite, openssl & ncurses/tinfo devel packages (see lower).
+To prevent errors like `/usr/bin/ld: cannot find -ltinfo`, run:
+
+    sudo dnf install ncurses-devel (fedora)
+    sudo apt-get install libtinfo-dev (debian/ubuntu)
+
+On Fedora you'll also want to run:
+
+    sudo dnf install zlib-devel openssl-devel sqlite-devel
+
+Then to install, run:
+
+	bash install.sh
 
 Note that it will download and build quite some libraries so it'll run for a while.
 
@@ -40,7 +52,7 @@ to run:
 
 	cigale-timesheet
 
-(you should have ~/.cabal/bin in your path)
+(you should have `~/.local/bin` in your path)
 
 On linux systems you'll be able to start the app graphically from the menus.
 
@@ -60,3 +72,4 @@ If you wish to install it in a cabal sandbox, you'll need to be careful because 
 [Main view screenshot]: https://raw.github.com/wiki/emmanueltouzery/cigale-timesheet/main.png
 [Settings screenshot]: https://raw.github.com/wiki/emmanueltouzery/cigale-timesheet/settings.png
 [painful]: https://plus.google.com/108801936173059193561/posts/PE3TiGMkUx2
+[stack package manager]: http://docs.haskellstack.org/en/stable/README.html#how-to-install

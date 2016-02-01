@@ -3,8 +3,6 @@
 > "La Cigale, ayant chanté tout l'Été, se trouva fort dépourvue quand la bise fut venue."
 >	-- Jean de la Fontaine, The ant and the grasshopper
 
-[![Build Status](https://travis-ci.org/emmanueltouzery/cigale-timesheet.png?branch=master)](https://travis-ci.org/emmanueltouzery/cigale-timesheet)
-
 ## Purpose
 
 If you need to give a timesheet of your activities in the previous month for your work, but you didn't collect the information of what you were doing, when (like the grasshopper in the tale, who didn't plan for winter), then this program may help you.

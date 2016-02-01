@@ -51,7 +51,8 @@ stack install
 exepath=$(stack path --local-install-root)
 cp -R "$htmljspath/bin/cigale-web.jsexe" "$exepath/share"
 
-find lib/ -name "*.css" -exec cp \{\} "$exepath/share/cigale-web.jsexe/" \;
+# pikaday has a strange .c9 folders with a bad pikaday.css.
+find lib/ -name "*.css" -not -path "*/.c9/*" -exec cp \{\} "$exepath/share/cigale-web.jsexe/" \;
 cp -R lib/glyphicons_free/ "$exepath/share/cigale-web.jsexe/"
 
 echo "built the app, copied the files, all set up and ready to go!"

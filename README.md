@@ -60,13 +60,6 @@ If you're running linux and install the epiphany browser (gnome-web), the app wi
 
 Fetching data for one day can take time, if you're using network sources, like SVN and Redmine. For that reason, there is an option to prefetch the data. If you manually run the app with `--prefetch`, it will prefetch the data for every day from the first day of the previous month to yesterday (and remove obsolete prefetch data). The application will be very fast after that. One option is to have some mechanism (for instance a cron job on unix environments) run that automatically for you on a regular basis so that the application is fast when you need it. The application will also cache data when fetching for past days.
 
-## Cabal sandbox
-
-If you wish to install it in a cabal sandbox, you'll need to be careful because the setup program wants to invoke `fay` to build the javascript, but if fay was built in the sandbox, you'll need to run commands like that before running `cabal install`:
-
-	export HASKELL_PACKAGE_SANDBOX=./.cabal-sandbox/x86_64-linux-ghc-7.6.3-packages.conf.d
-	export PATH=.cabal-sandbox/bin/:$PATH
-
 [Main view screenshot]: https://raw.github.com/wiki/emmanueltouzery/cigale-timesheet/main.png
 [Settings screenshot]: https://raw.github.com/wiki/emmanueltouzery/cigale-timesheet/settings.png
 [painful]: https://plus.google.com/108801936173059193561/posts/PE3TiGMkUx2

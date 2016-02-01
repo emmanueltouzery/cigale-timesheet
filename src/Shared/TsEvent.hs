@@ -1,13 +1,13 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module Event where
+module TsEvent where
 
 import Data.Time.Clock
 import Data.Text (Text)
 import Data.Aeson
 import GHC.Generics
 
-data Event = Event
+data TsEvent = TsEvent
     {
         pluginName   :: String,
         eventIcon    :: String,
@@ -16,4 +16,5 @@ data Event = Event
         extraInfo    :: Text,
         fullContents :: Maybe Text
     } deriving (Eq, Show, Generic)
-instance ToJSON Event
+instance ToJSON   TsEvent
+instance FromJSON TsEvent

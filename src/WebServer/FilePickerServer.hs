@@ -1,32 +1,18 @@
-{-# LANGUAGE DeriveGeneric, OverloadedStrings, ScopedTypeVariables, TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
 module FilePickerServer where
 
 import System.IO (withFile, IOMode(ReadMode), hFileSize)
 import System.Directory (doesFileExist, getDirectoryContents, getHomeDirectory)
 import System.FilePath ((</>))
-import GHC.Generics
 import Snap.Core
 import Data.Maybe (fromMaybe)
 import Control.Exception (catch, SomeException)
 import qualified Data.Text.Encoding as TE
 import Control.Monad.IO.Class (liftIO)
 import qualified Data.Text as T
-import Data.Aeson (encode, ToJSON, ToJSON(..))
+import Data.Aeson (encode)
 
-data FileInfo = FileInfo
-    {
-        filename :: String,
-        -- filesize will be -1 for a directory
-        filesize :: Integer
-    } deriving (Show, Generic)
-instance ToJSON FileInfo
-
-data BrowseResponse = BrowseResponse
-    {
-        browseFolderPath :: String,
-        browseFiles :: [FileInfo]
-    } deriving (Show, Generic)
-instance ToJSON BrowseResponse
+import Communication
 
 browseFolder :: Snap ()
 browseFolder = do

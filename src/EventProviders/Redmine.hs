@@ -32,7 +32,7 @@ import Text.HTML.DOM (parseLBS)
 
 import qualified Util
 import Util (parseNum)
-import Event
+import TsEvent
 import EventProvider
 
 type Password = Text
@@ -55,7 +55,7 @@ getRedmineProvider = EventProvider
         getExtraData = Nothing
     }
 
-getRedmineEvents :: RedmineConfig -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [Event]
+getRedmineEvents :: RedmineConfig -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]
 getRedmineEvents config _ day _ = do
     let url = addProtocolIfNeeded $ appendIfNeeded "/" $ redmineUrl config
     cookie <- lift $ login url config
@@ -67,7 +67,7 @@ getRedmineEvents config _ day _ = do
     today <- lift $ utctDay <$> getCurrentTime
     return $ mergeSuccessiveEvents $ getIssues config response day today timezone
 
-mergeSuccessiveEvents :: [Event] -> [Event]
+mergeSuccessiveEvents :: [TsEvent] -> [TsEvent]
 mergeSuccessiveEvents (x:xs) = x : mergeSuccessiveEvents (dropWhile firstPartMatches xs)
     where
         firstPartMatches y = firstPart y == firstPart x
@@ -100,7 +100,7 @@ login url config = postForm
             ("password", encodeUtf8 $ redminePassword config)]
         (\r _ -> return $ getHeader r "Set-Cookie")
 
-getIssues :: RedmineConfig -> ByteString -> Day -> Day -> TimeZone -> [Event]
+getIssues :: RedmineConfig -> ByteString -> Day -> Day -> TimeZone -> [TsEvent]
 getIssues config html day today timezone = case maybeDayNode of
         Nothing -> [] -- no events at all that day.
         Just dayNode -> getIssuesForDayNode config day timezone dayNode
@@ -117,17 +117,17 @@ isDayTitle day today nod = dayTitle == toStrict (innerText (node nod))
                 then "Today"
                 else printf "%02d/%02d/%4d" m d y
 
-getIssuesForDayNode :: RedmineConfig -> Day -> TimeZone -> Cursor -> [Event]
+getIssuesForDayNode :: RedmineConfig -> Day -> TimeZone -> Cursor -> [TsEvent]
 getIssuesForDayNode config day timezone dayNode = parseBugNodes config day timezone bugNodes
     where
         bugNodes = filter (isElement . node) (child dlNode)
         dlNode = fromMaybe (error "can't find the DL node")
                 (find (isElement . node) (following dayNode))
 
-parseBugNodes :: RedmineConfig -> Day -> TimeZone -> [Cursor] -> [Event]
+parseBugNodes :: RedmineConfig -> Day -> TimeZone -> [Cursor] -> [TsEvent]
 parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) =
         if authorName == redmineUserDisplay config
-        then Event
+        then TsEvent
             {
                 pluginName = getModuleName getRedmineProvider,
                 eventIcon = "glyphicons-361-bug",

@@ -39,7 +39,7 @@ import Control.Error
 import Text.Printf
 import Control.Monad.Trans
 
-import qualified Event
+import TsEvent
 import EventProvider
 import Util
 
@@ -76,21 +76,21 @@ data Email = Email
     deriving (Eq, Show)
 
 getEmailEvents :: EmailConfig -> GlobalSettings -> Day
-    -> (AttachmentKey -> Url) -> ExceptT String IO [Event.Event]
+    -> (AttachmentKey -> Url) -> ExceptT String IO [TsEvent]
 getEmailEvents cfg@(EmailConfig mboxLocation) _ day getAttachUrl = do
     emails <- lift $ getEmails getAttachUrl mboxLocation day day
     timezone <- lift $ getTimeZone (UTCTime day 8)
     return $ map (toEvent timezone) emails
 
-toEvent :: TimeZone -> Email -> Event.Event
-toEvent timezone email = Event.Event
+toEvent :: TimeZone -> Email -> TsEvent
+toEvent timezone email = TsEvent
     {
-        Event.pluginName = getModuleName getEmailProvider,
-        Event.eventIcon = "glyphicons-11-envelope",
-        Event.eventDate = localTimeToUTC timezone (date email),
-        Event.desc = subject email,
-        Event.extraInfo = T.concat["to: ", to email],
-        Event.fullContents = Just $ contents email
+        pluginName = getModuleName getEmailProvider,
+        eventIcon = "glyphicons-11-envelope",
+        eventDate = localTimeToUTC timezone (date email),
+        desc = subject email,
+        extraInfo = T.concat["to: ", to email],
+        fullContents = Just $ contents email
     }
 
 getEmails :: (AttachmentKey -> Url) -> String -> Day -> Day -> IO [Email]

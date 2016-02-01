@@ -19,7 +19,7 @@ import Control.Monad.Trans
 import Database.HDBC
 import Database.HDBC.Sqlite3
 
-import Event
+import TsEvent
 import qualified Util
 import EventProvider
 
@@ -41,7 +41,7 @@ getSkypeProvider = EventProvider
         getExtraData = Nothing
     }
 
-getSkypeEvents :: SkypeConfig -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [Event]
+getSkypeEvents :: SkypeConfig -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]
 getSkypeEvents (SkypeConfig skypeUsernameVal) _ day _ = do
     let todayMidnight = LocalTime day (TimeOfDay 0 0 0)
     timezone <- lift $ getTimeZone (UTCTime day 8)
@@ -106,8 +106,8 @@ messageByChatInfo [chatname, author, time, text] = (fromSql chatname,
         }])
 messageByChatInfo x@_ = error $ "messageByChatInfo: invalid SQL query results" ++ show x
 
-toEvent :: [ChatRecord] -> Event
-toEvent chatRecords = Event
+toEvent :: [ChatRecord] -> TsEvent
+toEvent chatRecords = TsEvent
         {
             pluginName = getModuleName getSkypeProvider,
             eventIcon = "glyphicons-245-conversation",

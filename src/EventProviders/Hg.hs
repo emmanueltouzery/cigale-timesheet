@@ -13,7 +13,7 @@ import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
 import Control.Monad.Trans
 import Control.Error
 
-import Event
+import TsEvent
 import qualified Util
 import EventProvider
 
@@ -33,7 +33,7 @@ getHgProvider = EventProvider
         getExtraData = Nothing
     }
 
-getRepoCommits :: HgRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [Event.Event]
+getRepoCommits :: HgRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]
 getRepoCommits (HgRecord _username projectPath) _ day _ = do
     let username = T.unpack _username
     let dateRange = formatDate day
@@ -43,8 +43,8 @@ getRepoCommits (HgRecord _username projectPath) _ day _ = do
     commits <- hoistEither $ fmapL show $ parse parseCommits "" output
     return $ map (toEvent timezone) commits
 
-toEvent :: TimeZone -> Commit -> Event.Event
-toEvent timezone commit = Event.Event
+toEvent :: TimeZone -> Commit -> TsEvent
+toEvent timezone commit = TsEvent
     {
         pluginName = getModuleName getHgProvider,
         eventIcon = "glyphicons-423-git-branch",

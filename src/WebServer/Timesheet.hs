@@ -26,7 +26,7 @@ import qualified Data.Traversable as T
 import qualified Config
 import qualified EventProviders
 import EventProvider
-import Event
+import TsEvent
 import Communication
 
 -- 15 seconds max runtime before a fetch is aborted.
@@ -41,11 +41,11 @@ process month = do
     config <- Config.readConfig EventProviders.plugins
     processConfig month config
 
-fetchResponseAdd :: FetchResponse -> Either String [Event] -> FetchResponse
+fetchResponseAdd :: FetchResponse -> Either String [TsEvent] -> FetchResponse
 fetchResponseAdd sofar@(FetchResponse _ errs) (Left err) = sofar { fetchErrors = err:errs }
 fetchResponseAdd sofar@(FetchResponse ev _) (Right evts) =
     sofar { fetchedEvents = mergeBy orderByDate ev (sortBy orderByDate evts) }
-    where orderByDate = compare `on` Event.eventDate
+    where orderByDate = compare `on` eventDate
 
 -- http://stackoverflow.com/a/18898822/516188
 mapPool :: T.Traversable t => Int -> (a -> IO b) -> t a -> IO (t b)
@@ -64,7 +64,7 @@ processConfig date config = do
     let allEvents = foldl' fetchResponseAdd (FetchResponse [] []) allEventsSeq
     let errors = filter isLeft allEventsSeq
     when (not $ null errors) $ print errors
-    let eventDates = Event.eventDate <$> fetchedEvents allEvents
+    let eventDates = TsEvent.eventDate <$> fetchedEvents allEvents
     let eventDatesLocal = fmap (utcToLocalTime myTz) eventDates
     putStrLn "after the fetching!"
     -- well would be faster to just check the first and last
@@ -86,7 +86,7 @@ getGlobalSettings = do
     settingsFolder <- Config.getSettingsFolder
     return GlobalSettings { getSettingsFolder = settingsFolder }
 
-fetchProvider :: T.Text -> GlobalSettings -> Day -> Config.EventSource Value Value -> IO (Either String [Event])
+fetchProvider :: T.Text -> GlobalSettings -> Day -> Config.EventSource Value Value -> IO (Either String [TsEvent])
 fetchProvider configItemName settings day eventSource = do
     let provider = Config.srcProvider eventSource
     putStrLn $ printf "fetching from %s (provider: %s)"

@@ -5,7 +5,6 @@ module EventProviders (
 import Data.Aeson
 
 import EventProvider
-import Event
 import Email
 import Git
 import Svn

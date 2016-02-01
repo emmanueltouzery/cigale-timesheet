@@ -16,22 +16,7 @@ import Data.Maybe
 import qualified Data.Map as Map
 
 import Common
-
--- TODO stop copying from the server!!
-data FileInfo = FileInfo
-    {
-        filename :: String,
-        -- filesize will be -1 for a directory
-        filesize :: Integer
-    } deriving (Show, Generic)
-instance FromJSON FileInfo
-
-data BrowseResponse = BrowseResponse
-    {
-        browseFolderPath :: String,
-        browseFiles :: [FileInfo]
-    } deriving (Show, Generic)
-instance FromJSON BrowseResponse
+import Communication
 
 data PathElem = PathElem
     {

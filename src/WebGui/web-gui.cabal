@@ -2,7 +2,7 @@ Name:                web-gui
 Version:             0.1
 Synopsis:            Timesheet helper
 Description:         Reverse-engineer your timesheet from records of your past
-                     activity left in your computer.
+                     activity left in your computer: GUI frontend.
 License:             MIT
 License-file:        ../../LICENSE.txt
 Author:              Emmanuel Touzery
@@ -13,7 +13,9 @@ Build-type:          Simple
 Cabal-version:       >=1.8
 
 Executable cigale-web
-   hs-source-dirs: .
+   hs-source-dirs:
+       .,
+       ../Shared
    main-is: App.hs
    build-depends:
        base,
@@ -30,7 +32,10 @@ Executable cigale-web
        dependent-sum,
        bytestring,
        errors,
-       filepath
+       filepath,
+       -- not really a fan of the next two, not really needed on the client.
+       template-haskell,
+       th-lift
    js-sources:
         ../../lib/Pikaday-1.4.0/pikaday.js
         ../../lib/jquery.min.js

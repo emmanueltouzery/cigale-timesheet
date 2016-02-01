@@ -19,7 +19,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Monoid
 
-import Event
+import TsEvent
 import qualified Util
 import EventProvider
 
@@ -39,7 +39,7 @@ getGitProvider = EventProvider
         getExtraData = Nothing
     }
 
-getRepoCommits :: GitRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [Event.Event]
+getRepoCommits :: GitRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]
 getRepoCommits (GitRecord _username projectPath) _ date _ = do
     let username = T.unpack _username
     output <- Util.runProcess "git" projectPath [
@@ -70,8 +70,8 @@ commitInRange date = inRange . localDay . commitDate
     where
         inRange tdate = tdate >= date && tdate < addDays 1 date
 
-commitToEvent :: FolderPath -> TimeZone -> Commit -> Event.Event
-commitToEvent gitFolderPath timezone commit = Event.Event
+commitToEvent :: FolderPath -> TimeZone -> Commit -> TsEvent
+commitToEvent gitFolderPath timezone commit = TsEvent
     {
         pluginName = getModuleName getGitProvider,
         eventIcon = "glyphicons-423-git-branch",
@@ -81,7 +81,7 @@ commitToEvent gitFolderPath timezone commit = Event.Event
         fullContents = Just $ T.pack $ commitContents commit
     }
 
-tagToEvent :: FolderPath -> TimeZone -> Commit -> Event.Event
+tagToEvent :: FolderPath -> TimeZone -> Commit -> TsEvent
 tagToEvent gitFolderPath timezone commit = baseEvent
         {
             desc = T.concat ["Tag applied: ", descVal],

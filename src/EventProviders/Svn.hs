@@ -14,7 +14,7 @@ import Control.Monad.Trans
 import Control.Error
 
 import qualified Util
-import Event
+import TsEvent
 import EventProvider
 
 data SvnConfigRecord = SvnConfigRecord
@@ -33,7 +33,7 @@ getSvnProvider = EventProvider
         getExtraData = Nothing
     }
 
-getRepoCommits :: SvnConfigRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [Event.Event]
+getRepoCommits :: SvnConfigRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]
 getRepoCommits config _ date _ = do
     let dateRange = formatDateRange date (addDays 1 date)
     output <- Util.runProcess "svn" "."
@@ -41,7 +41,7 @@ getRepoCommits config _ date _ = do
     commits <- hoistEither $ fmapL show $ parse parseCommits "" output
     lift $ finishGetRepoCommits date date (T.pack $ svnUser config) commits
 
-finishGetRepoCommits :: Day -> Day -> T.Text -> [Commit] -> IO [Event.Event]
+finishGetRepoCommits :: Day -> Day -> T.Text -> [Commit] -> IO [TsEvent]
 finishGetRepoCommits startDate endDate username commits = do
     let myCommits = filter ((==username) . user) commits
     -- need to filter again by date, because SVN obviously
@@ -62,8 +62,8 @@ data Commit = Commit
     }
     deriving (Eq, Show)
 
-toEvent :: TimeZone -> Commit -> Event.Event
-toEvent timezone (Commit dateVal _ commentVal cFiles) = Event.Event
+toEvent :: TimeZone -> Commit -> TsEvent
+toEvent timezone (Commit dateVal _ commentVal cFiles) = TsEvent
     {
         pluginName = getModuleName getSvnProvider,
         eventIcon = "glyphicons-423-git-branch",

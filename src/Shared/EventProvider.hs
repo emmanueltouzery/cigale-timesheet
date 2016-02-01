@@ -13,7 +13,7 @@ import Data.Aeson.TH
 import Control.Error
 import GHC.Generics
 
-import Event
+import TsEvent
 
 data ConfigDataInfo = ConfigDataInfo
     {
@@ -22,6 +22,7 @@ data ConfigDataInfo = ConfigDataInfo
     } deriving (Eq, Show, Generic)
 $(deriveLift ''ConfigDataInfo)
 instance ToJSON ConfigDataInfo
+instance FromJSON ConfigDataInfo
 
 data ConfigDataType = ConfigDataType
     {
@@ -63,7 +64,7 @@ type Url = String
 
 data EventProvider a b = EventProvider {
     getModuleName :: String,
-    getEvents :: a -> GlobalSettings -> Day -> (b -> Url) -> ExceptT String IO [Event],
+    getEvents :: a -> GlobalSettings -> Day -> (b -> Url) -> ExceptT String IO [TsEvent],
     getConfigType :: [ConfigDataInfo],
     getExtraData :: Maybe (a -> GlobalSettings -> b -> IO (Maybe (ContentType, ByteString)))
 }

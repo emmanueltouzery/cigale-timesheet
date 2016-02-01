@@ -14,7 +14,7 @@ import qualified Text.Parsec as T
 
 import Str
 import Ical
-import Event
+import TsEvent
 import EventProvider
 
 import TestUtil
@@ -46,9 +46,9 @@ testBasicEvent tz = it "parses basic ICAL event" $ do
         TRANSP:OPAQUE
         END:VEVENT
             |]
-    let expected = Event {
+    let expected = TsEvent {
             pluginName = getModuleName getIcalProvider,
-            eventIcon = "glyphicon-calendar",
+            eventIcon = "glyphicons-46-calendar",
             eventDate = UTCTime (fromGregorian 2013 4 17)
                 (secondsToDiffTime $ 7*3600+30*60),
             desc = "spent a lot of time researching bus tables, for position records",
@@ -76,17 +76,17 @@ testThroughMidnightEvent tz = it "parses basic ICAL event through midnight" $ do
         TRANSP:OPAQUE
         END:VEVENT
             |]
-    let expected = [Event {
+    let expected = [TsEvent {
             pluginName = getModuleName getIcalProvider,
-            eventIcon = "glyphicon-calendar",
+            eventIcon = "glyphicons-46-calendar",
             eventDate = UTCTime (fromGregorian 2013 4 17)
                 (secondsToDiffTime $ 23*3600+30*60),
             desc = "spent a lot of time researching bus tables for position records",
             extraInfo = "End: 23:59; duration: 0:29",
             fullContents = Nothing
-        }, Event {
+        }, TsEvent {
             pluginName = getModuleName getIcalProvider,
-            eventIcon = "glyphicon-calendar",
+            eventIcon = "glyphicons-46-calendar",
             eventDate = UTCTime (fromGregorian 2013 4 18)
                 (secondsToDiffTime 0),
             desc = "spent a lot of time researching bus tables for position records",
@@ -113,25 +113,25 @@ testWholeDayEvent tz = it "parses whole day ICAL event" $ do
         TRANSP:OPAQUE
         END:VEVENT
             |]
-    let expected = [Event {
+    let expected = [TsEvent {
             pluginName = getModuleName getIcalProvider,
-            eventIcon = "glyphicon-calendar",
+            eventIcon = "glyphicons-46-calendar",
             eventDate = UTCTime (fromGregorian 2014 3 31)
                 (secondsToDiffTime 0),
             desc = "spent a lot of time researching bus tables for position records",
             extraInfo = "End: 23:59; duration: 23:59",
             fullContents = Nothing
-        }, Event {
+        }, TsEvent {
             pluginName = getModuleName getIcalProvider,
-            eventIcon = "glyphicon-calendar",
+            eventIcon = "glyphicons-46-calendar",
             eventDate = UTCTime (fromGregorian 2014 4 1)
                 (secondsToDiffTime 0),
             desc = "spent a lot of time researching bus tables for position records",
             extraInfo = "End: 23:59; duration: 23:59",
             fullContents = Nothing
-        }, Event {
+        }, TsEvent {
             pluginName = getModuleName getIcalProvider,
-            eventIcon = "glyphicon-calendar",
+            eventIcon = "glyphicons-46-calendar",
             eventDate = UTCTime (fromGregorian 2014 4 2)
                 (secondsToDiffTime 0),
             desc = "spent a lot of time researching bus tables for position records",
@@ -157,9 +157,9 @@ testNoEndEvent tz = it "parses event no end date" $ do
         TRANSP:OPAQUE
         END:VEVENT
             |]
-    let expected = Event {
+    let expected = TsEvent {
             pluginName = getModuleName getIcalProvider,
-            eventIcon = "glyphicon-calendar",
+            eventIcon = "glyphicons-46-calendar",
             eventDate = UTCTime (fromGregorian 2013 4 17)
                 (secondsToDiffTime $ 7*3600+30*60),
             desc = "spent a lot of time researching bus tables, for position records",
@@ -196,9 +196,9 @@ testSlashes tz = it "parses description with slashes" $ do
         TRANSP:TRANSPARENT
         END:VEVENT
             |]
-    let expected = Event {
+    let expected = TsEvent {
             pluginName = getModuleName getIcalProvider,
-            eventIcon = "glyphicon-calendar",
+            eventIcon = "glyphicons-46-calendar",
             eventDate = UTCTime (fromGregorian 2015 12 3)
                 (secondsToDiffTime $ 17*3600),
             desc = "Za samodejno ustvarjene dogodke, kot je ta, si lahko podrobne podatke ogledate tako, da uporabite uradno aplikacijo Google Koledar. http://g.co/calendar\n\nTa dogodek je bil ustvarjen iz e-po\353tnega sporo\269ila,ki ste ga prejeli v Gmailu. https://mail.google.com/mail?extsrc=cal&plid=ACUX6DMQjasq0BPzJxSSXD1TYiuCQZxgmyyP4JA\nFirst Lambda Meetup!",
@@ -208,5 +208,5 @@ testSlashes tz = it "parses description with slashes" $ do
     testIcalParse tz source parseEvents [expected]
 
 testIcalParse :: TimeZone -> T.Text
-        -> T.Parsec T.Text () [Map String CalendarValue] -> [Event] -> Assertion
+        -> T.Parsec T.Text () [Map String CalendarValue] -> [TsEvent] -> Assertion
 testIcalParse tz = testParsecExpectTransform (concatMap (keyValuesToEvents tz))

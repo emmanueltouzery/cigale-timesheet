@@ -9,7 +9,7 @@ import Data.Time.Calendar
 import Data.Time.LocalTime
 
 import qualified Data.Text as T
-import Event
+import TsEvent
 import EventProvider
 
 import Redmine
@@ -42,8 +42,8 @@ spec = do
         LocalTime day (TimeOfDay 14 28 0)
 
 
-eventWithDesc :: T.Text -> Event
-eventWithDesc descVal = Event
+eventWithDesc :: T.Text -> TsEvent
+eventWithDesc descVal = TsEvent
     {
         pluginName = getModuleName getRedmineProvider,
         eventIcon = "glyphicon-tasks",

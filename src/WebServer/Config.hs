@@ -5,6 +5,7 @@ module Config where
 import Data.Aeson
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.ByteString.Lazy as BL
+import Data.Text (Text)
 import qualified Data.Text as T
 import Data.HashMap.Strict as Map hiding (map, filter, foldr)
 import Data.Maybe
@@ -24,9 +25,9 @@ import SnapUtil (noteET)
 
 data ConfigItem = ConfigItem
     {
-        configItemName :: T.Text,
-        providerName :: T.Text,
-        configuration :: Value
+        configItemName :: Text,
+        providerName   :: Text,
+        configuration  :: Value
     } deriving Show
 deriveJSON defaultOptions ''ConfigItem
 

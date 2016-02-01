@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards, RecursiveDo, JavaScriptFFI, ForeignFunctionInterface, LambdaCase #-}
-{-# LANGUAGE ScopedTypeVariables, DeriveGeneric, LambdaCase, OverloadedStrings, FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables, LambdaCase, OverloadedStrings, FlexibleContexts #-}
 
 module EventsView where
 
@@ -11,14 +11,12 @@ import Reflex
 import Reflex.Dom
 import Reflex.Host.Class
 
-import Data.Aeson
 import Data.Time.Clock
 import Data.Time.Calendar
 import Data.Time.Format
 import Data.Time.LocalTime
 import Data.Time.Clock.POSIX
 import qualified Data.Text as T
-import GHC.Generics
 import Data.Monoid
 import Control.Monad.IO.Class
 import Control.Monad
@@ -27,6 +25,8 @@ import Data.List
 import Control.Error
 import qualified Data.Map as Map
 
+import TsEvent
+import Communication
 import Common
 
 newtype PikadayPicker = PikadayPicker { unPicker :: JSRef Any }
@@ -52,26 +52,6 @@ pickerHide = _pickerHide . unPicker
 foreign import javascript unsafe "$1.show()" _pickerShow :: JSRef a -> IO ()
 pickerShow :: PikadayPicker -> IO ()
 pickerShow = _pickerShow . unPicker
-
--- TODO share code with the server
--- instead of copy-pasting
-data TsEvent = TsEvent
-    {
-        pluginName :: String,
-        eventIcon :: String,
-        eventDate :: UTCTime,
-        desc :: T.Text,
-        extraInfo :: T.Text,
-        fullContents :: Maybe T.Text
-    } deriving (Eq, Show, Generic)
-instance FromJSON TsEvent
-
-data FetchResponse = FetchResponse
-    {
-        fetchedEvents :: [TsEvent],
-        fetchErrors :: [String]
-    } deriving (Show, Generic)
-instance FromJSON FetchResponse
 
 eventsView :: MonadWidget t m => Dynamic t ActiveView -> m ()
 eventsView activeViewDyn = do

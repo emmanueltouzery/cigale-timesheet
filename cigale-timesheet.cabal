@@ -14,7 +14,9 @@ Cabal-version:       >=1.8
 
 
 Library
-  hs-source-dirs: src/EventProviders
+  hs-source-dirs:
+    src/EventProviders
+    src/Shared
   Build-Depends:
     base,
     bytestring >= 0.10.0.0,
@@ -57,9 +59,10 @@ Library
     http-types
   exposed-modules:
     EventProviders,
-    Event,
+    TsEvent,
     EventProvider,
-    Util
+    Util,
+    Communication
   other-modules:
     Redmine,
     Git,
@@ -70,7 +73,8 @@ Library
     Ical
 
 Executable cigale-timesheet
-  hs-source-dirs: src/WebServer
+  hs-source-dirs:
+    src/WebServer
   main-is: Main.hs
   Build-depends:
      base,
@@ -98,17 +102,13 @@ Executable cigale-timesheet
      mtl,
      MissingH,
      SafeSemaphore
-
-  if impl(ghc >= 6.12.0)
-    ghc-options: -threaded -Wall -funbox-strict-fields -O2
-                 -fno-warn-unused-do-bind
-  else
-    ghc-options: -threaded -Wall -funbox-strict-fields -O2
+  ghc-options: -threaded -Wall -funbox-strict-fields -O2
+               -fno-warn-unused-do-bind
 
 test-suite        tests
    type:            exitcode-stdio-1.0
 
-  hs-source-dirs: src/EventProviders, tests
+  hs-source-dirs: src/EventProviders, src/Shared, tests
   main-is: Tests.hs
 
   Build-depends:

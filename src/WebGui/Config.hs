@@ -25,30 +25,17 @@ import qualified Data.ByteString.Lazy as BS
 import Data.Char
 import Data.Ord
 
+import Communication
+import EventProvider
 import Common
 import FilePicker
 
 -- TODO stop copy-pasting this between client & server
-
-data PluginConfig = PluginConfig
-    {
-        cfgPluginName :: String,
-        cfgPluginConfig :: [ConfigDataInfo]
-    } deriving (Generic, Show, Eq)
-instance FromJSON PluginConfig
-
-data ConfigDataInfo = ConfigDataInfo
-    {
-        memberName :: String,
-        memberType :: String
-    } deriving (Eq, Show, Generic)
-instance FromJSON ConfigDataInfo
-
 data ConfigItem = ConfigItem
     {
         configItemName :: String,
-        providerName :: String,
-        configuration :: A.Object
+        providerName   :: String,
+        configuration  :: A.Object
     } deriving (Eq, Show, Generic)
 instance FromJSON ConfigItem
 instance ToJSON ConfigItem

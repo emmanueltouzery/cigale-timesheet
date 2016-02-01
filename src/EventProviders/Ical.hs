@@ -25,7 +25,7 @@ import Data.Maybe
 import Control.Error
 import Control.Monad.Trans
 
-import Event
+import TsEvent
 import qualified Util
 import Util (parseMaybe, parseNum, requestDefaults)
 import EventProvider
@@ -94,7 +94,7 @@ fromLeaf :: CalendarValue -> Maybe CalendarLeaf
 fromLeaf (Leaf x) = Just x
 fromLeaf _ = Nothing
 
-getCalendarEvents :: IcalRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [Event.Event]
+getCalendarEvents :: IcalRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]
 getCalendarEvents (IcalRecord icalAddress) settings day _ = do
     timezone <- lift $ getTimeZone (UTCTime day 8)
     let settingsFolder = getSettingsFolder settings
@@ -106,7 +106,7 @@ getCalendarEvents (IcalRecord icalAddress) settings day _ = do
     calendarData <- hoistEither $ fmapL show $ parse parseEvents "" icalText
     return $ convertToEvents timezone day calendarData
 
-convertToEvents :: TimeZone -> Day -> [Map String CalendarValue] -> [Event.Event]
+convertToEvents :: TimeZone -> Day -> [Map String CalendarValue] -> [TsEvent]
 convertToEvents tz day keyValues = filterDate tz day $ concatMap (keyValuesToEvents tz) keyValues
 
 readFromWWW :: B.ByteString -> String -> IO T.Text
@@ -118,13 +118,13 @@ readFromWWW icalAddress settingsFolder = do
     putInCache settingsFolder icalText
     return icalText
 
-filterDate :: TimeZone -> Day -> [Event.Event] -> [Event.Event]
+filterDate :: TimeZone -> Day -> [TsEvent] -> [TsEvent]
 filterDate tz day = filter (eventInDateRange tz day)
 
-eventInDateRange :: TimeZone -> Day -> Event.Event -> Bool
+eventInDateRange :: TimeZone -> Day -> TsEvent -> Bool
 eventInDateRange tz day event =  eventDay >= day && eventDay <= day
     where
-        eventDay = localDay $ utcToLocalTime tz (Event.eventDate event)
+        eventDay = localDay $ utcToLocalTime tz (TsEvent.eventDate event)
 
 parseEvents :: GenParser st [Map String CalendarValue]
 parseEvents = do
@@ -139,7 +139,7 @@ parseEvent = do
         (try parseEnd)
     return $ Map.fromList keyValues
 
-makeEvents :: TimeZone -> Event.Event -> LocalTime -> LocalTime -> [Event.Event]
+makeEvents :: TimeZone -> TsEvent -> LocalTime -> LocalTime -> [TsEvent]
 makeEvents tz base start end
     | localDay end == localDay start =
         [base
@@ -154,7 +154,7 @@ makeEvents tz base start end
         startUtc = localTimeToUTC tz start
         endUtc = localTimeToUTC tz end
 
-keyValuesToEvents :: TimeZone -> Map String CalendarValue -> [Event.Event]
+keyValuesToEvents :: TimeZone -> Map String CalendarValue -> [TsEvent]
 keyValuesToEvents tz records = makeEvents tz baseEvent startDate endDate
     where
         baseEvent = buildBasicEvent descV (localTimeToUTC tz startDate)
@@ -166,8 +166,8 @@ leafValue :: Map String CalendarValue -> String -> String
 leafValue records name = fromMaybe (error $ "No leaf of name " ++ name ++ " " ++ show records) $
     leafText <$> (Map.lookup name records >>= fromLeaf)
 
-buildBasicEvent :: Text -> UTCTime -> Event.Event
-buildBasicEvent descV date = Event.Event
+buildBasicEvent :: Text -> UTCTime -> TsEvent
+buildBasicEvent descV date = TsEvent
    {
        pluginName = getModuleName getIcalProvider,
        eventIcon = "glyphicons-46-calendar",

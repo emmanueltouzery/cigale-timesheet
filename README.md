@@ -30,7 +30,7 @@ As it's written in Haskell, it should run fine on linux and OSX; I develop it on
 
 Also on linux, installation will take a long (long, long) time, because it will build many dependencies from source (including, if needed, bootstrap a haskell->javascript compiler).
 
-First you need to install the [stack package manager][]. You also need to install `node.js`, the zlib, sqlite, openssl & ncurses/tinfo devel packages (see lower).
+First you need to install the [stack package manager][]. You also need to install `node.js`, `npm`, the zlib, sqlite, openssl & ncurses/tinfo devel packages (see lower).
 To prevent errors like `/usr/bin/ld: cannot find -ltinfo`, run:
 
     sudo dnf install ncurses-devel (fedora)

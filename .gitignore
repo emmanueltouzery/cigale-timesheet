@@ -13,3 +13,4 @@ jquery-2.0.3.min.js
 cabal.sandbox.config
 .stack-work
 src/WebGui/reflex-dom
+lib/node_modules

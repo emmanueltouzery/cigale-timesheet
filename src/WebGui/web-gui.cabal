@@ -37,7 +37,7 @@ Executable cigale-web
        template-haskell,
        th-lift
    js-sources:
-        ../../lib/Pikaday-1.4.0/pikaday.js
+        ../../lib/node_modules/pikaday/pikaday.js
         ../../lib/jquery.min.js
         ../../lib/bootstrap.min.js
    ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2

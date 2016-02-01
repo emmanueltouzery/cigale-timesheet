@@ -11,12 +11,6 @@ duplicated git logs when cherry-picking a commit on a branch, see 2014-03-04. Wo
 
 when accepting an invitation the sent mail looks like crap. example 2014-02-21 15:55
 
-interesting, 2014-02-05, 10:47, same mail present twice. 2014-03-10 thrice!
-
-ugly to in email, example 2014-02-04 15:38
-
-remove lib/ folder and instead install JS dependencies using NPM?
-
 I avoided the problem of heteregenous lists by putting in the module data types the Value (IIRC) therefore tying me to Aeson.
 Here he talks about RankNTypes and foreach to achieve the same result:
 http://ocharles.org.uk/blog/posts/2013-07-26-a-comparison-between-perl-and-haskell.html
@@ -26,10 +20,6 @@ maybe use the async library to fetch from all sources concurrently instead of se
 
 cancel button in the loading throbber.
 
-bootstrap date picker instead of jquery-ui?
-
-try to get JS functions getKeys and toJsObject in my Utils.hs as inline in FFI to avoid to depend on the HTML source.
-
 quoted-printable ==> _ should not be translated to space, that applies only to message subject!
 
 probably animated throbber.
@@ -38,9 +28,6 @@ for git, an optional diff would be nice too... would have to fetched later not i
 
 could use the favicon to display progress when fetching, if i won't manage to speed up the fetching enough: https://github.com/tommoor/tinycon
 
-emails:
-display attachments list (name+mimetype) -> probably use this to return images: http://stackoverflow.com/a/10802497/516188 the server returns a JSON describing the data to display, with main HTML and image attachments directly in that JSON, then the client builds the display. But for that I must change the Event definition, to add the possibility of attachments...
-
 have the server stop when the last client is closed, see bug #1
 
 i made my own system for configuration but i think this might document a similar and probably better approach? to check: https://www.fpcomplete.com/user/thoughtpolice/using-reflection http://www.reddit.com/r/haskell/comments/1l9qzw/reflecting_values_to_types_and_back/
@@ -48,7 +35,7 @@ for the config, if I make some smart TH then let's also have it call the aeson j
 
 store passwords using gnome-keyring on linux?
 
-migrate to scotty instead of snap? https://github.com/xich/scotty
+migrate to scotty/servant instead of snap?
 
 new sources: firefox google searches, maybe stackoverflow upvotes/questions, dropbox subfolder
 activity, google docs?

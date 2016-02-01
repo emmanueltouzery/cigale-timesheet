@@ -39,7 +39,7 @@ main = mainWidgetWithCss css cigaleView
 cigaleView :: MonadWidget t m => m ()
 cigaleView = do
     stylesheet "pikaday.css"
-    stylesheet "https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.2/css/bootstrap.min.css"
+    stylesheet "bootstrap.min.css"
     liftIO (setTitle "Cigale timesheet")
     addModalDialogSkeleton 5000 ModalLevelBasic
     addModalDialogSkeleton 99999999 ModalLevelSecondary

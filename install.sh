@@ -4,6 +4,8 @@ set -e
 if [ ! -d "lib/node_modules" ]; then
     mkdir lib/node_modules
     npm install pikaday@1.4.0 --prefix lib
+    npm install jquery@2.1.4 --prefix lib
+    npm install bootstrap@4.0.0-alpha.2 --prefix lib
 fi
 
 cd src/WebGui/

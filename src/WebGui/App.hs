@@ -94,7 +94,7 @@ addAboutButton = do
     (img, _) <- elAttr' "img" ("src" =: getGlyphiconUrl "glyphicons-195-question-sign"
                               <> "class" =: "pull-xs-right"
                               <> "style" =: "cursor: pointer") $ return ()
-    void $ setupModal ModalLevelBasic () (domEvent Click img) $ do
+    void $ setupModal ModalLevelBasic (domEvent Click img) $ do
         void $ buildModalBody "About" NoBtn
             (constDyn "") (text "Icons from "
                    >> elAttr "a" ("href" =: "http://glyphicons.com") (text "Glyphicons")

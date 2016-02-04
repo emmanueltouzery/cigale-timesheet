@@ -58,7 +58,7 @@ If you're running linux and install the epiphany browser (gnome-web), the app wi
 
 ## Prefetching
 
-Fetching data for one day can take time, if you're using network sources, like SVN and Redmine. For that reason, there is an option to prefetch the data. If you manually run the app with `--prefetch`, it will prefetch the data for every day from the first day of the previous month to yesterday (and remove obsolete prefetch data). The application will be very fast after that. One option is to have some mechanism (for instance a cron job on unix environments) run that automatically for you on a regular basis so that the application is fast when you need it. The application will also cache data when fetching for past days.
+Fetching data for one day can take time, if you're using network sources, like SVN and Redmine. For that reason, there is an option to prefetch the data. There is an option in the GUI, but also, if you manually run the app with `--prefetch`, it will prefetch the data for every day from the first day of the previous month to yesterday (and remove obsolete prefetch data). The application will be very fast after that. One option is to have some mechanism (for instance a cron job on unix environments) run that automatically for you on a regular basis so that the application is fast when you need it. The application will also cache data when fetching for past days.
 
 [Main view screenshot]: https://raw.github.com/wiki/emmanueltouzery/cigale-timesheet/main.png
 [Settings screenshot]: https://raw.github.com/wiki/emmanueltouzery/cigale-timesheet/settings.png

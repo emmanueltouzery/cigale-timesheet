@@ -72,6 +72,17 @@ button' s = do
                                 <> "style" =: "background-color: white") s
     return $ domEvent Click e
 
+smallIconButton :: MonadWidget t m => String -> m (Event t ())
+smallIconButton = iconButton 12
+
+iconButton :: MonadWidget t m => Int -> String -> m (Event t ())
+iconButton height icon = button' $
+    elAttr "img" ("src" =: getGlyphiconUrl icon
+                  <> "style" =: ("height: " ++  show height ++ "px")) $ return ()
+
+col :: MonadWidget t m => m a -> m a
+col = elAttr "td" ("style" =: "padding: 5px")
+
 -- very similar to fireEventRef from Reflex.Host.Class
 -- which I don't have right now.
 -- #reflex-frp on freenode.net, 2015-12-25:
@@ -86,11 +97,11 @@ handleTrigger runWithActions v trigger = liftIO (readIORef trigger) >>= \case
 
 data ButtonInfo = PrimaryBtn String | DangerBtn String | NoBtn
 
-setupModal :: MonadWidget t m => ModalLevel -> a -> Event t () -> m (Event t b) -> m (Event t b)
-setupModal modalLevel displayData showEvent buildDialog = do
+setupModal :: MonadWidget t m => ModalLevel -> Event t a -> m (Event t b) -> m (Event t b)
+setupModal modalLevel showEvent buildDialog = do
     let modalId = topLevelModalId modalLevel
     performEvent_ $ fmap (const $ liftIO $ showModalIdDialog modalId) showEvent
-    modalDyn <- holdDyn Nothing $ fmap (const $ Just displayData) showEvent
+    modalDyn <- holdDyn Nothing $ fmap Just showEvent
     dynModalVal <- forDyn modalDyn $ fmap (const buildDialog)
     readModalResult modalLevel dynModalVal
 
@@ -198,6 +209,12 @@ rawSpan attrs = void . elDynHtmlAttr' "span" attrs
 
 getGlyphiconUrl :: String -> String
 getGlyphiconUrl base = "glyphicons_free/glyphicons/png/" <> base <> ".png"
+
+progressDialog :: MonadWidget t m => Dynamic t Int -> m ()
+progressDialog percentDyn = do
+    attrsDyn <- forDyn percentDyn $ \percent ->
+        ("class" =: "progress" <> "value" =: show percent <> "max" =: "100")
+    elDynAttr "progress" attrsDyn $ dynText =<< mapDyn ((++ "%") . show) percentDyn
 
 data RemoteData a = RemoteDataInvalid String | RemoteDataLoading | RemoteData a deriving Show
 

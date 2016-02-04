@@ -131,7 +131,7 @@ addCfgDropdownBtn PluginConfig{..} = do
 addCfgPluginAdd :: MonadWidget t m => PluginConfig -> Event t () -> m (Event t ConfigAdd)
 addCfgPluginAdd pc clickEvt = do
     let ci = ConfigItem "" "" HashMap.empty
-    setupModalR <- setupModal ModalLevelBasic pc clickEvt $ do
+    setupModalR <- setupModal ModalLevelBasic clickEvt $ do
         rec
             (dialogResult, addDlgOkEvt, _) <- buildModalBody "Add" (PrimaryBtn "Save")
                     errorDyn (editConfigItem pc ci)
@@ -264,7 +264,7 @@ addDeleteButton ci@ConfigItem{..} = do
     (deleteBtn, _) <- elAttr' "button"
         ("class" =: "btn btn-danger btn-sm"
          <> "style" =: "float: right") $ text "Delete"
-    setupModalR <- setupModal ModalLevelBasic ci (domEvent Click deleteBtn) $ do
+    setupModalR <- setupModal ModalLevelBasic (domEvent Click deleteBtn) $ do
         rec
             (_, deleteDlgOkEvt, _) <- buildModalBody "Delete" (DangerBtn "Delete")
                 errorDyn (text $ "Delete the config item " <> configItemName <> "?")
@@ -279,7 +279,7 @@ addEditButton :: MonadWidget t m => PluginConfig -> ConfigItem -> m (Event t Con
 addEditButton pluginConfig@PluginConfig{..} ci@ConfigItem{..} = do
     (editBtn, _) <- elAttr' "button" ("class" =: "btn btn-default btn-sm"
                                       <> "style" =: "float: right; margin-right: 5px") $ text "Edit"
-    setupModalR <- setupModal ModalLevelBasic ci (domEvent Click editBtn) $ do
+    setupModalR <- setupModal ModalLevelBasic (domEvent Click editBtn) $ do
         rec
             (dialogResult, editDlgOkEvt, _) <- buildModalBody "Edit" (PrimaryBtn "Save")
                 errorDyn (editConfigItem pluginConfig ci)

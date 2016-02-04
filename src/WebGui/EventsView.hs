@@ -60,18 +60,17 @@ eventsView activeViewDyn = do
     attrsDyn <- forDyn activeViewDyn $ \curView ->
         styleWithHideIf (curView /= ActiveViewEvents) ("height: calc(100% - 70px);" <> cssPos)
     elDynAttr "div" attrsDyn $ do
-        let req url = xhrRequest "GET" ("/timesheet/" ++ url) def
         rec
             -- TODO getPostBuild ... maybe when the tab is loaded instead?
-            tz <- liftIO (getCurrentTimeZoneJS =<< getCurrentTime)
-            curLocalTime <- liftIO (utcToLocalTime tz <$> getCurrentTime)
             -- initialize on yesterday, because it's finished i can cache it.
-            let initialDay = addDays (-1) (localDay curLocalTime)
-            loadRecordsEvent <- leftmost <$> sequence [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
-            asyncReq <- performRequestAsync (req <$> showGregorian <$> loadRecordsEvent)
-            let responseEvt = fmap readRemoteData asyncReq
+            today <- liftIO getToday
+            let initialDay = addDays (-1) today
+            loadRecordsEvent <- leftmost <$> sequence
+                [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
+            responseEvt <- requestDayEvents loadRecordsEvent
             -- the leftmost makes sure that we reset the respDyn to loading state when loadRecordsEvent is triggered.
-            respDyn <- holdDyn RemoteDataLoading $ leftmost [fmap (const RemoteDataLoading) loadRecordsEvent, responseEvt]
+            respDyn <- holdDyn RemoteDataLoading $ leftmost
+                [fmap (const RemoteDataLoading) loadRecordsEvent, responseEvt]
             displayWarningBanner respDyn
             curDate <- addDatePicker initialDay
 
@@ -88,6 +87,18 @@ eventsView activeViewDyn = do
         elDynAttr "div" holdAttrs $ text "Please hold..."
         return ()
 
+requestDayEvents :: MonadWidget t m => Event t Day -> m (Event t (RemoteData FetchResponse))
+requestDayEvents dayEvt = do
+    let req url = xhrRequest "GET" ("/timesheet/" ++ url) def
+    asyncReq <- performRequestAsync (req <$> showGregorian <$> dayEvt)
+    return (fmap readRemoteData asyncReq)
+
+getToday :: IO Day
+getToday = do
+    tz <- liftIO (getCurrentTimeZoneJS =<< getCurrentTime)
+    curLocalTime <- liftIO (utcToLocalTime tz <$> getCurrentTime)
+    return (localDay curLocalTime)
+
 addDatePicker :: MonadWidget t m => Day -> m (Dynamic t Day)
 addDatePicker initialDay = do
     rec
@@ -95,12 +106,70 @@ addDatePicker initialDay = do
         curDate <- foldDyn ($) initialDay dayChangeEvt
         -- the date picker has position: absolute & will position itself
         -- relative to the nearest ancestor with position: relative.
-        let col = elAttr "td" ("style" =: "padding: 5px")
         dayChangeEvt <-
-            elAttr "table" ("style" =: "margin-left: 10px") $ el "tr" $ do
-                col $ text "Day to display:"
-                col $ displayPickerBlock initialDay curDate
+            elAttr "table" ("style" =: "margin-left: 10px") $ el "tr" $
+                col (text "Day to display:") *>
+                col (displayPickerBlock initialDay curDate) <*
+                col (addPreloadButton)
     return curDate
+
+-- TODO display any errors occuring during the prefetching
+addPreloadButton :: MonadWidget t m => m ()
+addPreloadButton = do
+    displayPreload <- iconButton 16 "glyphicons-58-history"
+    preloadEvt <- setupModal ModalLevelBasic displayPreload $ do
+        (preloadR, preloadOkEvt, _) <- buildModalBody "Preload data" (PrimaryBtn "Preload")
+            (constDyn "") preloadDialog
+        return $ tagDyn preloadR preloadOkEvt
+    let dayListEvt = fmap (uncurry daysRange) preloadEvt
+    rec
+        curCountDyn <- holdDyn 0 $ fmap length dayListEvt
+        daysFetchingQueueDyn <- foldDyn ($) [] $ leftmost
+            [fmap const dayListEvt, fmap (const tail) $ daysFetchingQueueDoneEvt]
+        progressDyn <- combineDyn (\list count -> (count - length list)*100 `div` count) daysFetchingQueueDyn curCountDyn
+        mCurDayToFetchDyn <- nubDyn <$> mapDyn headZ daysFetchingQueueDyn
+        daysFetchingQueueDoneEvt <- fetchDay mCurDayToFetchDyn
+    void $ setupModal ModalLevelSecondary preloadEvt $ do
+        void $ buildModalBody "In progress" NoBtn
+            (constDyn "") (progressDialog progressDyn)
+        return never
+    performEvent_
+        $ fmap (const $ liftIO $ hideModalIdDialog $ topLevelModalId ModalLevelSecondary)
+        $ ffilter isNothing
+        $ updated mCurDayToFetchDyn
+
+fetchDay :: MonadWidget t m => Dynamic t (Maybe Day) -> m (Event t FetchResponse)
+fetchDay mDayDyn = do
+    fetched <- requestDayEvents $ fmapMaybe id $ updated mDayDyn
+    return $ fmapMaybe fromRemoteData fetched
+
+preloadDialog :: MonadWidget t m => m (Dynamic t (Day, Day))
+preloadDialog = do
+    today <- liftIO getToday
+    -- fetch from the first day of the previous month
+    let prefetchStart = addGregorianMonthsClip (-1) $
+                        (\(y,m,_) -> fromGregorian y m 1) $ toGregorian today
+    let prefetchEnd = addDays (-1) today
+    el "p" $ text "Navigating several days of data can get slow if you have to wait for each day to load separately."
+    el "p" $ text "You can preload data for a certain time interval to minimize the waiting later."
+    elAttr "table" ("style" =: "padding-bottom: 15px") $ do
+        rec dynStartDay <- el "tr" $ do
+            col $ text "Pick a start date:"
+            col $ do
+                startDayChangeEvt <- displayPickerBlock prefetchStart dynStartDay
+                foldDyn ($) prefetchStart startDayChangeEvt
+        rec dynEndDay <- el "tr" $ do
+            col $ text "Pick an end date:"
+            col $ do
+                endDayChangeEvt <- displayPickerBlock prefetchEnd dynEndDay
+                foldDyn ($) prefetchEnd endDayChangeEvt
+        combineDyn (,) dynStartDay dynEndDay
+
+daysRange :: Day -> Day -> [Day]
+daysRange start end
+    | start < end  = start : daysRange (addDays 1 start) end
+    | start == end = [start]
+    | otherwise    = []
 
 displayPickerBlock :: MonadWidget t m => Day -> Dynamic t Day -> m (Event t (Day -> Day))
 displayPickerBlock initialDay curDate = do
@@ -109,14 +178,11 @@ displayPickerBlock initialDay curDate = do
             elAttr "div" ("class" =: "btn-group"
                           <> "data-toggle" =: "buttons"
                           <> "style" =: "position: relative") $ do
-                let iconBtn icon = button' $
-                      elAttr "img" ("src" =: getGlyphiconUrl icon
-                                    <> "style" =: "height: 12px") $ return ()
                 previousDay <- fmap (const $ addDays (-1)) <$>
-                    iconBtn "glyphicons-171-step-backward"
+                    smallIconButton "glyphicons-171-step-backward"
                 createDateLabel curDate picker
                 nextDay <- fmap (const $ addDays 1) <$>
-                    iconBtn "glyphicons-179-step-forward"
+                    smallIconButton "glyphicons-179-step-forward"
                 return (mergeWith (.) [previousDay, nextDay])
         (pickedDateEvt, picker) <- datePicker initialDay
     liftIO (pickerHide picker)

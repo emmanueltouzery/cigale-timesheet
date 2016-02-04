@@ -78,7 +78,8 @@ eventsView activeViewDyn = do
         elAttr "div" ("style" =: "display: flex; height: calc(100% - 60px); margin-top: 20px"
                       <> "overflow" =: "auto") $ do
             -- that's a mess. Surely there must be a better way to extract the event from the table.
-            curEvtDyn <- joinDyn <$> (mapDyn eventsTable respDyn >>= dyn >>= holdDyn (constDyn Nothing))
+            -- nubDyn to avoid blinking if you click on the already-selected event.
+            curEvtDyn <- nubDyn <$> joinDyn <$> (mapDyn eventsTable respDyn >>= dyn >>= holdDyn (constDyn Nothing))
             void $ mapDyn displayDetails curEvtDyn >>= dyn
 
         -- display the progress indicator if needed.

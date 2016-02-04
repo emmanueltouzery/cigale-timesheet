@@ -267,7 +267,7 @@ showRecord curEventDyn tsEvt@TsEvent{..} = do
     let absTop (y :: Int) = "position: absolute; top: " ++ show y ++ "px;"
     let imgWidth = "38px"
     (e, _) <- elDynAttr' "tr" rowAttrs $ do
-        elAttr "td" ("style" =: "height: 60px; width: 500px;") $
+        elAttr "td" ("style" =: "height: 60px; width: 500px; cursor: pointer") $
             elAttr "div" ("style" =: "position: relative;") $ do
                let divFlexSetup = ";display: flex; justify-content: center;" ++
                      "align-items: center; flex-direction: column"
@@ -284,7 +284,7 @@ showRecord curEventDyn tsEvt@TsEvent{..} = do
                    elAttr "span" ("class" =: "ellipsis"
                                   <> "style" =: (fixedWidthStyle 400 <> absTop 20)) $ text_ desc
                    elAttr "span" ("class" =: "ellipsis"
-                                  <> "style" =: ("right: 0px; " ++ fixedWidthStyle 365)) $ text_ extraInfo
+                                  <> "style" =: ("text-align: right; right: 0px; " ++ fixedWidthStyle 365)) $ text_ extraInfo
     return (const tsEvt <$> domEvent Click e)
 
 displayDetails :: MonadWidget t m => Maybe TsEvent -> m ()

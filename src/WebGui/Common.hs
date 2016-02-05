@@ -99,8 +99,7 @@ data ButtonInfo = PrimaryBtn String | DangerBtn String | NoBtn
 
 setupModal :: MonadWidget t m => ModalLevel -> Event t a -> m (Event t b) -> m (Event t b)
 setupModal modalLevel showEvent buildDialog = do
-    let modalId = topLevelModalId modalLevel
-    performEvent_ $ fmap (const $ liftIO $ showModalIdDialog modalId) showEvent
+    showModalOnEvent modalLevel showEvent
     modalDyn <- holdDyn Nothing $ fmap Just showEvent
     dynModalVal <- forDyn modalDyn $ fmap (const buildDialog)
     readModalResult modalLevel dynModalVal
@@ -120,34 +119,42 @@ readDynMonadicEvent dynMonadicEvent = do
 buildModalBody :: MonadWidget t m => String -> ButtonInfo
                  -> Dynamic t String -> m a -> m (a, Event t (), Event t ())
 buildModalBody title okBtnInfo dynErrMsg contents = do
+    elAttr "div" ("class" =: "modal-content") $ do
+        elAttr "div" ("class" =: "modal-header") $ do
+            let crossBtnAttrs = "type" =: "button" <> "class" =: "close"
+                    <> "data-dismiss" =: "modal" <> "aria-label" =: "Close"
+            void $ elAttr "button" crossBtnAttrs $
+                elDynHtmlAttr' "span" ("aria-hidden" =: "true") (constDyn "&times;")
+            elAttr "h4" ("class" =: "modal-title") $ text title
+        bodyRes <- elAttr "div" ("class" =: "modal-body") $ do
+            addErrorBox dynErrMsg
+            contents
+        (okEvt, closeEvt)  <- addModalFooter okBtnInfo
+        return (bodyRes, okEvt, closeEvt)
+
+addErrorBox :: MonadWidget t m => Dynamic t String -> m ()
+addErrorBox dynErrMsg = do
+    dynAttrs <- forDyn dynErrMsg $ \errMsg ->
+        "class" =: "alert alert-danger"
+        <> "role" =: "alert"
+        <> styleHideIf (null errMsg)
+    elDynAttr "div" dynAttrs $ do
+        elAttr "strong" ("style" =: "padding-right: 7px") $ text "Error"
+        dynText dynErrMsg
+
+addModalFooter :: MonadWidget t m => ButtonInfo -> m (Event t (), Event t ())
+addModalFooter okBtnInfo = do
     let (okBtnText, okBtnClass, okVisible) = case okBtnInfo of
             PrimaryBtn txt -> (txt, "primary", True)
             DangerBtn txt  -> (txt, "danger", True)
             NoBtn          -> ("", "primary", False)
-    elAttr "div" ("class" =: "modal-content") $ do
-        elAttr "div" ("class" =: "modal-header") $ do
-            void $ elAttr "button" ("type" =: "button" <> "class" =: "close"
-                                    <> "data-dismiss" =: "modal"
-                                    <> "aria-label" =: "Close") $
-                elDynHtmlAttr' "span" ("aria-hidden" =: "true") (constDyn "&times;")
-            elAttr "h4" ("class" =: "modal-title") $ text title
-        bodyRes <- elAttr "div" ("class" =: "modal-body") $ do
-            dynAttrs <- forDyn dynErrMsg $ \errMsg ->
-                "class" =: "alert alert-danger"
-                <> "role" =: "alert"
-                <> styleHideIf (null errMsg)
-            elDynAttr "div" dynAttrs $ do
-                elAttr "strong" ("style" =: "padding-right: 7px") $ text "Error"
-                dynText dynErrMsg
-            contents
-        (okEvt, closeEvt)  <- elAttr "div" ("class" =: "modal-footer") $ do
-            (closeEl, _) <- elAttr' "button" ("type" =: "button"
-                                              <> "class" =: "btn btn-secondary"
-                                              <> "data-dismiss" =: "modal")
+    elAttr "div" ("class" =: "modal-footer") $ do
+            let closeBtnAttrs = "type" =: "button" <> "data-dismiss" =: "modal"
+                    <> "class" =: "btn btn-secondary"
+            (closeEl, _) <- elAttr' "button" closeBtnAttrs
                 $ text "Close"
             okEl <- addOkButton okBtnClass okBtnText okVisible
             return (domEvent Click okEl, domEvent Click closeEl)
-        return (bodyRes, okEvt, closeEvt)
 
 addOkButton :: MonadWidget t m => String -> String -> Bool -> m (El t)
 addOkButton okBtnClass okBtnText visible = do
@@ -215,6 +222,10 @@ progressDialog percentDyn = do
     attrsDyn <- forDyn percentDyn $ \percent ->
         ("class" =: "progress" <> "value" =: show percent <> "max" =: "100")
     elDynAttr "progress" attrsDyn $ dynText =<< mapDyn ((++ "%") . show) percentDyn
+
+showModalOnEvent :: MonadWidget t m => ModalLevel -> Event t a -> m ()
+showModalOnEvent modalLevel evt = performEvent_ $ fmap
+    (const $ liftIO $ showModalIdDialog $ topLevelModalId modalLevel) evt
 
 hideModalOnEvent :: MonadWidget t m => ModalLevel -> Event t a -> m ()
 hideModalOnEvent modalLevel evt = performEvent_ $ fmap

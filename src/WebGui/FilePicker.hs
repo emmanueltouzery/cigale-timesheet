@@ -66,7 +66,7 @@ buildFilePicker options openEvt = do
                 makeSimpleXhr' ("/browseFolder?path=" ++) (fmapMaybe getChangeFolder rx)
             ]
         let browseInfoEvt = leftmost (updated <$> dynBrowseInfo)
-        performEvent_ $ fmap (const $ liftIO $ showModalIdDialog $ topLevelModalId ModalLevelSecondary) openEvt
+        showModalOnEvent ModalLevelSecondary openEvt
         browseDataDyn <- foldDyn const RemoteDataLoading browseInfoEvt
         dynMonPickerEvt <- mapDyn (displayPicker options urlAtLoad) browseDataDyn
         rx <- readModalResult ModalLevelSecondary =<< mapDyn Just dynMonPickerEvt

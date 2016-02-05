@@ -35,7 +35,8 @@ Executable cigale-web
        filepath,
        -- not really a fan of the next two, not really needed on the client.
        template-haskell,
-       th-lift
+       th-lift,
+       clay
    js-sources:
         ../../lib/node_modules/pikaday/pikaday.js
         ../../lib/node_modules/jquery/dist/jquery.min.js

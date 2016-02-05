@@ -7,7 +7,10 @@ import GHCJS.Foreign
 import Reflex
 import Reflex.Dom
 
+import Clay
 import Data.List
+import qualified Data.Text.Encoding as T
+import qualified Data.Text.Lazy as TL
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import Data.Monoid
@@ -22,16 +25,27 @@ import EventsView
 foreign import javascript unsafe "window.location.hash.substr(1)" getLocationHash :: IO JSString
 foreign import javascript unsafe "document.title = $1" setTitle :: JSString -> IO ()
 
--- TODO migrate to some haskell CSS DSL, like clay?
-css :: ByteString
-css = BS.intercalate "\n"
-      [
-          ".ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
-          "#pleasehold { position: absolute; width: 200px; height: 50px; background: aliceblue; text-align: center; top: 50%; left: 50%; margin-left: -100px; margin-top: -25px; line-height: 50px; z-index: 2001; }"
-      ]
+css :: Css
+css = do
+    ".ellipsis" ? do
+        whiteSpace nowrap
+        overflow hidden
+        "text-overflow" -: "ellipsis"
+    "#pleasehold" ? do
+        position absolute
+        width (px 200)
+        height (px 50)
+        background aliceblue
+        textAlign (alignSide sideCenter)
+        top (pct 50)
+        left (pct 50)
+        marginLeft (px (-100))
+        marginTop (px (-25))
+        lineHeight (px 50)
+        zIndex 2001
 
 main :: IO ()
-main = mainWidgetWithCss css cigaleView
+main = mainWidgetWithCss (T.encodeUtf8 $ TL.toStrict $ render css) cigaleView
 
 cigaleView :: MonadWidget t m => m ()
 cigaleView = do

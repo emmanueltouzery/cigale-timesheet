@@ -267,14 +267,14 @@ getTimezoneOffsetMinsForDateMs = _getTimezoneOffsetMinsForDateMs . toJSString . 
 getCurrentTimeZoneJS :: UTCTime -> IO TimeZone
 getCurrentTimeZoneJS = fmap minutesToTimeZone . getTimezoneOffsetMinsForDateMs
 
+
+absTop :: Int -> String
+absTop y = "position: absolute; top: " ++ show y ++ "px;"
+
 showRecord :: MonadWidget t m => Dynamic t (Maybe TsEvent) -> TsEvent -> m (Event t TsEvent)
 showRecord curEventDyn tsEvt@TsEvent{..} = do
     rowAttrs <- forDyn curEventDyn $ \curEvt ->
         "class" =: if curEvt == Just tsEvt then "table-active" else ""
-    tz <- liftIO (getCurrentTimeZoneJS eventDate)
-    let fixedWidthStyle (w :: Int) = "position: absolute;" ++
-           "width: " ++ show w ++ "px; max-width: " ++ show w ++ "px;"
-    let absTop (y :: Int) = "position: absolute; top: " ++ show y ++ "px;"
     let imgWidth = "38px"
     (e, _) <- elDynAttr' "tr" rowAttrs $ do
         elAttr "td" ("style" =: "height: 60px; width: 500px; cursor: pointer") $
@@ -288,15 +288,21 @@ showRecord curEventDyn tsEvt@TsEvent{..} = do
                    elAttr "span" ("style" =: pluginNameStyle) $ text pluginName
                let detailsDivStyle = absTop 0 ++ "left: " ++ imgWidth ++
                      "; width: calc(100% - " ++ imgWidth ++ "); margin-left: 5px"
-               elAttr "div" ("style" =: detailsDivStyle) $ do
-                   elAttr "b" ("style" =: (absTop 0 <> "font-size: 1.1em")) $ text $
-                       formatTime defaultTimeLocale "%R" $ utcToZonedTime tz eventDate
-                   elAttr "span" ("class" =: "ellipsis"
-                                  <> "style" =: (fixedWidthStyle 400 <> absTop 20)) $ text_ desc
-                   let extraInfoStyle = "text-align: right; right: 0px; " ++ fixedWidthStyle 365
-                   elAttr "span" ("class" =: "ellipsis"
-                                  <> "style" =: extraInfoStyle) $ text_ extraInfo
+               elAttr "div" ("style" =: detailsDivStyle) $ detailsDiv tsEvt
     return (const tsEvt <$> domEvent Click e)
+
+detailsDiv :: MonadWidget t m => TsEvent -> m ()
+detailsDiv TsEvent{..} = do
+    tz <- liftIO (getCurrentTimeZoneJS eventDate)
+    let fixedWidthStyle (w :: Int) = "position: absolute;" ++
+           "width: " ++ show w ++ "px; max-width: " ++ show w ++ "px;"
+    elAttr "b" ("style" =: (absTop 0 <> "font-size: 1.1em")) $ text $
+        formatTime defaultTimeLocale "%R" $ utcToZonedTime tz eventDate
+    elAttr "span" ("class" =: "ellipsis"
+                   <> "style" =: (fixedWidthStyle 400 <> absTop 20)) $ text_ desc
+    let extraInfoStyle = "text-align: right; right: 0px; " ++ fixedWidthStyle 365
+    elAttr "span" ("class" =: "ellipsis"
+                   <> "style" =: extraInfoStyle) $ text_ extraInfo
 
 displayDetails :: MonadWidget t m => Maybe TsEvent -> m ()
 displayDetails Nothing = return ()

@@ -49,6 +49,10 @@ echo "installed the GHC compiler!"
 
 stack install
 exepath=$(stack path --local-install-root)
+
+# patch the RTS to workaround https://github.com/ghcjs/shims/pull/29
+# (and this version of the patch there: https://github.com/ryantrinkle/shims/commit/18e4fc7a0217feee1275a74ed40f4a925263b9a3)
+sed -i "s/work.push(c.d1);/work[w++] = c.d1;/" "$htmljspath/bin/cigale-web.jsexe/rts.js"
 cp -R "$htmljspath/bin/cigale-web.jsexe" "$exepath/share"
 
 # pikaday has a strange .c9 folders with a bad pikaday.css.

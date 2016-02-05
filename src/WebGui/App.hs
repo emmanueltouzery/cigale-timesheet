@@ -22,9 +22,6 @@ import EventsView
 foreign import javascript unsafe "window.location.hash.substr(1)" getLocationHash :: IO JSString
 foreign import javascript unsafe "document.title = $1" setTitle :: JSString -> IO ()
 
--- url is http://localhost:8000/static/index.html
--- start cigale with .stack-work/install/x86_64-linux/lts-3.16/7.10.2/bin/cigale-timesheet
-
 -- TODO migrate to some haskell CSS DSL, like clay?
 css :: ByteString
 css = BS.intercalate "\n"

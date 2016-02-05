@@ -61,7 +61,7 @@ configView activeViewDyn = do
             configDataDyn <- foldDyn ($) RemoteDataLoading $ mergeWith (.)
                 [
                     fmap const (updated readAllDyn),
-                    fmap applyConfigChange configUpdateEvt
+                    fmap (flip applyConfigChange) configUpdateEvt
                 ]
 
             configUpdateEvt <- displayConfig =<< mapDyn fromRemoteData configDataDyn
@@ -80,16 +80,13 @@ data ConfigChange = ChangeAdd ConfigAdd
                   | ChangeDelete ConfigDelete
                   deriving Show
 
-applyConfigChange :: ConfigChange -> RemoteData FetchedData -> RemoteData FetchedData
-applyConfigChange (ChangeAdd (ConfigAdd newCi)) (RemoteData (FetchedData desc val)) =
-    RemoteData (FetchedData desc (newCi:val))
-applyConfigChange (ChangeUpdate (ConfigUpdate oldCiName newCi)) (RemoteData (FetchedData desc val)) =
-    RemoteData (FetchedData desc updatedVal)
-    where updatedVal = newCi : filter ((/= oldCiName) . configItemName) val
-applyConfigChange (ChangeDelete (ConfigDelete ci)) (RemoteData (FetchedData desc val)) =
-    RemoteData (FetchedData desc updatedVal)
-    where updatedVal = filter (/= ci) val
-applyConfigChange _ soFar = soFar
+applyConfigChange :: RemoteData FetchedData -> ConfigChange -> RemoteData FetchedData
+applyConfigChange (RemoteData (FetchedData desc val)) chg = RemoteData (FetchedData desc newVal)
+    where newVal = case chg of
+           ChangeAdd (ConfigAdd newCi) -> newCi:val
+           ChangeUpdate (ConfigUpdate oldCiName newCi) ->
+               newCi : filter ((/= oldCiName) . configItemName) val
+           ChangeDelete (ConfigDelete ci) -> filter (/= ci) val
 
 displayConfig :: MonadWidget t m => Dynamic t (Maybe FetchedData)
               -> m (Event t ConfigChange)
@@ -295,8 +292,7 @@ addEditButton pluginConfig@PluginConfig{..} ci@ConfigItem{..} = do
 modalHandleSaveAction :: MonadWidget t m => ModalLevel -> Event t (RemoteData b) -> m (Event t b)
 modalHandleSaveAction modalLevel saveEvt = do
     let savedCfgEditEvt = fmapMaybe fromRemoteData saveEvt
-    -- request to close the dialog upon success
-    performEvent_ $ fmap (const $ liftIO $ hideModalIdDialog $ topLevelModalId modalLevel) savedCfgEditEvt
+    hideModalOnEvent modalLevel savedCfgEditEvt
     return savedCfgEditEvt
 
 encodeToStr :: ToJSON a => a -> String

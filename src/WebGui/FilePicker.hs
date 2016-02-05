@@ -4,8 +4,6 @@ module FilePicker where
 
 import Reflex.Dom
 
-import Data.Aeson as A
-import GHC.Generics
 import System.FilePath.Posix
 import Data.List
 import Control.Monad.IO.Class
@@ -86,7 +84,7 @@ buildFilePicker options openEvt = do
                         PickFolder -> fmap browseFolderPath
                             $ fmapMaybe (const $ fromRemoteData remoteBrowseData) okEvt
                         PickFile -> fmapMaybe id $ tagDyn dynSelectedFile okEvt
-                performEvent_ $ fmap (const $ liftIO $ hideModalIdDialog modalId) pickedItemEvt
+                hideModalOnEvent ModalLevelSecondary pickedItemEvt
             return $ leftmost [pickerEvt, pickedItemEvt])
         rx <- readModalResult ModalLevelSecondary =<< mapDyn Just dynMonPickerEvt
     let pickedEvent = fmapMaybe getPickData rx

@@ -216,6 +216,10 @@ progressDialog percentDyn = do
         ("class" =: "progress" <> "value" =: show percent <> "max" =: "100")
     elDynAttr "progress" attrsDyn $ dynText =<< mapDyn ((++ "%") . show) percentDyn
 
+hideModalOnEvent :: MonadWidget t m => ModalLevel -> Event t a -> m ()
+hideModalOnEvent modalLevel evt = performEvent_ $ fmap
+    (const $ liftIO $ hideModalIdDialog $ topLevelModalId modalLevel) evt
+
 data RemoteData a = RemoteDataInvalid String | RemoteDataLoading | RemoteData a deriving Show
 
 instance Functor RemoteData where

@@ -128,8 +128,7 @@ addPreloadButton = do
         curCountDyn <- holdDyn 0 $ fmap length dayListEvt
         daysFetchingQueueDyn <- foldDyn ($) [] $ leftmost
             [fmap const dayListEvt, fmap (const tail) $ daysFetchingQueueDoneEvt]
-        progressDyn <- combineDyn
-            (\list count -> (count - length list)*100 `div` count)
+        progressDyn <- combineDyn (\lst cnt -> (cnt - length lst)*100 `div` cnt)
             daysFetchingQueueDyn curCountDyn
         mCurDayToFetchDyn <- nubDyn <$> mapDyn headZ daysFetchingQueueDyn
         daysFetchingQueueDoneEvt <- fetchDay mCurDayToFetchDyn
@@ -137,11 +136,9 @@ addPreloadButton = do
         void $ buildModalBody "In progress" NoBtn
             (constDyn "") (progressDialog progressDyn)
         return never
-    performEvent_
-        $ fmap (const $ liftIO $ mapM_ (hideModalIdDialog . topLevelModalId)
-                [ModalLevelBasic, ModalLevelSecondary])
-        $ ffilter isNothing
-        $ updated mCurDayToFetchDyn
+    let doneEvt = ffilter isNothing $ updated mCurDayToFetchDyn
+    hideModalOnEvent ModalLevelBasic doneEvt
+    hideModalOnEvent ModalLevelSecondary doneEvt
 
 fetchDay :: MonadWidget t m => Dynamic t (Maybe Day) -> m (Event t FetchResponse)
 fetchDay mDayDyn = do

@@ -68,7 +68,8 @@ eventsView activeViewDyn = do
             loadRecordsEvent <- leftmost <$> sequence
                 [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
             responseEvt <- requestDayEvents loadRecordsEvent
-            -- the leftmost makes sure that we reset the respDyn to loading state when loadRecordsEvent is triggered.
+            -- the leftmost makes sure that we reset the respDyn
+            -- to loading state when loadRecordsEvent is triggered.
             respDyn <- holdDyn RemoteDataLoading $ leftmost
                 [fmap (const RemoteDataLoading) loadRecordsEvent, responseEvt]
             displayWarningBanner respDyn
@@ -77,9 +78,9 @@ eventsView activeViewDyn = do
         -- TODO 60px is ugly (date picker height)
         elAttr "div" ("style" =: "display: flex; height: calc(100% - 60px); margin-top: 20px"
                       <> "overflow" =: "auto") $ do
-            -- that's a mess. Surely there must be a better way to extract the event from the table.
+            tableRes <- mapDyn eventsTable respDyn >>= dyn >>= holdDyn (constDyn Nothing)
             -- nubDyn to avoid blinking if you click on the already-selected event.
-            curEvtDyn <- nubDyn <$> joinDyn <$> (mapDyn eventsTable respDyn >>= dyn >>= holdDyn (constDyn Nothing))
+            let curEvtDyn = nubDyn (joinDyn tableRes)
             void $ mapDyn displayDetails curEvtDyn >>= dyn
 
         -- display the progress indicator if needed.
@@ -127,7 +128,9 @@ addPreloadButton = do
         curCountDyn <- holdDyn 0 $ fmap length dayListEvt
         daysFetchingQueueDyn <- foldDyn ($) [] $ leftmost
             [fmap const dayListEvt, fmap (const tail) $ daysFetchingQueueDoneEvt]
-        progressDyn <- combineDyn (\list count -> (count - length list)*100 `div` count) daysFetchingQueueDyn curCountDyn
+        progressDyn <- combineDyn
+            (\list count -> (count - length list)*100 `div` count)
+            daysFetchingQueueDyn curCountDyn
         mCurDayToFetchDyn <- nubDyn <$> mapDyn headZ daysFetchingQueueDyn
         daysFetchingQueueDoneEvt <- fetchDay mCurDayToFetchDyn
     void $ setupModal ModalLevelSecondary preloadEvt $ do
@@ -135,7 +138,8 @@ addPreloadButton = do
             (constDyn "") (progressDialog progressDyn)
         return never
     performEvent_
-        $ fmap (const $ liftIO $ hideModalIdDialog $ topLevelModalId ModalLevelSecondary)
+        $ fmap (const $ liftIO $ mapM_ (hideModalIdDialog . topLevelModalId)
+                [ModalLevelBasic, ModalLevelSecondary])
         $ ffilter isNothing
         $ updated mCurDayToFetchDyn
 
@@ -151,8 +155,10 @@ preloadDialog = do
     let prefetchStart = addGregorianMonthsClip (-1) $
                         (\(y,m,_) -> fromGregorian y m 1) $ toGregorian today
     let prefetchEnd = addDays (-1) today
-    el "p" $ text "Navigating several days of data can get slow if you have to wait for each day to load separately."
-    el "p" $ text "You can preload data for a certain time interval to minimize the waiting later."
+    el "p" $ text "Navigating several days of data can get slow\
+                  \ if you have to wait for each day to load separately."
+    el "p" $ text "You can preload data for a certain time interval\
+                  \ to minimize the waiting later."
     elAttr "table" ("style" =: "padding-bottom: 15px") $ do
         rec dynStartDay <- el "tr" $ do
             col $ text "Pick a start date:"
@@ -194,8 +200,9 @@ createDateLabel curDate picker = do
     rec
         cbDyn <- holdDyn True (leftmost [dayToggleEvt, pickerAutoCloseEvt])
 
+        let labelStyle = "margin-bottom: 0px; width: 180px; max-width: 180px"
         (label, _) <- elAttr' "label" ("class" =: "btn btn-secondary btn-sm"
-                                       <> "style" =: "margin-bottom: 0px; width: 180px; max-width: 180px") $ do
+                                       <> "style" =: labelStyle) $ do
             void $ checkboxView (constDyn Map.empty) cbDyn
             dynText =<< mapDyn (formatTime defaultTimeLocale "%A, %F") curDate
 
@@ -225,7 +232,8 @@ displayWarningBanner respDyn = do
             _ -> Nothing
     errorTxtDyn <- mapDyn getErrorTxt respDyn
 
-    let styleContents e = styleWithHideIf (isNothing e) "width: 65%; margin-left: auto; margin-right: auto"
+    let styleContents e = styleWithHideIf (isNothing e)
+          "width: 65%; margin-left: auto; margin-right: auto"
     blockAttrs <- forDyn errorTxtDyn (\e -> basicAttrs <> styleContents e)
     elDynAttr "div" blockAttrs $ do
         elAttr "button" ("type" =: "button" <> "class" =: "close" <> "data-dismiss" =: "alert") $ do
@@ -237,10 +245,11 @@ displayWarningBanner respDyn = do
 eventsTable :: MonadWidget t m => RemoteData FetchResponse -> m (Dynamic t (Maybe TsEvent))
 eventsTable (RemoteDataInvalid _) = return (constDyn Nothing)
 eventsTable RemoteDataLoading = return (constDyn Nothing)
-eventsTable (RemoteData (FetchResponse tsEvents _)) =
+eventsTable (RemoteData (FetchResponse tsEvents _)) = do
+    let tableStyle = "height: 100%; display:block; overflow:auto"
     elAttr "div" ("style" =: "width: 500px; height: 100%; flex-shrink: 0") $
         -- display: block is needed for overflow to work, http://stackoverflow.com/a/4457290/516188
-        elAttr "table" ("class" =: "table" <> "style" =: "height: 100%; display:block; overflow:auto") $ do
+        elAttr "table" ("class" =: "table" <> "style" =: tableStyle) $ do
             rec
                 events <- mapM (showRecord curEventDyn) tsEvents
                 curEventDyn <- holdDyn (headZ tsEvents) $ leftmost $ fmap (fmap Just) events
@@ -284,8 +293,9 @@ showRecord curEventDyn tsEvt@TsEvent{..} = do
                        formatTime defaultTimeLocale "%R" $ utcToZonedTime tz eventDate
                    elAttr "span" ("class" =: "ellipsis"
                                   <> "style" =: (fixedWidthStyle 400 <> absTop 20)) $ text_ desc
+                   let extraInfoStyle = "text-align: right; right: 0px; " ++ fixedWidthStyle 365
                    elAttr "span" ("class" =: "ellipsis"
-                                  <> "style" =: ("text-align: right; right: 0px; " ++ fixedWidthStyle 365)) $ text_ extraInfo
+                                  <> "style" =: extraInfoStyle) $ text_ extraInfo
     return (const tsEvt <$> domEvent Click e)
 
 displayDetails :: MonadWidget t m => Maybe TsEvent -> m ()

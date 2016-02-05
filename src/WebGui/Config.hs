@@ -52,9 +52,9 @@ configView activeViewDyn = do
         styleWithHideIf (curView /= ActiveViewConfig) "height: 100%; padding-right: 10px;"
     elDynAttr "div" attrsDyn $ do
         -- TODO getPostBuild ... maybe when the tab is loaded instead?
-        postBuild <- getPostBuild
+        postBuild  <- getPostBuild
         cfgDescDyn <- makeSimpleXhr "/configdesc" postBuild
-        cfgValDyn <- makeSimpleXhr "/configVal" postBuild
+        cfgValDyn  <- makeSimpleXhr "/configVal" postBuild
         readAllDyn <- combineDyn (liftA2 FetchedData) cfgDescDyn cfgValDyn
 
         rec
@@ -100,10 +100,10 @@ displayConfig dynFetchedData = do
 
 displayAddCfgButton :: MonadWidget t m => [PluginConfig] -> m (Event t ConfigChange)
 displayAddCfgButton pluginConfigs = do
-    clickEvts <- elAttr "div" ("width" =: "100%"
-                  <> "style" =: ("display: flex; flex-direction: row;"
-                                 <> "justify-content: flex-end;"
-                                 <> "padding-right: 30px; padding-bottom: 10px")) $
+    let addBtnStyle = "display: flex; flex-direction: row;"
+            <> "justify-content: flex-end;"
+            <> "padding-right: 30px; padding-bottom: 10px"
+    clickEvts <- elAttr "div" ("width" =: "100%" <> "style" =: addBtnStyle) $
         elAttr "div" ("class" =: "btn-group") $ do
             elAttr "button" ("type" =: "button"
                              <> "class" =: "btn btn-primary dropdown-toggle"

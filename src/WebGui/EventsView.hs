@@ -272,21 +272,25 @@ showRecord :: MonadWidget t m => Dynamic t (Maybe TsEvent) -> TsEvent -> m (Even
 showRecord curEventDyn tsEvt@TsEvent{..} = do
     rowAttrs <- forDyn curEventDyn $ \curEvt ->
         "class" =: if curEvt == Just tsEvt then "table-active" else ""
-    let imgWidth = "38px"
     (e, _) <- elDynAttr' "tr" rowAttrs $ do
         elAttr "td" ("style" =: "height: 60px; width: 500px; cursor: pointer") $
             elAttr "div" ("style" =: "position: relative;") $ do
-               let divFlexSetup = ";display: flex; justify-content: center;" ++
-                     "align-items: center; flex-direction: column"
-               elAttr "div" ("style" =: ("width: " ++ imgWidth <> divFlexSetup)) $ do
-                   elAttr "img" ("src" =: (getGlyphiconUrl eventIcon)
-                                 <> "style" =: "flex-item-align: center") $ return ()
-                   let pluginNameStyle = "color: gray; font-size: 0.8em; text-align: center"
-                   elAttr "span" ("style" =: pluginNameStyle) $ text pluginName
-               let detailsDivStyle = absTop 0 ++ "left: " ++ imgWidth ++
-                     "; width: calc(100% - " ++ imgWidth ++ "); margin-left: 5px"
-               elAttr "div" ("style" =: detailsDivStyle) $ detailsDiv tsEvt
+                recordsContents tsEvt
     return (const tsEvt <$> domEvent Click e)
+
+recordsContents :: MonadWidget t m => TsEvent -> m ()
+recordsContents tsEvt@TsEvent{..} = do
+    let imgWidth = "38px"
+    let divFlexSetup = ";display: flex; justify-content: center;" ++
+          "align-items: center; flex-direction: column"
+    elAttr "div" ("style" =: ("width: " ++ imgWidth <> divFlexSetup)) $ do
+        elAttr "img" ("src" =: (getGlyphiconUrl eventIcon)
+                      <> "style" =: "flex-item-align: center") $ return ()
+        let pluginNameStyle = "color: gray; font-size: 0.8em; text-align: center"
+        elAttr "span" ("style" =: pluginNameStyle) $ text pluginName
+    let detailsDivStyle = absTop 0 ++ "left: " ++ imgWidth ++
+          "; width: calc(100% - " ++ imgWidth ++ "); margin-left: 5px"
+    elAttr "div" ("style" =: detailsDivStyle) $ detailsDiv tsEvt
 
 detailsDiv :: MonadWidget t m => TsEvent -> m ()
 detailsDiv TsEvent{..} = do

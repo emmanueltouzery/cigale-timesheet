@@ -15,7 +15,7 @@ import Data.Dependent.Sum (DSum ((:=>)))
 import Reflex.Host.Class
 import Data.String
 
-import Clay (Css, renderWith, compact, padding)
+import Clay as C hiding (filter, title, contents, action, url)
 import Data.Maybe
 import Data.IORef
 import Data.Text (Text)
@@ -48,17 +48,22 @@ eltStripClass elt className = do
     elementSetClassName elt (unwords newClasses)
 
 attrOptDyn :: a -> String -> Bool -> String -> Map a String
-attrOptDyn attr opt p s = attr =: (s <> if p then " " <> opt else "")
+attrOptDyn attrib opt isShow str = attrib =: (str <> if isShow then " " <> opt else "")
 
-styleWithHideIf :: Bool -> String -> Map String String
-styleWithHideIf p s = "style" =: (rest <> if p then "display: none" else "display: block")
-    where rest = if null s then "" else s <> "; "
+attrStyleWithHideIf :: Bool -> Css -> Map String String
+attrStyleWithHideIf isShow rest = "style" =: styleStr (styleWithHideIf isShow rest)
 
-styleHideIf :: Bool -> Map String String
-styleHideIf p = styleWithHideIf p ""
+styleWithHideIf :: Bool -> Css -> Css
+styleWithHideIf isShow rest = (rest >> if isShow then C.display none else C.display block)
+
+attrStyleHideIf :: Bool -> Map String String
+attrStyleHideIf isShow = "style" =: styleStr (styleHideIf isShow)
+
+styleHideIf :: Bool -> Css
+styleHideIf isShow = styleWithHideIf isShow (return ())
 
 stylesheet :: MonadWidget t m => String -> m ()
-stylesheet s = elAttr "link" ("rel" =: "stylesheet" <> "href" =: s) blank
+stylesheet str = elAttr "link" ("rel" =: "stylesheet" <> "href" =: str) blank
 
 text_ :: MonadWidget t m => Text -> m ()
 text_ = text . T.unpack
@@ -77,9 +82,18 @@ elAttrStyle :: MonadWidget t m => String -> Map String String -> Css -> m a -> m
 elAttrStyle elementTag attrs styleCss child =
     elAttr elementTag (attrs <> "style" =: styleStr styleCss) child
 
+elDynAttrStyle' :: MonadWidget t m => String -> Dynamic t (Map String String) -> Css -> m a
+                -> m (El t, a)
+elDynAttrStyle' elementTag dynAttrs styleCss child = do
+    newAttrsDyn <- forDyn dynAttrs (<> "style" =: styleStr styleCss)
+    elDynAttr' elementTag newAttrsDyn child
+
+-- the tail . init removes leading and trailing {}
+-- see https://github.com/sebastiaanvisser/clay/issues/120
 styleStr :: Css -> String
 styleStr = tail . init . T.unpack . TL.toStrict . renderWith compact []
 
+paddingAll :: Size a -> Css
 paddingAll x = padding x x x x
 
 performOnChange :: MonadWidget t m => (a -> WidgetHost m ()) -> Dynamic t a -> m ()
@@ -87,23 +101,23 @@ performOnChange action dynamic = performEvent_ $
     fmap (const $ sample (current dynamic) >>= action) $ updated dynamic
 
 button' :: MonadWidget t m => m a -> m (Event t ())
-button' s = do
+button' contents = do
     -- forcing white background, otherwise it stays to gray after
     -- being pressed which I find ugly.
-    (e, _) <- elAttr' "button" ("class" =: "btn btn-secondary btn-sm"
-                                <> "style" =: "background-color: white") s
+    (e, _) <- elAttrStyle' "button"
+        ("class" =: "btn btn-secondary btn-sm") (backgroundColor white) contents
     return $ domEvent Click e
 
 smallIconButton :: MonadWidget t m => String -> m (Event t ())
 smallIconButton = iconButton 12
 
 iconButton :: MonadWidget t m => Int -> String -> m (Event t ())
-iconButton height icon = button' $
-    elAttr "img" ("src" =: getGlyphiconUrl icon
-                  <> "style" =: ("height: " ++  show height ++ "px")) $ return ()
+iconButton iconHeight iconName = button' $
+    elAttrStyle "img" ("src" =: getGlyphiconUrl iconName)
+        (height $ px $ fromIntegral iconHeight) $ return ()
 
 col :: MonadWidget t m => m a -> m a
-col = elAttr "td" ("style" =: "padding: 5px")
+col = elStyle "td" (paddingAll (px 5))
 
 -- very similar to fireEventRef from Reflex.Host.Class
 -- which I don't have right now.
@@ -159,9 +173,9 @@ addErrorBox dynErrMsg = do
     dynAttrs <- forDyn dynErrMsg $ \errMsg ->
         "class" =: "alert alert-danger"
         <> "role" =: "alert"
-        <> styleHideIf (null errMsg)
+        <> attrStyleHideIf (null errMsg)
     elDynAttr "div" dynAttrs $ do
-        elAttr "strong" ("style" =: "padding-right: 7px") $ text "Error"
+        elStyle "strong" (paddingRight $ px 7) $ text "Error"
         dynText dynErrMsg
 
 addModalFooter :: MonadWidget t m => ButtonInfo -> m (Event t (), Event t ())
@@ -179,11 +193,11 @@ addModalFooter okBtnInfo = do
             return (domEvent Click okEl, domEvent Click closeEl)
 
 addOkButton :: MonadWidget t m => String -> String -> Bool -> m (El t)
-addOkButton okBtnClass okBtnText visible = do
-    let style = "style" =: if visible then "" else "display: none"
+addOkButton okBtnClass okBtnText isShow = do
+    let styl = "style" =: if isShow then "" else "display: none"
     (okEl, _) <- elAttr' "button" ("type" =: "button"
                                    <> "class" =: ("btn btn-" <> okBtnClass)
-                                   <> style)
+                                   <> styl)
         $ text okBtnText
     return okEl
 
@@ -220,9 +234,9 @@ dynAtEltId eltId child = do
                 (result, postBuild, voidActions) <- runW df c
                 runFrameWithTriggerRef newChildBuiltTriggerRef (result, voidActions)
                 postBuild
-                Just root <- liftIO $ documentGetElementById doc eltId
-                lastChild <- liftIO $ nodeGetLastChild root
-                void $ liftIO $ nodeReplaceChild root (Just df) lastChild
+                Just docRoot <- liftIO $ documentGetElementById doc eltId
+                nodeLastChild <- liftIO $ nodeGetLastChild docRoot
+                void $ liftIO $ nodeReplaceChild docRoot (Just df) nodeLastChild
     schedulePostBuild $ do
         c <- sample $ current child
         build c
@@ -237,7 +251,7 @@ rawSpan :: MonadWidget t m => Map String String -> Dynamic t String -> m ()
 rawSpan attrs = void . elDynHtmlAttr' "span" attrs
 
 getGlyphiconUrl :: String -> String
-getGlyphiconUrl base = "glyphicons_free/glyphicons/png/" <> base <> ".png"
+getGlyphiconUrl iconBase = "glyphicons_free/glyphicons/png/" <> iconBase <> ".png"
 
 progressDialog :: MonadWidget t m => Dynamic t Int -> m ()
 progressDialog percentDyn = do
@@ -258,7 +272,7 @@ data RemoteData a = RemoteDataInvalid String | RemoteDataLoading | RemoteData a 
 instance Functor RemoteData where
     fmap _ RemoteDataLoading = RemoteDataLoading
     fmap _ (RemoteDataInvalid x) = RemoteDataInvalid x
-    fmap f (RemoteData a) = RemoteData (f a)
+    fmap f (RemoteData x) = RemoteData (f x)
 
 instance Applicative RemoteData where
     pure = RemoteData

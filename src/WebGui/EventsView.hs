@@ -11,7 +11,7 @@ import Reflex
 import Reflex.Dom
 import Reflex.Host.Class
 
-import Clay as C hiding (col, div, id)
+import Clay as C hiding (col, div, id, start, end, focus, dt)
 import Data.Time.Clock
 import Data.Time.Calendar
 import Data.Time.Format
@@ -56,10 +56,16 @@ pickerShow = _pickerShow . unPicker
 
 eventsView :: MonadWidget t m => Dynamic t ActiveView -> m ()
 eventsView activeViewDyn = do
-    let cssPos = "overflow: hidden; position: absolute; bottom 0; right: 0; left: 0;"
+    let cssPos = do
+            overflow hidden
+            position absolute
+            bottom (px 0)
+            right (px 0)
+            left (px 0)
     -- TODO the hardcoded 70px is no good! (height of navigation bar)
     attrsDyn <- forDyn activeViewDyn $ \curView ->
-        styleWithHideIf (curView /= ActiveViewEvents) ("height: calc(100% - 70px);" <> cssPos)
+        attrStyleWithHideIf (curView /= ActiveViewEvents)
+            (height (other "calc(100% - 70px)") >> cssPos)
     elDynAttr "div" attrsDyn $ do
         rec
             -- TODO getPostBuild ... maybe when the tab is loaded instead?
@@ -77,8 +83,12 @@ eventsView activeViewDyn = do
             curDate <- addDatePicker initialDay
 
         -- TODO 60px is ugly (date picker height)
-        elAttr "div" ("style" =: "display: flex; height: calc(100% - 60px); margin-top: 20px"
-                      <> "overflow" =: "auto") $ do
+        let divStyle = do
+                C.display flex
+                height (other "calc(100% - 60px)")
+                marginTop (px 20)
+                overflow auto
+        elStyle "div" divStyle $ do
             tableRes <- mapDyn eventsTable respDyn >>= dyn >>= holdDyn (constDyn Nothing)
             -- nubDyn to avoid blinking if you click on the already-selected event.
             let curEvtDyn = nubDyn (joinDyn tableRes)
@@ -86,13 +96,13 @@ eventsView activeViewDyn = do
 
         -- display the progress indicator if needed.
         holdAttrs <- forDyn respDyn $ \curEvt ->
-            "id" =: "pleasehold" <> styleHideIf (not $ isRemoteDataLoading curEvt)
+            "id" =: "pleasehold" <> attrStyleHideIf (not $ isRemoteDataLoading curEvt)
         elDynAttr "div" holdAttrs $ text "Please hold..."
         return ()
 
 requestDayEvents :: MonadWidget t m => Event t Day -> m (Event t (RemoteData FetchResponse))
 requestDayEvents dayEvt = do
-    let req url = xhrRequest "GET" ("/timesheet/" ++ url) def
+    let req reqUrl = xhrRequest "GET" ("/timesheet/" ++ reqUrl) def
     asyncReq <- performRequestAsync (req <$> showGregorian <$> dayEvt)
     return (fmap readRemoteData asyncReq)
 
@@ -110,7 +120,7 @@ addDatePicker initialDay = do
         -- the date picker has position: absolute & will position itself
         -- relative to the nearest ancestor with position: relative.
         dayChangeEvt <-
-            elAttr "table" ("style" =: "margin-left: 10px") $ el "tr" $
+            elStyle "table" (marginLeft $ px 10) $ el "tr" $
                 col (text "Day to display:") *>
                 col (displayPickerBlock initialDay curDate) <*
                 col (addPreloadButton)
@@ -157,7 +167,7 @@ preloadDialog = do
                   \ if you have to wait for each day to load separately."
     el "p" $ text "You can preload data for a certain time interval\
                   \ to minimize the waiting later."
-    elAttr "table" ("style" =: "padding-bottom: 15px") $ do
+    elStyle "table" (paddingBottom $ px 15) $ do
         rec dynStartDay <- el "tr" $ do
             col $ text "Pick a start date:"
             col $ do
@@ -179,10 +189,9 @@ daysRange start end
 displayPickerBlock :: MonadWidget t m => Day -> Dynamic t Day -> m (Event t (Day -> Day))
 displayPickerBlock initialDay curDate = do
     rec
+        let btnClass = "class" =: "btn-group" <> "data-toggle" =: "buttons"
         previousNextEvt <-
-            elAttr "div" ("class" =: "btn-group"
-                          <> "data-toggle" =: "buttons"
-                          <> "style" =: "position: relative") $ do
+            elAttrStyle "div" btnClass (position relative) $ do
                 previousDay <- fmap (const $ addDays (-1)) <$>
                     smallIconButton "glyphicons-171-step-backward"
                 createDateLabel curDate picker
@@ -198,9 +207,12 @@ createDateLabel curDate picker = do
     rec
         cbDyn <- holdDyn True (leftmost [dayToggleEvt, pickerAutoCloseEvt])
 
-        let labelStyle = "margin-bottom: 0px; width: 180px; max-width: 180px"
-        (label, _) <- elAttr' "label" ("class" =: "btn btn-secondary btn-sm"
-                                       <> "style" =: labelStyle) $ do
+        let labelClass = "class" =: "btn btn-secondary btn-sm"
+        let labelStyle = do
+                marginBottom (px 0)
+                width (px 180)
+                maxWidth (px 180)
+        (label, _) <- elAttrStyle' "label" labelClass labelStyle $ do
             void $ checkboxView (constDyn Map.empty) cbDyn
             dynText =<< mapDyn (formatTime defaultTimeLocale "%A, %F") curDate
 
@@ -230,24 +242,24 @@ displayWarningBanner respDyn = do
             _ -> Nothing
     errorTxtDyn <- mapDyn getErrorTxt respDyn
 
-    let styleContents e = styleWithHideIf (isNothing e)
-          "width: 65%; margin-left: auto; margin-right: auto"
+    let styleContents e = attrStyleWithHideIf (isNothing e)
+          (width (pct 65) >> marginLeft auto >> marginRight auto)
     blockAttrs <- forDyn errorTxtDyn (\e -> basicAttrs <> styleContents e)
     elDynAttr "div" blockAttrs $ do
         elAttr "button" ("type" =: "button" <> "class" =: "close" <> "data-dismiss" =: "alert") $ do
             void $ elDynHtmlAttr' "span" ("aria-hidden" =: "true") (constDyn "&times;")
             elAttr "span" ("class" =: "sr-only") $ text "Close"
-        elAttr "strong" ("style" =: "padding-right: 7px") $ text "Error"
+        elStyle "strong" (paddingRight $ px 7) $ text "Error"
         el "span" $ dynText =<< mapDyn (fromMaybe "") errorTxtDyn
 
 eventsTable :: MonadWidget t m => RemoteData FetchResponse -> m (Dynamic t (Maybe TsEvent))
 eventsTable (RemoteDataInvalid _) = return (constDyn Nothing)
 eventsTable RemoteDataLoading = return (constDyn Nothing)
 eventsTable (RemoteData (FetchResponse tsEvents _)) = do
-    let tableStyle = "height: 100%; display:block; overflow:auto"
-    elAttr "div" ("style" =: "width: 500px; height: 100%; flex-shrink: 0") $
+    elStyle "div" (width (px 500) >> height (pct 100) >> flexShrink 0) $ do
         -- display: block is needed for overflow to work, http://stackoverflow.com/a/4457290/516188
-        elAttr "table" ("class" =: "table" <> "style" =: tableStyle) $ do
+        let tableStyle = height (pct 100) >> C.display block >> overflow auto
+        elAttrStyle "table" ("class" =: "table") tableStyle $ do
             rec
                 events <- mapM (showRecord curEventDyn) tsEvents
                 curEventDyn <- holdDyn (headZ tsEvents) $ leftmost $ fmap (fmap Just) events
@@ -274,8 +286,8 @@ showRecord curEventDyn tsEvt@TsEvent{..} = do
     rowAttrs <- forDyn curEventDyn $ \curEvt ->
         "class" =: if curEvt == Just tsEvt then "table-active" else ""
     (e, _) <- elDynAttr' "tr" rowAttrs $ do
-        elAttr "td" ("style" =: "height: 60px; width: 500px; cursor: pointer") $
-            elAttr "div" ("style" =: "position: relative;") $ do
+        elStyle "td" (height (px 60) >> width (px 500) >> cursor pointer) $
+            elStyle "div" (position relative) $ do
                 recordsContents tsEvt
     return (const tsEvt <$> domEvent Click e)
 
@@ -288,10 +300,13 @@ recordsContents tsEvt@TsEvent{..} = do
             alignItems center
             flexDirection column
     elStyle "div" (width (px imgWidth) >> divFlexSetup) $ do
-        elAttr "img" ("src" =: (getGlyphiconUrl eventIcon)
-                      <> "style" =: "flex-item-align: center") $ return ()
-        let pluginNameStyle = "color: gray; font-size: 0.8em; text-align: center"
-        elAttr "span" ("style" =: pluginNameStyle) $ text pluginName
+        elAttrStyle "img" ("src" =: (getGlyphiconUrl eventIcon))
+            (alignItems center) $ return ()
+        let pluginNameStyle = do
+                color gray
+                fontSize (em 0.8)
+                textAlign (alignSide sideCenter)
+        elStyle "span" pluginNameStyle $ text pluginName
     let detailsDivStyle = do
             absTop 0
             left (px imgWidth)
@@ -329,10 +344,10 @@ displayDetails (Just TsEvent{..}) = do
         el "h4" $ text_ extraInfo
         case fullContents of
             Nothing   -> return ()
-            Just cts  -> elAttr "iframe" ("srcdoc" =: T.unpack cts
-                                          <> "frameBorder" =: "0"
-                                          <> "width" =: "100%"
-                                          <> "style" =: "flex-grow: 1") $ return ()
+            Just cts  -> elAttrStyle "iframe" iframeClass (flexGrow 1) $ return ()
+                where iframeClass = "srcdoc" =: T.unpack cts
+                          <> "frameBorder" =: "0"
+                          <> "width" =: "100%"
 
 datePicker :: MonadWidget t m => Day -> m (Event t Day, PikadayPicker)
 datePicker initialDay = do

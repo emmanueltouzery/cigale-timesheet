@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric, OverloadedStrings, ScopedTypeVariables, RecursiveDo, RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, RecursiveDo, RecordWildCards #-}
 
 module FilePicker where
 
@@ -6,11 +6,11 @@ import Reflex.Dom
 
 import System.FilePath.Posix
 import Data.List
-import Data.Monoid
 import Data.Char
 import Data.Function
 import Data.Maybe
 import qualified Data.Map as Map
+import Clay hiding (filter, (&), id, reverse, li, a, b)
 
 import Common
 import Communication
@@ -116,16 +116,16 @@ displayBreadcrumb :: MonadWidget t m => [PathElem] -> m [Event t FilePath]
 displayBreadcrumb [] = return []
 displayBreadcrumb [level] = do
     (li, _) <- elAttr' "li" ("class" =: "active") $ text (prettyName level)
-    return [fmap (const "/") $ domEvent Click li]
+    return [const "/" <$> domEvent Click li]
 displayBreadcrumb (level:xs) = do
     (lnk, _) <- el "li" $ elAttr' "a" ("href" =: "javascript:void(0)") $ text (prettyName level)
-    (:) <$> return (fmap (const $ fullPath level) $ domEvent Click lnk) <*> displayBreadcrumb xs
+    (:) <$> return (const (fullPath level) <$> domEvent Click lnk) <*> displayBreadcrumb xs
 
 displayFiles :: MonadWidget t m => BrowseResponse -> Dynamic t (Maybe FilePath)
              -> Dynamic t FilePickerOptions -> m (Event t FileInfo)
 displayFiles browseData dynSelectedFile dynPickerOptions =
-    elAttr "div" ("style" =: ("overflow-y: auto; overflow-x: hidden"
-                              <> "min-height: 370px; max-height: 370px; width: 100%")) $
+    elStyle "div" (overflowY auto >> overflowX hidden >> width (pct 100)
+                   >> minHeight (px 370) >> maxHeight (px 370)) $
         elAttr "table" ("class" =: "table table-sm") $ do
             dynEvt <- forDyn dynPickerOptions $ \pickerOptions ->
                 leftmost <$> mapM
@@ -155,12 +155,11 @@ displayFile dynSelectedFile file@FileInfo{..} = do
     dynRowAttr <- forDyn dynSelectedFile $ \selFile ->
         if fmap takeFileName selFile == Just filename
             then ("class" =: "table-active") else Map.empty
-    (row, _) <- elDynAttr' "tr" dynRowAttr $ do
-        elAttr "td" ("align" =: "center"
-                     <> "style" =: "width: 30px") $ rawPointerSpan $
+    (rowItem, _) <- elDynAttr' "tr" dynRowAttr $ do
+        elAttrStyle "td" ("align" =: "center") (width $ px 30) $ rawPointerSpan $
             constDyn (if isDirectoryFileInfo file then "&#x1f5c1;" else "&#x1f5ce;")
-        elAttr "td" ("style" =: "cursor: pointer") $ text filename
-    return $ fmap (const file) (domEvent Click row)
+        elStyle "td" (cursor pointer) $ text filename
+    return $ fmap (const file) (domEvent Click rowItem)
 
 formatPathLinks :: [PathElem] -> String -> [PathElem]
 formatPathLinks [] _ = [PathElem "root" "/"]

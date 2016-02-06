@@ -62,11 +62,11 @@ cigaleView = do
 -- other parts of the application. They'll refer to the toplevelmodal
 -- and toplevelmodalcontents DOM IDs.
 addModalDialogSkeleton :: MonadWidget t m => Int -> ModalLevel -> m ()
-addModalDialogSkeleton zIndex modalLevel =
-    void $ elAttr' "div" ("class" =: "modal fade"
+addModalDialogSkeleton zIndexVal modalLevel =
+    void $ elAttrStyle' "div" ("class" =: "modal fade"
                           <> "tabindex" =: "-1"
-                          <> "id" =: topLevelModalId modalLevel
-                          <> "style" =: ("z-index: " <> show zIndex)) $
+                          <> "id" =: topLevelModalId modalLevel)
+                          (zIndex $ fromIntegral zIndexVal) $
         elAttr "div" ("class" =: "modal-dialog"
                       <> "role" =: "document"
                       <> "id" =: topLevelModalContentsId modalLevel) $ text ""
@@ -89,7 +89,7 @@ navBar = do
     urlLocationHash <- liftIO $ fromJSString <$> getLocationHash
     rec
         viewEvts <-
-            elAttr "div" ("role" =: "navigation" <> "style" =: "padding: 10px") $
+            elAttrStyle "div" ("role" =: "navigation") (paddingAll $ px 10) $
                 elAttr "ul" ("class" =: "nav nav-tabs") $ do
                     elAttr "span" ("class" =: "navbar-brand") $ text "Cigale"
                     e <- mapM (navLink activeViewDyn) navLinkItems
@@ -102,9 +102,9 @@ navBar = do
 
 addAboutButton :: MonadWidget t m => m ()
 addAboutButton = do
-    (img, _) <- elAttr' "img" ("src" =: getGlyphiconUrl "glyphicons-195-question-sign"
-                              <> "class" =: "pull-xs-right"
-                              <> "style" =: "cursor: pointer") $ return ()
+    let iconUrl = getGlyphiconUrl "glyphicons-195-question-sign"
+    (img, _) <- elAttrStyle' "img"
+        ("src" =: iconUrl <> "class" =: "pull-xs-right") (cursor pointer) $ return ()
     void $ setupModal ModalLevelBasic (domEvent Click img) $ do
         void $ buildModalBody "About" NoBtn
             (constDyn "") (text "Icons from "
@@ -117,8 +117,8 @@ addAboutButton = do
 navLink :: MonadWidget t m => Dynamic t ActiveView -> NavLinkItem -> m (Event t ActiveView)
 navLink activeViewDyn NavLinkItem{..} = do
     attrs <- forDyn activeViewDyn $ \curView ->
-        "href" =: ("#" <> nliUrl) <> "style" =: "outline: 0" <>
+        "href" =: ("#" <> nliUrl) <>
             attrOptDyn "class" "active" (curView == nliActiveView) "nav-link"
     (a, _) <- elAttr "li" ("class" =: "nav-item") $
-        elDynAttr' "a" attrs $ text nliDesc
+        elDynAttrStyle' "a" attrs ("outline" -: "0") $ text nliDesc
     return $ fmap (const nliActiveView) $ domEvent Click a

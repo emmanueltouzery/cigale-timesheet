@@ -25,6 +25,7 @@ import Control.Monad.IO.Class
 import qualified Data.ByteString.Lazy as BS
 import Data.Char
 import Data.Ord
+import Clay as C hiding (map, (&), filter, head, p, url, name, pc)
 
 import Communication
 import EventProvider
@@ -50,7 +51,7 @@ data FetchedData = FetchedData
 configView :: MonadWidget t m => Dynamic t ActiveView -> m ()
 configView activeViewDyn = do
     attrsDyn <- forDyn activeViewDyn $ \curView ->
-        styleWithHideIf (curView /= ActiveViewConfig) "height: 100%; padding-right: 10px;"
+        attrStyleWithHideIf (curView /= ActiveViewConfig) (height (pct 100) >> paddingRight (px 10))
     elDynAttr "div" attrsDyn $ do
         -- TODO getPostBuild ... maybe when the tab is loaded instead?
         postBuild  <- getPostBuild
@@ -102,10 +103,13 @@ displayConfig dynFetchedData = do
 
 displayAddCfgButton :: MonadWidget t m => [PluginConfig] -> m (Event t ConfigChange)
 displayAddCfgButton pluginConfigs = do
-    let addBtnStyle = "display: flex; flex-direction: row;"
-            <> "justify-content: flex-end;"
-            <> "padding-right: 30px; padding-bottom: 10px"
-    clickEvts <- elAttr "div" ("width" =: "100%" <> "style" =: addBtnStyle) $
+    let addBtnStyle = do
+            C.display flex
+            flexDirection row
+            justifyContent flexEnd
+            paddingRight (px 30)
+            paddingBottom (px 10)
+    clickEvts <- elAttrStyle "div" ("width" =: "100%") addBtnStyle $
         elAttr "div" ("class" =: "btn-group") $ do
             elAttr "button" ("type" =: "button"
                              <> "class" =: "btn btn-primary dropdown-toggle"
@@ -192,7 +196,7 @@ fileEntry pickerOpMode _ memberName val = do
                  & textInputConfig_initialValue .~ val
                  & textInputConfig_setValue .~ updatedFilePath)
             (browseBtn, _) <- elAttr' "div" ("class" =: "input-group-addon") $
-                elAttr' "span" ("style" =: "cursor: pointer") $ text "Browse..."
+                elStyle' "span" (cursor pointer) $ text "Browse..."
             updatedFilePath <- buildFilePicker
                 pickerDefaultOptions { pickerMode = pickerOpMode }
                 (tagDyn inputVal $ domEvent Click browseBtn)
@@ -261,9 +265,8 @@ displaySectionItem pluginConfig@PluginConfig{..} ci@ConfigItem{..} =
 
 addDeleteButton :: MonadWidget t m => ConfigItem -> m (Event t ConfigDelete)
 addDeleteButton ci@ConfigItem{..} = do
-    (deleteBtn, _) <- elAttr' "button"
-        ("class" =: "btn btn-danger btn-sm"
-         <> "style" =: "float: right") $ text "Delete"
+    (deleteBtn, _) <- elAttrStyle' "button"
+        ("class" =: "btn btn-danger btn-sm") (float floatRight) $ text "Delete"
     setupModalR <- setupModal ModalLevelBasic (domEvent Click deleteBtn) $ do
         rec
             (_, deleteDlgOkEvt, _) <- buildModalBody "Delete" (DangerBtn "Delete")
@@ -278,8 +281,8 @@ addDeleteButton ci@ConfigItem{..} = do
 addEditButton :: MonadWidget t m => PluginConfig -> ConfigItem -> m (Event t ConfigUpdate)
 addEditButton pluginConfig@PluginConfig{..} ci@ConfigItem{..} = do
     let btnClass = "class" =: "btn btn-default btn-sm"
-            <> "style" =: "float: right; margin-right: 5px"
-    (editBtn, _) <- elAttr' "button" btnClass $ text "Edit"
+    let btnStyle = float floatRight >> marginRight (px 5)
+    (editBtn, _) <- elAttrStyle' "button" btnClass btnStyle $ text "Edit"
     setupModalR <- setupModal ModalLevelBasic (domEvent Click editBtn) $ do
         rec
             (dialogResult, editDlgOkEvt, _) <- buildModalBody "Edit" (PrimaryBtn "Save")

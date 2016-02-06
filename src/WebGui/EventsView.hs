@@ -8,7 +8,7 @@ import GHCJS.Foreign
 import GHCJS.DOM.Element
 
 import Reflex
-import Reflex.Dom
+import Reflex.Dom hiding (display)
 import Reflex.Host.Class
 
 import Clay as C hiding (col, div, id, start, end, focus, dt)
@@ -84,7 +84,7 @@ eventsView activeViewDyn = do
 
         -- TODO 60px is ugly (date picker height)
         let divStyle = do
-                C.display flex
+                display flex
                 height (other "calc(100% - 60px)")
                 marginTop (px 20)
                 overflow auto
@@ -258,7 +258,7 @@ eventsTable RemoteDataLoading = return (constDyn Nothing)
 eventsTable (RemoteData (FetchResponse tsEvents _)) = do
     elStyle "div" (width (px 500) >> height (pct 100) >> flexShrink 0) $ do
         -- display: block is needed for overflow to work, http://stackoverflow.com/a/4457290/516188
-        let tableStyle = height (pct 100) >> C.display block >> overflow auto
+        let tableStyle = height (pct 100) >> display block >> overflow auto
         elAttrStyle "table" ("class" =: "table") tableStyle $ do
             rec
                 events <- mapM (showRecord curEventDyn) tsEvents
@@ -295,7 +295,7 @@ recordsContents :: MonadWidget t m => TsEvent -> m ()
 recordsContents tsEvt@TsEvent{..} = do
     let imgWidth = 38
     let divFlexSetup = do
-            C.display flex
+            display flex
             justifyContent center
             alignItems center
             flexDirection column
@@ -335,7 +335,7 @@ displayDetails Nothing = return ()
 displayDetails (Just TsEvent{..}) = do
     let divStyle = do
         flexGrow 1
-        C.display flex
+        display flex
         flexDirection column
         paddingAll (px 7)
         height (pct 100)

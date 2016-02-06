@@ -5,7 +5,7 @@ module Config where
 
 import GHCJS.DOM.HTMLInputElement
 
-import Reflex.Dom
+import Reflex.Dom hiding (display)
 
 import Data.Aeson as A
 import Data.Aeson.Types as A
@@ -104,7 +104,7 @@ displayConfig dynFetchedData = do
 displayAddCfgButton :: MonadWidget t m => [PluginConfig] -> m (Event t ConfigChange)
 displayAddCfgButton pluginConfigs = do
     let addBtnStyle = do
-            C.display flex
+            display flex
             flexDirection row
             justifyContent flexEnd
             paddingRight (px 30)

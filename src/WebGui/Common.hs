@@ -10,7 +10,7 @@ import GHCJS.DOM.Node
 import GHCJS.DOM.Document
 import GHCJS.DOM.Types hiding (Text, Event)
 
-import Reflex.Dom
+import Reflex.Dom hiding (display)
 import Data.Dependent.Sum (DSum ((:=>)))
 import Reflex.Host.Class
 import Data.String
@@ -54,7 +54,7 @@ attrStyleWithHideIf :: Bool -> Css -> Map String String
 attrStyleWithHideIf isShow rest = "style" =: styleStr (styleWithHideIf isShow rest)
 
 styleWithHideIf :: Bool -> Css -> Css
-styleWithHideIf isShow rest = (rest >> if isShow then C.display none else C.display block)
+styleWithHideIf isShow rest = (rest >> if isShow then display none else display block)
 
 attrStyleHideIf :: Bool -> Map String String
 attrStyleHideIf isShow = "style" =: styleStr (styleHideIf isShow)

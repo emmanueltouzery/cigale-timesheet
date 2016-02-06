@@ -6,7 +6,6 @@ import Reflex.Dom
 
 import System.FilePath.Posix
 import Data.List
-import Control.Monad.IO.Class
 import Data.Monoid
 import Data.Char
 import Data.Function

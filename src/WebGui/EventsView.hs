@@ -11,6 +11,7 @@ import Reflex
 import Reflex.Dom
 import Reflex.Host.Class
 
+import Clay as C hiding (col, div, id)
 import Data.Time.Clock
 import Data.Time.Calendar
 import Data.Time.Format
@@ -265,8 +266,8 @@ getCurrentTimeZoneJS :: UTCTime -> IO TimeZone
 getCurrentTimeZoneJS = fmap minutesToTimeZone . getTimezoneOffsetMinsForDateMs
 
 
-absTop :: Int -> String
-absTop y = "position: absolute; top: " ++ show y ++ "px;"
+absTop :: Double -> Css
+absTop y = position absolute >> top (px y)
 
 showRecord :: MonadWidget t m => Dynamic t (Maybe TsEvent) -> TsEvent -> m (Event t TsEvent)
 showRecord curEventDyn tsEvt@TsEvent{..} = do
@@ -280,36 +281,50 @@ showRecord curEventDyn tsEvt@TsEvent{..} = do
 
 recordsContents :: MonadWidget t m => TsEvent -> m ()
 recordsContents tsEvt@TsEvent{..} = do
-    let imgWidth = "38px"
-    let divFlexSetup = ";display: flex; justify-content: center;" ++
-          "align-items: center; flex-direction: column"
-    elAttr "div" ("style" =: ("width: " ++ imgWidth <> divFlexSetup)) $ do
+    let imgWidth = 38
+    let divFlexSetup = do
+            C.display flex
+            justifyContent center
+            alignItems center
+            flexDirection column
+    elStyle "div" (width (px imgWidth) >> divFlexSetup) $ do
         elAttr "img" ("src" =: (getGlyphiconUrl eventIcon)
                       <> "style" =: "flex-item-align: center") $ return ()
         let pluginNameStyle = "color: gray; font-size: 0.8em; text-align: center"
         elAttr "span" ("style" =: pluginNameStyle) $ text pluginName
-    let detailsDivStyle = absTop 0 ++ "left: " ++ imgWidth ++
-          "; width: calc(100% - " ++ imgWidth ++ "); margin-left: 5px"
-    elAttr "div" ("style" =: detailsDivStyle) $ detailsDiv tsEvt
+    let detailsDivStyle = do
+            absTop 0
+            left (px imgWidth)
+            width (other $ "calc(100% - " <> C.value imgWidth <> "px)")
+            marginLeft (px 5)
+    elStyle "div" detailsDivStyle $ detailsDiv tsEvt
 
 detailsDiv :: MonadWidget t m => TsEvent -> m ()
 detailsDiv TsEvent{..} = do
     tz <- liftIO (getCurrentTimeZoneJS eventDate)
-    let fixedWidthStyle (w :: Int) = "position: absolute;" ++
-           "width: " ++ show w ++ "px; max-width: " ++ show w ++ "px;"
-    elAttr "b" ("style" =: (absTop 0 <> "font-size: 1.1em")) $ text $
+    let fixedWidthStyle w = do
+            position absolute
+            width (px w)
+            maxWidth (px w)
+    elStyle "b" (absTop 0 >> fontSize (em 1.1)) $ text $
         formatTime defaultTimeLocale "%R" $ utcToZonedTime tz eventDate
-    elAttr "span" ("class" =: "ellipsis"
-                   <> "style" =: (fixedWidthStyle 400 <> absTop 20)) $ text_ desc
-    let extraInfoStyle = "text-align: right; right: 0px; " ++ fixedWidthStyle 365
-    elAttr "span" ("class" =: "ellipsis"
-                   <> "style" =: extraInfoStyle) $ text_ extraInfo
+    elAttrStyle "span" ("class" =: "ellipsis") (fixedWidthStyle 400 >> absTop 20) $ text_ desc
+    let extraInfoStyle = do
+            textAlign (alignSide sideRight)
+            right (px 0)
+            fixedWidthStyle 365
+    elAttrStyle "span" ("class" =: "ellipsis") extraInfoStyle $ text_ extraInfo
 
 displayDetails :: MonadWidget t m => Maybe TsEvent -> m ()
 displayDetails Nothing = return ()
-displayDetails (Just TsEvent{..}) =
-    elAttr "div" ("style" =: "flex-grow: 1; display: flex; flex-direction: column; padding: 7px;"
-                  <> "height" =: "100%") $ do
+displayDetails (Just TsEvent{..}) = do
+    let divStyle = do
+        flexGrow 1
+        C.display flex
+        flexDirection column
+        paddingAll (px 7)
+        height (pct 100)
+    elStyle "div" divStyle $ do
         el "h3" $ text_ desc
         el "h4" $ text_ extraInfo
         case fullContents of
@@ -321,7 +336,7 @@ displayDetails (Just TsEvent{..}) =
 
 datePicker :: MonadWidget t m => Day -> m (Event t Day, PikadayPicker)
 datePicker initialDay = do
-    (e, _) <- elAttr' "div" ("style" =: "width: 250px; position: absolute; z-index: 3") $ return ()
+    (e, _) <- elStyle' "div" (width (px 250) >> position absolute >> zIndex 3) $ return ()
     (evt, evtTrigger) <- newEventWithTriggerRef
     postGui <- askPostGui
     runWithActions <- askRunWithActions

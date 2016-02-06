@@ -88,6 +88,7 @@ applyConfigChange (RemoteData (FetchedData desc val)) chg = RemoteData (FetchedD
            ChangeUpdate (ConfigUpdate oldCiName newCi) ->
                newCi : filter ((/= oldCiName) . configItemName) val
            ChangeDelete (ConfigDelete ci) -> filter (/= ci) val
+applyConfigChange _ _ = error "applyConfigChange called on unloaded data??"
 
 displayConfig :: MonadWidget t m => Dynamic t (Maybe FetchedData)
               -> m (Event t ConfigChange)
@@ -180,7 +181,7 @@ editConfigDataInfo cfgItemName obj ConfigDataInfo{..} = do
 
 fileEntry :: MonadWidget t m => PickerOperationMode -> String -> String -> String
           -> m (Dynamic t String)
-fileEntry pickerOpMode cfgItemName memberName val = do
+fileEntry pickerOpMode _ memberName val = do
     elAttr "label" ("for" =: memberName) $ text memberName
     elAttr "div" ("class" =: "input-group") $ do
         rec

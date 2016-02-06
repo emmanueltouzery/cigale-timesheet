@@ -15,12 +15,15 @@ import Data.Dependent.Sum (DSum ((:=>)))
 import Reflex.Host.Class
 import Data.String
 
+import Clay (Css, renderWith, compact, padding)
 import Data.Maybe
 import Data.IORef
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 import Data.Monoid
 import Data.Map (Map)
+import qualified Data.Map as Map
 import Control.Monad.IO.Class
 import Data.Aeson
 import Control.Monad
@@ -59,6 +62,25 @@ stylesheet s = elAttr "link" ("rel" =: "stylesheet" <> "href" =: s) blank
 
 text_ :: MonadWidget t m => Text -> m ()
 text_ = text . T.unpack
+
+elStyle' :: MonadWidget t m => String -> Css -> m a -> m (El t, a)
+elStyle' elementTag styleCss child = elAttrStyle' elementTag Map.empty styleCss child
+
+elAttrStyle' :: MonadWidget t m => String -> Map String String -> Css -> m a -> m (El t, a)
+elAttrStyle' elementTag attrs styleCss child =
+    elAttr' elementTag (attrs <> "style" =: styleStr styleCss) child
+
+elStyle :: MonadWidget t m => String -> Css -> m a -> m a
+elStyle elementTag styleCss child = elAttrStyle elementTag Map.empty styleCss child
+
+elAttrStyle :: MonadWidget t m => String -> Map String String -> Css -> m a -> m a
+elAttrStyle elementTag attrs styleCss child =
+    elAttr elementTag (attrs <> "style" =: styleStr styleCss) child
+
+styleStr :: Css -> String
+styleStr = tail . init . T.unpack . TL.toStrict . renderWith compact []
+
+paddingAll x = padding x x x x
 
 performOnChange :: MonadWidget t m => (a -> WidgetHost m ()) -> Dynamic t a -> m ()
 performOnChange action dynamic = performEvent_ $

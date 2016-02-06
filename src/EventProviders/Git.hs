@@ -8,6 +8,7 @@ import Data.Time.Clock (UTCTime(..))
 import Text.Parsec.Text
 import Text.Parsec
 import qualified Data.Text as T
+import Data.Text (Text)
 import Data.List (isInfixOf, intercalate)
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.Maybe
@@ -25,7 +26,7 @@ import EventProvider
 
 data GitRecord = GitRecord
     {
-        gitUser :: T.Text,
+        gitUser :: Text,
         gitRepo :: FolderPath
     } deriving Show
 deriveJSON defaultOptions ''GitRecord
@@ -91,7 +92,7 @@ tagToEvent gitFolderPath timezone commit = baseEvent
         baseEvent = commitToEvent gitFolderPath timezone commit
         descVal = T.intercalate ", " $ map T.pack $ commitTags commit
 
-getCommitExtraInfo :: Commit -> T.Text -> T.Text
+getCommitExtraInfo :: Commit -> Text -> Text
 getCommitExtraInfo commit gitFolderPath = if atRoot filesRoot then gitRepoName else filesRoot
     where
         filesRoot = T.pack $ Util.getFilesRoot $ commitFiles commit
@@ -105,7 +106,7 @@ formatDate (toGregorian -> (year, month, dayOfMonth)) =
 data Commit = Commit
     {
         commitDate :: LocalTime,
-        commitDesc :: Maybe T.Text,
+        commitDesc :: Maybe Text,
         commitFiles :: [String],
         commitAuthor :: String,
         commitContents :: String,

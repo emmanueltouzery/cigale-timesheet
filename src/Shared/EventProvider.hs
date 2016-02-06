@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell, FlexibleInstances, OverloadedStrings, DeriveGeneric #-}
 module EventProvider (thGetTypeDesc,
-    GlobalSettings(GlobalSettings), EventProvider(..),
+    GlobalSettings(GlobalSettings), EventProvider(..), MemberType(..),
     eventProviderWrap, getSettingsFolder,
     ConfigDataType(..), ConfigDataInfo(..), FolderPath, ContentType, Url) where
 
@@ -9,16 +9,28 @@ import Data.Aeson
 import Language.Haskell.TH
 import Language.Haskell.TH.Lift
 import Data.ByteString (ByteString)
-import Data.Aeson.TH
 import Control.Error
 import GHC.Generics
 
 import TsEvent
 
+data MemberType = MtFilePath | MtFolderPath | MtPassword | MtText
+    deriving (Eq, Show, Generic)
+instance ToJSON MemberType
+instance FromJSON MemberType
+$(deriveLift ''MemberType)
+instance Read MemberType where
+    readsPrec _ "FilePath"   = [(MtFilePath, "")]
+    readsPrec _ "FolderPath" = [(MtFolderPath, "")]
+    readsPrec _ "Password"   = [(MtPassword, "")]
+    readsPrec _ "Text"       = [(MtText, "")]
+    readsPrec _ "String"     = [(MtText, "")]
+    readsPrec _ _            = []
+
 data ConfigDataInfo = ConfigDataInfo
     {
         memberName :: String,
-        memberType :: String
+        memberType :: MemberType
     } deriving (Eq, Show, Generic)
 $(deriveLift ''ConfigDataInfo)
 instance ToJSON ConfigDataInfo
@@ -33,11 +45,10 @@ instance ToJSON ConfigDataType
 
 formatTypeName :: Type -> String
 formatTypeName (ConT x) = nameBase x
-formatTypeName (AppT ListT x) = "[" ++ formatTypeName x ++ "]"
-formatTypeName x@_ = "fallback " ++ show x
+formatTypeName x@_ = error "Don't know how to handle type " ++ show x
 
 showField :: (Name,Type) -> ConfigDataInfo
-showField nameType = ConfigDataInfo s typS
+showField nameType = ConfigDataInfo s (read typS)
     where
         s = nameBase $ fst nameType
         typS = formatTypeName $ snd nameType
@@ -51,12 +62,10 @@ showFields name names = do
 thGetTypeDesc :: Name -> Q Exp
 thGetTypeDesc name = do
     TyConI (DataD _ _ _ [RecC _ fields] _) <- reify name
-    let names = map (\(name,_,typ) -> (name,typ)) fields
+    let names = map (\(fname,_,typ) -> (fname,typ)) fields
     showFields name names
 
-data GlobalSettings = GlobalSettings {
-    getSettingsFolder :: String
-}
+data GlobalSettings = GlobalSettings { getSettingsFolder :: String }
 
 type FolderPath = String
 type ContentType = String
@@ -76,12 +85,14 @@ decodeVal value = case fromJSON value of
     Error msg -> error msg
     Success a -> a
 
-eventProviderWrap :: (FromJSON a, ToJSON a, FromJSON b, ToJSON b) =>  EventProvider a b -> EventProvider Value Value
+eventProviderWrap :: (FromJSON a, ToJSON a, FromJSON b, ToJSON b) =>  EventProvider a b
+                  -> EventProvider Value Value
 eventProviderWrap (EventProvider innerGetModName innerGetEvents
         innerGetConfigType innerGetExtraData) = EventProvider
     {
         getModuleName = innerGetModName,
         getEvents = \a s d u -> innerGetEvents (decodeVal a) s d (u . toJSON),
         getConfigType = innerGetConfigType,
-        getExtraData = innerGetExtraData >>= \decoder -> Just $ \cfg s k -> decoder (decodeVal cfg) s (decodeVal k)
+        getExtraData = innerGetExtraData >>= \decoder ->
+            Just $ \cfg s k -> decoder (decodeVal cfg) s (decodeVal k)
     }

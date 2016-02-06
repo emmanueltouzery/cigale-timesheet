@@ -1,4 +1,5 @@
-{-# LANGUAGE ScopedTypeVariables, DeriveGeneric, LambdaCase, OverloadedStrings, RecordWildCards, RecursiveDo, TupleSections #-}
+{-# LANGUAGE RecordWildCards, RecursiveDo, DeriveGeneric, LambdaCase #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, TupleSections #-}
 
 module Config where
 
@@ -155,24 +156,25 @@ type EditConfigItemRender t = (Dynamic t String, Map String (Dynamic t String))
 
 editConfigItem :: MonadWidget t m => PluginConfig -> ConfigItem -> m (EditConfigItemRender t)
 editConfigItem PluginConfig{..} ConfigItem{..} = do
-    when (isJust $ find (== "Password") (memberType <$> cfgPluginConfig)) $
+    when (isJust $ find (== MtPassword) (memberType <$> cfgPluginConfig)) $
         elAttr "div" ("class" =: "alert alert-warning" <> "role" =: "alert") $
             el "strong" (text "Warning") >>
                 text " passwords are stored in plain text in the configuration file!"
     el "form" $ do
         srcNameInput <- elAttr "fieldset" ("class" =: "form-group") $
             fieldEntry "sourceName" "Enter source name:" configItemName
-        fieldInputs  <- Map.fromList <$> mapM (editConfigDataInfo configItemName configuration) cfgPluginConfig
+        fieldInputs  <- Map.fromList <$>
+            mapM (editConfigDataInfo configItemName configuration) cfgPluginConfig
         return (srcNameInput, fieldInputs)
 
-editConfigDataInfo :: MonadWidget t m => String -> A.Object -> ConfigDataInfo -> m (String, Dynamic t String)
+editConfigDataInfo :: MonadWidget t m => String -> A.Object -> ConfigDataInfo
+                   -> m (String, Dynamic t String)
 editConfigDataInfo cfgItemName obj ConfigDataInfo{..} = do
-    -- TODO it's crappy to case on the string member types -- should use some sum type!
     let fieldValue = readObjectField memberName obj
     field <- case memberType of
-        "Password"   -> passwordEntry memberName memberName fieldValue
-        "FolderPath" -> fileEntry PickFolder cfgItemName memberName fieldValue
-        "FilePath"   -> fileEntry PickFile cfgItemName memberName fieldValue
+        MtPassword   -> passwordEntry memberName memberName fieldValue
+        MtFolderPath -> fileEntry PickFolder cfgItemName memberName fieldValue
+        MtFilePath   -> fileEntry PickFile cfgItemName memberName fieldValue
         _ -> fieldEntry memberName memberName fieldValue
     return (memberName, field)
 
@@ -182,10 +184,10 @@ fileEntry pickerOpMode cfgItemName memberName val = do
     elAttr "label" ("for" =: memberName) $ text memberName
     elAttr "div" ("class" =: "input-group") $ do
         rec
+            let inputAttrs = "id" =: memberName <> "class" =: "form-control"
             inputVal <- _textInput_value <$> textInput
                 (def
-                 & textInputConfig_attributes .~ constDyn ("id" =: memberName
-                                                           <> "class" =: "form-control")
+                 & textInputConfig_attributes .~ constDyn inputAttrs
                  & textInputConfig_initialValue .~ val
                  & textInputConfig_setValue .~ updatedFilePath)
             (browseBtn, _) <- elAttr' "div" ("class" =: "input-group-addon") $
@@ -235,10 +237,10 @@ displayConfigSection dynSecInfo_ = do
     let dynSecInfo = nubDyn dynSecInfo_
     dynPluginConfig <- mapDyn fst dynSecInfo
     dynConfigItems  <- mapDyn snd dynSecInfo
+    dynParams <- combineDyn (\cfg dataInfos -> map (cfg,) dataInfos) dynPluginConfig dynConfigItems
     elAttr "div" ("class" =: "card") $ do
         elAttr "h5" ("class" =: "card-header") $ dynText =<< mapDyn cfgPluginName dynPluginConfig
         elAttr "div" ("class" =: "card-block") $ do
-            dynParams <- combineDyn (\cfg dataInfos -> map (cfg,) dataInfos) dynPluginConfig dynConfigItems
             dynEvtsAr <- mapDyn (sequence . fmap (uncurry displaySectionItem)) dynParams
             dynEvts <- fmap leftmost <$> dyn dynEvtsAr
             (switch . current) <$> holdDyn never dynEvts
@@ -274,8 +276,9 @@ addDeleteButton ci@ConfigItem{..} = do
 
 addEditButton :: MonadWidget t m => PluginConfig -> ConfigItem -> m (Event t ConfigUpdate)
 addEditButton pluginConfig@PluginConfig{..} ci@ConfigItem{..} = do
-    (editBtn, _) <- elAttr' "button" ("class" =: "btn btn-default btn-sm"
-                                      <> "style" =: "float: right; margin-right: 5px") $ text "Edit"
+    let btnClass = "class" =: "btn btn-default btn-sm"
+            <> "style" =: "float: right; margin-right: 5px"
+    (editBtn, _) <- elAttr' "button" btnClass $ text "Edit"
     setupModalR <- setupModal ModalLevelBasic (domEvent Click editBtn) $ do
         rec
             (dialogResult, editDlgOkEvt, _) <- buildModalBody "Edit" (PrimaryBtn "Save")
@@ -289,7 +292,8 @@ addEditButton pluginConfig@PluginConfig{..} ci@ConfigItem{..} = do
         return saveEvt
     modalHandleSaveAction ModalLevelBasic setupModalR
 
-modalHandleSaveAction :: MonadWidget t m => ModalLevel -> Event t (RemoteData b) -> m (Event t b)
+modalHandleSaveAction :: MonadWidget t m => ModalLevel -> Event t (RemoteData b)
+                      -> m (Event t b)
 modalHandleSaveAction modalLevel saveEvt = do
     let savedCfgEditEvt = fmapMaybe fromRemoteData saveEvt
     hideModalOnEvent modalLevel savedCfgEditEvt
@@ -315,14 +319,16 @@ saveConfigEdit configEditEvt = do
                 def { _xhrRequestConfig_sendData = Just (encodeToStr $ newConfigItem cfgEdit) }
     httpVoidRequest makeReq configEditEvt
 
-saveConfigDelete :: MonadWidget t m => Event t ConfigDelete -> m (Event t (RemoteData ConfigDelete))
+saveConfigDelete :: MonadWidget t m => Event t ConfigDelete
+                 -> m (Event t (RemoteData ConfigDelete))
 saveConfigDelete cfgDelEvt = do
     let makeReq (ConfigDelete cfg) = do
             let url = "/config?configItemName=" <> configItemName cfg
             xhrRequest "DELETE" url def
     httpVoidRequest makeReq cfgDelEvt
 
-httpVoidRequest :: MonadWidget t m => (a -> XhrRequest) -> Event t a -> m (Event t (RemoteData a))
+httpVoidRequest :: MonadWidget t m => (a -> XhrRequest) -> Event t a
+                -> m (Event t (RemoteData a))
 httpVoidRequest makeReq evt = do
     -- take advantage of the Traversable instance for pairs, which
     -- will apply the function to the second element only, to pass
@@ -344,7 +350,8 @@ readDialog (nameInput, cfgInputs) PluginConfig{..} = do
     return $ ConfigItem newName cfgPluginName (HashMap.fromList cfgList)
 
 readObjectField :: String -> A.Object -> String
-readObjectField fieldName aObject = fromMaybe "" (A.parseMaybe (\obj -> obj .: T.pack fieldName) aObject)
+readObjectField fieldName aObject = fromMaybe ""
+    (A.parseMaybe (\obj -> obj .: T.pack fieldName) aObject)
 
 pluginContents :: MonadWidget t m => PluginConfig -> ConfigItem -> m ()
 pluginContents pluginConfig configContents = elAttr "table" ("class" =: "table") $
@@ -354,7 +361,7 @@ getPluginElement :: MonadWidget t m => A.Object -> ConfigDataInfo -> m ()
 getPluginElement config ConfigDataInfo{..} = do
     let memberValue = readObjectField memberName config
     let memberValueDisplay = case memberType of
-            "Password" -> replicate (length memberValue) '*'
+            MtPassword -> replicate (length memberValue) '*'
             _          -> memberValue
     el "tr" $ do
         el "td" $ text memberName

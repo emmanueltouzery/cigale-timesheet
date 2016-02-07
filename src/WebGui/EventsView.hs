@@ -267,6 +267,8 @@ eventsTable (RemoteData (FetchResponse tsEvents _)) = do
         let tableStyle = height (pct 100) >> display block >> overflow auto
         elAttrStyle "table" ("class" =: "table") tableStyle $ do
             rec
+                -- need to tell to the individual showRecords which is the current
+                -- record. Select the first record by default, if any, using headZ.
                 events <- mapM (showRecord curEventDyn) tsEvents
                 curEventDyn <- holdDyn (headZ tsEvents) $ leftmost $ fmap (fmap Just) events
             return curEventDyn

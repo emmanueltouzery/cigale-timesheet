@@ -285,7 +285,6 @@ getTimezoneOffsetMinsForDateMs = _getTimezoneOffsetMinsForDateMs . toJSString . 
 getCurrentTimeZoneJS :: UTCTime -> IO TimeZone
 getCurrentTimeZoneJS = fmap minutesToTimeZone . getTimezoneOffsetMinsForDateMs
 
-
 absTop :: Double -> Css
 absTop y = position absolute >> top (px y)
 
@@ -351,8 +350,8 @@ displayDetails (Just TsEvent{..}) = do
         el "h3" $ text_ desc
         el "h4" $ text_ extraInfo
         case fullContents of
-            Nothing   -> return ()
-            Just cts  -> elAttrStyle "iframe" iframeClass (flexGrow 1) $ return ()
+            Nothing  -> return ()
+            Just cts -> elAttrStyle "iframe" iframeClass (flexGrow 1) $ return ()
                 where iframeClass = "srcdoc" =: T.unpack cts
                           <> "frameBorder" =: "0"
                           <> "width" =: "100%"

@@ -66,39 +66,46 @@ eventsView activeViewDyn = do
     attrsDyn <- forDyn activeViewDyn $ \curView ->
         attrStyleWithHideIf (curView /= ActiveViewEvents)
             (height (other "calc(100% - 70px)") >> cssPos)
-    elDynAttr "div" attrsDyn $ do
-        rec
-            -- TODO getPostBuild ... maybe when the tab is loaded instead?
-            -- initialize on yesterday, because it's finished i can cache it.
-            today <- liftIO getToday
-            let initialDay = addDays (-1) today
-            loadRecordsEvent <- leftmost <$> sequence
-                [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
-            responseEvt <- requestDayEvents loadRecordsEvent
-            -- the leftmost makes sure that we reset the respDyn
-            -- to loading state when loadRecordsEvent is triggered.
-            respDyn <- holdDyn RemoteDataLoading $ leftmost
-                [fmap (const RemoteDataLoading) loadRecordsEvent, responseEvt]
-            displayWarningBanner respDyn
-            curDate <- addDatePicker initialDay
+    elDynAttr "div" attrsDyn $ eventsViewContents
 
-        -- TODO 60px is ugly (date picker height)
-        let divStyle = do
-                display flex
-                height (other "calc(100% - 60px)")
-                marginTop (px 20)
-                overflow auto
-        elStyle "div" divStyle $ do
-            tableRes <- mapDyn eventsTable respDyn >>= dyn >>= holdDyn (constDyn Nothing)
-            -- nubDyn to avoid blinking if you click on the already-selected event.
-            let curEvtDyn = nubDyn (joinDyn tableRes)
-            void $ mapDyn displayDetails curEvtDyn >>= dyn
+eventsViewContents :: MonadWidget t m => m ()
+eventsViewContents = do
+    rec
+        -- initialize on yesterday, because it's finished i can cache it.
+        today <- liftIO getToday
+        let initialDay = addDays (-1) today
+        -- TODO getPostBuild ... maybe when the tab is loaded instead?
+        loadRecordsEvent <- leftmost <$> sequence
+            [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
+        responseEvt <- requestDayEvents loadRecordsEvent
+        -- the leftmost makes sure that we reset the respDyn
+        -- to loading state when loadRecordsEvent is triggered.
+        respDyn <- holdDyn RemoteDataLoading $ leftmost
+            [fmap (const RemoteDataLoading) loadRecordsEvent, responseEvt]
+        displayWarningBanner respDyn
+        curDate <- addDatePicker initialDay
 
-        -- display the progress indicator if needed.
-        holdAttrs <- forDyn respDyn $ \curEvt ->
-            "id" =: "pleasehold" <> attrStyleHideIf (not $ isRemoteDataLoading curEvt)
-        elDynAttr "div" holdAttrs $ text "Please hold..."
-        return ()
+    displayEvents respDyn
+
+    -- display the progress indicator if needed.
+    holdAttrs <- forDyn respDyn $ \curEvt ->
+        "id" =: "pleasehold" <> attrStyleHideIf (not $ isRemoteDataLoading curEvt)
+    elDynAttr "div" holdAttrs $ text "Please hold..."
+    return ()
+
+displayEvents :: MonadWidget t m => Dynamic t (RemoteData FetchResponse) -> m ()
+displayEvents respDyn = do
+    -- TODO 60px is ugly (date picker height)
+    let divStyle = do
+            display flex
+            height (other "calc(100% - 60px)")
+            marginTop (px 20)
+            overflow auto
+    elStyle "div" divStyle $ do
+        tableRes <- mapDyn eventsTable respDyn >>= dyn >>= holdDyn (constDyn Nothing)
+        -- nubDyn to avoid blinking if you click on the already-selected event.
+        let curEvtDyn = nubDyn (joinDyn tableRes)
+        void $ mapDyn displayDetails curEvtDyn >>= dyn
 
 requestDayEvents :: MonadWidget t m => Event t Day -> m (Event t (RemoteData FetchResponse))
 requestDayEvents dayEvt = do

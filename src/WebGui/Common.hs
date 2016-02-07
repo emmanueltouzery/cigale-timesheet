@@ -96,8 +96,8 @@ styleStr = tail . init . T.unpack . TL.toStrict . renderWith compact []
 paddingAll :: Size a -> Css
 paddingAll x = padding x x x x
 
-performOnChange :: MonadWidget t m => (a -> WidgetHost m ()) -> Dynamic t a -> m ()
-performOnChange action dynamic = performEvent_ $
+performOnDynChange :: MonadWidget t m => Dynamic t a -> (a -> WidgetHost m ()) -> m ()
+performOnDynChange dynamic action = performEvent_ $
     fmap (const $ sample (current dynamic) >>= action) $ updated dynamic
 
 button' :: MonadWidget t m => m a -> m (Event t ())

@@ -229,9 +229,8 @@ createDateLabel curDate picker = do
                   return False) (updated curDate)
 
     -- open or close the datepicker when the user clicks on the toggle button
-    performOnChange
-        (\focus -> liftIO $ (if focus then pickerShow else pickerHide) picker)
-        cbDyn
+    performOnDynChange cbDyn $ \focus ->
+        liftIO $ (if focus then pickerShow else pickerHide) picker
 
 displayWarningBanner :: MonadWidget t m => Dynamic t (RemoteData FetchResponse) -> m ()
 displayWarningBanner respDyn = do

@@ -63,13 +63,13 @@ cigaleView = do
 -- and toplevelmodalcontents DOM IDs.
 addModalDialogSkeleton :: MonadWidget t m => Int -> ModalLevel -> m ()
 addModalDialogSkeleton zIndexVal modalLevel =
-    void $ elAttrStyle' "div" ("class" =: "modal fade"
-                          <> "tabindex" =: "-1"
-                          <> "id" =: topLevelModalId modalLevel)
+    void $ elAttrStyle' "div" ("class"    =: "modal fade" <>
+                               "tabindex" =: "-1" <>
+                               "id"       =: topLevelModalId modalLevel)
                           (zIndex $ fromIntegral zIndexVal) $
-        elAttr "div" ("class" =: "modal-dialog"
-                      <> "role" =: "document"
-                      <> "id" =: topLevelModalContentsId modalLevel) $ text ""
+        elAttr "div" ("class" =: "modal-dialog" <>
+                      "role"  =: "document" <>
+                      "id"    =: topLevelModalContentsId modalLevel) $ text ""
 
 data NavLinkItem = NavLinkItem
      {

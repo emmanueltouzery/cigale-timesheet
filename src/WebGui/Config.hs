@@ -111,11 +111,11 @@ displayAddCfgButton pluginConfigs = do
             paddingBottom (px 10)
     clickEvts <- elAttrStyle "div" ("width" =: "100%") addBtnStyle $
         elAttr "div" ("class" =: "btn-group") $ do
-            elAttr "button" ("type" =: "button"
-                             <> "class" =: "btn btn-primary dropdown-toggle"
-                             <> "data-toggle" =: "dropdown"
-                             <> "aria-haspopup" =: "true"
-                             <> "aria-expanded" =: "false")
+            elAttr "button" ("type"  =: "button" <>
+                             "class" =: "btn btn-primary dropdown-toggle" <>
+                             "data-toggle"   =: "dropdown" <>
+                             "aria-haspopup" =: "true" <>
+                             "aria-expanded" =: "false")
                 $ text "Add..."
             elAttr "div" ("class" =: "dropdown-menu dropdown-menu-right") $
                 mapM addCfgDropdownBtn pluginConfigs
@@ -124,8 +124,8 @@ displayAddCfgButton pluginConfigs = do
 
 addCfgDropdownBtn :: MonadWidget t m => PluginConfig -> m (Event t ())
 addCfgDropdownBtn PluginConfig{..} = do
-    (pcLnk, _) <- elAttr' "a" ("class" =: "dropdown-item"
-                               <> "href" =: "javascript:void(0);") $
+    (pcLnk, _) <- elAttr' "a" ("class" =: "dropdown-item" <>
+                               "href"  =: "javascript:void(0);") $
         text cfgPluginName
     return (domEvent Click pcLnk)
 
@@ -216,10 +216,10 @@ passwordEntry fieldId desc fieldValue = do
     elAttr "div" ("class" =: "input-group") $ do
         rec
             attrsDyn <- forDyn showPaswd
-                (\p -> "class" =: "form-control"
-                       <> "id" =: fieldId
-                       <> "value" =: fieldValue
-                       <> "type" =: if p then "password" else "text")
+                (\p -> "class" =: "form-control" <>
+                       "id"    =: fieldId <>
+                       "value" =: fieldValue <>
+                       "type"  =: if p then "password" else "text")
             (inputField, _) <- elDynAttr' "input" attrsDyn $ return ()
             showPaswd <- foldDyn ($) True $ leftmost [fmap (const not) padlockEvt]
             (padlock, _) <- elAttr' "div" ("class" =: "input-group-addon") $ do

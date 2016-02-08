@@ -292,9 +292,9 @@ showRecord :: MonadWidget t m => Dynamic t (Maybe TsEvent) -> TsEvent -> m (Even
 showRecord curEventDyn tsEvt@TsEvent{..} = do
     rowAttrs <- forDyn curEventDyn $ \curEvt ->
         "class" =: if curEvt == Just tsEvt then "table-active" else ""
-    (e, _) <- elDynAttr' "tr" rowAttrs $ do
+    (e, _) <- elDynAttr' "tr" rowAttrs $
         elStyle "td" (height (px 60) >> width (px 500) >> cursor pointer) $
-            elStyle "div" (position relative) $ do
+            elStyle "div" (position relative) $
                 recordsContents tsEvt
     return (const tsEvt <$> domEvent Click e)
 
@@ -352,9 +352,9 @@ displayDetails (Just TsEvent{..}) = do
         case fullContents of
             Nothing  -> return ()
             Just cts -> elAttrStyle "iframe" iframeClass (flexGrow 1) $ return ()
-                where iframeClass = "srcdoc" =: T.unpack cts
-                          <> "frameBorder" =: "0"
-                          <> "width" =: "100%"
+                where iframeClass = "srcdoc" =: T.unpack cts <>
+                                    "frameBorder" =: "0" <>
+                                    "width" =: "100%"
 
 datePicker :: MonadWidget t m => Day -> m (Event t Day, PikadayPicker)
 datePicker initialDay = do

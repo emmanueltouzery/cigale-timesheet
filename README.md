@@ -31,6 +31,11 @@ As it's written in Haskell, it should run fine on linux and OSX; I develop it on
 Also on linux, installation will take a long (long, long) time, because it will build many dependencies from source (including, if needed, bootstrap a haskell->javascript compiler).
 
 First you need to install the [stack package manager][]. You also need to install `node.js`, `npm`, the zlib, sqlite, openssl & ncurses/tinfo devel packages (see lower).
+
+Careful! Currently `ghcjs` [is very sensitive][] to [the node version][]... 4.1.0 works. 0.10.40 works. 5.x apparently doesn't work. You can [install n] and run:
+
+    n 4.1.0
+
 To prevent errors like `/usr/bin/ld: cannot find -ltinfo`, run:
 
     sudo dnf install ncurses-devel (fedora)
@@ -64,3 +69,6 @@ Fetching data for one day can take time, if you're using network sources, like S
 [Settings screenshot]: https://raw.github.com/wiki/emmanueltouzery/cigale-timesheet/settings.png
 [painful]: https://plus.google.com/108801936173059193561/posts/PE3TiGMkUx2
 [stack package manager]: http://docs.haskellstack.org/en/stable/README.html#how-to-install
+[is very sensitive]: https://github.com/ghcjs/ghcjs/issues/451
+[the node version]: https://github.com/commercialhaskell/stack/issues/1496#issuecomment-174626093
+[install n]: http://askubuntu.com/questions/426750/how-can-i-update-my-nodejs-to-the-latest-version/480642#480642

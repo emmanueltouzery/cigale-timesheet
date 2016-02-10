@@ -5,7 +5,7 @@ import GHCJS.Types
 import GHCJS.Foreign
 
 import Reflex
-import Reflex.Dom
+import Reflex.Dom hiding (display)
 
 import Clay
 import Data.List
@@ -27,6 +27,17 @@ foreign import javascript unsafe "document.title = $1" setTitle :: JSString -> I
 
 css :: Css
 css = do
+    html ? do
+        height (pct 100)
+        marginAll (px 0)
+        paddingAll (px 0)
+    body ? do
+        "flex" -: "1"
+        height (pct 100)
+        marginAll (px 0)
+        paddingAll (px 0)
+        display flex
+        flexDirection column
     ".ellipsis" ? do
         whiteSpace nowrap
         overflow hidden
@@ -89,7 +100,7 @@ navBar = do
     urlLocationHash <- liftIO $ fromJSString <$> getLocationHash
     rec
         viewEvts <-
-            elAttrStyle "div" ("role" =: "navigation") (paddingAll $ px 10) $
+            elAttrStyle "div" ("role" =: "navigation") (marginAll (px 10) >> flexShrink 0) $
                 elAttr "ul" ("class" =: "nav nav-tabs") $ do
                     elAttr "span" ("class" =: "navbar-brand") $ text "Cigale"
                     e <- mapM (navLink activeViewDyn) navLinkItems

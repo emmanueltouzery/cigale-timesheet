@@ -56,16 +56,13 @@ pickerShow = _pickerShow . unPicker
 
 eventsView :: MonadWidget t m => Dynamic t ActiveView -> m ()
 eventsView activeViewDyn = do
-    let cssPos = do
-            overflow hidden
-            position absolute
-            bottom (px 0)
-            right (px 0)
-            left (px 0)
-    -- TODO the hardcoded 70px is no good! (height of navigation bar)
+    let rootStyle = do
+            flexGrow 1
+            display flex
+            flexDirection column
+            overflow auto
     attrsDyn <- forDyn activeViewDyn $ \curView ->
-        attrStyleWithHideIf (curView /= ActiveViewEvents)
-            (height (other "calc(100% - 70px)") >> cssPos)
+        attrStyleWithHideIf (curView /= ActiveViewEvents) rootStyle
     elDynAttr "div" attrsDyn $ eventsViewContents
 
 eventsViewContents :: MonadWidget t m => m ()
@@ -95,12 +92,12 @@ eventsViewContents = do
 
 displayEvents :: MonadWidget t m => Dynamic t (RemoteData FetchResponse) -> m ()
 displayEvents respDyn = do
-    -- TODO 60px is ugly (date picker height)
     let divStyle = do
             display flex
-            height (other "calc(100% - 60px)")
+            flexGrow 1
+            flexDirection row
             marginTop (px 20)
-            overflow auto
+            overflow auto -- !!
     elStyle "div" divStyle $ do
         tableRes <- mapDyn eventsTable respDyn >>= dyn >>= holdDyn (constDyn Nothing)
         -- nubDyn to avoid blinking if you click on the already-selected event.
@@ -262,9 +259,9 @@ eventsTable :: MonadWidget t m => RemoteData FetchResponse -> m (Dynamic t (Mayb
 eventsTable (RemoteDataInvalid _) = return (constDyn Nothing)
 eventsTable RemoteDataLoading = return (constDyn Nothing)
 eventsTable (RemoteData (FetchResponse tsEvents _)) = do
-    elStyle "div" (width (px 500) >> height (pct 100) >> flexShrink 0) $ do
+    elStyle "div" (width (px 500) >> flexShrink 0 >> overflow auto) $ do
         -- display: block is needed for overflow to work, http://stackoverflow.com/a/4457290/516188
-        let tableStyle = height (pct 100) >> display block >> overflow auto
+        let tableStyle = display block >> overflow auto
         elAttrStyle "table" ("class" =: "table") tableStyle $ do
             rec
                 -- need to tell to the individual showRecords which is the current
@@ -344,14 +341,14 @@ displayDetails (Just TsEvent{..}) = do
         flexGrow 1
         display flex
         flexDirection column
+        overflow auto
         paddingAll (px 7)
-        height (pct 100)
     elStyle "div" divStyle $ do
         el "h3" $ text_ desc
         el "h4" $ text_ extraInfo
         case fullContents of
             Nothing  -> return ()
-            Just cts -> elAttrStyle "iframe" iframeClass (flexGrow 1) $ return ()
+            Just cts -> elAttrStyle "iframe" iframeClass (flexGrow 1 >> minHeight (px 0) >> minWidth (px 0)) $ return ()
                 where iframeClass = "srcdoc" =: T.unpack cts <>
                                     "frameBorder" =: "0" <>
                                     "width" =: "100%"

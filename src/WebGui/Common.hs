@@ -51,16 +51,16 @@ attrOptDyn :: a -> String -> Bool -> String -> Map a String
 attrOptDyn attrib opt isShow str = attrib =: (str <> if isShow then " " <> opt else "")
 
 attrStyleWithHideIf :: Bool -> Css -> Map String String
-attrStyleWithHideIf isShow rest = "style" =: styleStr (styleWithHideIf isShow rest)
+attrStyleWithHideIf isHide rest = "style" =: styleStr (styleWithHideIf isHide rest)
 
 styleWithHideIf :: Bool -> Css -> Css
-styleWithHideIf isShow rest = (rest >> if isShow then display none else display block)
+styleWithHideIf isHide rest = (rest >> when isHide (display none))
 
 attrStyleHideIf :: Bool -> Map String String
-attrStyleHideIf isShow = "style" =: styleStr (styleHideIf isShow)
+attrStyleHideIf isHide = "style" =: styleStr (styleHideIf isHide)
 
 styleHideIf :: Bool -> Css
-styleHideIf isShow = styleWithHideIf isShow (return ())
+styleHideIf isHide = styleWithHideIf isHide (return ())
 
 stylesheet :: MonadWidget t m => String -> m ()
 stylesheet str = elAttr "link" ("rel" =: "stylesheet" <> "href" =: str) blank
@@ -91,10 +91,15 @@ elDynAttrStyle' elementTag dynAttrs styleCss child = do
 -- the tail . init removes leading and trailing {}
 -- see https://github.com/sebastiaanvisser/clay/issues/120
 styleStr :: Css -> String
-styleStr = tail . init . T.unpack . TL.toStrict . renderWith compact []
+styleStr css = case T.unpack $ TL.toStrict $ renderWith compact [] css of
+    xs@(_:_:_) -> tail $ init xs
+    short      -> short
 
 paddingAll :: Size a -> Css
 paddingAll x = padding x x x x
+
+marginAll :: Size a -> Css
+marginAll x = margin x x x x
 
 performOnDynChange :: MonadWidget t m => Dynamic t a -> (a -> WidgetHost m ()) -> m ()
 performOnDynChange dynamic action = performEvent_ $

@@ -50,8 +50,14 @@ data FetchedData = FetchedData
 
 configView :: MonadWidget t m => Dynamic t ActiveView -> m ()
 configView activeViewDyn = do
+    let configStyle = do
+            flexGrow 1
+            display flex
+            flexDirection column
+            paddingRight (px 10)
+            overflow auto
     attrsDyn <- forDyn activeViewDyn $ \curView ->
-        attrStyleWithHideIf (curView /= ActiveViewConfig) (height (pct 100) >> paddingRight (px 10))
+        attrStyleWithHideIf (curView /= ActiveViewConfig) configStyle
     elDynAttr "div" attrsDyn $ do
         -- TODO getPostBuild ... maybe when the tab is loaded instead?
         postBuild  <- getPostBuild
@@ -98,7 +104,8 @@ displayConfig dynFetchedData = do
         cfgByProvider <- mapDyn (fromMaybe []) =<< mapDyn (liftA groupByProvider) dynFetchedData
         let addCfgBtn = displayAddCfgButton . maybe [] fetchedConfigDesc
         addCfgEvt <- holdDyn never =<< (dyn =<< mapDyn addCfgBtn dynFetchedData)
-        cfgChgEvt <- mapDyn leftmost =<< simpleList cfgByProvider displayConfigSection
+        cfgChgEvt <- elStyle "div" (flexGrow 1 >> overflow auto) $
+            mapDyn leftmost =<< simpleList cfgByProvider displayConfigSection
     return $ leftmost $ fmap (switch . current) [addCfgEvt, cfgChgEvt]
 
 displayAddCfgButton :: MonadWidget t m => [PluginConfig] -> m (Event t ConfigChange)
@@ -107,6 +114,7 @@ displayAddCfgButton pluginConfigs = do
             display flex
             flexDirection row
             justifyContent flexEnd
+            flexShrink 0
             paddingRight (px 30)
             paddingBottom (px 10)
     clickEvts <- elAttrStyle "div" ("width" =: "100%") addBtnStyle $

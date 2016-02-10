@@ -138,8 +138,10 @@ openInBrowser = do
 browsers :: [(String, IO ())]
 browsers =
     [
-        ("google-chrome", void $ rawSystem "google-chrome" ["--app=" ++ appUrl]),
-        ("chromium-browser", void $ rawSystem "chromium-browser" ["--app=" ++ appUrl]),
+        -- incognito prevents the cache from kicking in. TODO should rather
+        -- generalize "no cache" on the server side... that's a hack.
+        ("google-chrome", void $ rawSystem "google-chrome" ["--app=" ++ appUrl, "--incognito"]),
+        ("chromium-browser", void $ rawSystem "chromium-browser" ["--app=" ++ appUrl, "--incognito"]),
         ("epiphany", runEpiphany)
     ]
 fallbackBrowser :: IO ()

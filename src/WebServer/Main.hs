@@ -33,7 +33,7 @@ import Text.Printf
 
 import qualified Timesheet
 import Config
-import Util (parse2, parseNum, parseMaybe)
+import Util (parse2, parseNum, parseMaybe, findM)
 import Paths_cigale_timesheet
 import FilePickerServer (browseFolder)
 import SnapUtil (setActionResponse, hParam, noteET)
@@ -42,6 +42,9 @@ import EventProvider
 
 appPort :: Int
 appPort = 8000
+
+appUrl :: String
+appUrl = "http://localhost:" ++ show appPort ++ "/cigale"
 
 main :: IO ()
 main = do
@@ -132,18 +135,28 @@ openInBrowser = do
         Left (_ :: SomeException) -> openInBrowser
         Right conn -> close conn >> openApp
 
+browsers :: [(String, IO ())]
+browsers =
+    [
+        ("google-chrome", void $ rawSystem "google-chrome" ["--app=" ++ appUrl]),
+        ("chromium-browser", void $ rawSystem "chromium-browser" ["--app=" ++ appUrl]),
+        ("epiphany", runEpiphany)
+    ]
+fallbackBrowser :: IO ()
+fallbackBrowser = void $ rawSystem "xdg-open" [appUrl]
+
+runEpiphany :: IO ()
+runEpiphany = do
+    putStrLn "WARNING: epiphany as of 3.18 shows some bugs in the rendering."
+    settingsFolder <- Config.getSettingsFolder
+    let profileDir = settingsFolder ++ "/epiphany-profile-app-cigale-timesheet"
+    createDirectoryIfMissing True profileDir
+    void $ rawSystem "epiphany" ["--application-mode", "--profile=" ++ profileDir, appUrl]
+
 openApp :: IO ()
-openApp = do
-    epiphany <- hasProgram "epiphany"
-    void $ if epiphany
-    then do
-        settingsFolder <- Config.getSettingsFolder
-        let profileDir = settingsFolder ++ "/epiphany-profile-app-cigale-timesheet"
-        createDirectoryIfMissing True profileDir
-        rawSystem "epiphany" ["--application-mode", "--profile=" ++ profileDir, url]
-    else rawSystem "xdg-open" [url]
-    where
-        url = "http://localhost:" ++ show appPort ++ "/cigale"
+openApp = findM (hasProgram . fst) browsers >>= \case
+    Nothing       -> fallbackBrowser
+    Just (_, cmd) -> cmd
 
 hasProgram :: String -> IO Bool
 hasProgram prog = isJust <$> findExecutable prog

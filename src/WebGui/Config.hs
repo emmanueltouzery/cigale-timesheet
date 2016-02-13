@@ -75,26 +75,23 @@ configView activeViewDyn = do
             configUpdateEvt <- displayConfig =<< mapDyn fromRemoteData configDataDyn
         return ()
 
-data ConfigAdd = ConfigAdd ConfigItem deriving Show
 data ConfigUpdate = ConfigUpdate
     {
         oldConfigItemName :: String,
         newConfigItem :: ConfigItem
     } deriving Show
-data ConfigDelete = ConfigDelete ConfigItem deriving Show
-
-data ConfigChange = ChangeAdd ConfigAdd
+data ConfigChange = ChangeAdd ConfigItem
                   | ChangeUpdate ConfigUpdate
-                  | ChangeDelete ConfigDelete
+                  | ChangeDelete ConfigItem
                   deriving Show
 
 applyConfigChange :: RemoteData FetchedData -> ConfigChange -> RemoteData FetchedData
 applyConfigChange (RemoteData (FetchedData desc val)) chg = RemoteData (FetchedData desc newVal)
     where newVal = case chg of
-           ChangeAdd (ConfigAdd newCi) -> newCi:val
+           ChangeAdd newCi -> newCi:val
            ChangeUpdate (ConfigUpdate oldCiName newCi) ->
                newCi : filter ((/= oldCiName) . configItemName) val
-           ChangeDelete (ConfigDelete ci) -> filter (/= ci) val
+           ChangeDelete ci -> filter (/= ci) val
 applyConfigChange _ _ = error "applyConfigChange called on unloaded data??"
 
 displayConfig :: MonadWidget t m => Dynamic t (Maybe FetchedData)
@@ -128,7 +125,7 @@ displayAddCfgButton pluginConfigs = do
             elAttr "div" ("class" =: "dropdown-menu dropdown-menu-right") $
                 mapM addCfgDropdownBtn pluginConfigs
     addEvts <- zipWithM addCfgPluginAdd pluginConfigs clickEvts
-    return (ChangeAdd <$> leftmost addEvts)
+    return (leftmost addEvts)
 
 addCfgDropdownBtn :: MonadWidget t m => PluginConfig -> m (Event t ())
 addCfgDropdownBtn PluginConfig{..} = do
@@ -139,7 +136,7 @@ addCfgDropdownBtn PluginConfig{..} = do
 
 -- TODO obvious duplication in the way the add/edit/delete modals are handled.
 -- setupModal then buildModalBody, then error event, save event, then handle save...
-addCfgPluginAdd :: MonadWidget t m => PluginConfig -> Event t () -> m (Event t ConfigAdd)
+addCfgPluginAdd :: MonadWidget t m => PluginConfig -> Event t () -> m (Event t ConfigChange)
 addCfgPluginAdd pc clickEvt = do
     let ci = ConfigItem "" "" HashMap.empty
     setupModalR <- setupModal ModalLevelBasic clickEvt $ do
@@ -149,7 +146,7 @@ addCfgPluginAdd pc clickEvt = do
             errorDyn <- remoteDataErrorDescDyn saveEvt
 
             editConfigEvt <- performEvent $ fmap
-                (const $ ConfigAdd <$> readDialog dialogResult pc)
+                (const $ ChangeAdd <$> readDialog dialogResult pc)
                 addDlgOkEvt
             saveEvt <- saveConfigAdd editConfigEvt
         return saveEvt
@@ -266,12 +263,12 @@ displaySectionItem pluginConfig@PluginConfig{..} ci@ConfigItem{..} =
             delEvt <- addDeleteButton ci
             updEvt <- addEditButton pluginConfig ci
             -- leftmost is ok, they can't both happen at the same time
-            return $ leftmost [fmap ChangeDelete delEvt, fmap ChangeUpdate updEvt]
+            return $ leftmost [delEvt, fmap ChangeUpdate updEvt]
         elAttr "div" ("class" =: "card-block") $
             pluginContents pluginConfig ci
         return cfgChgEvt
 
-addDeleteButton :: MonadWidget t m => ConfigItem -> m (Event t ConfigDelete)
+addDeleteButton :: MonadWidget t m => ConfigItem -> m (Event t ConfigChange)
 addDeleteButton ci@ConfigItem{..} = do
     (deleteBtn, _) <- elAttrStyle' "button"
         ("class" =: "btn btn-danger btn-sm") (float floatRight) $ text "Delete"
@@ -281,7 +278,7 @@ addDeleteButton ci@ConfigItem{..} = do
                 errorDyn (text $ "Delete the config item " <> configItemName <> "?")
             errorDyn <- remoteDataErrorDescDyn saveEvt
 
-            let deleteEvt = fmap (const $ ConfigDelete ci) deleteDlgOkEvt
+            let deleteEvt = fmap (const $ ChangeDelete ci) deleteDlgOkEvt
             saveEvt <- saveConfigDelete deleteEvt
         return saveEvt
     modalHandleSaveAction ModalLevelBasic setupModalR
@@ -315,9 +312,9 @@ encodeToStr :: ToJSON a => a -> String
 encodeToStr = bsToStr . encode
     where bsToStr = map (chr . fromEnum) . BS.unpack
 
-saveConfigAdd :: MonadWidget t m => Event t ConfigAdd -> m (Event t (RemoteData ConfigAdd))
+saveConfigAdd :: MonadWidget t m => Event t ConfigChange -> m (Event t (RemoteData ConfigChange))
 saveConfigAdd configAddEvt = do
-    let makeReq (ConfigAdd cfg) = do
+    let makeReq (ChangeAdd cfg) = do
             let url = "/config"
             xhrRequest "POST" url $
                 def { _xhrRequestConfig_sendData = Just (encodeToStr cfg) }
@@ -331,10 +328,10 @@ saveConfigEdit configEditEvt = do
                 def { _xhrRequestConfig_sendData = Just (encodeToStr $ newConfigItem cfgEdit) }
     httpVoidRequest makeReq configEditEvt
 
-saveConfigDelete :: MonadWidget t m => Event t ConfigDelete
-                 -> m (Event t (RemoteData ConfigDelete))
+saveConfigDelete :: MonadWidget t m => Event t ConfigChange
+                 -> m (Event t (RemoteData ConfigChange))
 saveConfigDelete cfgDelEvt = do
-    let makeReq (ConfigDelete cfg) = do
+    let makeReq (ChangeDelete cfg) = do
             let url = "/config?configItemName=" <> configItemName cfg
             xhrRequest "DELETE" url def
     httpVoidRequest makeReq cfgDelEvt

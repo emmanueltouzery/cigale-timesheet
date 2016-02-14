@@ -6,6 +6,8 @@ module EventsView where
 import GHCJS.Types
 import GHCJS.Foreign
 import GHCJS.DOM.Element
+import GHCJS.DOM.Document
+import GHCJS.DOM.EventM (stopPropagation)
 
 import Reflex
 import Reflex.Dom hiding (display)
@@ -217,13 +219,18 @@ createDateLabel curDate picker = do
                 width (px 180)
                 maxWidth (px 180)
         (label, _) <- elAttrStyle' "label" labelClass labelStyle $ do
-            void $ checkboxView (constDyn Map.empty) cbDyn
+            -- without the disabled, the event triggers twice with stopPropagation
+            void $ checkboxView (constDyn $ "disabled" =: "disabled") cbDyn
             dynText =<< mapDyn (formatTime defaultTimeLocale "%A, %F") curDate
+        -- use stopPropagation so that I can catch the clicks on the body elsewhere
+        -- and close the date picker when the user clicks elsewhere.
+        e <- wrapDomEvent (_el_element label) elementOnclick stopPropagation
 
         -- trigger day toggle event when the day button is pressed
         dayToggleEvt <- performEvent $ fmap (const $ liftIO $ do
+            eltToggleClass (_el_element label) "active"
             (cn :: String) <- elementGetClassName (_el_element label)
-            return ("active" `isInfixOf` cn)) $ domEvent Click label
+            return ("active" `isInfixOf` cn)) e
 
         -- close the datepicker & update its date on day change.
         pickerAutoCloseEvt <- performEvent $ fmap
@@ -231,6 +238,14 @@ createDateLabel curDate picker = do
                   eltStripClass (_el_element label) "active"
                   pickerSetDate picker d
                   return False) (updated curDate)
+
+        -- close the date picker on any click anywhere else.
+        doc <- askDocument
+        (Just body) <- liftIO (documentGetBody doc)
+        bodyElt <- wrapElement defaultDomEventHandler (castToElement body)
+        performEvent_ $ fmap (const $ liftIO $ do
+                                   eltStripClass (_el_element label) "active"
+                                   pickerHide picker) $ domEvent Click bodyElt
 
     -- open or close the datepicker when the user clicks on the toggle button
     performOnDynChange cbDyn $ \focus ->

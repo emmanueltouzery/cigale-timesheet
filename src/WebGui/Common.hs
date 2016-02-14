@@ -27,6 +27,7 @@ import qualified Data.Map as Map
 import Control.Monad.IO.Class
 import Data.Aeson
 import Control.Monad
+import Data.List
 
 data ActiveView = ActiveViewEvents | ActiveViewConfig deriving (Eq, Show)
 
@@ -46,6 +47,14 @@ eltStripClass elt className = do
     curClasses <- T.splitOn " " <$> T.pack <$> elementGetClassName elt
     let newClasses = T.unpack <$> filter (/= className) curClasses
     elementSetClassName elt (unwords newClasses)
+
+eltToggleClass :: IsElement self => self -> Text -> IO ()
+eltToggleClass elt classItem = do
+    let classItemS = T.unpack classItem
+    fullClass <- elementGetClassName elt
+    if classItemS `isInfixOf` fullClass
+        then eltStripClass elt classItem
+        else elementSetClassName elt (fullClass <> " " <> classItemS)
 
 attrOptDyn :: a -> String -> Bool -> String -> Map a String
 attrOptDyn attrib opt isShow str = attrib =: (str <> if isShow then " " <> opt else "")

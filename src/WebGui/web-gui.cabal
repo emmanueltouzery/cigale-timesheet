@@ -17,6 +17,11 @@ Executable cigale-web
        .,
        ../Shared
    main-is: App.hs
+   other-modules:
+       Config,
+       Common,
+       EventsView,
+       FilePicker
    build-depends:
        base,
        reflex,

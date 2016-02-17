@@ -31,9 +31,8 @@ cd src/WebGui/
 stack install happy
 export PATH=$PATH:~/.local/bin
 
-# doesn't always rebuild without force dirty :-(
 echo "building the client-side app"
-stack build --force-dirty
+stack build
 echo "built the client-side app"
 
 # I have two projects, the executable cannot find the html/js

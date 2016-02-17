@@ -76,6 +76,12 @@ Executable cigale-timesheet
   hs-source-dirs:
     src/WebServer
   main-is: Main.hs
+  other-modules:
+     Config
+     FilePickerServer
+     Paths_cigale_timesheet
+     SnapUtil
+     Timesheet
   Build-depends:
      base,
      cigale-timesheet,

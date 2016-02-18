@@ -3,16 +3,11 @@
 module GitSpec (spec) where
 
 import Test.Hspec
-import Test.HUnit
-import Data.Either
 import Data.Time.LocalTime
 import Data.Time.Calendar
-import qualified Data.Text as T
-import Data.Monoid
 
 import Str
 import Git
-import Util
 import TestUtil
 
 spec :: Spec

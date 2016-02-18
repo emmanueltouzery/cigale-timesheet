@@ -5,6 +5,7 @@ module Util where
 import qualified Data.ByteString as B
 import Data.List (transpose)
 import qualified Data.Text as T
+import Data.Text (Text)
 import Data.Time.Clock
 import Text.ParserCombinators.Parsec
 import qualified Text.Parsec.Text as T
@@ -28,7 +29,7 @@ import OpenSSL (withOpenSSL)
 parseNum :: (Num a, Read a) => Int -> T.GenParser st a
 parseNum digitCount = read <$> count digitCount digit
 
-runProcess :: String -> String -> [String] -> ExceptT String IO T.Text
+runProcess :: String -> String -> [String] -> ExceptT String IO Text
 runProcess program runningFolder parameters = do
     (inh, Just outh, errh, pid) <- lift $ createProcess (proc program parameters)
         { std_out = CreatePipe, cwd = Just runningFolder }
@@ -66,7 +67,7 @@ parsecError parser errorText input = case parse parser "" input of
     Left a -> error $ errorText ++ show a
     Right x -> x
 
-formatDurationSec :: NominalDiffTime -> T.Text
+formatDurationSec :: NominalDiffTime -> Text
 formatDurationSec (round -> seconds :: Int) = T.pack $ printf "%d:%02d" hours minutes
     where
         hours = seconds `div` 3600

@@ -33,7 +33,7 @@ deriveJSON defaultOptions ''ConfigItem
 
 data EventSource a b = EventSource
     {
-        srcName :: T.Text,
+        srcName :: Text,
         srcProvider :: EventProvider a b,
         srcConfig :: a
     } deriving Show
@@ -62,7 +62,7 @@ parseSettingsFile plugins settingsFile = do
     hoistMaybe $ mapM (processConfigItem providersByNameHash) configItems
 
 processConfigItem :: (FromJSON a, ToJSON a) =>
-    HashMap T.Text (EventProvider a b) -> ConfigItem -> Maybe (EventSource a b)
+    HashMap Text (EventProvider a b) -> ConfigItem -> Maybe (EventSource a b)
 processConfigItem providersByNameHash configItem = do
     provider <- Map.lookup (providerName configItem) providersByNameHash
     EventSource (configItemName configItem) provider <$> fromJsonM (configuration configItem)
@@ -74,7 +74,7 @@ resultToMaybe :: FromJSON a => Result a -> Maybe a
 resultToMaybe (Success x) = Just x
 resultToMaybe _ = Nothing
 
-providersByName :: (FromJSON a, ToJSON a) => [EventProvider a b] -> HashMap T.Text (EventProvider a b)
+providersByName :: (FromJSON a, ToJSON a) => [EventProvider a b] -> HashMap Text (EventProvider a b)
 providersByName plugins = HashMap.fromList $ map (\p -> (T.pack $ getModuleName p, p)) plugins
 
 writeConfiguration :: (FromJSON a, ToJSON a) => [EventSource a b] -> IO ()
@@ -93,14 +93,14 @@ deletePluginFromConfig (TE.decodeUtf8 -> cfgItemName) = runExceptT $ do
 
 -- Will return Nothing if removing from config failed,
 -- otherwise will return Just newConfig.
-checkRemoveFromConfig ::  [EventSource a b] -> T.Text -> Maybe [EventSource a b]
+checkRemoveFromConfig ::  [EventSource a b] -> Text -> Maybe [EventSource a b]
 checkRemoveFromConfig config cfgItemName =
     let configWithoutThisSource = filter ((/=cfgItemName) . srcName) config in
     if length configWithoutThisSource == length config
         then Nothing
         else Just configWithoutThisSource
 
-updatePluginInConfig :: T.Text -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)
+updatePluginInConfig :: Text -> BS.ByteString -> IO (Either BS.ByteString BS.ByteString)
 updatePluginInConfig oldConfigItemName configItemJson = runExceptT $ do
     config <- liftIO $ readConfig EventProviders.plugins
     let errorMsg = "invalid new config info: " <> configItemJson
@@ -127,7 +127,7 @@ addPluginInConfig configItemJson = runExceptT $ do
     liftIO $ writeConfiguration (newElt:config)
     return ""
 
-ensureUniqueEventSourceName :: T.Text -> [EventSource a b] -> ExceptT BS.ByteString IO BS.ByteString
+ensureUniqueEventSourceName :: Text -> [EventSource a b] -> ExceptT BS.ByteString IO BS.ByteString
 ensureUniqueEventSourceName name events = hoistEither $ case find ((==name) . srcName) events of
     Just _ -> Left "Duplicate config name"
     Nothing -> Right "OK"

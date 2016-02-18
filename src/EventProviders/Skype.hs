@@ -7,6 +7,7 @@ import Data.Time.Clock
 import Data.Time.LocalTime
 import Data.Time.Clock.POSIX
 import qualified Data.Text as T
+import Data.Text (Text)
 import qualified Data.Map as Map
 import Data.List
 import System.Directory
@@ -72,9 +73,9 @@ getSkypeEvents (SkypeConfig skypeUsernameVal) _ day _ = do
 
 data ChatRecord = ChatRecord
     {
-        messageAuthor :: T.Text,
-        messageTime :: UTCTime,
-        messageText :: T.Text
+        messageAuthor :: Text,
+        messageTime   :: UTCTime,
+        messageText   :: Text
     } deriving (Eq, Show)
 
 splitFarawayChats :: [[ChatRecord]] -> [[ChatRecord]]

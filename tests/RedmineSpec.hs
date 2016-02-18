@@ -8,7 +8,7 @@ import Data.Time.Clock
 import Data.Time.Calendar
 import Data.Time.LocalTime
 
-import qualified Data.Text as T
+import Data.Text (Text)
 import TsEvent
 import EventProvider
 
@@ -42,7 +42,7 @@ spec = do
         LocalTime day (TimeOfDay 14 28 0)
 
 
-eventWithDesc :: T.Text -> TsEvent
+eventWithDesc :: Text -> TsEvent
 eventWithDesc descVal = TsEvent
     {
         pluginName = getModuleName getRedmineProvider,

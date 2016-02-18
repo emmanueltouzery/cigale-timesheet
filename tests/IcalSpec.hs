@@ -5,7 +5,7 @@ module IcalSpec where
 import Test.Hspec
 import Test.HUnit
 
-import qualified Data.Text as T
+import Data.Text (Text)
 import Data.Map (Map)
 import Data.Time.LocalTime
 import Data.Time.Clock
@@ -207,6 +207,6 @@ testSlashes tz = it "parses description with slashes" $ do
         }
     testIcalParse tz source parseEvents [expected]
 
-testIcalParse :: TimeZone -> T.Text
-        -> T.Parsec T.Text () [Map String CalendarValue] -> [TsEvent] -> Assertion
+testIcalParse :: TimeZone -> Text
+        -> T.Parsec Text () [Map String CalendarValue] -> [TsEvent] -> Assertion
 testIcalParse tz = testParsecExpectTransform (concatMap (keyValuesToEvents tz))

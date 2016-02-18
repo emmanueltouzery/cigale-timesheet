@@ -4,12 +4,13 @@ module Svn where
 
 import Data.Time.Calendar
 import qualified Data.Text as T
+import Data.Text (Text)
 import Data.Time.Clock (UTCTime(..))
 import Data.Time.LocalTime
 import Text.Parsec.Text
 import Text.Parsec
 import Data.Aeson.TH (deriveJSON, defaultOptions)
-import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
+import Control.Applicative ( (<*>), (<*), (*>) )
 import Control.Monad.Trans
 import Control.Error
 
@@ -34,14 +35,14 @@ getSvnProvider = EventProvider
     }
 
 getRepoCommits :: SvnConfigRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]
-getRepoCommits config _ date _ = do
-    let dateRange = formatDateRange date (addDays 1 date)
+getRepoCommits config _ day _ = do
+    let dateRange = formatDateRange day (addDays 1 day)
     output <- Util.runProcess "svn" "."
         ["log", svnRepo config, "-r", dateRange, "--verbose"]
     commits <- hoistEither $ fmapL show $ parse parseCommits "" output
-    lift $ finishGetRepoCommits date date (T.pack $ svnUser config) commits
+    lift $ finishGetRepoCommits day day (T.pack $ svnUser config) commits
 
-finishGetRepoCommits :: Day -> Day -> T.Text -> [Commit] -> IO [TsEvent]
+finishGetRepoCommits :: Day -> Day -> Text -> [Commit] -> IO [TsEvent]
 finishGetRepoCommits startDate endDate username commits = do
     let myCommits = filter ((==username) . user) commits
     -- need to filter again by date, because SVN obviously
@@ -56,9 +57,9 @@ finishGetRepoCommits startDate endDate username commits = do
 data Commit = Commit
     {
         date :: LocalTime,
-        user :: T.Text,
-        comment :: T.Text,
-        commitFiles :: [T.Text]
+        user :: Text,
+        comment :: Text,
+        commitFiles :: [Text]
     }
     deriving (Eq, Show)
 
@@ -91,10 +92,10 @@ parseCommit = do
     parseCommitHeader
     return $ Commit dateval (T.strip username) (T.pack summary) commitFileInfos
 
-parseCommitHeader :: GenParser st T.Text
+parseCommitHeader :: GenParser st Text
 parseCommitHeader = T.pack <$> many (char '-') <* eol
 
-readCell :: GenParser st T.Text
+readCell :: GenParser st Text
 readCell = do
     many $ char ' '
     result <- many $ noneOf "|"
@@ -104,11 +105,11 @@ readCell = do
 parseDateTime :: GenParser st LocalTime
 parseDateTime = do
     many $ char ' '
-    year <- Util.parseNum 4 <* char '-'
+    year  <- Util.parseNum 4 <* char '-'
     month <- Util.parseNum 2 <* char '-'
-    day <- Util.parseNum 2 <* char ' '
-    hour <- Util.parseNum 2 <* char ':'
-    mins <- Util.parseNum 2 <* char ':'
+    day   <- Util.parseNum 2 <* char ' '
+    hour  <- Util.parseNum 2 <* char ':'
+    mins  <- Util.parseNum 2 <* char ':'
     seconds <- Util.parseNum 2 <* char ' '
     oneOf "-+"
     count 4 digit
@@ -117,7 +118,7 @@ parseDateTime = do
         (fromGregorian year month day)
         (TimeOfDay hour mins seconds)
 
-parseCommitFileInfo :: GenParser st T.Text
+parseCommitFileInfo :: GenParser st Text
 parseCommitFileInfo = do
     count 3 (char ' ')
     anyChar

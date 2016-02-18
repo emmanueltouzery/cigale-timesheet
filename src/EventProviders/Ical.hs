@@ -109,7 +109,7 @@ getCalendarEvents (IcalRecord icalAddress) settings day _ = do
 convertToEvents :: TimeZone -> Day -> [Map String CalendarValue] -> [TsEvent]
 convertToEvents tz day keyValues = filterDate tz day $ concatMap (keyValuesToEvents tz) keyValues
 
-readFromWWW :: B.ByteString -> String -> IO T.Text
+readFromWWW :: B.ByteString -> String -> IO Text
 readFromWWW icalAddress settingsFolder = do
     putStrLn "reading from WWW"
     icalData <- Util.http GET icalAddress "" concatHandler requestDefaults
@@ -267,12 +267,12 @@ cachedVersionDate settingsFolder = do
         $ cacheFilename settingsFolder
     return $ utctDay <$> hush modifTime
 
-readFromCache :: String -> IO T.Text
+readFromCache :: String -> IO Text
 readFromCache settingsFolder = do
     putStrLn "reading calendar from cache!"
     T.pack <$> readFile (cacheFilename settingsFolder)
 
-putInCache :: String -> T.Text -> IO ()
+putInCache :: String -> Text -> IO ()
 putInCache settingsFolder text =
     withFile (cacheFilename settingsFolder) WriteMode (`T.hPutStr` text)
 

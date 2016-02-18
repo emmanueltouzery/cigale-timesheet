@@ -6,18 +6,15 @@ import Test.Hspec
 import Test.HUnit
 
 import Codec.Mbox
-import Text.ParserCombinators.Parsec (parse)
 import Data.Time.Calendar (fromGregorian)
 import Data.Time.LocalTime
-import qualified Data.Map as Map
+import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.ByteString.Lazy.Char8 as BL
 import Data.Maybe
-import Control.Applicative
 
 import Str
 import Util
-import TestUtil
 
 import Email
 
@@ -571,7 +568,7 @@ testDifferentMessage = it "parses a different message" $ do
         ++ "\nexpected:\n" ++ show expected
         ++ "\nor\n" ++ show expected2) (parsed == expected || parsed == expected2)
 
-getMultipartBodyText :: T.Text -> BL.ByteString -> T.Text
+getMultipartBodyText :: Text -> BL.ByteString -> Text
 getMultipartBodyText sep bdy = fromMaybe "no body!"
     (sectionTextContent <$> (parseMultipartBody sep bdy >>= sectionToConsider))
 

@@ -7,9 +7,10 @@ import Data.Time.Clock (UTCTime(..))
 import Data.Time.LocalTime
 import Text.Parsec.Text
 import Text.Parsec
+import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Aeson.TH (deriveJSON, defaultOptions)
-import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
+import Control.Applicative ( (<*>), (<*), (*>) )
 import Control.Monad.Trans
 import Control.Error
 
@@ -19,7 +20,7 @@ import EventProvider
 
 data HgRecord = HgRecord
     {
-        hgUser :: T.Text,
+        hgUser :: Text,
         hgRepo :: FolderPath
     } deriving Show
 deriveJSON defaultOptions ''HgRecord
@@ -60,8 +61,8 @@ formatDate (toGregorian -> (year, month, dayOfMonth)) =
 
 data Commit = Commit
     {
-        commitDate :: LocalTime,
-        commitDesc :: T.Text,
+        commitDate  :: LocalTime,
+        commitDesc  :: Text,
         commitFiles :: [String]
     }
     deriving (Eq, Show)
@@ -88,11 +89,11 @@ parseFile = do
 
 parseDateTime :: GenParser st LocalTime
 parseDateTime = do
-    year <- Util.parseNum 4 <* char '-'
+    year  <- Util.parseNum 4 <* char '-'
     month <- Util.parseNum 2 <* char '-'
-    day <- Util.parseNum 2 <* char ' '
-    hour <- Util.parseNum 2 <* char ':'
-    mins <- Util.parseNum 2 <* char ' '
+    day   <- Util.parseNum 2 <* char ' '
+    hour  <- Util.parseNum 2 <* char ':'
+    mins  <- Util.parseNum 2 <* char ' '
     oneOf "-+"
     count 4 digit
     eol

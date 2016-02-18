@@ -13,6 +13,7 @@ import Data.List.Utils (mergeBy)
 import Data.Function (on)
 import Control.Monad (when)
 import Text.Printf
+import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import Network.HTTP.Types.URI (urlEncode)
@@ -86,7 +87,7 @@ getGlobalSettings = do
     settingsFolder <- Config.getSettingsFolder
     return GlobalSettings { getSettingsFolder = settingsFolder }
 
-fetchProvider :: T.Text -> GlobalSettings -> Day -> Config.EventSource Value Value -> IO (Either String [TsEvent])
+fetchProvider :: Text -> GlobalSettings -> Day -> Config.EventSource Value Value -> IO (Either String [TsEvent])
 fetchProvider configItemName settings day eventSource = do
     let provider = Config.srcProvider eventSource
     putStrLn $ printf "fetching from %s (provider: %s)"
@@ -98,7 +99,7 @@ fetchProvider configItemName settings day eventSource = do
     putStrLn "Done"
     return $ fromMaybe (Left $ errorInfo "Timeouted") evts
 
-getExtraDataUrl :: T.Text -> Value -> Url
+getExtraDataUrl :: Text -> Value -> Url
 getExtraDataUrl (TE.encodeUtf8 -> configItemName) key = printf "/getExtraData?configItemName=%s&queryParams=%s"
     (toUrlParam configItemName) (toUrlParam $ BL.toStrict $ Aeson.encode key)
     where toUrlParam = fmap (chr . fromIntegral) . BS.unpack . urlEncode True

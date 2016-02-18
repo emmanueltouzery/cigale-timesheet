@@ -116,7 +116,29 @@ test-suite        tests
 
   hs-source-dirs: src/EventProviders, src/Shared, tests
   main-is: Tests.hs
-
+  other-modules:
+    Email
+    EmailSpec
+    EventProvider
+    EventProviderSpec
+    EventProviderTestsData
+    Git
+    GitSpec
+    Hg
+    HgSpec
+    Ical
+    IcalSpec
+    Redmine
+    RedmineSpec
+    Skype
+    SkypeSpec
+    Str
+    StrSpec
+    Svn
+    SvnSpec
+    TestUtil
+    TsEvent
+    Util
   Build-depends:
     base,
     bytestring >= 0.10.0.0,

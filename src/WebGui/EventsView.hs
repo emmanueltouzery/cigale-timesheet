@@ -260,8 +260,11 @@ displayWarningBanner respDyn = do
             _ -> Nothing
     errorTxtDyn <- mapDyn getErrorTxt respDyn
 
-    let styleContents e = attrStyleWithHideIf (isNothing e)
-          (width (pct 65) >> marginLeft auto >> marginRight auto)
+    let styleContents e = attrStyleWithHideIf (isNothing e) $ do
+            width (pct 65)
+            marginLeft auto
+            marginRight auto
+            flexShrink 0
     blockAttrs <- forDyn errorTxtDyn (\e -> basicAttrs <> styleContents e)
     elDynAttr "div" blockAttrs $ do
         elAttr "button" ("type" =: "button" <> "class" =: "close" <> "data-dismiss" =: "alert") $ do

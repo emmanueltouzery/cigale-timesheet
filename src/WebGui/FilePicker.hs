@@ -18,7 +18,7 @@ import Communication
 data PathElem = PathElem
     {
         prettyName :: String,
-        fullPath :: FilePath
+        fullPath   :: FilePath
     } deriving Show
 
 data PickerOperationMode = PickFile | PickFolder deriving Eq
@@ -26,14 +26,14 @@ data PickerEventType = ChangeFolderEvt FilePath | PickFileEvt FilePath
 
 data FilePickerOptions = FilePickerOptions
     {
-        pickerMode :: PickerOperationMode,
+        pickerMode      :: PickerOperationMode,
         showHiddenFiles :: Bool
     }
 
 pickerDefaultOptions :: FilePickerOptions
 pickerDefaultOptions = FilePickerOptions
     {
-        pickerMode = PickFile,
+        pickerMode      = PickFile,
         showHiddenFiles = False
     }
 
@@ -69,8 +69,7 @@ buildFilePicker options openEvt = do
         browseDataDyn <- foldDyn const RemoteDataLoading browseInfoEvt
         dynMonPickerEvt <- mapDyn (displayPicker options urlAtLoad) browseDataDyn
         rx <- readModalResult ModalLevelSecondary =<< mapDyn Just dynMonPickerEvt
-    let pickedEvent = fmapMaybe getPickData rx
-    return pickedEvent
+    return (fmapMaybe getPickData rx)
 
 displayPicker :: MonadWidget t m => FilePickerOptions -> Dynamic t (Maybe FilePath) -> RemoteData BrowseResponse
               ->  m (Event t PickerEventType)
@@ -123,9 +122,14 @@ displayBreadcrumb (level:xs) = do
 
 displayFiles :: MonadWidget t m => BrowseResponse -> Dynamic t (Maybe FilePath)
              -> Dynamic t FilePickerOptions -> m (Event t FileInfo)
-displayFiles browseData dynSelectedFile dynPickerOptions =
-    elStyle "div" (overflowY auto >> overflowX hidden >> width (pct 100)
-                   >> minHeight (px 370) >> maxHeight (px 370)) $
+displayFiles browseData dynSelectedFile dynPickerOptions = do
+    let divStyle = do
+            overflowY auto
+            overflowX hidden
+            width (pct 100)
+            minHeight (px 370)
+            maxHeight (px 370)
+    elStyle "div" divStyle $
         elAttr "table" ("class" =: "table table-sm") $ do
             dynEvt <- forDyn dynPickerOptions $ \pickerOptions ->
                 leftmost <$> mapM

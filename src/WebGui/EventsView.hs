@@ -19,6 +19,7 @@ import Data.Time.Calendar
 import Data.Time.Format
 import Data.Time.LocalTime
 import Data.Time.Clock.POSIX
+import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Monoid
 import Control.Monad.IO.Class
@@ -35,7 +36,8 @@ import Common
 newtype PikadayPicker = PikadayPicker { unPicker :: JSRef Any }
 
 foreign import javascript unsafe
-    "$r = new Pikaday({firstDay: 1,onSelect: function(picker) { $2(picker.toString()) }}); $1.appendChild($r.el)"
+    "$r = new Pikaday({firstDay: 1,onSelect: function(picker) {\
+        \$2(picker.toString()) }}); $1.appendChild($r.el)"
     _initPikaday :: JSRef Element -> JSFun (JSString -> IO ()) -> IO (JSRef a)
 
 initPikaday :: JSRef Element -> JSFun (JSString -> IO ()) -> IO PikadayPicker
@@ -109,7 +111,7 @@ displayEvents respDyn = do
 requestDayEvents :: MonadWidget t m => Event t Day -> m (Event t (RemoteData FetchResponse))
 requestDayEvents dayEvt = do
     let req reqUrl = xhrRequest "GET" ("/timesheet/" ++ reqUrl) def
-    asyncReq <- performRequestAsync (req <$> showGregorian <$> dayEvt)
+    asyncReq <- performRequestAsync (req . showGregorian <$> dayEvt)
     return (fmap readRemoteData asyncReq)
 
 getToday :: IO Day
@@ -129,7 +131,7 @@ addDatePicker initialDay = do
             elStyle "table" (marginLeft $ px 10) $ el "tr" $
                 col (text "Day to display:") *>
                 col (displayPickerBlock initialDay curDate) <*
-                col (addPreloadButton)
+                col addPreloadButton
     return curDate
 
 -- TODO display any errors occuring during the prefetching
@@ -267,7 +269,9 @@ displayWarningBanner respDyn = do
             flexShrink 0
     blockAttrs <- forDyn errorTxtDyn (\e -> basicAttrs <> styleContents e)
     elDynAttr "div" blockAttrs $ do
-        elAttr "button" ("type" =: "button" <> "class" =: "close" <> "data-dismiss" =: "alert") $ do
+        elAttr "button" ("type" =: "button" <>
+                         "class" =: "close" <>
+                         "data-dismiss" =: "alert") $ do
             void $ elDynHtmlAttr' "span" ("aria-hidden" =: "true") (constDyn "&times;")
             elAttr "span" ("class" =: "sr-only") $ text "Close"
         elStyle "strong" (paddingRight $ px 7) $ text "Error"
@@ -276,7 +280,7 @@ displayWarningBanner respDyn = do
 eventsTable :: MonadWidget t m => RemoteData FetchResponse -> m (Dynamic t (Maybe TsEvent))
 eventsTable (RemoteDataInvalid _) = return (constDyn Nothing)
 eventsTable RemoteDataLoading = return (constDyn Nothing)
-eventsTable (RemoteData (FetchResponse tsEvents _)) = do
+eventsTable (RemoteData (FetchResponse tsEvents _)) =
     elStyle "div" (width (px 500) >> flexShrink 0 >> overflow auto) $ do
         -- display: block is needed for overflow to work, http://stackoverflow.com/a/4457290/516188
         let tableStyle = display block >> overflow auto
@@ -364,16 +368,20 @@ displayDetails (Just TsEvent{..}) = do
     elStyle "div" divStyle $ do
         el "h3" $ text_ desc
         el "h4" $ text_ extraInfo
-        case fullContents of
-            Nothing  -> return ()
-            Just cts -> elAttrStyle "iframe" iframeClass (flexGrow 1 >> minHeight (px 0) >> minWidth (px 0)) $ return ()
-                where iframeClass = "srcdoc" =: T.unpack cts <>
-                                    "frameBorder" =: "0" <>
-                                    "width" =: "100%"
+        mapM_ buildIframe fullContents
+
+buildIframe :: MonadWidget t m => Text -> m ()
+buildIframe cts = do
+    let iframeClass = "srcdoc" =: T.unpack cts <>
+            "frameBorder" =: "0" <>
+            "width" =: "100%"
+    let iframeStyle = flexGrow 1 >> minHeight (px 0) >> minWidth (px 0)
+    elAttrStyle "iframe" iframeClass iframeStyle (return ())
 
 datePicker :: MonadWidget t m => Day -> m (Event t Day, PikadayPicker)
 datePicker initialDay = do
-    (e, _) <- elStyle' "div" (width (px 250) >> position absolute >> zIndex 3) $ return ()
+    let pickerStyle = width (px 250) >> position absolute >> zIndex 3
+    (e, _) <- elStyle' "div" pickerStyle $ return ()
     (evt, evtTrigger) <- newEventWithTriggerRef
     postGui <- askPostGui
     runWithActions <- askRunWithActions

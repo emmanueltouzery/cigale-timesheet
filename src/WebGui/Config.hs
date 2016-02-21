@@ -220,15 +220,17 @@ passwordEntry fieldId desc fieldValue = do
     elAttr "label" ("for" =: fieldId) $ text desc
     elAttr "div" ("class" =: "input-group") $ do
         rec
-            attrsDyn <- forDyn showPaswd
-                (\p -> "class" =: "form-control" <>
-                       "id"    =: fieldId <>
-                       "value" =: fieldValue <>
-                       "type"  =: if p then "password" else "text")
+            attrsDyn <- forDyn showPaswd $ \p ->
+                "class" =: "form-control" <>
+                "id"    =: fieldId <>
+                "value" =: fieldValue <>
+                "type"  =: if p then "password" else "text"
             (inputField, _) <- elDynAttr' "input" attrsDyn $ return ()
-            showPaswd <- foldDyn ($) True $ leftmost [fmap (const not) padlockEvt]
+            showPaswd <- foldDyn ($) True $ fmap (const not) padlockEvt
             (padlock, _) <- elAttr' "div" ("class" =: "input-group-addon") $ do
-                padlockContents <- forDyn showPaswd (\case; True -> "&#128274;"; False -> "&#128275;")
+                padlockContents <- forDyn showPaswd $ \case
+                    True  -> "&#128274;"
+                    False -> "&#128275;"
                 rawPointerSpan padlockContents
             let padlockEvt = domEvent Click padlock
         let inputGetValue = htmlInputElementGetValue . castToHTMLInputElement . _el_element

@@ -76,6 +76,9 @@ formatDurationSec (round -> seconds :: Int) = T.pack $ printf "%d:%02d" hours mi
 requestDefaults :: RequestBuilder ()
 requestDefaults = return ()
 
+linksForceNewWindow :: Text -> Text
+linksForceNewWindow = T.replace "<a href=" "<a target='_blank' href="
+
 http :: Method -> B.ByteString -> B.ByteString
         -> (Response -> InputStream B.ByteString -> IO B.ByteString)
         -> RequestBuilder a ->  IO B.ByteString

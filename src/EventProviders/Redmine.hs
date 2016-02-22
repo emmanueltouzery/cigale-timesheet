@@ -135,7 +135,7 @@ parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) =
                 extraInfo =  changeInfo >@> [jq|span.description|],
                 fullContents = fmap (\x -> T.concat ["<a href='",
                     redmineUrl config,
-                    x, "'>More information</a>"]) (linkTarget linkNode),
+                    x, "' target='_blank'>More information</a>"]) (linkTarget linkNode),
                 eventDate = localTimeToUTC timezone localTime
             } : parseBugNodes config day timezone rest
         else parseBugNodes config day timezone rest

@@ -124,4 +124,5 @@ toEvent chatRecords = TsEvent
         lastTime = messageTime (last chatRecords)
         firstTime = messageTime (head chatRecords)
         fullLog = T.intercalate "<br/>" (map formatMessage chatRecords)
-        formatMessage chatRecord = T.concat ["<b>", messageAuthor chatRecord, ":</b> ", messageText chatRecord]
+        formatMessage chatRecord = Util.linksForceNewWindow $
+            T.concat ["<b>", messageAuthor chatRecord, ":</b> ", messageText chatRecord]

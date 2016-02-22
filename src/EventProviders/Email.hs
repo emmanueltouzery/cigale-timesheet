@@ -91,7 +91,7 @@ toEvent timezone email = TsEvent
         eventDate = localTimeToUTC timezone (date email),
         desc = subject email,
         extraInfo = T.concat["to: ", to email],
-        fullContents = Just $ contents email
+        fullContents = Just $ Util.linksForceNewWindow $ contents email
     }
 
 getEmails :: (AttachmentKey -> Url) -> String -> Day -> Day -> IO [Email]

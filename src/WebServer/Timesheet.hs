@@ -12,7 +12,7 @@ import Control.Error hiding (err)
 import Data.List.Utils (mergeBy)
 import Data.Function (on)
 import Control.Monad (when)
-import Text.Printf
+import Text.Printf.TH
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
@@ -90,8 +90,8 @@ getGlobalSettings = do
 fetchProvider :: Text -> GlobalSettings -> Day -> Config.EventSource Value Value -> IO (Either String [TsEvent])
 fetchProvider configItemName settings day eventSource = do
     let provider = Config.srcProvider eventSource
-    putStrLn $ printf "fetching from %s (provider: %s)"
-        (T.unpack $ Config.srcName eventSource) (getModuleName provider)
+    putStrLn $ [s|fetching from %s (provider: %s)|]
+        (Config.srcName eventSource) (getModuleName provider)
     let errorInfo = ((T.unpack (Config.srcName eventSource) ++ ": ") ++)
     evts <- timeout maxRuntimeFetchMicros $
         runExceptT $ fmapLT errorInfo $ getEvents provider
@@ -100,7 +100,7 @@ fetchProvider configItemName settings day eventSource = do
     return $ fromMaybe (Left $ errorInfo "Timeouted") evts
 
 getExtraDataUrl :: Text -> Value -> Url
-getExtraDataUrl (TE.encodeUtf8 -> configItemName) key = printf "/getExtraData?configItemName=%s&queryParams=%s"
+getExtraDataUrl (TE.encodeUtf8 -> configItemName) key = [s|/getExtraData?configItemName=%s&queryParams=%s|]
     (toUrlParam configItemName) (toUrlParam $ BL.toStrict $ Aeson.encode key)
     where toUrlParam = fmap (chr . fromIntegral) . BS.unpack . urlEncode True
 

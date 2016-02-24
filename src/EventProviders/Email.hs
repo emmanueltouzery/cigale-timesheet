@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, TemplateHaskell, ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings, TemplateHaskell, QuasiQuotes, ViewPatterns #-}
 
 module Email where
 
@@ -33,11 +33,12 @@ import Data.Aeson.TH (deriveJSON, defaultOptions)
 import qualified Codec.Text.IConv as IConv
 import qualified Data.Map as Map
 import Data.Map (Map)
-import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
+import Control.Applicative ( (<*>), (<*), (*>) )
+import Data.Monoid
 import qualified Control.Applicative as A
 import Control.Arrow ( (***) )
 import Control.Error
-import Text.Printf
+import Text.Printf.TH
 import Control.Monad.Trans
 
 import TsEvent
@@ -78,7 +79,7 @@ data Email = Email
 
 getEmailEvents :: EmailConfig -> GlobalSettings -> Day
     -> (AttachmentKey -> Url) -> ExceptT String IO [TsEvent]
-getEmailEvents cfg@(EmailConfig mboxLocation) _ day getAttachUrl = do
+getEmailEvents (EmailConfig mboxLocation) _ day getAttachUrl = do
     emails <- lift $ getEmails getAttachUrl mboxLocation day day
     timezone <- lift $ getTimeZone (UTCTime day 8)
     return $ map (toEvent timezone) emails
@@ -90,7 +91,7 @@ toEvent timezone email = TsEvent
         eventIcon = "glyphicons-11-envelope",
         eventDate = localTimeToUTC timezone (date email),
         desc = subject email,
-        extraInfo = T.concat["to: ", to email],
+        extraInfo = "to: " <> to email,
         fullContents = Just $ Util.linksForceNewWindow $ contents email
     }
 
@@ -113,7 +114,6 @@ getEmails getAttachUrl sent_mbox fromDate toDate = do
 messageToEmail :: (AttachmentKey -> Url) -> MboxMessage BL.ByteString -> Email
 messageToEmail getAttachUrl msg = do
     let emailDate = getEmailDate msg
-    let msgBody = BSL.toStrict $ _mboxMsgBody msg
     let (headers, rawMessage) = parseMessage msg
     let toVal = readHeader "To" headers
     let ccVal = Map.lookup "CC" headers
@@ -137,9 +137,9 @@ getAttachmentBar getAttachUrl messageId sections = foldr (\(section,idx) -> T.ap
 
 formatAttachmentDisplay :: MultipartSection -> String -> String
 formatAttachmentDisplay section link
-    | "image/" `T.isPrefixOf` sectionCType section = printf "<p><img width='70%%' src='%s'><br/>%s</p>" link name
-    | otherwise = printf ("<p><a href='%s' class='btn btn-default' role='button'>"
-            ++ "<span class='glyphicon glyphicon-paperclip'></span>%s</a></p>") link name
+    | "image/" `T.isPrefixOf` sectionCType section = [s|<p><img width='70%%' src='%s'><br/>%s</p>|] link name
+    | otherwise = [s|<p><a href='%s' class='btn btn-default' role='button'>|] link <>
+                  [s|<span class='glyphicon glyphicon-paperclip'></span>%s</a></p>|] name
     where name = getAttachmentName section
 
 getAttachmentName :: MultipartSection -> String
@@ -162,7 +162,7 @@ getMultipartSeparator = fromMaybe "" . headerGetComponent "boundary"
 
 headerGetComponent :: Text -> Text -> Maybe Text
 headerGetComponent _componentName headerValue = do
-    let componentName = _componentName `T.append` "="
+    let componentName = _componentName <> "="
     subElt <- find (T.isPrefixOf componentName)
         (T.stripStart <$> T.splitOn ";" headerValue)
     return $ T.dropAround (=='"') (T.drop (T.length componentName) subElt)
@@ -191,7 +191,7 @@ getEmailDate msg = parseEmailDate $ fromMaybe decodedMboxDate
 
 parseMultipartBody :: Text -> BSL.ByteString -> Maybe [MultipartSection]
 parseMultipartBody separator = Util.parseMaybe (parseMultipartBodyParsec mimeSeparator)
-    where mimeSeparator = T.concat ["--", separator]
+    where mimeSeparator = "--" <> separator
 
 -- pick a section containing text/html or as a second choice text/plain,
 -- and final choice multipart/alternative
@@ -207,7 +207,7 @@ sectionToConsider sections =
 sectionForMimeType :: Text -> [(Maybe Text, MultipartSection)] -> Maybe MultipartSection
 sectionForMimeType mType secsByCt = snd <$> find (keyContainsStr mType) secsByCt
     where
-        keyContainsStr str (Nothing, _) = False
+        keyContainsStr _ (Nothing, _)  = False
         keyContainsStr str (Just x, _) = str `T.isInfixOf` x
 
 parseMultipartBodyParsec :: Text -> Parsec BSL.ByteString st [MultipartSection]
@@ -281,9 +281,9 @@ sectionContentTransferEncoding = Map.lookup "Content-Transfer-Encoding" . sectio
 parseMultipartSection :: Text -> Parsec BSL.ByteString st MultipartSection
 parseMultipartSection mimeSeparator = do
     headers <- Map.fromList <$> readHeaders
-    contents <- manyTill readLine (try $ string $ T.unpack mimeSeparator)
+    sectionCts <- manyTill readLine (try $ string $ T.unpack mimeSeparator)
     many eol
-    return $ MultipartSection headers (BSL.intercalate "\n" contents)
+    return $ MultipartSection headers (BSL.intercalate "\n" sectionCts)
 
 readHeaders :: Parsec BSL.ByteString st [(Text, Text)]
 readHeaders = do
@@ -302,9 +302,8 @@ readHeaderValue :: Parsec BSL.ByteString st BSL.ByteString
 readHeaderValue = do
     val <- many $ noneOf "\r\n"
     eol
-    rest <- (do many1 $ oneOf " \t"; v <- readHeaderValue; return $ BSL.concat [" ", v])
-        <|> return ""
-    return $ BSL.concat [BL.pack val, rest]
+    rest <- (many1 (oneOf " \t") >> (" " <>) <$> readHeaderValue) <|> return ""
+    return (BL.pack val <> rest)
 
 sectionsEnd :: Parsec BSL.ByteString st ()
 sectionsEnd = string "--" >> (eol <|> eof)
@@ -337,7 +336,7 @@ parseEmailDate (T.unpack -> dt) = fromMaybe (error $ "Email: error parsing date:
     where parseT = parseTimeM False defaultTimeLocale
 
 decUtf8IgnErrors :: B.ByteString -> Text
-decUtf8IgnErrors = decodeUtf8With (\str input -> Just ' ')
+decUtf8IgnErrors = decodeUtf8With (\_ _ -> Just ' ')
 
 iconvFuzzyText :: String -> BL.ByteString -> Text
 iconvFuzzyText encoding input = decodeUtf8 $ BSL.toStrict lbsResult
@@ -377,16 +376,16 @@ decodeBase64 encoding = do
     return $ iconvFuzzyText encoding contentsBinary
 
 decodeMimeContents :: String -> Text -> Text
-decodeMimeContents encoding contentsVal = case parseQuotedPrintable (encodeUtf8 $ stripCarriageReturns contentsVal) of
-    Left err -> T.concat ["can't parse ", contentsVal ,
-        " as quoted printable? ", T.pack $ show err]
-    Right elts -> T.concat $ map (qpEltToString encoding) elts
+decodeMimeContents encoding contentsVal = case parseQuotedPrintable encoded of
+    Left parseErr -> [st|can't parse %s as quoted printable? %s|] contentsVal (show parseErr)
+    Right elts    -> T.concat $ map (qpEltToString encoding) elts
+    where encoded = encodeUtf8 $ stripCarriageReturns contentsVal
 
 stripCarriageReturns :: Text -> Text
 stripCarriageReturns = T.replace "=\n" ""
 
 qpEltToString :: String -> QuotedPrintableElement -> Text
-qpEltToString encoding (AsciiSection str) = T.pack str
+qpEltToString _ (AsciiSection str) = T.pack str
 qpEltToString encoding (NonAsciiChars chrInt) = iconvFuzzyText encoding (BSL.pack chrInt)
 qpEltToString _ LineBreak = T.pack ""
 

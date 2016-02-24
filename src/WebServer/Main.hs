@@ -1,4 +1,5 @@
-{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, DoAndIfThenElse, LambdaCase, ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, DoAndIfThenElse #-}
+{-# LANGUAGE LambdaCase, ViewPatterns, QuasiQuotes #-}
 module Main where
 
 import Snap.Core
@@ -29,7 +30,7 @@ import Data.List
 import Data.Aeson
 import Data.Char (ord)
 import System.Environment (getArgs)
-import Text.Printf
+import Text.Printf.TH
 
 import qualified Timesheet
 import Config
@@ -86,13 +87,13 @@ prefetch folder curDay maxDay
         prefetch folder (addDays 1 curDay) maxDay
     where
         fname = folder </> getPrefetchFilename curDay
-        unlessM s r = not <$> s >>= flip when r
+        unlessM p r = not <$> p >>= flip when r
 
 getPrefetchFolder :: IO FilePath
 getPrefetchFolder = (++ "/prefetch") <$> Config.getSettingsFolder
 
 getPrefetchFilename :: Day -> FilePath
-getPrefetchFilename (toGregorian -> (y,m,d)) = printf "%d-%02d-%02d.json" y m d
+getPrefetchFilename (toGregorian -> (y,m,d)) = [s|%d-%02d-%02d.json|] y m d
 
 removeIfOlderThan :: Day -> FilePath -> FilePath -> IO ()
 removeIfOlderThan date folder filename =

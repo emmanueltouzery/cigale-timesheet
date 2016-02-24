@@ -56,7 +56,8 @@ Library
 -- after this line are build/install dependencies, not runtime dependencies!
     zip-archive >= 0.1.4,
     errors >= 2.0.0,
-    http-types
+    http-types,
+    th-printf
   exposed-modules:
     EventProviders,
     TsEvent,
@@ -77,37 +78,38 @@ Executable cigale-timesheet
     src/WebServer
   main-is: Main.hs
   other-modules:
-     Config
-     FilePickerServer
-     Paths_cigale_timesheet
-     SnapUtil
-     Timesheet
+    Config
+    FilePickerServer
+    Paths_cigale_timesheet
+    SnapUtil
+    Timesheet
   Build-depends:
-     base,
-     cigale-timesheet,
-     process,
-     directory,
-     text,
-     bytestring >= 0.10.0.0,
-     vector,
-     unordered-containers,
-     aeson >= 0.7.0.0,
-     async,
-     -- using parseTimeM, parseTime deprecated in 1.5
-     time >= 1.5,
-     transformers,
-     snap-core,
-     snap-server,
-     http-types,
-     blaze-html,
-     HTTP,
-     filepath,
-     parsec,
-     errors >= 2.0.0,
-     either,
-     mtl,
-     MissingH,
-     SafeSemaphore
+    base,
+    cigale-timesheet,
+    process,
+    directory,
+    text,
+    bytestring >= 0.10.0.0,
+    vector,
+    unordered-containers,
+    aeson >= 0.7.0.0,
+    async,
+    -- using parseTimeM, parseTime deprecated in 1.5
+    time >= 1.5,
+    transformers,
+    snap-core,
+    snap-server,
+    http-types,
+    blaze-html,
+    HTTP,
+    filepath,
+    parsec,
+    errors >= 2.0.0,
+    either,
+    mtl,
+    MissingH,
+    SafeSemaphore,
+    th-printf
   ghc-options: -threaded -Wall -funbox-strict-fields -O2
                -fno-warn-unused-do-bind
 
@@ -178,4 +180,5 @@ test-suite        tests
     th-lift,
     iconv,
     errors >= 2.0.0,
-    http-types
+    http-types,
+    th-printf

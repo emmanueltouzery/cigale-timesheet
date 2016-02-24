@@ -10,7 +10,7 @@ import qualified Data.Text as T
 import Data.Text (Text)
 import qualified Data.Map as Map
 import Data.Text.Encoding as TE
-import Text.Printf
+import Text.Printf.TH
 import Data.Time.Clock
 import Data.Time.Calendar
 import Data.Time.LocalTime
@@ -23,6 +23,7 @@ import Data.Text.Lazy (toStrict)
 import Control.Error
 import Control.Monad.Trans
 import Text.ParserCombinators.Parsec
+import Data.Monoid
 
 import Text.XML (Node(..), elementAttributes)
 import Text.XML.Cursor
@@ -31,7 +32,6 @@ import Text.XML.Scraping
 import Text.HTML.DOM (parseLBS)
 
 import qualified Util
-import Util (parseNum)
 import TsEvent
 import EventProvider
 
@@ -61,7 +61,7 @@ getRedmineEvents config _ day _ = do
     cookie <- lift $ login url config
     cookieValues <- hoistEither $ note "invalid cookie format" $ cookie >>= headMay . split ';'
     let activityUrl = encodeUtf8 $ prepareActivityUrl url day
-    response <- lift $ Util.http GET activityUrl "" concatHandler $ do
+    response <- lift $ Util.http GET activityUrl "" concatHandler $
         setHeader "Cookie" cookieValues
     timezone <- lift $ getTimeZone (UTCTime day 8)
     today <- lift $ utctDay <$> getCurrentTime
@@ -78,24 +78,24 @@ prepareActivityUrl :: Text -> Day -> Text
 prepareActivityUrl url day = T.concat [url, "/activity?show_wiki_edits=1&show_issues=1&from=", dayBeforeStr]
     where
         (y, m, d) = toGregorian $ addDays 1 day
-        dayBeforeStr = T.pack $ printf "%d-%02d-%02d" y m d
+        dayBeforeStr = [st|"%d-%02d-%02d"|] y m d
 
 addProtocolIfNeeded :: Text -> Text
-addProtocolIfNeeded val = if hasProtocol then val else T.append "http://" val
+addProtocolIfNeeded val = if hasProtocol then val else "http://" <> val
     where
-        hasProtocol = "http://" `T.isPrefixOf` lower
-            || "https://" `T.isPrefixOf` lower
-        lower = T.toLower val
+        hasProtocol = "http://" `T.isPrefixOf` lowerVal
+            || "https://" `T.isPrefixOf` lowerVal
+        lowerVal = T.toLower val
 
 appendIfNeeded :: Text -> Text -> Text
 appendIfNeeded postfix val
     | postfix `T.isSuffixOf` val = val
-    | otherwise = T.append val postfix
+    | otherwise = val <> postfix
 
 -- returns the cookie
 login :: Text -> RedmineConfig -> IO (Maybe ByteString)
 login url config = postForm
-        (BS.concat [encodeUtf8 url, "login"])
+        (encodeUtf8 url <> "login")
         [("username", encodeUtf8 $ redmineUsername config),
             ("password", encodeUtf8 $ redminePassword config)]
         (\r _ -> return $ getHeader r "Set-Cookie")
@@ -113,9 +113,9 @@ isDayTitle :: Day -> Day -> Cursor -> Bool
 isDayTitle day today nod = dayTitle == toStrict (innerText (node nod))
     where
         (y, m, d) = toGregorian day
-        dayTitle = T.pack $ if day == today
+        dayTitle = if day == today
                 then "Today"
-                else printf "%02d/%02d/%4d" m d y
+                else [st|%02d/%02d/%4d|] m d y
 
 getIssuesForDayNode :: RedmineConfig -> Day -> TimeZone -> Cursor -> [TsEvent]
 getIssuesForDayNode config day timezone dayNode = parseBugNodes config day timezone bugNodes

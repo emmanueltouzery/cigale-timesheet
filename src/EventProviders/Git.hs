@@ -49,7 +49,7 @@ getRepoCommits (GitRecord _username projectPath) _ date _ = do
     --      "--author=\"" ++ username ++ "\"",
             "--stat", "--all", "--decorate"]
     timezone <- liftIO $ getTimeZone (UTCTime date 8)
-    allCommits <- hoistEither $ fmapL show $ parse parseCommits "" $ T.concat [output, "\n"]
+    allCommits <- hoistEither $ fmapL show $ parse parseCommits "" $ output <> "\n"
     let relevantCommits = filter (isRelevantCommit date username) allCommits
     let commitsList = map (commitToEvent projectPath timezone) relevantCommits
     let tagCommits = filter (isRelevantTagCommit date) allCommits
@@ -85,7 +85,7 @@ commitToEvent gitFolderPath timezone commit = TsEvent
 tagToEvent :: FolderPath -> TimeZone -> Commit -> TsEvent
 tagToEvent gitFolderPath timezone commit = baseEvent
         {
-            desc = T.concat ["Tag applied: ", descVal],
+            desc = "Tag applied: " <> descVal,
             fullContents = Nothing
         }
     where

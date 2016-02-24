@@ -1,4 +1,5 @@
-{-# LANGUAGE OverloadedStrings, FlexibleContexts, ViewPatterns, ScopedTypeVariables, LambdaCase #-}
+{-# LANGUAGE OverloadedStrings, FlexibleContexts, ViewPatterns #-}
+{-# LANGUAGE ScopedTypeVariables, LambdaCase, QuasiQuotes #-}
 
 module Util where
 
@@ -18,7 +19,7 @@ import qualified Data.Functor.Identity as DFI
 import Control.Applicative
 import Control.Error
 import Control.Exception as Ex
-import Text.Printf (printf)
+import Text.Printf.TH
 import System.Process
 import qualified Data.Text.IO as IO
 import System.Exit
@@ -36,7 +37,7 @@ runProcess program runningFolder parameters = do
     output <- lift (IO.hGetContents outh)
     lift (waitForProcess pid) >>= \case
         -- TODO collect error output on failure.
-        ExitFailure x -> hoistEither $ Left (printf "%s failed with exit code %d" program x :: String)
+        ExitFailure x -> hoistEither (Left $ [s|%s failed with exit code %d|] program x)
         ExitSuccess -> return output
 
 -- return the common prefix to all the files.
@@ -68,7 +69,7 @@ parsecError parser errorText input = case parse parser "" input of
     Right x -> x
 
 formatDurationSec :: NominalDiffTime -> Text
-formatDurationSec (round -> seconds :: Int) = T.pack $ printf "%d:%02d" hours minutes
+formatDurationSec (round -> seconds :: Int) = [st|%d:%02d|] hours minutes
     where
         hours = seconds `div` 3600
         minutes = (seconds `mod` 3600) `div` 60

@@ -14,6 +14,7 @@ extra-deps:
 - codec-mbox-0.2.0.0
 - dom-selector-0.2.0.1
 - iconv-0.4.1.3
+- th-printf-0.3.1
 
 # Override default flag values for local packages and extra-deps
 flags: {}

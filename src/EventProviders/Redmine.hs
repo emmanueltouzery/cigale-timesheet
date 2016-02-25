@@ -78,7 +78,7 @@ prepareActivityUrl :: Text -> Day -> Text
 prepareActivityUrl url day = T.concat [url, "/activity?show_wiki_edits=1&show_issues=1&from=", dayBeforeStr]
     where
         (y, m, d) = toGregorian $ addDays 1 day
-        dayBeforeStr = [st|"%d-%02d-%02d"|] y m d
+        dayBeforeStr = [st|%d-%02d-%02d|] y m d
 
 addProtocolIfNeeded :: Text -> Text
 addProtocolIfNeeded val = if hasProtocol then val else "http://" <> val

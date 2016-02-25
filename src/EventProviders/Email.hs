@@ -99,17 +99,20 @@ getEmails :: (AttachmentKey -> Url) -> String -> Day -> Day -> IO [Email]
 getEmails getAttachUrl sent_mbox fromDate toDate = do
     mbox <- parseMboxFile Backward sent_mbox
     -- going from the end, stop at the first message which
-    -- is older than my start date.
-    let messages = takeWhile isAfter (mboxMessages mbox)
+    -- is older than my start date. Take 10 days margins because
+    -- there is no order guarantee in mbox files and I've had problems
+    -- (for thunderbird, parsing the .msf MORK file should be the solution but...)
+    let messages = takeWhile (isAfter $ addDays (-10) fromDate) (mboxMessages mbox)
 
     -- now we remove the messages that are newer than end date
     -- need to reverse messages because i'm reading from the end.
-    let messages1 = takeWhile isBefore (reverse messages)
-    return $ map (messageToEmail getAttachUrl) messages1
+    let messages1 = takeWhile (isBefore toDate) (reverse messages)
+    let messages2 = filter (isAfter fromDate) messages1
+    return $ map (messageToEmail getAttachUrl) messages2
     where
-        dateMatches predicate email = predicate $ localDay (getEmailDate email)
-        isAfter = dateMatches (>= fromDate)
-        isBefore = dateMatches (<= toDate)
+      dateMatches comp date email = localDay (getEmailDate email) `comp` date
+      isAfter = dateMatches (>=)
+      isBefore = dateMatches (<=)
 
 messageToEmail :: (AttachmentKey -> Url) -> MboxMessage BL.ByteString -> Email
 messageToEmail getAttachUrl msg = do

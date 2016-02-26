@@ -24,6 +24,7 @@ import Control.Applicative ((<$>), (<|>))
 import Data.Maybe
 import Control.Error
 import Control.Monad.Trans
+import Control.Monad
 
 import TsEvent
 import qualified Util
@@ -177,7 +178,7 @@ buildBasicEvent descV date = TsEvent
        fullContents = Nothing
    }
 
-parseBegin :: GenParser st String
+parseBegin :: GenParser st ()
 parseBegin = string "BEGIN:VEVENT" >> eol
 
 parseKeyValue :: GenParser st (String, CalendarValue)
@@ -196,7 +197,7 @@ singleValueParserMatches :: [(GenParser st String, GenParser st String)]
 singleValueParserMatches = [
     (string "\\n", ("\n" ++) <$> parseSingleValue),
     (string "\\", (:) <$> anyChar <*> parseSingleValue),
-    (oneOf "\r\n" >> string " ", parseSingleValue)]
+    (eol >> string " ", parseSingleValue)]
 
 parseSingleValue :: GenParser st String
 parseSingleValue = do
@@ -276,5 +277,5 @@ putInCache :: String -> Text -> IO ()
 putInCache settingsFolder text =
     withFile (cacheFilename settingsFolder) WriteMode (`T.hPutStr` text)
 
-eol :: GenParser st String
-eol = many1 $ oneOf "\r\n"
+eol :: GenParser st ()
+eol = void $ optional (char '\r') *> char '\n'

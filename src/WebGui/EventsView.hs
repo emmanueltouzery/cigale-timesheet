@@ -319,7 +319,7 @@ showRecord curEventDyn tsEvt@TsEvent{..} = do
 
 recordsContents :: MonadWidget t m => TsEvent -> m ()
 recordsContents tsEvt@TsEvent{..} = do
-    let imgWidth = 38
+    let imgWidth = 42
     let divFlexSetup = do
             display flex
             justifyContent center

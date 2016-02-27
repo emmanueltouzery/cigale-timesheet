@@ -16,7 +16,7 @@ import System.IO.Streams (InputStream(..))
 import qualified System.IO.Streams as Streams
 import qualified Blaze.ByteString.Builder as Builder
 import qualified Data.Functor.Identity as DFI
-import Control.Applicative
+import Control.Applicative hiding (optional)
 import Control.Error
 import Control.Exception as Ex
 import Text.Printf.TH
@@ -24,6 +24,7 @@ import System.Process
 import qualified Data.Text.IO as IO
 import System.Exit
 import Control.Monad.Trans
+import Control.Monad
 
 import OpenSSL (withOpenSSL)
 
@@ -46,6 +47,7 @@ getFilesRoot :: [String] -> String
 getFilesRoot allFiles = map head (takeWhile allEqual (zipLists allFiles))
 
 allEqual :: Eq a => [a] -> Bool
+allEqual []   = True
 allEqual list = all (== head list) list
 
 -- http://stackoverflow.com/a/2468379/516188
@@ -67,6 +69,9 @@ parsecError :: (T.Stream s DFI.Identity t, Show s) => T.Parsec s () a -> String 
 parsecError parser errorText input = case parse parser "" input of
     Left a -> error $ errorText ++ show a
     Right x -> x
+
+eol :: T.GenParser st ()
+eol = void $ optional (char '\r') *> char '\n'
 
 formatDurationSec :: NominalDiffTime -> Text
 formatDurationSec (round -> seconds :: Int) = [st|%d:%02d|] hours minutes

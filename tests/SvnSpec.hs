@@ -28,7 +28,8 @@ testBasicCommit = it "parses a basic SVN commit" $ do
                M /EAndroid/trunk/res/drawable-xhdpi/ic_launcher.png
 
             new icon from metrel.
-            ------------------------------------------------------------------------|]
+            ------------------------------------------------------------------------
+            |]
         let expected = Commit {
                 date = LocalTime (fromGregorian 2012 11 15) (TimeOfDay 13 49 13),
                 user = "emmanuelt",

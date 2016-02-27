@@ -15,7 +15,7 @@ import Control.Monad.Trans
 import Control.Error
 
 import TsEvent
-import qualified Util
+import Util
 import EventProvider
 
 data HgRecord = HgRecord
@@ -35,11 +35,12 @@ getHgProvider = EventProvider
     }
 
 getRepoCommits :: HgRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]
-getRepoCommits (HgRecord _username projectPath) _ day _ = do
-    let username = T.unpack _username
-    let dateRange = formatDate day
-    output <- Util.runProcess "hg" projectPath ["log", "-k", username, "-d", dateRange,
-            "--template", "{date|isodate}\n{desc}\n--->>>\n{files}\n--->>>\n"]
+getRepoCommits (HgRecord username projectPath) _ day _ = do
+    output <- Util.runProcess "hg" projectPath
+        [
+            "log", "-k", T.unpack username, "-d", showGregorian day,
+            "--template", "{date|isodate}\n{desc}\n--->>>\n{files}\n--->>>\n"
+        ]
     timezone <- liftIO $ getTimeZone (UTCTime day 8)
     commits <- hoistEither $ fmapL show $ parse parseCommits "" output
     return $ map (toEvent timezone) commits
@@ -54,10 +55,6 @@ toEvent timezone commit = TsEvent
         extraInfo = T.pack $ Util.getFilesRoot $ commitFiles commit,
         fullContents = Nothing
     }
-
-formatDate :: Day -> String
-formatDate (toGregorian -> (year, month, dayOfMonth)) =
-    show year ++ "-" ++ show month ++ "-" ++ show dayOfMonth
 
 data Commit = Commit
     {
@@ -103,6 +100,3 @@ parseDateTime = do
 
 parseSummary :: GenParser st String
 parseSummary = manyTill anyChar (try $ string "--->>>")
-
-eol :: GenParser st String
-eol = many $ oneOf "\r\n"

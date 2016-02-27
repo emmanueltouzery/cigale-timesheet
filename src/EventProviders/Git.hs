@@ -19,9 +19,10 @@ import Control.Error
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Monoid
+import Control.Monad
 
 import TsEvent
-import qualified Util
+import Util
 import EventProvider
 
 data GitRecord = GitRecord
@@ -44,8 +45,8 @@ getRepoCommits :: GitRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT S
 getRepoCommits (GitRecord _username projectPath) _ date _ = do
     let username = T.unpack _username
     output <- Util.runProcess "git" projectPath [
-            "log", "--since", formatDate $ addDays (-1) date,
-            "--until", formatDate $ addDays 1 date,
+            "log", "--since", showGregorian $ addDays (-1) date,
+            "--until", showGregorian $ addDays 1 date,
     --      "--author=\"" ++ username ++ "\"",
             "--stat", "--all", "--decorate"]
     timezone <- liftIO $ getTimeZone (UTCTime date 8)
@@ -99,19 +100,15 @@ getCommitExtraInfo commit gitFolderPath = if atRoot filesRoot then gitRepoName e
         gitRepoName = last $ T.splitOn "/" gitFolderPath
         atRoot = T.all (`elem` ['.', '/'])
 
-formatDate :: Day -> String
-formatDate (toGregorian -> (year, month, dayOfMonth)) =
-    show year ++ "-" ++ show month ++ "-" ++ show dayOfMonth
-
 data Commit = Commit
     {
-        commitDate :: LocalTime,
-        commitDesc :: Maybe Text,
-        commitFiles :: [String],
-        commitAuthor :: String,
+        commitDate     :: LocalTime,
+        commitDesc     :: Maybe Text,
+        commitFiles    :: [String],
+        commitAuthor   :: String,
         commitContents :: String,
-        commitIsMerge :: Bool,
-        commitTags :: [String]
+        commitIsMerge  :: Bool,
+        commitTags     :: [String]
     }
     deriving (Eq, Show)
 
@@ -155,7 +152,7 @@ parseCommit = do
     mergeInfo <- optionMaybe parseMerge
     author <- string "Author: " >> readLine
     date <- parseDateTime
-    eol >> eol
+    count 2 eol
 
     summary <- optionMaybe parseCommitComment
     filesInfo <- optionMaybe parseFiles
@@ -163,16 +160,16 @@ parseCommit = do
     let cFilesDesc = maybe [] (fmap fst) filesInfo
     let cFileNames = maybe [] (fmap snd) filesInfo
 
-    replicateM_ 2 $ optional eol
+    optional (count 2 eol)
     return Commit
         {
-            commitDate = date,
-            commitDesc = fmap (T.strip . T.pack) summary,
-            commitFiles = cFileNames,
-            commitAuthor = T.unpack $ T.strip $ T.pack author,
+            commitDate     = date,
+            commitDesc     = fmap (T.strip . T.pack) summary,
+            commitFiles    = cFileNames,
+            commitAuthor   = T.unpack $ T.strip $ T.pack author,
             commitContents = "<pre>" ++ intercalate "<br/>\n" cFilesDesc ++ "</pre>",
-            commitIsMerge = isJust mergeInfo,
-            commitTags = tags
+            commitIsMerge  = isJust mergeInfo,
+            commitTags     = tags
         }
 
 readLine :: GenParser st String
@@ -189,18 +186,19 @@ parseFile = do
     eol
     return (result ++ rest, T.unpack $ T.strip $ T.pack result)
 
-parseFilesSummary :: GenParser st String
+parseFilesSummary :: GenParser st ()
 parseFilesSummary = do
     char ' '
     many1 digit
     string " file"
-    many $ noneOf "\n"
-    eol
+    many (noneOf "\n")
+    count 2 eol
+    return ()
 
 parseDateTime :: GenParser st LocalTime
 parseDateTime = do
     string "Date:"
-    many $ char ' '
+    many (char ' ')
     count 3 anyChar <* char ' ' -- day
     month   <- strToMonth <$> count 3 anyChar
     char ' '
@@ -227,9 +225,5 @@ strToMonth month = fromMaybe (error $ "Unknown month " <> month) $
 parseCommitComment :: GenParser st String
 parseCommitComment = do
     try $ string "    "
-    summary <- manyTill anyChar (try $ string "\n\n" <|> string "\r\n\r\n")
-    count 2 eol
+    summary <- manyTill anyChar (try $ count 2 eol)
     return summary
-
-eol :: GenParser st String
-eol = many $ oneOf "\r\n"

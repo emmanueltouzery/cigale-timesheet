@@ -24,11 +24,9 @@ import Control.Applicative ((<$>), (<|>))
 import Data.Maybe
 import Control.Error
 import Control.Monad.Trans
-import Control.Monad
 
 import TsEvent
-import qualified Util
-import Util (parseMaybe, parseNum, requestDefaults)
+import Util
 import EventProvider
 
 
@@ -276,6 +274,3 @@ readFromCache settingsFolder = do
 putInCache :: String -> Text -> IO ()
 putInCache settingsFolder text =
     withFile (cacheFilename settingsFolder) WriteMode (`T.hPutStr` text)
-
-eol :: GenParser st ()
-eol = void $ optional (char '\r') *> char '\n'

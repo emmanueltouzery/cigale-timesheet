@@ -43,7 +43,7 @@ import Control.Monad.Trans
 
 import TsEvent
 import EventProvider
-import Util
+import Util hiding (eol)
 
 data EmailConfig = EmailConfig
     {

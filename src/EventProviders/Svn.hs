@@ -14,7 +14,7 @@ import Control.Applicative ( (<*>), (<*), (*>) )
 import Control.Monad.Trans
 import Control.Error
 
-import qualified Util
+import Util
 import TsEvent
 import EventProvider
 
@@ -84,8 +84,8 @@ parseCommit = do
     readCell
     username <- readCell
     dateval <- parseDateTime
-    many $ noneOf "\r\n"; eol -- finish line
-    many $ noneOf "\r\n"; eol -- "Changed paths:"
+    manyTill anyChar eol -- finish line
+    manyTill anyChar eol -- "Changed paths:"
     commitFileInfos <- many parseCommitFileInfo
     eol
     summary <- parseSummary
@@ -113,7 +113,6 @@ parseDateTime = do
     seconds <- Util.parseNum 2 <* char ' '
     oneOf "-+"
     count 4 digit
-    eol
     return $ LocalTime
         (fromGregorian year month day)
         (TimeOfDay hour mins seconds)
@@ -130,13 +129,9 @@ parseCommitFileInfo = do
 parseSummary :: GenParser st String
 parseSummary = manyTill anyChar (try $ string "----------")
 
-eol :: GenParser st String
-eol = many $ oneOf "\r\n"
-
 formatDateRange :: Day -> Day -> String
 formatDateRange startDate endDate =
     formatDate startDate ++ ":" ++ formatDate endDate
 
 formatDate :: Day -> String
-formatDate (toGregorian -> (year, month, dayOfMonth)) =
-    "{" ++ show year ++ "-" ++ show month ++ "-" ++ show dayOfMonth ++ "}"
+formatDate day = "{" ++ showGregorian day ++ "}"

@@ -4,7 +4,6 @@
 module Config where
 
 import GHCJS.DOM.HTMLInputElement
-import GHCJS.Marshal
 import GHCJS.DOM.Types (fromJSString)
 
 import Reflex.Dom hiding (display)

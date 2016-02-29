@@ -2,7 +2,6 @@
 {-# LANGUAGE RecordWildCards, RecursiveDo, JavaScriptFFI, ForeignFunctionInterface #-}
 
 import GHCJS.Types
-import GHCJS.Foreign
 import GHCJS.DOM.Types (fromJSString)
 
 import Reflex
@@ -12,8 +11,6 @@ import Clay
 import Data.List
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy as TL
-import Data.ByteString (ByteString)
-import qualified Data.ByteString as BS
 import Data.Monoid
 import Control.Monad.IO.Class
 import Data.Maybe
@@ -115,9 +112,9 @@ navBar = do
 addAboutButton :: MonadWidget t m => m ()
 addAboutButton = do
     let iconUrl = getGlyphiconUrl "glyphicons-195-question-sign"
-    (img, _) <- elAttrStyle' "img"
+    (image, _) <- elAttrStyle' "img"
         ("src" =: iconUrl <> "class" =: "pull-xs-right") (cursor pointer) $ return ()
-    void $ setupModal ModalLevelBasic (domEvent Click img) $ do
+    void $ setupModal ModalLevelBasic (domEvent Click image) $ do
         void $ buildModalBody "About" NoBtn
             (constDyn "") (text "Icons from "
                    >> elAttr "a" ("href" =: "http://glyphicons.com") (text "Glyphicons")
@@ -131,6 +128,6 @@ navLink activeViewDyn NavLinkItem{..} = do
     attrs <- forDyn activeViewDyn $ \curView ->
         "href" =: ("#" <> nliUrl) <>
             attrOptDyn "class" "active" (curView == nliActiveView) "nav-link"
-    (a, _) <- elAttr "li" ("class" =: "nav-item") $
+    (lnk, _) <- elAttr "li" ("class" =: "nav-item") $
         elDynAttrStyle' "a" attrs ("outline" -: "0") $ text nliDesc
-    return $ fmap (const nliActiveView) $ domEvent Click a
+    return $ fmap (const nliActiveView) $ domEvent Click lnk

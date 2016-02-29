@@ -4,13 +4,11 @@
 module EventsView where
 
 import GHCJS.Types
-import GHCJS.Foreign
 import GHCJS.Marshal
 import GHCJS.Foreign.Callback
-import GHCJS.DOM.EventM (on)
 import GHCJS.DOM.Element as E
 import GHCJS.DOM.Document
-import GHCJS.DOM.EventM (stopPropagation)
+import GHCJS.DOM.EventM (on, stopPropagation)
 
 import Data.Dependent.Sum (DSum ((:=>)))
 
@@ -30,38 +28,36 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Monoid
 import Control.Monad.IO.Class
-import Control.Monad
 import Data.Maybe
 import Data.List
 import Control.Error
-import qualified Data.Map as Map
 
 import TsEvent
 import Communication
 import Common
 
-newtype PikadayPicker = PikadayPicker { unPicker :: JSRef Any }
+newtype PikadayPicker = PikadayPicker { unPicker :: JSVal }
 
 foreign import javascript unsafe
     "$r = new Pikaday({firstDay: 1,onSelect: function(picker) {\
         \$2(picker.toString()) }}); $1.appendChild($r.el)"
-    _initPikaday :: JSRef Element -> Callback (JSVal -> IO ()) -> IO (JSRef a)
+    _initPikaday :: JSVal -> Callback (JSVal -> IO ()) -> IO JSVal
 
-initPikaday :: JSRef Element -> Callback (JSVal -> IO ()) -> IO PikadayPicker
+initPikaday :: JSVal -> Callback (JSVal -> IO ()) -> IO PikadayPicker
 initPikaday = fmap (fmap PikadayPicker) . _initPikaday
 
 foreign import javascript unsafe
     "$1.setDate($2, true)" -- the true is to prevent from triggering "onSelect"
-    _pickerSetDate :: JSRef a -> JSVal -> IO ()
+    _pickerSetDate :: JSVal -> JSVal -> IO ()
 
 pickerSetDate :: PikadayPicker -> Day -> IO ()
 pickerSetDate picker day = _pickerSetDate (unPicker picker) =<< toJSVal (showGregorian day)
 
-foreign import javascript unsafe "$1.hide()" _pickerHide :: JSRef a -> IO ()
+foreign import javascript unsafe "$1.hide()" _pickerHide :: JSVal -> IO ()
 pickerHide :: PikadayPicker -> IO ()
 pickerHide = _pickerHide . unPicker
 
-foreign import javascript unsafe "$1.show()" _pickerShow :: JSRef a -> IO ()
+foreign import javascript unsafe "$1.show()" _pickerShow :: JSVal -> IO ()
 pickerShow :: PikadayPicker -> IO ()
 pickerShow = _pickerShow . unPicker
 
@@ -257,8 +253,8 @@ createDateLabel curDate picker = do
                                    pickerHide picker) $ domEvent Click bodyElt
 
     -- open or close the datepicker when the user clicks on the toggle button
-    performOnDynChange cbDyn $ \focus ->
-        liftIO $ (if focus then pickerShow else pickerHide) picker
+    performOnDynChange cbDyn $ \isActive ->
+        liftIO $ (if isActive then pickerShow else pickerHide) picker
 
 displayWarningBanner :: MonadWidget t m => Dynamic t (RemoteData FetchResponse) -> m ()
 displayWarningBanner respDyn = do
@@ -393,11 +389,11 @@ datePicker initialDay = do
     postGui <- askPostGui
     runWithActions <- askRunWithActions
     -- TODO very similar to fireEventRef
-    let handleTrigger e trigger = do
+    let handleTrigger val trigger = do
           mETrigger <- liftIO $ readIORef trigger
           case mETrigger of
               Nothing       -> return ()
-              Just eTrigger -> runWithActions [eTrigger :=> Identity e]
+              Just eTrigger -> runWithActions [eTrigger :=> Identity val]
     picker <- liftIO $ do
         cb <- syncCallback1 ContinueAsync $ \date -> do
             dateStr <- fromJSVal date

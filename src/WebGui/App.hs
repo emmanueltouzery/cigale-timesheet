@@ -3,6 +3,7 @@
 
 import GHCJS.Types
 import GHCJS.Foreign
+import GHCJS.DOM.Types (fromJSString)
 
 import Reflex
 import Reflex.Dom hiding (display)

@@ -4,6 +4,8 @@
 module Config where
 
 import GHCJS.DOM.HTMLInputElement
+import GHCJS.Marshal
+import GHCJS.DOM.Types (fromJSString)
 
 import Reflex.Dom hiding (display)
 
@@ -233,9 +235,11 @@ passwordEntry fieldId desc fieldValue = do
                     False -> "&#128275;"
                 rawPointerSpan padlockContents
             let padlockEvt = domEvent Click padlock
-        let inputGetValue = htmlInputElementGetValue . castToHTMLInputElement . _el_element
+        let inputGetValue = getValue . castToHTMLInputElement . _el_element
         holdDyn fieldValue =<< performEvent
-            (fmap (const $ liftIO $ inputGetValue inputField) $ domEvent Change inputField)
+            (fmap (const $ liftIO $ do
+                        val <- inputGetValue inputField
+                        return $ fromMaybe "" $ fromJSString <$> val) $ domEvent Change inputField)
 
 buckets :: Ord b => (a -> b) -> [a] -> [(b, [a])]
 buckets f = map (\g -> (fst $ head g, map snd g))

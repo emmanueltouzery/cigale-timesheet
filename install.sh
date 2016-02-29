@@ -9,13 +9,6 @@ if [ ! -d "lib/node_modules" ]; then
 fi
 
 cd src/WebGui/
-if [ ! -d "reflex-dom" ]; then
-    git clone -b develop https://github.com/ryantrinkle/reflex-dom.git
-    cd reflex-dom
-    git reset --hard 4ce94d0afe35f5642e985800dd89fa457b324a07
-    cd ..
-    sed -i.bak -e "s/bifunctors == 4\.2\.\*/bifunctors >= 4\.2/g" reflex-dom/reflex-dom.cabal
-fi
 
 # install the ghcjs compiler
 echo "will now install the GHCJS compiler, this should take a while..."

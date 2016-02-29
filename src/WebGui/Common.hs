@@ -4,20 +4,18 @@
 module Common where
 
 import GHCJS.Types
-import GHCJS.Foreign
 import GHCJS.DOM.Element
 import GHCJS.DOM.Node
 import GHCJS.DOM.Document
 import GHCJS.DOM.Types hiding (Text, Event)
+import GHCJS.Marshal
 
 import Reflex.Dom hiding (display)
-import Data.Dependent.Sum (DSum ((:=>)))
 import Reflex.Host.Class
 import Data.String
 
 import Clay as C hiding (filter, title, contents, action, url)
 import Data.Maybe
-import Data.IORef
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
@@ -31,30 +29,30 @@ import Data.List
 
 data ActiveView = ActiveViewEvents | ActiveViewConfig deriving (Eq, Show)
 
-foreign import javascript unsafe "$('#'+$1).modal('hide')" _hideModalIdDialog :: JSString -> IO ()
+foreign import javascript unsafe "$('#'+$1).modal('hide')" _hideModalIdDialog :: JSVal -> IO ()
 hideModalIdDialog :: String -> IO ()
-hideModalIdDialog = _hideModalIdDialog . toJSString
+hideModalIdDialog = _hideModalIdDialog <=< toJSVal
 
-foreign import javascript unsafe "$('#'+$1).modal('show')" _showModalIdDialog :: JSString -> IO ()
+foreign import javascript unsafe "$('#'+$1).modal('show')" _showModalIdDialog :: JSVal -> IO ()
 showModalIdDialog :: String -> IO ()
-showModalIdDialog = _showModalIdDialog . toJSString
+showModalIdDialog = _showModalIdDialog <=< toJSVal
 
-unwrapElt :: El t -> JSRef Element
+unwrapElt :: El t -> JSVal
 unwrapElt = unElement . toElement . _el_element
 
 eltStripClass :: IsElement self => self -> Text -> IO ()
 eltStripClass elt className = do
-    curClasses <- T.splitOn " " <$> T.pack <$> elementGetClassName elt
+    curClasses <- T.splitOn " " <$> T.pack <$> getClassName elt
     let newClasses = T.unpack <$> filter (/= className) curClasses
-    elementSetClassName elt (unwords newClasses)
+    setClassName elt (unwords newClasses)
 
 eltToggleClass :: IsElement self => self -> Text -> IO ()
 eltToggleClass elt classItem = do
     let classItemS = T.unpack classItem
-    fullClass <- elementGetClassName elt
+    fullClass <- getClassName elt
     if classItemS `isInfixOf` fullClass
         then eltStripClass elt classItem
-        else elementSetClassName elt (fullClass <> " " <> classItemS)
+        else setClassName elt (fullClass <> " " <> classItemS)
 
 attrOptDyn :: a -> String -> Bool -> String -> Map a String
 attrOptDyn attrib opt isShow str = attrib =: (str <> if isShow then " " <> opt else "")
@@ -133,18 +131,6 @@ iconButton iconHeight iconName = button' $
 col :: MonadWidget t m => m a -> m a
 col = elStyle "td" (paddingAll (px 5))
 
--- very similar to fireEventRef from Reflex.Host.Class
--- which I don't have right now.
--- #reflex-frp on freenode.net, 2015-12-25:
--- [21:38] <ryantrinkle> the only thing you might want to improve later
---         is that you could make it so that it subscribes to the event lazily
--- [21:39] <ryantrinkle> and it unsubscribes when the event gets garbage collected
--- [21:39] <ryantrinkle> https://hackage.haskell.org/package/reflex-dom-0.2/docs/src/Reflex-Dom-Widget-Basic.html#wrapDomEventMaybe
-handleTrigger :: MonadIO m => ([DSum tag] -> m ()) -> a -> IORef (Maybe (tag a)) -> m ()
-handleTrigger runWithActions v trigger = liftIO (readIORef trigger) >>= \case
-        Nothing       -> return ()
-        Just eTrigger -> runWithActions [eTrigger :=> v]
-
 data ButtonInfo = PrimaryBtn String | DangerBtn String | NoBtn
 
 setupModal :: MonadWidget t m => ModalLevel -> Event t a -> m (Event t b) -> m (Event t b)
@@ -168,7 +154,7 @@ readDynMonadicEvent dynMonadicEvent = do
 
 buildModalBody :: MonadWidget t m => String -> ButtonInfo
                  -> Dynamic t String -> m a -> m (a, Event t (), Event t ())
-buildModalBody title okBtnInfo dynErrMsg contents = do
+buildModalBody title okBtnInfo dynErrMsg contents =
     elAttr "div" ("class" =: "modal-content") $ do
         elAttr "div" ("class" =: "modal-header") $ do
             let crossBtnAttrs = "type" =: "button" <> "class" =: "close"
@@ -244,13 +230,13 @@ dynAtEltId eltId child = do
     let build = \case
             Nothing -> return ()
             Just c  -> do
-                Just df <- liftIO $ documentCreateDocumentFragment doc
+                Just df <- liftIO $ createDocumentFragment doc
                 (result, postBuild, voidActions) <- runW df c
                 runFrameWithTriggerRef newChildBuiltTriggerRef (result, voidActions)
                 postBuild
-                Just docRoot <- liftIO $ documentGetElementById doc eltId
-                nodeLastChild <- liftIO $ nodeGetLastChild docRoot
-                void $ liftIO $ nodeReplaceChild docRoot (Just df) nodeLastChild
+                Just docRoot <- liftIO $ getElementById doc eltId
+                nodeLastChild <- liftIO $ getLastChild docRoot
+                void $ liftIO $ replaceChild docRoot (Just df) nodeLastChild
     schedulePostBuild $ do
         c <- sample $ current child
         build c
@@ -301,23 +287,23 @@ instance Monad RemoteData where
 
 readEmptyRemoteData :: XhrResponse -> RemoteData ()
 readEmptyRemoteData XhrResponse{..} = case _xhrResponse_status of
-    200 -> case _xhrResponse_body of
+    200 -> case _xhrResponse_responseText of
         Nothing -> RemoteData ()
         Just "" -> RemoteData ()
         Just x -> RemoteDataInvalid $ "Expected empty response, got" <> T.unpack x
     _ -> RemoteDataInvalid $ "HTTP response code " <> show _xhrResponse_status
-             <> "; details: " <> T.unpack (fromMaybeEmpty "none" _xhrResponse_body)
+             <> "; details: " <> T.unpack (fromMaybeEmpty "none" _xhrResponse_responseText)
 
 readRemoteData :: FromJSON a => XhrResponse -> RemoteData a
 readRemoteData XhrResponse{..} = case _xhrResponse_status of
-    200 -> case _xhrResponse_body of
+    200 -> case _xhrResponse_responseText of
         Nothing -> RemoteDataInvalid "Empty server response"
         Just rawData -> case decodeText rawData of
             Nothing -> RemoteDataInvalid $
-                "JSON has invalid format: " <> T.unpack (fromMaybe "Nothing" _xhrResponse_body)
+                "JSON has invalid format: " <> T.unpack (fromMaybe "Nothing" _xhrResponse_responseText)
             Just decoded -> RemoteData decoded
     _ -> RemoteDataInvalid $ "HTTP response code " <> show _xhrResponse_status
-             <> "; details: " <> T.unpack (fromMaybeEmpty "none" _xhrResponse_body)
+             <> "; details: " <> T.unpack (fromMaybeEmpty "none" _xhrResponse_responseText)
 
 fromMaybeEmpty :: (IsString a, Eq a) => a -> Maybe a -> a
 fromMaybeEmpty val Nothing = val

@@ -5,7 +5,10 @@ module EventsView where
 
 import GHCJS.Types
 import GHCJS.Foreign
-import GHCJS.DOM.Element
+import GHCJS.Marshal
+import GHCJS.Foreign.Callback
+import GHCJS.DOM.EventM (on)
+import GHCJS.DOM.Element as E
 import GHCJS.DOM.Document
 import GHCJS.DOM.EventM (stopPropagation)
 
@@ -38,17 +41,17 @@ newtype PikadayPicker = PikadayPicker { unPicker :: JSRef Any }
 foreign import javascript unsafe
     "$r = new Pikaday({firstDay: 1,onSelect: function(picker) {\
         \$2(picker.toString()) }}); $1.appendChild($r.el)"
-    _initPikaday :: JSRef Element -> JSFun (JSString -> IO ()) -> IO (JSRef a)
+    _initPikaday :: JSRef Element -> Callback (JSVal -> IO ()) -> IO (JSRef a)
 
-initPikaday :: JSRef Element -> JSFun (JSString -> IO ()) -> IO PikadayPicker
+initPikaday :: JSRef Element -> Callback (JSVal -> IO ()) -> IO PikadayPicker
 initPikaday = fmap (fmap PikadayPicker) . _initPikaday
 
 foreign import javascript unsafe
     "$1.setDate($2, true)" -- the true is to prevent from triggering "onSelect"
-    _pickerSetDate :: JSRef a -> JSString -> IO ()
+    _pickerSetDate :: JSRef a -> JSVal -> IO ()
 
 pickerSetDate :: PikadayPicker -> Day -> IO ()
-pickerSetDate picker day = _pickerSetDate (unPicker picker) (toJSString $ showGregorian day)
+pickerSetDate picker day = _pickerSetDate (unPicker picker) =<< toJSVal (showGregorian day)
 
 foreign import javascript unsafe "$1.hide()" _pickerHide :: JSRef a -> IO ()
 pickerHide :: PikadayPicker -> IO ()
@@ -226,12 +229,12 @@ createDateLabel curDate picker = do
             dynText =<< mapDyn (formatTime defaultTimeLocale "%A, %F") curDate
         -- use stopPropagation so that I can catch the clicks on the body elsewhere
         -- and close the date picker when the user clicks elsewhere.
-        e <- wrapDomEvent (_el_element label) elementOnclick stopPropagation
+        e <- wrapDomEvent (_el_element label) (`on` E.click) stopPropagation
 
         -- trigger day toggle event when the day button is pressed
         dayToggleEvt <- performEvent $ fmap (const $ liftIO $ do
             eltToggleClass (_el_element label) "active"
-            (cn :: String) <- elementGetClassName (_el_element label)
+            (cn :: String) <- getClassName (_el_element label)
             return ("active" `isInfixOf` cn)) e
 
         -- close the datepicker & update its date on day change.
@@ -243,7 +246,7 @@ createDateLabel curDate picker = do
 
         -- close the date picker on any click anywhere else.
         doc <- askDocument
-        (Just body) <- liftIO (documentGetBody doc)
+        (Just body) <- liftIO (getBody doc)
         bodyElt <- wrapElement defaultDomEventHandler (castToElement body)
         performEvent_ $ fmap (const $ liftIO $ do
                                    eltStripClass (_el_element label) "active"
@@ -296,9 +299,9 @@ eventsTable (RemoteData (FetchResponse tsEvents _)) =
 -- passing long as string as i'm unsure how to pass longs.
 foreign import javascript unsafe
     "-(new Date(parseInt($1)).getTimezoneOffset())" -- the offset is the wrong way...
-    _getTimezoneOffsetMinsForDateMs :: JSString -> IO Int
+    _getTimezoneOffsetMinsForDateMs :: JSVal -> IO Int
 getTimezoneOffsetMinsForDateMs :: UTCTime -> IO Int
-getTimezoneOffsetMinsForDateMs = _getTimezoneOffsetMinsForDateMs . toJSString . show
+getTimezoneOffsetMinsForDateMs = (_getTimezoneOffsetMinsForDateMs <=< toJSVal) . show
     . (*1000) . (floor :: NominalDiffTime -> Integer) . utcTimeToPOSIXSeconds
 
 getCurrentTimeZoneJS :: UTCTime -> IO TimeZone
@@ -386,10 +389,11 @@ datePicker initialDay = do
     postGui <- askPostGui
     runWithActions <- askRunWithActions
     picker <- liftIO $ do
-        cb <- syncCallback1 AlwaysRetain False $ \date ->
-            case parsePikadayDate (fromJSString date) of
+        cb <- syncCallback1 ContinueAsync $ \date -> do
+            dateStr <- fromJSVal date
+            case parsePikadayDate =<< dateStr of
                 Nothing -> return ()
-                Just dt -> postGui $ handleTrigger runWithActions dt evtTrigger
+                Just dt -> postGui $ fireEventRef evtTrigger dt
         picker <- initPikaday (unwrapElt e) cb
         pickerSetDate picker initialDay
         return picker

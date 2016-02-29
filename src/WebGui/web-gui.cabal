@@ -26,7 +26,7 @@ Executable cigale-web
        base,
        reflex,
        reflex-dom,
-       ghcjs-dom == 0.1.*,
+       ghcjs-dom,
        ghcjs-base,
        time,
        text,

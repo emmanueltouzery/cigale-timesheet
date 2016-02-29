@@ -12,10 +12,14 @@ import GHCJS.DOM.Element as E
 import GHCJS.DOM.Document
 import GHCJS.DOM.EventM (stopPropagation)
 
+import Data.Dependent.Sum (DSum ((:=>)))
+
 import Reflex
 import Reflex.Dom hiding (display)
 import Reflex.Host.Class
 
+import Data.IORef
+import Control.Monad.Identity
 import Clay as C hiding (col, div, id, start, end, focus, dt)
 import Data.Time.Clock
 import Data.Time.Calendar
@@ -388,12 +392,18 @@ datePicker initialDay = do
     (evt, evtTrigger) <- newEventWithTriggerRef
     postGui <- askPostGui
     runWithActions <- askRunWithActions
+    -- TODO very similar to fireEventRef
+    let handleTrigger e trigger = do
+          mETrigger <- liftIO $ readIORef trigger
+          case mETrigger of
+              Nothing       -> return ()
+              Just eTrigger -> runWithActions [eTrigger :=> Identity e]
     picker <- liftIO $ do
         cb <- syncCallback1 ContinueAsync $ \date -> do
             dateStr <- fromJSVal date
             case parsePikadayDate =<< dateStr of
                 Nothing -> return ()
-                Just dt -> postGui $ fireEventRef evtTrigger dt
+                Just dt -> postGui $ handleTrigger dt evtTrigger
         picker <- initPikaday (unwrapElt e) cb
         pickerSetDate picker initialDay
         return picker

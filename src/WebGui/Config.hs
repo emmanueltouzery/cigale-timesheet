@@ -149,7 +149,7 @@ addCfgPluginAdd pc clickEvt = do
             editConfigEvt <- performEvent $ fmap
                 (const $ ChangeAdd <$> readDialog dialogResult pc)
                 addDlgOkEvt
-            saveEvt <- saveConfigAdd editConfigEvt
+            saveEvt <- saveConfig editConfigEvt
         return saveEvt
     modalHandleSaveAction ModalLevelBasic setupModalR
 
@@ -235,10 +235,11 @@ passwordEntry fieldId desc fieldValue = do
                 rawPointerSpan padlockContents
             let padlockEvt = domEvent Click padlock
         let inputGetValue = getValue . castToHTMLInputElement . _el_element
+        let getFieldValue = liftIO $ do
+                val <- inputGetValue inputField
+                return $ fromMaybe "" $ fromJSString <$> val
         holdDyn fieldValue =<< performEvent
-            (fmap (const $ liftIO $ do
-                        val <- inputGetValue inputField
-                        return $ fromMaybe "" $ fromJSString <$> val) $ domEvent Change inputField)
+            (const getFieldValue <$> domEvent Change inputField)
 
 buckets :: Ord b => (a -> b) -> [a] -> [(b, [a])]
 buckets f = map (\g -> (fst $ head g, map snd g))
@@ -268,7 +269,7 @@ displaySectionItem pluginConfig@PluginConfig{..} ci@ConfigItem{..} =
             delEvt <- addDeleteButton ci
             updEvt <- addEditButton pluginConfig ci
             -- leftmost is ok, they can't both happen at the same time
-            return $ leftmost [delEvt, fmap ChangeUpdate updEvt]
+            return $ leftmost [delEvt, updEvt]
         elAttr "div" ("class" =: "card-block") $
             pluginContents pluginConfig ci
         return cfgChgEvt
@@ -284,11 +285,11 @@ addDeleteButton ci@ConfigItem{..} = do
             errorDyn <- remoteDataErrorDescDyn saveEvt
 
             let deleteEvt = fmap (const $ ChangeDelete ci) deleteDlgOkEvt
-            saveEvt <- saveConfigDelete deleteEvt
+            saveEvt <- saveConfig deleteEvt
         return saveEvt
     modalHandleSaveAction ModalLevelBasic setupModalR
 
-addEditButton :: MonadWidget t m => PluginConfig -> ConfigItem -> m (Event t ConfigUpdate)
+addEditButton :: MonadWidget t m => PluginConfig -> ConfigItem -> m (Event t ConfigChange)
 addEditButton pluginConfig@PluginConfig{..} ci@ConfigItem{..} = do
     let btnClass = "class" =: "btn btn-default btn-sm"
     let btnStyle = float floatRight >> marginRight (px 5)
@@ -300,9 +301,10 @@ addEditButton pluginConfig@PluginConfig{..} ci@ConfigItem{..} = do
             errorDyn <- remoteDataErrorDescDyn saveEvt
 
             editConfigEvt <- performEvent $ fmap
-                (const $ ConfigUpdate configItemName <$> readDialog dialogResult pluginConfig)
+                (const $ ChangeUpdate <$> ConfigUpdate configItemName <$>
+                 readDialog dialogResult pluginConfig)
                 editDlgOkEvt
-            saveEvt <- saveConfigEdit editConfigEvt
+            saveEvt <- saveConfig editConfigEvt
         return saveEvt
     modalHandleSaveAction ModalLevelBasic setupModalR
 
@@ -317,29 +319,21 @@ encodeToStr :: ToJSON a => a -> String
 encodeToStr = bsToStr . encode
     where bsToStr = map (chr . fromEnum) . BS.unpack
 
-saveConfigAdd :: MonadWidget t m => Event t ConfigChange -> m (Event t (RemoteData ConfigChange))
-saveConfigAdd configAddEvt = do
-    let makeReq (ChangeAdd cfg) = do
-            let url = "/config"
-            xhrRequest "POST" url $
-                def { _xhrRequestConfig_sendData = Just (encodeToStr cfg) }
+saveConfig :: MonadWidget t m => Event t ConfigChange -> m (Event t (RemoteData ConfigChange))
+saveConfig configAddEvt = do
+    let makeReq = \case
+            (ChangeAdd cfg) -> do
+                let url = "/config"
+                xhrRequest "POST" url $
+                    def { _xhrRequestConfig_sendData = Just (encodeToStr cfg) }
+            (ChangeUpdate cfgEdit) -> do
+                let url = "/config?oldConfigItemName=" <> oldConfigItemName cfgEdit
+                xhrRequest "PUT" url $
+                    def { _xhrRequestConfig_sendData = Just (encodeToStr $ newConfigItem cfgEdit) }
+            (ChangeDelete cfg) -> do
+                let url = "/config?configItemName=" <> configItemName cfg
+                xhrRequest "DELETE" url def
     httpVoidRequest makeReq configAddEvt
-
-saveConfigEdit :: MonadWidget t m => Event t ConfigUpdate -> m (Event t (RemoteData ConfigUpdate))
-saveConfigEdit configEditEvt = do
-    let makeReq cfgEdit = do
-            let url = "/config?oldConfigItemName=" <> oldConfigItemName cfgEdit
-            xhrRequest "PUT" url $
-                def { _xhrRequestConfig_sendData = Just (encodeToStr $ newConfigItem cfgEdit) }
-    httpVoidRequest makeReq configEditEvt
-
-saveConfigDelete :: MonadWidget t m => Event t ConfigChange
-                 -> m (Event t (RemoteData ConfigChange))
-saveConfigDelete cfgDelEvt = do
-    let makeReq (ChangeDelete cfg) = do
-            let url = "/config?configItemName=" <> configItemName cfg
-            xhrRequest "DELETE" url def
-    httpVoidRequest makeReq cfgDelEvt
 
 httpVoidRequest :: MonadWidget t m => (a -> XhrRequest) -> Event t a
                 -> m (Event t (RemoteData a))

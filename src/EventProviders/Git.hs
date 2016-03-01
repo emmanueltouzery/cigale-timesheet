@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, DeriveGeneric, TemplateHaskell, ViewPatterns, RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings, DeriveGeneric, TemplateHaskell, ViewPatterns #-}
 
 module Git where
 
@@ -13,11 +13,13 @@ import Data.List (isInfixOf, intercalate)
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.Maybe
 import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
+import Control.Monad (replicateM_)
 import Control.Monad.Trans
 import Control.Error
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Monoid
+import Control.Monad
 
 import TsEvent
 import Util
@@ -50,10 +52,9 @@ getRepoCommits (GitRecord _username projectPath) _ date _ = do
     timezone <- liftIO $ getTimeZone (UTCTime date 8)
     allCommits <- hoistEither $ fmapL show $ parse parseCommits "" $ output <> "\n"
     let relevantCommits = filter (isRelevantCommit date username) allCommits
-    let addBranch = mapM (getBranch projectPath)
-    commitsList <- map (commitToEvent projectPath timezone) <$> addBranch relevantCommits
+    let commitsList = map (commitToEvent projectPath timezone) relevantCommits
     let tagCommits = filter (isRelevantTagCommit date) allCommits
-    tagsList <- map (tagToEvent projectPath timezone) <$> addBranch tagCommits
+    let tagsList = map (tagToEvent projectPath timezone) tagCommits
     return $ commitsList ++ tagsList
 
 isRelevantCommit :: Day -> String -> Commit -> Bool
@@ -66,33 +67,23 @@ isRelevantTagCommit :: Day -> Commit -> Bool
 isRelevantTagCommit date commit = all ($ commit) [
     commitInRange date, not . null . commitTags]
 
-getBranch :: FilePath -> Commit -> ExceptT String IO (Commit, Text)
-getBranch projectPath commit@Commit{..} = do
-    output <- T.lines <$> Util.runProcess "git" projectPath ["branch", "--contains", commitSha]
-    return (commit, T.strip $ fromMaybe "" $ headZ output)
-
 commitInRange :: Day -> Commit -> Bool
 commitInRange date = inRange . localDay . commitDate
     where
         inRange tdate = tdate >= date && tdate < addDays 1 date
 
-commitToEvent :: FolderPath -> TimeZone -> (Commit, Text) -> TsEvent
-commitToEvent gitFolderPath timezone (commit, branch) = TsEvent
+commitToEvent :: FolderPath -> TimeZone -> Commit -> TsEvent
+commitToEvent gitFolderPath timezone commit = TsEvent
     {
         pluginName = getModuleName getGitProvider,
         eventIcon = "glyphicons-423-git-branch",
         eventDate = localTimeToUTC timezone (commitDate commit),
         desc = fromMaybe "no commit message" (commitDesc commit),
-        extraInfo = branchDesc <> getCommitExtraInfo commit (T.pack gitFolderPath),
+        extraInfo = getCommitExtraInfo commit (T.pack gitFolderPath),
         fullContents = Just $ T.pack $ commitContents commit
     }
-    where
-      branchDesc = case branch of
-          "master"   -> ""
-          "* master" -> ""
-          _          -> "[" <> branch <> "] "
 
-tagToEvent :: FolderPath -> TimeZone -> (Commit, Text) -> TsEvent
+tagToEvent :: FolderPath -> TimeZone -> Commit -> TsEvent
 tagToEvent gitFolderPath timezone commit = baseEvent
         {
             desc = "Tag applied: " <> descVal,
@@ -100,7 +91,7 @@ tagToEvent gitFolderPath timezone commit = baseEvent
         }
     where
         baseEvent = commitToEvent gitFolderPath timezone commit
-        descVal = T.intercalate ", " $ map T.pack $ commitTags $ fst commit
+        descVal = T.intercalate ", " $ map T.pack $ commitTags commit
 
 getCommitExtraInfo :: Commit -> Text -> Text
 getCommitExtraInfo commit gitFolderPath = if atRoot filesRoot then gitRepoName else filesRoot
@@ -111,7 +102,6 @@ getCommitExtraInfo commit gitFolderPath = if atRoot filesRoot then gitRepoName e
 
 data Commit = Commit
     {
-        commitSha      :: String,
         commitDate     :: LocalTime,
         commitDesc     :: Maybe Text,
         commitFiles    :: [String],
@@ -155,7 +145,7 @@ parseParent = Parent <$> many1 (noneOf ",)")
 parseCommit :: GenParser st Commit
 parseCommit = do
     string "commit "
-    sha <- many1 $ noneOf " \n\r"
+    commitSha <- many1 $ noneOf " \n\r"
     tags <- option [] parseDecoration
     many1 $ oneOf "\r\n"
 
@@ -173,7 +163,6 @@ parseCommit = do
     optional (count 2 eol)
     return Commit
         {
-            commitSha      = sha,
             commitDate     = date,
             commitDesc     = fmap (T.strip . T.pack) summary,
             commitFiles    = cFileNames,

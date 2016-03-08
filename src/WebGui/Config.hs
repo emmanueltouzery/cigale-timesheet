@@ -227,7 +227,7 @@ passwordEntry fieldId desc fieldValue = do
                 "value" =: fieldValue <>
                 "type"  =: if p then "password" else "text"
             (inputField, _) <- elDynAttr' "input" attrsDyn $ return ()
-            showPaswd <- foldDyn ($) True $ fmap (const not) padlockEvt
+            showPaswd <- toggle True padlockEvt
             (padlock, _) <- elAttr' "div" ("class" =: "input-group-addon") $ do
                 padlockContents <- forDyn showPaswd $ \case
                     True  -> "&#128274;"
@@ -301,7 +301,7 @@ addEditButton pluginConfig@PluginConfig{..} ci@ConfigItem{..} = do
             errorDyn <- remoteDataErrorDescDyn saveEvt
 
             editConfigEvt <- performEvent $ fmap
-                (const $ ChangeUpdate <$> ConfigUpdate configItemName <$>
+                (const $ ChangeUpdate . ConfigUpdate configItemName <$>
                  readDialog dialogResult pluginConfig)
                 editDlgOkEvt
             saveEvt <- saveConfig editConfigEvt

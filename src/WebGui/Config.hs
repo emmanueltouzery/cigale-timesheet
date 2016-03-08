@@ -27,6 +27,7 @@ import qualified Data.ByteString.Lazy as BS
 import Data.Char
 import Data.Ord
 import Clay as C hiding (map, (&), filter, head, p, url, name, pc)
+import Data.Bool (bool)
 
 import Communication
 import EventProvider
@@ -227,16 +228,11 @@ passwordEntry fieldId desc fieldValue = do
                 "value" =: fieldValue <>
                 "type"  =: if p then "password" else "text"
             (inputField, _) <- elDynAttr' "input" attrsDyn $ return ()
-            showPaswd <- toggle True padlockEvt
-            (padlock, _) <- elAttr' "div" ("class" =: "input-group-addon") $ do
-                padlockContents <- forDyn showPaswd $ \case
-                    True  -> "&#128274;"
-                    False -> "&#128275;"
-                rawPointerSpan padlockContents
-            let padlockEvt = domEvent Click padlock
-        let inputGetValue = getValue . castToHTMLInputElement . _el_element
+            showPaswd <- toggle True (domEvent Click padlock)
+            (padlock, _) <- elAttr' "div" ("class" =: "input-group-addon") $
+                rawPointerSpan =<< forDyn showPaswd (bool "&#128275;" "&#128274;")
         let getFieldValue = liftIO $ do
-                val <- inputGetValue inputField
+                val <- getValue (castToHTMLInputElement $ _el_element inputField)
                 return $ fromMaybe "" $ fromJSString <$> val
         holdDyn fieldValue =<< performEvent
             (const getFieldValue <$> domEvent Change inputField)

@@ -82,6 +82,7 @@ data ConfigUpdate = ConfigUpdate
         oldConfigItemName :: String,
         newConfigItem :: ConfigItem
     } deriving Show
+
 data ConfigChange = ChangeAdd ConfigItem
                   | ChangeUpdate ConfigUpdate
                   | ChangeDelete ConfigItem

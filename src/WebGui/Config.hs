@@ -259,7 +259,7 @@ displayConfigSection dynSecInfo_ = do
             (switch . current) <$> holdDyn never dynEvts
 
 displaySectionItem :: MonadWidget t m => PluginConfig -> ConfigItem -> m (Event t ConfigChange)
-displaySectionItem pluginConfig@PluginConfig{..} ci@ConfigItem{..} =
+displaySectionItem pluginConfig ci@ConfigItem{..} =
     elAttr "div" ("class" =: "card") $ do
         cfgChgEvt <- elAttr "div" ("class" =: "card-header") $ do
             text configItemName
@@ -287,7 +287,7 @@ addDeleteButton ci@ConfigItem{..} = do
     modalHandleSaveAction ModalLevelBasic setupModalR
 
 addEditButton :: MonadWidget t m => PluginConfig -> ConfigItem -> m (Event t ConfigChange)
-addEditButton pluginConfig@PluginConfig{..} ci@ConfigItem{..} = do
+addEditButton pluginConfig ci@ConfigItem{..} = do
     let btnClass = "class" =: "btn btn-default btn-sm"
     let btnStyle = float floatRight >> marginRight (px 5)
     (editBtn, _) <- elAttrStyle' "button" btnClass btnStyle $ text "Edit"

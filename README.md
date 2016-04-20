@@ -30,10 +30,6 @@ This will probably work fine only on linux. Also  installation will take a long 
 
 First you need to install the [stack package manager][]. You also need to install `node.js`, `npm`, the zlib, sqlite, openssl & ncurses/tinfo devel packages (see lower).
 
-Careful! Currently `ghcjs` [is very sensitive][] to [the node version][]... 4.1.0 works. 0.10.40 works. 5.x apparently doesn't work. You can [install n] and run:
-
-    n 4.1.0
-
 To prevent errors like `/usr/bin/ld: cannot find -ltinfo`, run:
 
     sudo dnf install ncurses-devel (fedora)

@@ -48,7 +48,7 @@ getRepoCommits (GitRecord _username projectPath) _ date _ = do
             "log", "--since", showGregorian $ addDays (-1) date,
             "--until", showGregorian $ addDays 1 date,
     --      "--author=\"" ++ username ++ "\"",
-            "--stat", "--all", "--decorate"]
+            "--stat", "--all", "--decorate", "--pretty=fuller"]
     timezone <- liftIO $ getTimeZone (UTCTime date 8)
     allCommits <- hoistEither $ fmapL show $ parse parseCommits "" $ output <> "\n"
     let relevantCommits = filter (isRelevantCommit date username) allCommits
@@ -76,7 +76,9 @@ commitToEvent :: FolderPath -> TimeZone -> Commit -> TsEvent
 commitToEvent gitFolderPath timezone commit = TsEvent
     {
         pluginName = getModuleName getGitProvider,
-        eventIcon = "glyphicons-423-git-branch",
+        eventIcon = if commitIsCherryPicked commit
+                       then "glyphicons-428-git-pull-request"
+                       else "glyphicons-423-git-branch",
         eventDate = localTimeToUTC timezone (commitDate commit),
         desc = fromMaybe "no commit message" (commitDesc commit),
         extraInfo = getCommitExtraInfo commit (T.pack gitFolderPath),
@@ -108,7 +110,8 @@ data Commit = Commit
         commitAuthor   :: String,
         commitContents :: String,
         commitIsMerge  :: Bool,
-        commitTags     :: [String]
+        commitTags     :: [String],
+        commitIsCherryPicked :: Bool
     }
     deriving (Eq, Show)
 
@@ -150,9 +153,11 @@ parseCommit = do
     many1 $ oneOf "\r\n"
 
     mergeInfo <- optionMaybe parseMerge
-    author <- string "Author: " >> readLine
-    date <- parseDateTime
-    count 2 eol
+    author <- string "Author: " >> stripLine
+    authorDate <- string "AuthorDate:" *> parseDateTime <* eol
+    commit <- string "Commit: " >> stripLine
+    commitDate <- string "CommitDate:" *> parseDateTime <* eol
+    eol
 
     summary <- optionMaybe parseCommitComment
     filesInfo <- optionMaybe parseFiles
@@ -161,16 +166,27 @@ parseCommit = do
     let cFileNames = maybe [] (fmap snd) filesInfo
 
     optional (count 2 eol)
+    let isCherryPicked = commitDate /= authorDate
+    let cherryPickInfo = if isCherryPicked
+          then "<table><tr><td><b>Original author</b></td><td>"
+               ++ author ++ "</td></tr>"
+               ++ "<tr><td><b>Original commit</b></td><td>"
+               ++ show authorDate ++ "</td></tr></table>"
+          else ""
     return Commit
         {
-            commitDate     = date,
+            commitDate     = commitDate,
             commitDesc     = fmap (T.strip . T.pack) summary,
             commitFiles    = cFileNames,
-            commitAuthor   = T.unpack $ T.strip $ T.pack author,
-            commitContents = "<pre>" ++ intercalate "<br/>\n" cFilesDesc ++ "</pre>",
+            commitAuthor   = author,
+            commitContents = cherryPickInfo ++ "<pre>" ++ intercalate "<br/>\n" cFilesDesc ++ "</pre>",
             commitIsMerge  = isJust mergeInfo,
-            commitTags     = tags
+            commitTags     = tags,
+            commitIsCherryPicked = isCherryPicked
         }
+
+stripLine :: GenParser st String
+stripLine = T.unpack . T.strip . T.pack <$> readLine
 
 readLine :: GenParser st String
 readLine = many (noneOf "\r\n") <* oneOf "\r\n"
@@ -197,7 +213,6 @@ parseFilesSummary = do
 
 parseDateTime :: GenParser st LocalTime
 parseDateTime = do
-    string "Date:"
     many (char ' ')
     count 3 anyChar <* char ' ' -- day
     month   <- strToMonth <$> count 3 anyChar
@@ -225,5 +240,4 @@ strToMonth month = fromMaybe (error $ "Unknown month " <> month) $
 parseCommitComment :: GenParser st String
 parseCommitComment = do
     try $ string "    "
-    summary <- manyTill anyChar (try $ count 2 eol)
-    return summary
+    manyTill anyChar (try $ count 2 eol)

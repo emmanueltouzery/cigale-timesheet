@@ -14,3 +14,4 @@ cabal.sandbox.config
 .stack-work
 src/WebGui/reflex-dom
 lib/node_modules
+TAGS

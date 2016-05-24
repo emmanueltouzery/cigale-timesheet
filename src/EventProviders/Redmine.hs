@@ -18,11 +18,9 @@ import Data.Time.Format
 import Data.List (find)
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.Maybe
-import Control.Applicative hiding ((<|>))
 import Data.Text.Lazy (toStrict)
 import Control.Error
 import Control.Monad.Trans
-import Text.ParserCombinators.Parsec
 import Data.Monoid
 
 import Text.XML (Node(..), elementAttributes)
@@ -135,12 +133,15 @@ parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) =
         else parseBugNodes config day timezone rest
     where
         linkNode = node . head $ queryT [jq|a|] bugInfo
-        linkTarget (NodeElement elt) = Map.lookup "href" (elementAttributes elt)
         localTime = parseTimeOfDay day $ T.unpack $ bugInfo >@> [jq|span.time|]
         authorName = changeInfo >@> [jq|span.author a|]
         n >@> q = toStrict . innerText . node . head $ queryT q n
 parseBugNodes _ _ _ [] = []
 parseBugNodes _ _ _ [_] = error "parseBugNodes: invalid pattern!?"
+
+linkTarget :: Node -> Maybe Text
+linkTarget (NodeElement elt) = Map.lookup "href" (elementAttributes elt)
+linkTarget tgt = error ("Unexpected link target: " ++ show tgt)
 
 parseTimeOfDay :: Day -> String -> LocalTime
 parseTimeOfDay day time = LocalTime day $ fromMaybe (error $ "Can't parse time: " ++ time) parsed

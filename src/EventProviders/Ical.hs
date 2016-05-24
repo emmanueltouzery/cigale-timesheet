@@ -20,7 +20,7 @@ import qualified System.IO.Error as IOEx
 import Data.Map as Map hiding (filter, map, foldl)
 import Data.Time.Format
 import Data.Aeson.TH (deriveJSON, defaultOptions)
-import Control.Applicative ((<$>), (<|>))
+import Control.Applicative ((<|>))
 import Data.Maybe
 import Control.Error
 import Control.Monad.Trans

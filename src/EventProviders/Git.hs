@@ -12,7 +12,6 @@ import Data.Text (Text)
 import Data.List (isInfixOf, intercalate)
 import Data.Aeson.TH
 import Data.Maybe
-import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
 import Control.Monad.Trans
 import Control.Error
 import Data.Map (Map)
@@ -143,15 +142,15 @@ parseParent = Parent <$> many1 (noneOf ",)")
 parseCommit :: GenParser st Commit
 parseCommit = do
     string "commit "
-    commitSha <- many1 $ noneOf " \n\r"
+    many1 $ noneOf " \n\r" -- commit sha
     tags <- option [] parseDecoration
     many1 $ oneOf "\r\n"
 
     mergeInfo <- optionMaybe parseMerge
     author <- string "Author: " >> stripLine
     authorDate <- string "AuthorDate:" *> parseDateTime <* eol
-    commit <- string "Commit: " >> stripLine
-    commitDate <- string "CommitDate:" *> parseDateTime <* eol
+    string "Commit: " >> stripLine
+    cDate <- string "CommitDate:" *> parseDateTime <* eol
     eol
 
     summary <- optionMaybe parseCommitComment
@@ -161,7 +160,7 @@ parseCommit = do
     let cFileNames = maybe [] (fmap snd) filesInfo
 
     optional (count 2 eol)
-    let isCherryPicked = commitDate /= authorDate
+    let isCherryPicked = cDate /= authorDate
     let cherryPickInfo = if isCherryPicked
           then "<table><tr><td><b>Original author</b></td><td>"
                ++ author ++ "</td></tr>"
@@ -170,7 +169,7 @@ parseCommit = do
           else ""
     return Commit
         {
-            commitDate     = commitDate,
+            commitDate     = cDate,
             commitDesc     = fmap (T.strip . T.pack) summary,
             commitFiles    = cFileNames,
             commitAuthor   = author,

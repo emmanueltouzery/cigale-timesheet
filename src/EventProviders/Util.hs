@@ -12,11 +12,10 @@ import Text.ParserCombinators.Parsec
 import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
 import Network.Http.Client as S
-import System.IO.Streams (InputStream(..))
+import System.IO.Streams (InputStream)
 import qualified System.IO.Streams as Streams
 import qualified Blaze.ByteString.Builder as Builder
 import qualified Data.Functor.Identity as DFI
-import Control.Applicative hiding (optional)
 import Control.Error
 import Control.Exception as Ex
 import Text.Printf.TH
@@ -33,7 +32,7 @@ parseNum digitCount = read <$> count digitCount digit
 
 runProcess :: String -> String -> [String] -> ExceptT String IO Text
 runProcess program runningFolder parameters = do
-    (inh, Just outh, errh, pid) <- lift $ createProcess (proc program parameters)
+    (_, Just outh, _, pid) <- lift $ createProcess (proc program parameters)
         { std_out = CreatePipe, cwd = Just runningFolder }
     output <- lift (IO.hGetContents outh)
     lift (waitForProcess pid) >>= \case
@@ -44,7 +43,7 @@ runProcess program runningFolder parameters = do
 -- return the common prefix to all the files.
 -- http://www.haskell.org/pipermail/beginners/2011-April/006861.html
 getFilesRoot :: [String] -> String
-getFilesRoot allFiles = map head (takeWhile allEqual (zipLists allFiles))
+getFilesRoot allFiles = head <$> takeWhile allEqual (zipLists allFiles)
 
 allEqual :: Eq a => [a] -> Bool
 allEqual []   = True

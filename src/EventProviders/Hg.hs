@@ -10,7 +10,6 @@ import Text.Parsec
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Aeson.TH (deriveJSON, defaultOptions)
-import Control.Applicative ( (<*>), (<*), (*>) )
 import Control.Monad.Trans
 import Control.Error
 

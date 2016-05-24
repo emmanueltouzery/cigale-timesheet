@@ -73,6 +73,8 @@ Library
     Skype,
     Ical,
     EventProviderSettings
+  ghc-options: -threaded -Wall -funbox-strict-fields -O2
+               -fno-warn-unused-do-bind
 
 Executable cigale-timesheet
   hs-source-dirs:

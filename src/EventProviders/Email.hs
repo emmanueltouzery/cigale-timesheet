@@ -33,7 +33,6 @@ import Data.Aeson.TH (deriveJSON, defaultOptions)
 import qualified Codec.Text.IConv as IConv
 import qualified Data.Map as Map
 import Data.Map (Map)
-import Control.Applicative ( (<*>), (<*), (*>) )
 import Data.Monoid
 import qualified Control.Applicative as A
 import Control.Arrow ( (***) )
@@ -108,7 +107,7 @@ getEmails getAttachUrl sent_mbox fromDate toDate = do
     let messages2 = filter (isAfter fromDate) messages1
     return $ map (messageToEmail getAttachUrl) messages2
     where
-      dateMatches comp date email = localDay (getEmailDate email) `comp` date
+      dateMatches comp dte email = localDay (getEmailDate email) `comp` dte
       isAfter = dateMatches (>=)
       isBefore = dateMatches (<=)
 
@@ -116,9 +115,9 @@ messageToEmail :: (AttachmentKey -> Url) -> MboxMessage BL.ByteString -> Email
 messageToEmail getAttachUrl msg = do
     let emailDate = getEmailDate msg
     let (headers, rawMessage) = parseMessage msg
-    let toVal = readHeader "To" headers
+    let toVal = rHeader "To" headers
     let ccVal = Map.lookup "CC" headers
-    let subjectVal = readHeader "Subject" headers
+    let subjectVal = rHeader "Subject" headers
     let messageId = fromMaybe "" $ getMessageId msg
     let emailContents = case parseMultipartSections headers rawMessage of
             Just sections -> T.concat
@@ -128,8 +127,7 @@ messageToEmail getAttachUrl msg = do
     Email emailDate toVal ccVal subjectVal emailContents
     where
         -- TODO ugly to re-encode in ByteString, now I do ByteString->Text->ByteString->Text
-        -- pazi another top-level function is also named readHeader!!!
-        readHeader hName = decodeMimeHeader . encodeUtf8 . Map.findWithDefault "missing" hName
+        rHeader hName = decodeMimeHeader . encodeUtf8 . Map.findWithDefault "missing" hName
 
 getAttachmentBar :: (AttachmentKey -> Url) -> String -> [MultipartSection] -> Text
 getAttachmentBar getAttachUrl messageId sections = foldr (\(section,idx) -> T.append (T.pack $
@@ -246,9 +244,9 @@ sectionFormattedContent section
 sectionDecodedContents :: MultipartSection -> BS.ByteString
 sectionDecodedContents section
     | "text/" `T.isPrefixOf` sectionCType section = encodeUtf8 $ sectionFormattedContent section
-    | sectionCTTransferEnc section == "base64" = Base64.decodeLenient contents
-    | otherwise = contents
-    where contents = BSL.toStrict $ sectionContent section
+    | sectionCTTransferEnc section == "base64" = Base64.decodeLenient cts
+    | otherwise = cts
+    where cts = BSL.toStrict $ sectionContent section
 
 charsetFromContentType :: Text -> String
 charsetFromContentType ct = T.unpack $ Map.findWithDefault "utf-8" "charset" kvHash

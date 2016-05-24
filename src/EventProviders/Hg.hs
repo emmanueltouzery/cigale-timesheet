@@ -17,25 +17,22 @@ import Control.Error
 import TsEvent
 import Util
 import EventProvider
+import EventProviderSettings
 
-data HgRecord = HgRecord
-    {
-        hgUser :: Text,
-        hgRepo :: FolderPath
-    } deriving Show
-deriveJSON defaultOptions ''HgRecord
+deriveConfigRecord hgConfigDataType
+deriveJSON defaultOptions ''HgConfigRecord
 
-getHgProvider :: EventProvider HgRecord ()
+getHgProvider :: EventProvider HgConfigRecord ()
 getHgProvider = EventProvider
     {
         getModuleName = "Hg",
-        getEvents = getRepoCommits,
-        getConfigType = members $(thGetTypeDesc ''HgRecord),
-        getExtraData = Nothing
+        getEvents     = getRepoCommits,
+        getConfigType = members hgConfigDataType,
+        getExtraData  = Nothing
     }
 
-getRepoCommits :: HgRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]
-getRepoCommits (HgRecord username projectPath) _ day _ = do
+getRepoCommits :: HgConfigRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]
+getRepoCommits (HgConfigRecord username projectPath) _ day _ = do
     output <- Util.runProcess "hg" projectPath
         [
             "log", "-k", T.unpack username, "-d", showGregorian day,

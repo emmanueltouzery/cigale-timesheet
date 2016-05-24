@@ -23,27 +23,25 @@ import Database.HDBC.Sqlite3
 import TsEvent
 import qualified Util
 import EventProvider
+import EventProviderSettings
 
 skypeMinIntervalToSplitChatsSeconds :: NominalDiffTime
 skypeMinIntervalToSplitChatsSeconds = 3600
 
-data SkypeConfig = SkypeConfig
-    {
-        skypeUsername :: String
-    } deriving Show
-deriveJSON defaultOptions ''SkypeConfig
+deriveConfigRecord skypeConfigDataType
+deriveJSON defaultOptions ''SkypeConfigRecord
 
-getSkypeProvider :: EventProvider SkypeConfig ()
+getSkypeProvider :: EventProvider SkypeConfigRecord ()
 getSkypeProvider = EventProvider
     {
         getModuleName = "Skype",
-        getEvents = getSkypeEvents,
-        getConfigType = members $(thGetTypeDesc ''SkypeConfig),
-        getExtraData = Nothing
+        getEvents     = getSkypeEvents,
+        getConfigType = members skypeConfigDataType,
+        getExtraData  = Nothing
     }
 
-getSkypeEvents :: SkypeConfig -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]
-getSkypeEvents (SkypeConfig skypeUsernameVal) _ day _ = do
+getSkypeEvents :: SkypeConfigRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]
+getSkypeEvents (SkypeConfigRecord skypeUsernameVal) _ day _ = do
     let todayMidnight = LocalTime day (TimeOfDay 0 0 0)
     timezone <- lift $ getTimeZone (UTCTime day 8)
     let todayMidnightUTC = localTimeToUTC timezone todayMidnight
@@ -52,7 +50,7 @@ getSkypeEvents (SkypeConfig skypeUsernameVal) _ day _ = do
     homeDir <- lift getHomeDirectory
     r <- lift $ do
         conn <- connectSqlite3 $ homeDir ++ "/.Skype/"
-            ++ skypeUsernameVal ++ "/main.db"
+            ++ T.unpack skypeUsernameVal ++ "/main.db"
         result <- quickQuery' conn "select chatname, from_dispname, timestamp, body_xml \
                  \from messages where timestamp >= ? and timestamp <= ? \
                  \and chatname is not null and from_dispname is not null \

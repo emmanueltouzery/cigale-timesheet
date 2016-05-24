@@ -34,28 +34,22 @@ import Text.HTML.DOM (parseLBS)
 import qualified Util
 import TsEvent
 import EventProvider
+import EventProviderSettings
 
-type Password = Text
+deriveConfigRecord redmineConfigDataType
+deriveJSON defaultOptions ''RedmineConfigRecord
 
-data RedmineConfig = RedmineConfig
-    {
-        redmineUrl :: Text,
-        redmineUsername :: Text,
-        redmineUserDisplay :: Text,
-        redminePassword :: Password
-    } deriving Show
-deriveJSON defaultOptions ''RedmineConfig
-
-getRedmineProvider :: EventProvider RedmineConfig ()
+getRedmineProvider :: EventProvider RedmineConfigRecord ()
 getRedmineProvider = EventProvider
     {
         getModuleName = "Redmine",
-        getEvents = getRedmineEvents,
-        getConfigType = members $(thGetTypeDesc ''RedmineConfig),
-        getExtraData = Nothing
+        getEvents     = getRedmineEvents,
+        getConfigType = members redmineConfigDataType,
+        getExtraData  = Nothing
     }
 
-getRedmineEvents :: RedmineConfig -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]
+getRedmineEvents :: RedmineConfigRecord -> GlobalSettings -> Day -> (() -> Url)
+                 -> ExceptT String IO [TsEvent]
 getRedmineEvents config _ day _ = do
     let url = addProtocolIfNeeded $ appendIfNeeded "/" $ redmineUrl config
     cookie <- lift $ login url config
@@ -93,14 +87,14 @@ appendIfNeeded postfix val
     | otherwise = val <> postfix
 
 -- returns the cookie
-login :: Text -> RedmineConfig -> IO (Maybe ByteString)
+login :: Text -> RedmineConfigRecord -> IO (Maybe ByteString)
 login url config = postForm
         (encodeUtf8 url <> "login")
         [("username", encodeUtf8 $ redmineUsername config),
             ("password", encodeUtf8 $ redminePassword config)]
         (\r _ -> return $ getHeader r "Set-Cookie")
 
-getIssues :: RedmineConfig -> ByteString -> Day -> Day -> TimeZone -> [TsEvent]
+getIssues :: RedmineConfigRecord -> ByteString -> Day -> Day -> TimeZone -> [TsEvent]
 getIssues config html day today timezone = case maybeDayNode of
         Nothing -> [] -- no events at all that day.
         Just dayNode -> getIssuesForDayNode config day timezone dayNode
@@ -117,14 +111,14 @@ isDayTitle day today nod = dayTitle == toStrict (innerText (node nod))
                 then "Today"
                 else [st|%02d/%02d/%4d|] m d y
 
-getIssuesForDayNode :: RedmineConfig -> Day -> TimeZone -> Cursor -> [TsEvent]
+getIssuesForDayNode :: RedmineConfigRecord -> Day -> TimeZone -> Cursor -> [TsEvent]
 getIssuesForDayNode config day timezone dayNode = parseBugNodes config day timezone bugNodes
     where
         bugNodes = filter (isElement . node) (child dlNode)
         dlNode = fromMaybe (error "can't find the DL node")
                 (find (isElement . node) (following dayNode))
 
-parseBugNodes :: RedmineConfig -> Day -> TimeZone -> [Cursor] -> [TsEvent]
+parseBugNodes :: RedmineConfigRecord -> Day -> TimeZone -> [Cursor] -> [TsEvent]
 parseBugNodes config day timezone (bugInfo:changeInfo:rest@_) =
         if authorName == redmineUserDisplay config
         then TsEvent

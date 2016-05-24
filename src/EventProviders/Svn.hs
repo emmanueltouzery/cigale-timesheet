@@ -17,30 +17,28 @@ import Control.Error
 import Util
 import TsEvent
 import EventProvider
+import EventProviderSettings
 
-data SvnConfigRecord = SvnConfigRecord
-    {
-        svnUser :: String,
-        svnRepo :: String
-    } deriving Show
+deriveConfigRecord svnConfigDataType
 deriveJSON defaultOptions ''SvnConfigRecord
 
 getSvnProvider :: EventProvider SvnConfigRecord ()
 getSvnProvider = EventProvider
     {
         getModuleName = "Svn",
-        getEvents = getRepoCommits,
-        getConfigType = members $(thGetTypeDesc ''SvnConfigRecord),
-        getExtraData = Nothing
+        getEvents     = getRepoCommits,
+        getConfigType = members svnConfigDataType,
+        getExtraData  = Nothing
     }
 
-getRepoCommits :: SvnConfigRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]
+getRepoCommits :: SvnConfigRecord -> GlobalSettings -> Day -> (() -> Url)
+               -> ExceptT String IO [TsEvent]
 getRepoCommits config _ day _ = do
     let dateRange = formatDateRange day (addDays 1 day)
     output <- Util.runProcess "svn" "."
         ["log", svnRepo config, "-r", dateRange, "--verbose"]
     commits <- hoistEither $ fmapL show $ parse parseCommits "" output
-    lift $ finishGetRepoCommits day day (T.pack $ svnUser config) commits
+    lift $ finishGetRepoCommits day day (svnUser config) commits
 
 finishGetRepoCommits :: Day -> Day -> Text -> [Commit] -> IO [TsEvent]
 finishGetRepoCommits startDate endDate username commits = do

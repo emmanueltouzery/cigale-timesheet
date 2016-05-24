@@ -43,13 +43,11 @@ import Control.Monad.Trans
 
 import TsEvent
 import EventProvider
+import EventProviderSettings
 import Util hiding (eol)
 
-data EmailConfig = EmailConfig
-    {
-        emailPath :: FilePath
-    } deriving Show
-deriveJSON defaultOptions ''EmailConfig
+deriveConfigRecord emailConfigDataType
+deriveJSON defaultOptions ''EmailConfigRecord
 
 data AttachmentKey = AttachmentKey
     {
@@ -58,13 +56,13 @@ data AttachmentKey = AttachmentKey
     } deriving Show
 deriveJSON defaultOptions ''AttachmentKey
 
-getEmailProvider :: EventProvider EmailConfig AttachmentKey
+getEmailProvider :: EventProvider EmailConfigRecord AttachmentKey
 getEmailProvider = EventProvider
     {
         getModuleName = "Email",
-        getEvents = getEmailEvents,
-        getConfigType = members $(thGetTypeDesc ''EmailConfig),
-        getExtraData = Just getMailAttachment
+        getEvents     = getEmailEvents,
+        getConfigType = members emailConfigDataType,
+        getExtraData  = Just getMailAttachment
     }
 
 data Email = Email
@@ -77,9 +75,9 @@ data Email = Email
     }
     deriving (Eq, Show)
 
-getEmailEvents :: EmailConfig -> GlobalSettings -> Day
-    -> (AttachmentKey -> Url) -> ExceptT String IO [TsEvent]
-getEmailEvents (EmailConfig mboxLocation) _ day getAttachUrl = do
+getEmailEvents :: EmailConfigRecord -> GlobalSettings -> Day
+               -> (AttachmentKey -> Url) -> ExceptT String IO [TsEvent]
+getEmailEvents (EmailConfigRecord mboxLocation) _ day getAttachUrl = do
     emails <- lift $ getEmails getAttachUrl mboxLocation day day
     timezone <- lift $ getTimeZone (UTCTime day 8)
     return $ map (toEvent timezone) emails
@@ -420,8 +418,9 @@ parseNonAsciiChar = do
 parseUnderscoreSpace :: GenParser Char st QuotedPrintableElement
 parseUnderscoreSpace = char '_' >> return (AsciiSection " ")
 
-getMailAttachment :: EmailConfig -> GlobalSettings -> AttachmentKey -> IO (Maybe (ContentType, BS.ByteString))
-getMailAttachment (EmailConfig mboxLocation) _ (AttachmentKey emailId idx) =
+getMailAttachment :: EmailConfigRecord -> GlobalSettings -> AttachmentKey
+                  -> IO (Maybe (ContentType, BS.ByteString))
+getMailAttachment (EmailConfigRecord mboxLocation) _ (AttachmentKey emailId idx) =
     extractMailAttachment emailId  idx <$> parseMboxFile Backward mboxLocation
 
 getMessageId :: MboxMessage BL.ByteString -> Maybe String

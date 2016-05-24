@@ -28,21 +28,18 @@ import Control.Monad.Trans
 import TsEvent
 import Util
 import EventProvider
+import EventProviderSettings
 
+deriveConfigRecord icalConfigDataType
+deriveJSON defaultOptions ''IcalConfigRecord
 
-data IcalRecord = IcalRecord
-    {
-        icalUrl :: String
-    } deriving Show
-deriveJSON defaultOptions ''IcalRecord
-
-getIcalProvider :: EventProvider IcalRecord ()
+getIcalProvider :: EventProvider IcalConfigRecord ()
 getIcalProvider = EventProvider
     {
         getModuleName = "Ical",
-        getEvents = getCalendarEvents,
-        getConfigType = members $(thGetTypeDesc ''IcalRecord),
-        getExtraData = Nothing
+        getEvents     = getCalendarEvents,
+        getConfigType = members icalConfigDataType,
+        getExtraData  = Nothing
     }
 
 -- we can have components or objects, which are between BEGIN and END blocks,
@@ -93,15 +90,15 @@ fromLeaf :: CalendarValue -> Maybe CalendarLeaf
 fromLeaf (Leaf x) = Just x
 fromLeaf _ = Nothing
 
-getCalendarEvents :: IcalRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]
-getCalendarEvents (IcalRecord icalAddress) settings day _ = do
+getCalendarEvents :: IcalConfigRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]
+getCalendarEvents (IcalConfigRecord icalAddress) settings day _ = do
     timezone <- lift $ getTimeZone (UTCTime day 8)
     let settingsFolder = getSettingsFolder settings
     icalText <- lift $ do
         hasCached <- hasCachedVersionForDay settingsFolder day
         if hasCached
             then readFromCache settingsFolder
-            else readFromWWW (B.pack icalAddress) settingsFolder
+            else readFromWWW (TE.encodeUtf8 icalAddress) settingsFolder
     calendarData <- hoistEither $ fmapL show $ parse parseEvents "" icalText
     return $ convertToEvents timezone day calendarData
 

@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, DeriveGeneric, TemplateHaskell, ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings, DeriveGeneric, TemplateHaskell, ViewPatterns, DataKinds #-}
 
 module Git where
 
@@ -10,39 +10,34 @@ import Text.Parsec
 import qualified Data.Text as T
 import Data.Text (Text)
 import Data.List (isInfixOf, intercalate)
-import Data.Aeson.TH (deriveJSON, defaultOptions)
+import Data.Aeson.TH
 import Data.Maybe
 import Control.Applicative ( (<$>), (<*>), (<*), (*>) )
-import Control.Monad (replicateM_)
 import Control.Monad.Trans
 import Control.Error
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Monoid
-import Control.Monad
 
 import TsEvent
 import Util
 import EventProvider
+import EventProviderSettings
 
-data GitRecord = GitRecord
-    {
-        gitUser :: Text,
-        gitRepo :: FolderPath
-    } deriving Show
-deriveJSON defaultOptions ''GitRecord
+deriveConfigRecord gitConfigDataType
+deriveJSON defaultOptions ''GitConfigRecord
 
-getGitProvider :: EventProvider GitRecord ()
+getGitProvider :: EventProvider GitConfigRecord ()
 getGitProvider = EventProvider
     {
         getModuleName = "Git",
-        getEvents = getRepoCommits,
-        getConfigType = members $(thGetTypeDesc ''GitRecord),
-        getExtraData = Nothing
+        getEvents     = getRepoCommits,
+        getConfigType = members gitConfigDataType,
+        getExtraData  = Nothing
     }
 
-getRepoCommits :: GitRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]
-getRepoCommits (GitRecord _username projectPath) _ date _ = do
+getRepoCommits :: GitConfigRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]
+getRepoCommits (GitConfigRecord _username projectPath) _ date _ = do
     let username = T.unpack _username
     output <- Util.runProcess "git" projectPath [
             "log", "--since", showGregorian $ addDays (-1) date,

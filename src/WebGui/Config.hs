@@ -185,16 +185,16 @@ editConfigDataInfo :: MonadWidget t m => String -> A.Object -> ConfigDataInfo
 editConfigDataInfo cfgItemName obj ConfigDataInfo{..} = do
     let fieldValue = readObjectField memberName obj
     field <- case memberType of
-        MtPassword   -> passwordEntry memberName memberName fieldValue
-        MtFolderPath -> fileEntry PickFolder cfgItemName memberName fieldValue
-        MtFilePath   -> fileEntry PickFile cfgItemName memberName fieldValue
-        _ -> fieldEntry memberName memberName fieldValue
+        MtPassword   -> passwordEntry memberName memberLabel fieldValue
+        MtFolderPath -> fileEntry PickFolder cfgItemName memberName memberLabel fieldValue
+        MtFilePath   -> fileEntry PickFile cfgItemName memberName memberLabel fieldValue
+        _            -> fieldEntry memberName memberLabel fieldValue
     return (memberName, field)
 
-fileEntry :: MonadWidget t m => PickerOperationMode -> String -> String -> String
+fileEntry :: MonadWidget t m => PickerOperationMode -> String -> String -> String -> String
           -> m (Dynamic t String)
-fileEntry pickerOpMode _ memberName val = do
-    elAttr "label" ("for" =: memberName) $ text memberName
+fileEntry pickerOpMode _ memberName memberLabel val = do
+    elAttr "label" ("for" =: memberName) $ text memberLabel
     elAttr "div" ("class" =: "input-group") $ do
         rec
             let inputAttrs = "id" =: memberName <> "class" =: "form-control"
@@ -369,5 +369,5 @@ getPluginElement config ConfigDataInfo{..} = do
             MtPassword -> replicate (length memberValue) '*'
             _          -> memberValue
     el "tr" $ do
-        el "td" $ text memberName
+        el "td" $ text memberLabel
         el "td" $ text memberValueDisplay

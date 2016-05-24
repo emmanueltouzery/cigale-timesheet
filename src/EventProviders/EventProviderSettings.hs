@@ -10,8 +10,8 @@ gitConfigDataType = ConfigDataType
         dataName = "Git",
         members =
           [
-              ConfigDataInfo "gitUser" MtText,
-              ConfigDataInfo "gitRepo" MtFolderPath
+              ConfigDataInfo "gitUser" "Git username" MtText,
+              ConfigDataInfo "gitRepo" "Git repository path" MtFolderPath
           ]
     }
 
@@ -21,8 +21,8 @@ svnConfigDataType = ConfigDataType
         dataName = "Svn",
         members =
           [
-              ConfigDataInfo "svnUser" MtText,
-              ConfigDataInfo "svnRepo" MtFolderPath
+              ConfigDataInfo "svnUser" "Svn user" MtText,
+              ConfigDataInfo "svnRepo" "Svn repository path" MtFolderPath
           ]
     }
 
@@ -32,8 +32,8 @@ hgConfigDataType = ConfigDataType
         dataName = "Hg",
         members =
           [
-              ConfigDataInfo "hgUser" MtText,
-              ConfigDataInfo "hgRepo" MtFolderPath
+              ConfigDataInfo "hgUser" "Mercurial user" MtText,
+              ConfigDataInfo "hgRepo" "Mercurial repository path" MtFolderPath
           ]
     }
 
@@ -43,7 +43,7 @@ emailConfigDataType = ConfigDataType
         dataName = "Email",
         members =
           [
-              ConfigDataInfo "emailPath" MtFilePath
+              ConfigDataInfo "emailPath" "Path to the email mbox file" MtFilePath
           ]
     }
 
@@ -53,7 +53,7 @@ icalConfigDataType = ConfigDataType
         dataName = "Ical",
         members =
           [
-              ConfigDataInfo "icalUrl" MtText
+              ConfigDataInfo "icalUrl" "URL to the ical" MtText
           ]
     }
 
@@ -63,7 +63,7 @@ skypeConfigDataType = ConfigDataType
         dataName = "Skype",
         members =
           [
-              ConfigDataInfo "skypeUsername" MtText
+              ConfigDataInfo "skypeUsername" "Skype username" MtText
           ]
     }
 
@@ -73,9 +73,9 @@ redmineConfigDataType = ConfigDataType
         dataName = "Redmine",
         members =
           [
-              ConfigDataInfo "redmineUrl" MtText,
-              ConfigDataInfo "redmineUsername" MtText,
-              ConfigDataInfo "redmineUserDisplay" MtText,
-              ConfigDataInfo "redminePassword" MtPassword
+              ConfigDataInfo "redmineUrl" "Redmine URL" MtText,
+              ConfigDataInfo "redmineUsername" "Username" MtText,
+              ConfigDataInfo "redmineUserDisplay" "User display" MtText,
+              ConfigDataInfo "redminePassword" "Password" MtPassword
           ]
     }

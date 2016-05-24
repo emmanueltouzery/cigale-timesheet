@@ -2,8 +2,8 @@
 
 module Redmine where
 
-import Data.ByteString as BS (ByteString(..), concat)
-import Data.ByteString.Char8 as Char8 (split, pack)
+import Data.ByteString (ByteString)
+import Data.ByteString.Char8 as Char8 (split)
 import Data.ByteString.Lazy (fromChunks)
 import Network.Http.Client
 import qualified Data.Text as T

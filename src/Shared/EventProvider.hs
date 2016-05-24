@@ -3,7 +3,7 @@
 module EventProvider (
     GlobalSettings(GlobalSettings), EventProvider(..), MemberType(..),
     eventProviderWrap, getSettingsFolder, deriveConfigRecord,
-    ConfigDataType(..), ConfigDataInfo(..), FolderPath, ContentType, Url) where
+    ConfigDataType(..), ConfigDataInfo(..), ContentType, FolderPath, Url) where
 
 import Data.Time.Calendar
 import Data.Aeson
@@ -23,8 +23,9 @@ instance FromJSON MemberType
 
 data ConfigDataInfo = ConfigDataInfo
     {
-        memberName :: String,
-        memberType :: MemberType
+        memberName  :: String,
+        memberLabel :: String,
+        memberType  :: MemberType
     } deriving (Eq, Show, Generic)
 instance ToJSON ConfigDataInfo
 instance FromJSON ConfigDataInfo
@@ -37,7 +38,7 @@ deriveConfigRecord (ConfigDataType providerName cfgMembers) = do
     return [DataD [] cfgDataName [] [RecC ctrName fields] []]
 
 createConfigRecordField :: ConfigDataInfo -> Q (Name, Strict, Type)
-createConfigRecordField (ConfigDataInfo name mType) = do
+createConfigRecordField (ConfigDataInfo name _ mType) = do
     let fieldName = mkName name
     Just typeName <- lookupTypeName $ case mType of
       MtText       -> "Text"
@@ -49,21 +50,21 @@ createConfigRecordField (ConfigDataInfo name mType) = do
 data ConfigDataType = ConfigDataType
     {
         dataName :: String,
-        members :: [ConfigDataInfo]
+        members  :: [ConfigDataInfo]
     } deriving (Eq, Show, Generic)
 instance ToJSON ConfigDataType
 
 data GlobalSettings = GlobalSettings { getSettingsFolder :: String }
 
-type FolderPath = String
+type FolderPath  = String
 type ContentType = String
-type Url = String
+type Url         = String
 
 data EventProvider a b = EventProvider {
     getModuleName :: String,
-    getEvents :: a -> GlobalSettings -> Day -> (b -> Url) -> ExceptT String IO [TsEvent],
+    getEvents     :: a -> GlobalSettings -> Day -> (b -> Url) -> ExceptT String IO [TsEvent],
     getConfigType :: [ConfigDataInfo],
-    getExtraData :: Maybe (a -> GlobalSettings -> b -> IO (Maybe (ContentType, ByteString)))
+    getExtraData  :: Maybe (a -> GlobalSettings -> b -> IO (Maybe (ContentType, ByteString)))
 }
 
 instance Show (EventProvider a b) where show = getModuleName

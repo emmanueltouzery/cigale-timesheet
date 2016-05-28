@@ -35,7 +35,7 @@ deriveConfigRecord (ConfigDataType providerName cfgMembers) = do
     let cfgDataName = mkName (providerName ++ "ConfigRecord")
     let ctrName  = mkName (providerName ++ "ConfigRecord")
     fields <- forM cfgMembers createConfigRecordField
-    return [DataD [] cfgDataName [] [RecC ctrName fields] []]
+    return [DataD [] cfgDataName [] [RecC ctrName fields] [''Show]]
 
 createConfigRecordField :: ConfigDataInfo -> Q (Name, Strict, Type)
 createConfigRecordField (ConfigDataInfo name _ mType) = do

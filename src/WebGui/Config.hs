@@ -187,12 +187,13 @@ editConfigDataInfo :: MonadWidget t m => Dynamic t (Map String [String]) -> Stri
                    -> m (String, Dynamic t String)
 editConfigDataInfo fieldContentsDyn cfgItemName obj ConfigDataInfo{..} = do
     let fieldValue = readObjectField memberName obj
-    field <- case memberType of
-        MtPassword   -> passwordEntry memberName memberLabel fieldValue
-        MtFolderPath -> fileEntry PickFolder cfgItemName memberName memberLabel fieldValue
-        MtFilePath   -> fileEntry PickFile cfgItemName memberName memberLabel fieldValue
-        MtText       -> fieldEntry memberName memberLabel fieldValue
-        MtCombo      -> comboEntry fieldContentsDyn memberName memberLabel fieldValue
+    let displayer = case memberType of
+          MtPassword   -> passwordEntry
+          MtFolderPath -> fileEntry PickFolder cfgItemName
+          MtFilePath   -> fileEntry PickFile cfgItemName
+          MtText       -> fieldEntry
+          MtCombo      -> comboEntry fieldContentsDyn
+    field <- displayer memberName memberLabel fieldValue
     return (memberName, field)
 
 fileEntry :: MonadWidget t m => PickerOperationMode -> String -> String -> String -> String

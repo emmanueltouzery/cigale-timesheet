@@ -127,7 +127,7 @@ displayAddCfgButton pluginConfigs = do
                 $ text "Add..."
             elAttr "div" ("class" =: "dropdown-menu dropdown-menu-right") $
                 mapM addCfgDropdownBtn pluginConfigs
-    addEvts <- zipWithM addCfgPluginAdd pluginConfigs clickEvts
+    addEvts <- zipWithM (addCfgPluginAdd Nothing) pluginConfigs clickEvts
     return (leftmost addEvts)
 
 addCfgDropdownBtn :: MonadWidget t m => PluginConfig -> m (Event t ())
@@ -139,10 +139,11 @@ addCfgDropdownBtn PluginConfig{..} = do
 
 -- TODO obvious duplication in the way the add/edit/delete modals are handled.
 -- setupModal then buildModalBody, then error event, save event, then handle save...
-addCfgPluginAdd :: MonadWidget t m => PluginConfig -> Event t () -> m (Event t ConfigChange)
-addCfgPluginAdd pc clickEvt = do
+addCfgPluginAdd :: MonadWidget t m => Maybe ConfigItem -> PluginConfig -> Event t ()
+                -> m (Event t ConfigChange)
+addCfgPluginAdd mConfigItem pc clickEvt = do
     let ci = ConfigItem "" "" HashMap.empty
-    fieldContentsEvt <- configModalFetchFieldContents clickEvt pc
+    fieldContentsEvt <- configModalFetchFieldContents clickEvt mConfigItem pc
     fieldContentsDyn <- holdDyn Map.empty fieldContentsEvt
     setupModalR <- setupModal ModalLevelBasic fieldContentsEvt $ do
         rec
@@ -255,10 +256,19 @@ comboEntry fieldContentsDyn memberName memberLabel fieldValue = do
         _dropdown_value <$> dropdown fieldValue itemsDyn
             (def & dropdownConfig_attributes .~ constDyn ("class" =: "form-control"))
 
-getConfigValue :: MonadWidget t m => Event t a -> String -> String
+getConfigValue :: MonadWidget t m => Event t a -> Maybe ConfigItem -> PluginConfig -> String
     -> m (Dynamic t (RemoteData [String]))
-getConfigValue evt providerName cfgItemName =
-    makeSimpleXhr ("/configFetchFieldContents/" <> providerName <> "?configItemName=" <> cfgItemName) evt
+getConfigValue evt mConfigItem pluginConfig cfgItemName = do
+    let url = "/configFetchFieldContents/"
+            <> cfgPluginName pluginConfig
+            <> "?configItemName=" <> cfgItemName
+    let postBody = case mConfigItem of
+          Nothing -> ""
+          Just ci -> encodeToStr $ configuration ci
+    let xhrReq = xhrRequest "POST" url $
+                     def { _xhrRequestConfig_sendData = Just postBody }
+    req <- performRequestAsync $ const xhrReq <$> evt
+    holdDyn RemoteDataLoading $ fmap readRemoteData req
 
 buckets :: Ord b => (a -> b) -> [a] -> [(b, [a])]
 buckets f = map (\g -> (fst $ head g, map snd g))
@@ -313,7 +323,7 @@ addEditButton pluginConfig ci@ConfigItem{..} = do
     let btnClass = "class" =: "btn btn-default btn-sm"
     let btnStyle = float floatRight >> marginRight (px 5)
     (editBtn, _) <- elAttrStyle' "button" btnClass btnStyle $ text "Edit"
-    fieldContentsEvt <- configModalFetchFieldContents (domEvent Click editBtn) pluginConfig
+    fieldContentsEvt <- configModalFetchFieldContents (domEvent Click editBtn) (Just ci) pluginConfig
     fieldContentsDyn <- holdDyn Map.empty fieldContentsEvt
     setupModalR <- setupModal ModalLevelBasic fieldContentsEvt $ do
         rec
@@ -329,10 +339,10 @@ addEditButton pluginConfig ci@ConfigItem{..} = do
         return saveEvt
     modalHandleSaveAction ModalLevelBasic setupModalR
 
-configModalFetchFieldContents :: MonadWidget t m => Event t () -> PluginConfig
+configModalFetchFieldContents :: MonadWidget t m => Event t () -> Maybe ConfigItem -> PluginConfig
                               -> m (Event t (Map String [String]))
-configModalFetchFieldContents evt PluginConfig{..} = do
-    requests <- mapM (fetchConfigFieldContents evt cfgPluginName) cfgPluginConfig
+configModalFetchFieldContents evt mConfigItem pc@PluginConfig{..} = do
+    requests <- mapM (fetchConfigFieldContents evt mConfigItem pc) cfgPluginConfig
     case catMaybes requests of
       []  -> return (const Map.empty <$> evt)
       rqs -> do
@@ -340,13 +350,13 @@ configModalFetchFieldContents evt PluginConfig{..} = do
           return $ Map.fromList <$> fmapMaybe fromRemoteData (updated remoteData)
 
 fetchConfigFieldContents :: MonadWidget t m
-                         => Event t () -> String -> ConfigDataInfo
+                         => Event t () -> Maybe ConfigItem -> PluginConfig -> ConfigDataInfo
                          -> m (Maybe (Dynamic t (RemoteData [(String, [String])])))
-fetchConfigFieldContents evt pluginName ConfigDataInfo{..} =
+fetchConfigFieldContents evt mConfigItem pluginConfig ConfigDataInfo{..} =
     case memberType of
       MtCombo -> Just <$>
                  (mapDyn (fmap (replicate 1 . (memberName,))) =<<
-                 getConfigValue evt pluginName memberName)
+                 getConfigValue evt mConfigItem pluginConfig memberName)
       _ -> return Nothing
 
 modalHandleSaveAction :: MonadWidget t m => ModalLevel -> Event t (RemoteData b)

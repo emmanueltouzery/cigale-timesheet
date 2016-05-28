@@ -32,6 +32,7 @@ import Data.Char (ord)
 import Data.Monoid
 import System.Environment (getArgs)
 import Text.Printf.TH
+import GHC.Int (Int64)
 
 import qualified Timesheet
 import Config
@@ -44,6 +45,9 @@ import EventProvider
 
 appPort :: Int
 appPort = 8000
+
+requestBodyReadSize :: Int64
+requestBodyReadSize = 65536
 
 appUrl :: String
 appUrl = "http://localhost:" ++ show appPort ++ "/cigale"
@@ -174,7 +178,7 @@ site installPath =
             ("config", method DELETE deleteConfigEntry),
             ("browseFolder", browseFolder),
             ("getExtraData", httpGetExtraData),
-            ("configFetchFieldContents/:providerName", httpConfigFetchFieldContents)
+            ("configFetchFieldContents/:providerName", method POST httpConfigFetchFieldContents)
           ] <|>
     dir "cigale" (serveDirectory installPath)
 
@@ -226,9 +230,12 @@ configVal = disableCaching $ do
         then serveFile settingsFile
         else writeLBS "[]"
 
+readRequestBodyBS :: Snap BS8.ByteString
+readRequestBodyBS = BSL.toStrict <$> readRequestBody requestBodyReadSize
+
 addConfigEntry :: Snap ()
 addConfigEntry = setActionResponse $ do
-    configItemJson <- lift (BSL.toStrict <$> readRequestBody 65536)
+    configItemJson <- lift readRequestBodyBS
     success <- liftIO $ wipePrefetchFiles >> addPluginInConfig configItemJson
     hoistEither success
 
@@ -239,7 +246,7 @@ deleteConfigEntry = setActionResponse $ do
 
 updateConfigEntry :: Snap ()
 updateConfigEntry = setActionResponse $ do
-    configItemJson <- lift (BSL.toStrict <$> readRequestBody 65536) -- TODO share this in processConfigFromBody
+    configItemJson <- lift readRequestBodyBS
     oldConfigItemName <- TE.decodeUtf8 <$> hParam "oldConfigItemName"
     liftIO (wipePrefetchFiles >> updatePluginInConfig oldConfigItemName configItemJson) >>= hoistEither
 
@@ -263,6 +270,7 @@ httpGetExtraData = setActionResponse $ do
 
 httpConfigFetchFieldContents :: Snap ()
 httpConfigFetchFieldContents = setActionResponse $ do
+    configItemJson <- lift readRequestBodyBS
     lift $ modifyResponse $ setContentType "application/json"
     provName <- TE.decodeUtf8 <$> hParam "providerName"
     settings <- liftIO Timesheet.getGlobalSettings
@@ -271,8 +279,9 @@ httpConfigFetchFieldContents = setActionResponse $ do
     fetchField   <- noteET "No fetch field" $ fetchFieldCts provider
     cfgItemName  <- TE.decodeUtf8 <$> hParam "configItemName"
     cfgItemField <- noteET ("Unknown config item name: " <> TE.encodeUtf8 cfgItemName) $
-        find ((== cfgItemName) . T.pack . memberName)(getConfigType provider)
-    liftIO $ (BSL.toStrict . encode) <$> fetchField cfgItemField Nothing settings
+        find ((== cfgItemName) . T.pack . memberName) (getConfigType provider)
+    liftIO $ (BSL.toStrict . encode) <$>
+        fetchField cfgItemField (decodeStrict' configItemJson) settings
 
 httpGetEventSource :: ExceptT BS8.ByteString Snap (EventSource Value Value)
 httpGetEventSource = do

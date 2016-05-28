@@ -61,7 +61,7 @@ attrStyleWithHideIf :: Bool -> Css -> Map String String
 attrStyleWithHideIf isHide rest = "style" =: styleStr (styleWithHideIf isHide rest)
 
 styleWithHideIf :: Bool -> Css -> Css
-styleWithHideIf isHide rest = (rest >> when isHide (display none))
+styleWithHideIf isHide rest = rest >> when isHide (display none)
 
 attrStyleHideIf :: Bool -> Map String String
 attrStyleHideIf isHide = "style" =: styleStr (styleHideIf isHide)
@@ -133,14 +133,16 @@ col = elStyle "td" (paddingAll (px 5))
 
 data ButtonInfo = PrimaryBtn String | DangerBtn String | NoBtn
 
-setupModal :: MonadWidget t m => ModalLevel -> Event t a -> m (Event t b) -> m (Event t b)
+setupModal :: MonadWidget t m => ModalLevel -> Event t a -> m (Event t b)
+           -> m (Event t b)
 setupModal modalLevel showEvent buildDialog = do
     showModalOnEvent modalLevel showEvent
     modalDyn <- holdDyn Nothing $ fmap Just showEvent
     dynModalVal <- forDyn modalDyn $ fmap (const buildDialog)
     readModalResult modalLevel dynModalVal
 
-readModalResult :: MonadWidget t m => ModalLevel -> Dynamic t (Maybe (m (Event t a))) -> m (Event t a)
+readModalResult :: MonadWidget t m => ModalLevel -> Dynamic t (Maybe (m (Event t a)))
+                -> m (Event t a)
 readModalResult modalLevel dynModalVal = do
     dynModalEvtEvt <- dynModal modalLevel dynModalVal
     dynModalDynEvt <- holdDyn never dynModalEvtEvt
@@ -337,10 +339,12 @@ fromRemoteData :: RemoteData a -> Maybe a
 fromRemoteData (RemoteData x) = Just x
 fromRemoteData _ = Nothing
 
-makeSimpleXhr :: (MonadWidget t m, FromJSON a) => String -> Event t b -> m (Dynamic t (RemoteData a))
+makeSimpleXhr :: (MonadWidget t m, FromJSON a) => String -> Event t b
+              -> m (Dynamic t (RemoteData a))
 makeSimpleXhr url = makeSimpleXhr' (const url)
 
-makeSimpleXhr' :: (MonadWidget t m, FromJSON a) => (b -> String) -> Event t b -> m (Dynamic t (RemoteData a))
+makeSimpleXhr' :: (MonadWidget t m, FromJSON a) => (b -> String) -> Event t b
+               -> m (Dynamic t (RemoteData a))
 makeSimpleXhr' getUrl evt = do
     req <- performRequestAsync $ (\evtVal -> xhrRequest "GET" (getUrl evtVal) def) <$> evt
     holdDyn RemoteDataLoading $ fmap readRemoteData req

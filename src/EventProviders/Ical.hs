@@ -39,7 +39,8 @@ getIcalProvider = EventProvider
         getModuleName = "Ical",
         getEvents     = getCalendarEvents,
         getConfigType = members icalConfigDataType,
-        getExtraData  = Nothing
+        getExtraData  = Nothing,
+        fetchFieldCts = Nothing
     }
 
 -- we can have components or objects, which are between BEGIN and END blocks,

@@ -32,7 +32,8 @@ getGitProvider = EventProvider
         getModuleName = "Git",
         getEvents     = getRepoCommits,
         getConfigType = members gitConfigDataType,
-        getExtraData  = Nothing
+        getExtraData  = Nothing,
+        fetchFieldCts = Nothing
     }
 
 getRepoCommits :: GitConfigRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]

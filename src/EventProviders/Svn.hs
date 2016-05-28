@@ -27,7 +27,8 @@ getSvnProvider = EventProvider
         getModuleName = "Svn",
         getEvents     = getRepoCommits,
         getConfigType = members svnConfigDataType,
-        getExtraData  = Nothing
+        getExtraData  = Nothing,
+        fetchFieldCts = Nothing
     }
 
 getRepoCommits :: SvnConfigRecord -> GlobalSettings -> Day -> (() -> Url)

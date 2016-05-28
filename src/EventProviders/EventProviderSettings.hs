@@ -57,13 +57,16 @@ icalConfigDataType = ConfigDataType
           ]
     }
 
+cfgItemSkypeUsername :: ConfigDataInfo
+cfgItemSkypeUsername = ConfigDataInfo "skypeUsername" "Skype username" MtCombo
+
 skypeConfigDataType :: ConfigDataType
 skypeConfigDataType = ConfigDataType
     {
         dataName = "Skype",
         members =
           [
-              ConfigDataInfo "skypeUsername" "Skype username" MtText
+              cfgItemSkypeUsername
           ]
     }
 

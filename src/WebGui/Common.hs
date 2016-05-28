@@ -267,7 +267,19 @@ hideModalOnEvent :: MonadWidget t m => ModalLevel -> Event t a -> m ()
 hideModalOnEvent modalLevel evt = performEvent_ $ fmap
     (const $ liftIO $ hideModalIdDialog $ topLevelModalId modalLevel) evt
 
+combineDyns :: (Reflex t, MonadHold t m) => (a -> a -> a) -> a -> [Dynamic t a]
+            -> m (Dynamic t a)
+combineDyns _ item []   = return (constDyn item)
+combineDyns f item rest = foldM (combineDyn f) (constDyn item) rest
+
 data RemoteData a = RemoteDataInvalid String | RemoteDataLoading | RemoteData a deriving Show
+
+combineRemoteData :: (a -> b -> c) -> RemoteData a -> RemoteData b -> RemoteData c
+combineRemoteData _ (RemoteDataInvalid x) _ = RemoteDataInvalid x
+combineRemoteData _ _ (RemoteDataInvalid x) = RemoteDataInvalid x
+combineRemoteData _ RemoteDataLoading _ = RemoteDataLoading
+combineRemoteData _ _ RemoteDataLoading = RemoteDataLoading
+combineRemoteData f (RemoteData x) (RemoteData y) = RemoteData (f x y)
 
 instance Functor RemoteData where
     fmap _ RemoteDataLoading = RemoteDataLoading

@@ -29,6 +29,7 @@ import Control.Monad
 import Data.List
 import Data.Aeson
 import Data.Char (ord)
+import Data.Monoid
 import System.Environment (getArgs)
 import Text.Printf.TH
 
@@ -172,7 +173,8 @@ site installPath =
             ("config", method PUT updateConfigEntry),
             ("config", method DELETE deleteConfigEntry),
             ("browseFolder", browseFolder),
-        ("getExtraData", httpGetExtraData)
+            ("getExtraData", httpGetExtraData),
+            ("configFetchFieldContents/:providerName", httpConfigFetchFieldContents)
           ] <|>
     dir "cigale" (serveDirectory installPath)
 
@@ -249,10 +251,8 @@ processConfigFromBody handler = do
 
 httpGetExtraData :: Snap ()
 httpGetExtraData = setActionResponse $ do
-    cfgItemName  <- TE.decodeUtf8 <$> hParam "configItemName"
     queryParams  <- hParam "queryParams"
-    config       <- liftIO $ readConfig EventProviders.plugins
-    eventSource  <- noteET "no such config item" $ find ((==cfgItemName) . srcName) config
+    eventSource  <- httpGetEventSource
     extraData    <- noteET "No extra data" $ getExtraData $ srcProvider eventSource
     decodedParam <- noteET "Error decoding queryParams" $ decodeStrict' queryParams
     settings     <- liftIO Timesheet.getGlobalSettings
@@ -260,3 +260,23 @@ httpGetExtraData = setActionResponse $ do
     (contentType, contents) <- noteET "No extra data retrieved" extraDataResult
     lift $ modifyResponse $ setContentType $ BS.pack $ (fromIntegral . ord) <$> contentType
     return contents
+
+httpConfigFetchFieldContents :: Snap ()
+httpConfigFetchFieldContents = setActionResponse $ do
+    lift $ modifyResponse $ setContentType "application/json"
+    provName <- TE.decodeUtf8 <$> hParam "providerName"
+    settings <- liftIO Timesheet.getGlobalSettings
+    provider <- noteET ("Unknown providerName: " <> TE.encodeUtf8 provName) $
+        find ((== provName) . T.pack . getModuleName) EventProviders.plugins
+    fetchField   <- noteET "No fetch field" $ fetchFieldCts provider
+    cfgItemName  <- TE.decodeUtf8 <$> hParam "configItemName"
+    cfgItemField <- noteET ("Unknown config item name: " <> TE.encodeUtf8 cfgItemName) $
+        find ((== cfgItemName) . T.pack . memberName)(getConfigType provider)
+    liftIO $ (BSL.toStrict . encode) <$> fetchField cfgItemField Nothing settings
+
+httpGetEventSource :: ExceptT BS8.ByteString Snap (EventSource Value Value)
+httpGetEventSource = do
+    cfgItemName  <- TE.decodeUtf8 <$> hParam "configItemName"
+    config       <- liftIO $ readConfig EventProviders.plugins
+    noteET ("no such config item: " <> TE.encodeUtf8 cfgItemName) $
+        find ((==cfgItemName) . srcName) config

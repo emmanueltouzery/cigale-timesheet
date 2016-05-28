@@ -12,10 +12,14 @@ import qualified Data.Map as Map
 import Data.List
 import System.Directory
 import Data.Aeson.TH (deriveJSON, defaultOptions)
-import Control.Monad (join)
+import Control.Monad
 import Control.Arrow ( (***) )
 import Control.Error
 import Control.Monad.Trans
+import System.FilePath.Posix
+import Control.Exception
+import System.IO.Error
+import Data.Monoid
 
 import Database.HDBC
 import Database.HDBC.Sqlite3
@@ -37,8 +41,21 @@ getSkypeProvider = EventProvider
         getModuleName = "Skype",
         getEvents     = getSkypeEvents,
         getConfigType = members skypeConfigDataType,
-        getExtraData  = Nothing
+        getExtraData  = Nothing,
+        fetchFieldCts = Just (\cfgDataItem _ _ ->
+                                if cfgDataItem == cfgItemSkypeUsername
+                                then fmap T.pack <$> getSkypeUsers
+                                else error ("wrong data item " <> show cfgDataItem))
     }
+
+getSkypeUsers :: IO [String]
+getSkypeUsers = catchJust (guard . isDoesNotExistError) getUsersInternal (const $ return [])
+    where getUsersInternal = sort .
+                             filter (\n -> listToMaybe n /= Just '.') <$>
+                             (getDirectoryContents =<< skypeBaseDir)
+
+skypeBaseDir :: IO FilePath
+skypeBaseDir = (</> ".Skype/") <$> getHomeDirectory
 
 getSkypeEvents :: SkypeConfigRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]
 getSkypeEvents (SkypeConfigRecord skypeUsernameVal) _ day _ = do
@@ -47,9 +64,9 @@ getSkypeEvents (SkypeConfigRecord skypeUsernameVal) _ day _ = do
     let todayMidnightUTC = localTimeToUTC timezone todayMidnight
     let minTimestamp = utcTimeToPOSIXSeconds todayMidnightUTC
     let maxTimestamp = minTimestamp + 24*3600
-    homeDir <- lift getHomeDirectory
+    skypeDir <- lift skypeBaseDir
     r <- lift $ do
-        conn <- connectSqlite3 $ homeDir ++ "/.Skype/"
+        conn <- connectSqlite3 $ skypeDir
             ++ T.unpack skypeUsernameVal ++ "/main.db"
         result <- quickQuery' conn "select chatname, from_dispname, timestamp, body_xml \
                  \from messages where timestamp >= ? and timestamp <= ? \

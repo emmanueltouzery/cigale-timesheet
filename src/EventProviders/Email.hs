@@ -61,7 +61,8 @@ getEmailProvider = EventProvider
         getModuleName = "Email",
         getEvents     = getEmailEvents,
         getConfigType = members emailConfigDataType,
-        getExtraData  = Just getMailAttachment
+        getExtraData  = Just getMailAttachment,
+        fetchFieldCts = Nothing
     }
 
 data Email = Email

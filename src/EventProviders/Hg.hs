@@ -27,7 +27,8 @@ getHgProvider = EventProvider
         getModuleName = "Hg",
         getEvents     = getRepoCommits,
         getConfigType = members hgConfigDataType,
-        getExtraData  = Nothing
+        getExtraData  = Nothing,
+        fetchFieldCts = Nothing
     }
 
 getRepoCommits :: HgConfigRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]

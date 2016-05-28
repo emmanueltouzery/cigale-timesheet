@@ -43,7 +43,8 @@ getRedmineProvider = EventProvider
         getModuleName = "Redmine",
         getEvents     = getRedmineEvents,
         getConfigType = members redmineConfigDataType,
-        getExtraData  = Nothing
+        getExtraData  = Nothing,
+        fetchFieldCts = Nothing
     }
 
 getRedmineEvents :: RedmineConfigRecord -> GlobalSettings -> Day -> (() -> Url)

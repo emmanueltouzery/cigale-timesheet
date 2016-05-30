@@ -184,4 +184,5 @@ test-suite        tests
     iconv,
     errors >= 2.0.0,
     http-types,
-    th-printf
+    th-printf,
+    filepath

@@ -186,8 +186,8 @@ editConfigItem pc@PluginConfig{..} ConfigItem{..} fieldContentsDyn = do
             fieldInputs <- mapM (editConfigDataInfo updatedFieldCts configItemName configuration) cfgPluginConfig
             let makeListPair = \(fieldName, valDyn) ->
                      mapDyn (replicate 1 . (fieldName,)) valDyn
-            fieldDyns <- combineDyns (++) [] =<<
-                mapM makeListPair fieldInputs
+            fieldDyns <- fmap nubDyn $
+                combineDyns (++) [] =<< mapM makeListPair fieldInputs
             updatedDepFieldCtsDyn <- holdDyn Map.empty =<< dialogChanged pc (updated fieldDyns)
         return (srcNameInput, Map.fromList fieldInputs)
 

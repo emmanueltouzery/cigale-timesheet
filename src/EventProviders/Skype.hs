@@ -32,6 +32,9 @@ import EventProviderSettings
 skypeMinIntervalToSplitChatsSeconds :: NominalDiffTime
 skypeMinIntervalToSplitChatsSeconds = 3600
 
+mainDb :: FilePath
+mainDb = "main.db"
+
 deriveConfigRecord skypeConfigDataType
 deriveJSON defaultOptions ''SkypeConfigRecord
 
@@ -50,9 +53,10 @@ getSkypeProvider = EventProvider
 
 getSkypeUsers :: ExceptT String IO [String]
 getSkypeUsers = lift $ catchJust (guard . isDoesNotExistError) getUsersInternal (const $ return [])
-    where getUsersInternal = sort .
-                             filter (\n -> listToMaybe n /= Just '.') <$>
-                             (getDirectoryContents =<< skypeBaseDir)
+    where getUsersInternal = do
+              skypeDir <- skypeBaseDir
+              candidates <- sort <$> getDirectoryContents skypeDir
+              filterM (\d -> doesFileExist $ skypeDir </> d </> mainDb) candidates
 
 skypeBaseDir :: IO FilePath
 skypeBaseDir = (</> ".Skype/") <$> getHomeDirectory
@@ -67,7 +71,7 @@ getSkypeEvents (SkypeConfigRecord skypeUsernameVal) _ day _ = do
     skypeDir <- lift skypeBaseDir
     r <- lift $ do
         conn <- connectSqlite3 $ skypeDir
-            ++ T.unpack skypeUsernameVal ++ "/main.db"
+            ++ T.unpack skypeUsernameVal ++ "/" ++ mainDb
         result <- quickQuery' conn "select chatname, from_dispname, timestamp, body_xml \
                  \from messages where timestamp >= ? and timestamp <= ? \
                  \and chatname is not null and from_dispname is not null \

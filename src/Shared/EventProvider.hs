@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell, FlexibleInstances, OverloadedStrings, DeriveGeneric #-}
 {-# LANGUAGE KindSignatures, DataKinds #-}
 module EventProvider (
-    GlobalSettings(GlobalSettings), EventProvider(..), MemberType(..),
+    GlobalSettings(GlobalSettings), EventProvider(..), MemberType(..), ConfigValueType(..),
     eventProviderWrap, getSettingsFolder, deriveConfigRecord,
     ConfigDataType(..), ConfigDataInfo(..), ContentType, FolderPath, Url) where
 
@@ -21,11 +21,17 @@ data MemberType = MtFilePath | MtFolderPath | MtPassword | MtText | MtCombo
 instance ToJSON MemberType
 instance FromJSON MemberType
 
+data ConfigValueType = Standalone | DependsOnOthers
+    deriving (Eq, Show, Generic)
+instance ToJSON ConfigValueType
+instance FromJSON ConfigValueType
+
 data ConfigDataInfo = ConfigDataInfo
     {
         memberName  :: String,
         memberLabel :: String,
-        memberType  :: MemberType
+        memberType  :: MemberType,
+        valueType   :: ConfigValueType
     } deriving (Eq, Show, Generic)
 instance ToJSON ConfigDataInfo
 instance FromJSON ConfigDataInfo
@@ -38,7 +44,7 @@ deriveConfigRecord (ConfigDataType providerName cfgMembers) = do
     return [DataD [] cfgDataName [] [RecC ctrName fields] [''Show]]
 
 createConfigRecordField :: ConfigDataInfo -> Q (Name, Strict, Type)
-createConfigRecordField (ConfigDataInfo name _ mType) = do
+createConfigRecordField (ConfigDataInfo name _ mType _) = do
     let fieldName = mkName name
     Just typeName <- lookupTypeName $ case mType of
       MtText       -> "Text"
@@ -61,12 +67,13 @@ type FolderPath  = String
 type ContentType = String
 type Url         = String
 
+-- TODO I think ExceptT is not useful if the monad is IO? Maybe go back to simple IO?
 data EventProvider a b = EventProvider {
     getModuleName :: String,
     getEvents     :: a -> GlobalSettings -> Day -> (b -> Url) -> ExceptT String IO [TsEvent],
     getConfigType :: [ConfigDataInfo],
     getExtraData  :: Maybe (a -> GlobalSettings -> b -> IO (Maybe (ContentType, ByteString))),
-    fetchFieldCts :: Maybe (ConfigDataInfo -> Maybe a -> GlobalSettings -> IO [Text])
+    fetchFieldCts :: Maybe (ConfigDataInfo -> Maybe a -> GlobalSettings -> ExceptT String IO [Text])
 }
 
 instance Show (EventProvider a b) where show = getModuleName

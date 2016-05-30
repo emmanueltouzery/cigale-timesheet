@@ -33,11 +33,30 @@ getGitProvider = EventProvider
         getEvents     = getRepoCommits,
         getConfigType = members gitConfigDataType,
         getExtraData  = Nothing,
-        fetchFieldCts = Nothing
+        fetchFieldCts = Just gitFetchField
     }
 
-getRepoCommits :: GitConfigRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]
-getRepoCommits (GitConfigRecord _username projectPath) _ date _ = do
+gitFetchField :: ConfigDataInfo -> Maybe GitConfigRecord -> GlobalSettings
+              -> ExceptT String IO [Text]
+gitFetchField _ Nothing _ = return []
+gitFetchField _ (Just gitRecord) _ = do
+    output <- Util.runProcess "git" (gitRepo gitRecord) ["shortlog", "-sn"]
+    hoistEither $ fmapL show $ parse parseGitUserList "" output
+
+parseGitUserList :: GenParser st [Text]
+parseGitUserList = many parseGitUser
+
+parseGitUser :: GenParser st Text
+parseGitUser = do
+    many (oneOf "\t ")
+    many1 digit
+    char '\t'
+    username <- manyTill anyChar (try eol)
+    return (T.pack username)
+
+getRepoCommits :: GitConfigRecord -> GlobalSettings -> Day -> (() -> Url)
+               -> ExceptT String IO [TsEvent]
+getRepoCommits (GitConfigRecord projectPath _username) _ date _ = do
     let username = T.unpack _username
     output <- Util.runProcess "git" projectPath [
             "log", "--since", showGregorian $ addDays (-1) date,

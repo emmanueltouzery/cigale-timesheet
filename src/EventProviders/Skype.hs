@@ -48,8 +48,8 @@ getSkypeProvider = EventProvider
                                 else error ("wrong data item " <> show cfgDataItem))
     }
 
-getSkypeUsers :: IO [String]
-getSkypeUsers = catchJust (guard . isDoesNotExistError) getUsersInternal (const $ return [])
+getSkypeUsers :: ExceptT String IO [String]
+getSkypeUsers = lift $ catchJust (guard . isDoesNotExistError) getUsersInternal (const $ return [])
     where getUsersInternal = sort .
                              filter (\n -> listToMaybe n /= Just '.') <$>
                              (getDirectoryContents =<< skypeBaseDir)

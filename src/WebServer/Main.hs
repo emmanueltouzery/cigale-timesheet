@@ -280,8 +280,12 @@ httpConfigFetchFieldContents = setActionResponse $ do
     cfgItemName  <- TE.decodeUtf8 <$> hParam "configItemName"
     cfgItemField <- noteET ("Unknown config item name: " <> TE.encodeUtf8 cfgItemName) $
         find ((== cfgItemName) . T.pack . memberName) (getConfigType provider)
-    liftIO $ (BSL.toStrict . encode) <$>
-        fetchField cfgItemField (decodeStrict' configItemJson) settings
+    -- TODO the following exceptT mess is an abomination
+    x <- liftIO $ runExceptT
+        (fetchField cfgItemField (decodeStrict' configItemJson) settings)
+    return $ case x of
+      Left y -> BS8.pack y
+      Right y -> BSL.toStrict (encode y)
 
 httpGetEventSource :: ExceptT BS8.ByteString Snap (EventSource Value Value)
 httpGetEventSource = do

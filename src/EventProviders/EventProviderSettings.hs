@@ -4,14 +4,17 @@ module EventProviderSettings where
 
 import EventProvider
 
+gitUserName :: ConfigDataInfo
+gitUserName = ConfigDataInfo "gitUser" "Git username" MtCombo DependsOnOthers
+
 gitConfigDataType :: ConfigDataType
 gitConfigDataType = ConfigDataType
     {
         dataName = "Git",
         members =
           [
-              ConfigDataInfo "gitUser" "Git username" MtText,
-              ConfigDataInfo "gitRepo" "Git repository path" MtFolderPath
+              ConfigDataInfo "gitRepo" "Git repository path" MtFolderPath Standalone,
+              gitUserName
           ]
     }
 
@@ -21,8 +24,8 @@ svnConfigDataType = ConfigDataType
         dataName = "Svn",
         members =
           [
-              ConfigDataInfo "svnUser" "Svn user" MtText,
-              ConfigDataInfo "svnRepo" "Svn repository path" MtFolderPath
+              ConfigDataInfo "svnUser" "Svn user" MtText Standalone,
+              ConfigDataInfo "svnRepo" "Svn repository path" MtFolderPath Standalone
           ]
     }
 
@@ -32,8 +35,8 @@ hgConfigDataType = ConfigDataType
         dataName = "Hg",
         members =
           [
-              ConfigDataInfo "hgUser" "Mercurial user" MtText,
-              ConfigDataInfo "hgRepo" "Mercurial repository path" MtFolderPath
+              ConfigDataInfo "hgUser" "Mercurial user" MtText Standalone,
+              ConfigDataInfo "hgRepo" "Mercurial repository path" MtFolderPath Standalone
           ]
     }
 
@@ -43,7 +46,7 @@ emailConfigDataType = ConfigDataType
         dataName = "Email",
         members =
           [
-              ConfigDataInfo "emailPath" "Path to the email mbox file" MtFilePath
+              ConfigDataInfo "emailPath" "Path to the email mbox file" MtFilePath Standalone
           ]
     }
 
@@ -53,12 +56,12 @@ icalConfigDataType = ConfigDataType
         dataName = "Ical",
         members =
           [
-              ConfigDataInfo "icalUrl" "URL to the ical" MtText
+              ConfigDataInfo "icalUrl" "URL to the ical" MtText Standalone
           ]
     }
 
 cfgItemSkypeUsername :: ConfigDataInfo
-cfgItemSkypeUsername = ConfigDataInfo "skypeUsername" "Skype username" MtCombo
+cfgItemSkypeUsername = ConfigDataInfo "skypeUsername" "Skype username" MtCombo Standalone
 
 skypeConfigDataType :: ConfigDataType
 skypeConfigDataType = ConfigDataType
@@ -76,9 +79,9 @@ redmineConfigDataType = ConfigDataType
         dataName = "Redmine",
         members =
           [
-              ConfigDataInfo "redmineUrl" "Redmine URL" MtText,
-              ConfigDataInfo "redmineUsername" "Username" MtText,
-              ConfigDataInfo "redmineUserDisplay" "User display" MtText,
-              ConfigDataInfo "redminePassword" "Password" MtPassword
+              ConfigDataInfo "redmineUrl" "Redmine URL" MtText Standalone,
+              ConfigDataInfo "redmineUsername" "Username" MtText Standalone,
+              ConfigDataInfo "redmineUserDisplay" "User display" MtText Standalone,
+              ConfigDataInfo "redminePassword" "Password" MtPassword Standalone
           ]
     }

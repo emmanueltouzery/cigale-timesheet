@@ -358,9 +358,10 @@ configModalFetchFieldContents evt mConfigItem pc@PluginConfig{..} = do
           Just ci -> encodeToStr $ configuration ci
     let needsPrefetch = (== MtCombo) . memberType
     let jsonEvt = const configJson <$> evt
-    readConfigFieldContents =<<
-        mapM (fetchConfigFieldContents jsonEvt pc)
-             (filter needsPrefetch cfgPluginConfig)
+    case filter needsPrefetch cfgPluginConfig of
+      []   -> return (const Map.empty <$> evt)
+      cdis -> readConfigFieldContents =<<
+          mapM (fetchConfigFieldContents jsonEvt pc) cdis
 
 readConfigFieldContents :: MonadWidget t m
                         => [Dynamic t (RemoteData [(String, [String])])]

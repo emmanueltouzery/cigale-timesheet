@@ -53,8 +53,6 @@ Library
     th-lift,
     unordered-containers,
     iconv,
--- after this line are build/install dependencies, not runtime dependencies!
-    zip-archive >= 0.1.4,
     errors >= 2.0.0,
     http-types,
     th-printf,

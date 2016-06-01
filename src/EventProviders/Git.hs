@@ -40,7 +40,7 @@ gitFetchField :: ConfigDataInfo -> Maybe GitConfigRecord -> GlobalSettings
               -> ExceptT String IO [Text]
 gitFetchField _ Nothing _ = return []
 gitFetchField _ (Just gitRecord) _ = do
-    output <- Util.runProcess "git" (gitRepo gitRecord) ["shortlog", "-sn"]
+    output <- Util.runProcess "git" (gitRepo gitRecord) ["shortlog", "-sn", "HEAD"]
     hoistEither $ fmapL show $ parse parseGitUserList "" output
 
 parseGitUserList :: GenParser st [Text]

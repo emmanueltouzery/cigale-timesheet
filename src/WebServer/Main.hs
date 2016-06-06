@@ -284,7 +284,7 @@ httpConfigFetchFieldContents = setActionResponse $ do
     x <- liftIO $ runExceptT
         (fetchField cfgItemField (decodeStrict' configItemJson) settings)
     return $ case x of
-      Left y -> BS8.pack y
+      Left y  -> BS8.pack y
       Right y -> BSL.toStrict (encode y)
 
 httpGetEventSource :: ExceptT BS8.ByteString Snap (EventSource Value Value)

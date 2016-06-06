@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, DeriveGeneric, TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings, DeriveGeneric, TemplateHaskell, RecordWildCards #-}
 
 module Skype where
 
@@ -45,11 +45,24 @@ getSkypeProvider = EventProvider
         getEvents     = getSkypeEvents,
         getConfigType = members skypeConfigDataType,
         getExtraData  = Nothing,
-        fetchFieldCts = Just (\cfgDataItem _ _ ->
-                                if cfgDataItem == cfgItemSkypeUsername
-                                then fmap T.pack <$> getSkypeUsers
-                                else error ("wrong data item " <> show cfgDataItem))
+        fetchFieldCts = Just fetchFieldContents
     }
+
+fetchFieldContents :: ConfigDataInfo -> Maybe SkypeConfigRecord -> GlobalSettings
+                   -> ExceptT String IO [Text]
+fetchFieldContents cfgDataItem mCfg _
+    | cfgDataItem == cfgItemSkypeConversations = case mCfg of
+                                                   Nothing  -> return []
+                                                   Just cfg -> fetchConversations cfg
+    | cfgDataItem == cfgItemSkypeUsername      = fetchUsernameContents
+    | otherwise = error ("wrong data item " <> show cfgDataItem)
+
+fetchUsernameContents :: ExceptT String IO [Text]
+fetchUsernameContents = fmap T.pack <$> getSkypeUsers
+
+fetchConversations :: SkypeConfigRecord -> ExceptT String IO [Text]
+fetchConversations cfg = fmap (fromSql . head) <$>
+    lift (quickSkypeQuery' cfg "select displayname from conversations order by lower(displayname)" [])
 
 getSkypeUsers :: ExceptT String IO [String]
 getSkypeUsers = lift $ catchJust (guard . isDoesNotExistError) getUsersInternal (const $ return [])
@@ -61,24 +74,32 @@ getSkypeUsers = lift $ catchJust (guard . isDoesNotExistError) getUsersInternal 
 skypeBaseDir :: IO FilePath
 skypeBaseDir = (</> ".Skype/") <$> getHomeDirectory
 
+withSkypeConn :: SkypeConfigRecord -> (Connection -> IO a) -> IO a
+withSkypeConn SkypeConfigRecord{..} f = do
+    skypeDir <- skypeBaseDir
+    conn <- connectSqlite3 $ skypeDir
+            ++ T.unpack skypeUsername ++ "/" ++ mainDb
+    r <- f conn
+    disconnect conn
+    return r
+
+quickSkypeQuery' :: SkypeConfigRecord -> String -> [SqlValue] -> IO [[SqlValue]]
+quickSkypeQuery' skypeCfg sql params =
+    withSkypeConn skypeCfg $ \conn -> quickQuery' conn sql params
+
 getSkypeEvents :: SkypeConfigRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]
-getSkypeEvents (SkypeConfigRecord skypeUsernameVal) _ day _ = do
+getSkypeEvents skypeCfg _ day _ = do
     let todayMidnight = LocalTime day (TimeOfDay 0 0 0)
     timezone <- lift $ getTimeZone (UTCTime day 8)
     let todayMidnightUTC = localTimeToUTC timezone todayMidnight
     let minTimestamp = utcTimeToPOSIXSeconds todayMidnightUTC
     let maxTimestamp = minTimestamp + 24*3600
-    skypeDir <- lift skypeBaseDir
-    r <- lift $ do
-        conn <- connectSqlite3 $ skypeDir
-            ++ T.unpack skypeUsernameVal ++ "/" ++ mainDb
-        result <- quickQuery' conn "select chatname, from_dispname, timestamp, body_xml \
-                 \from messages where timestamp >= ? and timestamp <= ? \
-                 \and chatname is not null and from_dispname is not null \
-                 \and body_xml is not null \
-                 \order by timestamp" [SqlPOSIXTime minTimestamp, SqlPOSIXTime maxTimestamp]
-        disconnect conn
-        return result
+    r <- lift $ quickSkypeQuery' skypeCfg
+         "select chatname, from_dispname, timestamp, body_xml \
+         \from messages where timestamp >= ? and timestamp <= ? \
+         \and chatname is not null and from_dispname is not null \
+         \and body_xml is not null \
+         \order by timestamp" [SqlPOSIXTime minTimestamp, SqlPOSIXTime maxTimestamp]
 
     -- get the events grouped by chat
     let eventsAr = fmap messageByChatInfo r

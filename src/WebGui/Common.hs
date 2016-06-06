@@ -269,8 +269,8 @@ hideModalOnEvent :: MonadWidget t m => ModalLevel -> Event t a -> m ()
 hideModalOnEvent modalLevel evt = performEvent_ $ fmap
     (const $ liftIO $ hideModalIdDialog $ topLevelModalId modalLevel) evt
 
-combineDyns :: (Reflex t, MonadHold t m) => (a -> a -> a) -> a -> [Dynamic t a]
-            -> m (Dynamic t a)
+combineDyns :: (Reflex t, MonadHold t m) => (b -> a -> b) -> b -> [Dynamic t a]
+            -> m (Dynamic t b)
 combineDyns _ item []   = return (constDyn item)
 combineDyns f item rest = foldM (combineDyn f) (constDyn item) rest
 

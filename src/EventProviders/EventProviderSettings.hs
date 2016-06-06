@@ -61,7 +61,12 @@ icalConfigDataType = ConfigDataType
     }
 
 cfgItemSkypeUsername :: ConfigDataInfo
-cfgItemSkypeUsername = ConfigDataInfo "skypeUsername" "Skype username" MtCombo Standalone
+cfgItemSkypeUsername = ConfigDataInfo
+    "skypeUsername" "Skype username" MtCombo Standalone
+
+cfgItemSkypeConversations :: ConfigDataInfo
+cfgItemSkypeConversations = ConfigDataInfo
+    "skypeConversations" "Conversations to show" MtMultiChoice DependsOnOthers
 
 skypeConfigDataType :: ConfigDataType
 skypeConfigDataType = ConfigDataType
@@ -69,7 +74,8 @@ skypeConfigDataType = ConfigDataType
         dataName = "Skype",
         members =
           [
-              cfgItemSkypeUsername
+              cfgItemSkypeUsername,
+              cfgItemSkypeConversations
           ]
     }
 

@@ -16,7 +16,8 @@ import Data.Text (Text)
 
 import TsEvent
 
-data MemberType = MtFilePath | MtFolderPath | MtPassword | MtText | MtCombo
+data MemberType = MtFilePath | MtFolderPath | MtPassword
+                | MtText | MtCombo | MtMultiChoice
     deriving (Eq, Show, Generic)
 instance ToJSON MemberType
 instance FromJSON MemberType
@@ -47,11 +48,12 @@ createConfigRecordField :: ConfigDataInfo -> Q (Name, Strict, Type)
 createConfigRecordField (ConfigDataInfo name _ mType _) = do
     let fieldName = mkName name
     Just typeName <- lookupTypeName $ case mType of
-      MtText       -> "Text"
-      MtPassword   -> "Text"
-      MtFilePath   -> "String"
-      MtFolderPath -> "String"
-      MtCombo      -> "Text"
+      MtText        -> "Text"
+      MtPassword    -> "Text"
+      MtFilePath    -> "String"
+      MtFolderPath  -> "String"
+      MtCombo       -> "Text"
+      MtMultiChoice -> "Text"
     return (fieldName, NotStrict, ConT typeName)
 
 data ConfigDataType = ConfigDataType

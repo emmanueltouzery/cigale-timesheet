@@ -14,7 +14,7 @@ import qualified Data.ByteString as BS
 import qualified Data.Text.Encoding as TE
 import Control.Error
 import Control.Monad.Trans (liftIO)
-import Data.Aeson.TH (deriveJSON, defaultOptions)
+import Data.Aeson.TH (deriveJSON)
 import Data.List
 import Data.Monoid
 

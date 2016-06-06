@@ -26,7 +26,8 @@ import Control.Monad.IO.Class
 import qualified Data.ByteString.Lazy as BS
 import Data.Char
 import Data.Ord
-import Clay as C hiding (map, (&), filter, head, p, url, name, pc, id)
+import Clay as C hiding (map, (&), filter, head, p, url, active,
+                         name, pc, id, intersperse, reverse)
 import Data.Bool (bool)
 
 import Communication
@@ -203,11 +204,12 @@ editConfigDataInfo :: MonadWidget t m => Dynamic t (Map String [String]) -> Stri
 editConfigDataInfo fieldContentsDyn cfgItemName obj ConfigDataInfo{..} = do
     let fieldValue = readObjectField memberName obj
     let displayer = case memberType of
-          MtPassword   -> passwordEntry
-          MtFolderPath -> fileEntry PickFolder cfgItemName
-          MtFilePath   -> fileEntry PickFile cfgItemName
-          MtText       -> fieldEntry
-          MtCombo      -> comboEntry fieldContentsDyn
+          MtPassword    -> passwordEntry
+          MtFolderPath  -> fileEntry PickFolder cfgItemName
+          MtFilePath    -> fileEntry PickFile cfgItemName
+          MtText        -> fieldEntry
+          MtCombo       -> comboEntry fieldContentsDyn
+          MtMultiChoice -> multiChoiceEntry fieldContentsDyn
     field <- displayer memberName memberLabel fieldValue
     return (memberName, field)
 
@@ -258,17 +260,57 @@ passwordEntry fieldId desc fieldValue = do
         holdDyn fieldValue =<< performEvent
             (const getFieldValue <$> domEvent Change inputField)
 
+-- i have to give a map to reflex, and it sorts -- I want
+-- case insensitive sorting so I have no choice but this.
+-- probably should rather use int for the key or something...
+newtype CaseFoldString = CaseFoldString { unCaseFold :: String } deriving (Show, Read)
+
+cfsToCaseFold :: CaseFoldString -> T.Text
+cfsToCaseFold = T.toCaseFold . T.pack . unCaseFold
+
+instance Ord CaseFoldString where
+    compare = compare `on` cfsToCaseFold
+instance Eq CaseFoldString where
+    (==) = (==) `on` cfsToCaseFold
+
 comboEntry :: MonadWidget t m => Dynamic t (Map String [String])
            -> String -> String -> String
            -> m (Dynamic t String)
 comboEntry fieldContentsDyn memberName memberLabel fieldValue = do
-    let dupe x = (x,x)
-    let prepareComboCts = Map.fromList . map dupe . fromJust . Map.lookup memberName
+    let toKeyVal x = (CaseFoldString x,x)
+    let prepareComboCts = Map.fromList . map toKeyVal . fromJust . Map.lookup memberName
     itemsDyn <- mapDyn prepareComboCts fieldContentsDyn
     elAttr "label" ("for" =: memberName) $ text memberLabel
-    elAttr "div" ("class" =: "input-group") $
-        _dropdown_value <$> dropdown fieldValue itemsDyn
+    elAttr "div" ("class" =: "input-group") $ do
+        val <- _dropdown_value <$> dropdown (CaseFoldString fieldValue) itemsDyn
             (def & dropdownConfig_attributes .~ constDyn ("class" =: "form-control"))
+        mapDyn unCaseFold val
+
+multiChoiceEntry :: MonadWidget t m => Dynamic t (Map String [String])
+           -> String -> String -> String
+           -> m (Dynamic t String)
+multiChoiceEntry fieldContentsDyn memberName memberLabel fieldValue = do -- fieldValue unused
+    let active = T.unpack <$> T.splitOn "," (T.pack fieldValue)
+    el "label" $ text memberLabel
+    let valueList = fromJust . Map.lookup memberName
+    elStyle "div" (overflow auto >> height (px 150)) $ do
+        changeEvt <- dyn =<< mapDyn (multipleCbs active . valueList) fieldContentsDyn
+        joinDyn <$> holdDyn (constDyn "") changeEvt
+
+singleCb :: MonadWidget t m => [String] -> String -> m (Dynamic t (Maybe String))
+singleCb active txt = do
+    let isActive = elem txt active
+    cb <- el "label" (checkbox isActive def <* text txt)
+    el "br" (return ())
+    mapDyn (bool Nothing (Just txt)) (_checkbox_value cb)
+
+multipleCbs :: MonadWidget t m => [String] -> [String] -> m (Dynamic t String)
+multipleCbs active txts = do
+    let addJust sofar elt = case elt of
+          Just x  -> x : sofar
+          Nothing -> sofar
+    strLst <- mapDyn reverse =<< combineDyns addJust [] =<< mapM (singleCb active) txts
+    mapDyn (intercalate ",") strLst
 
 getConfigValue :: MonadWidget t m => Event t String -> PluginConfig -> String
     -> m (Dynamic t (RemoteData [String]))
@@ -356,7 +398,7 @@ configModalFetchFieldContents evt mConfigItem pc@PluginConfig{..} = do
     let configJson = case mConfigItem of
           Nothing -> ""
           Just ci -> encodeToStr $ configuration ci
-    let needsPrefetch = (== MtCombo) . memberType
+    let needsPrefetch = flip elem [MtCombo, MtMultiChoice] . memberType
     let jsonEvt = const configJson <$> evt
     case filter needsPrefetch cfgPluginConfig of
       []   -> return (const Map.empty <$> evt)

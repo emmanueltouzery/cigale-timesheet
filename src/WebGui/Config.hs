@@ -289,28 +289,35 @@ comboEntry fieldContentsDyn memberName memberLabel fieldValue = do
 multiChoiceEntry :: MonadWidget t m => Dynamic t (Map String [String])
            -> String -> String -> String
            -> m (Dynamic t String)
-multiChoiceEntry fieldContentsDyn memberName memberLabel fieldValue = do -- fieldValue unused
-    let active = T.unpack <$> T.splitOn "," (T.pack fieldValue)
+multiChoiceEntry fieldContentsDyn memberName memberLabel fieldValue = do
+    evtDyn <- dyn =<< mapDyn
+        (multiChoiceEntry_ memberName memberLabel fieldValue)
+        (nubDyn fieldContentsDyn)
+    joinDyn <$> holdDyn (constDyn "") evtDyn
+
+multiChoiceEntry_ :: MonadWidget t m => String -> String -> String
+           -> Map String [String]
+           -> m (Dynamic t String)
+multiChoiceEntry_ memberName memberLabel fieldValue fieldContents = do
+    let active = T.unpack <$> T.splitOn "|" (T.pack fieldValue)
     el "label" $ text memberLabel
-    let valueList = fromJust . Map.lookup memberName
+    let valueList = fromJust $ Map.lookup memberName fieldContents
     elStyle "div" (overflow auto >> height (px 150)) $ do
-        changeEvt <- dyn =<< mapDyn (multipleCbs active . valueList) fieldContentsDyn
-        joinDyn <$> holdDyn (constDyn "") changeEvt
+        rec
+            currentSelection <- foldDyn
+                (\(isOn, val) values ->
+                   if isOn
+                   then val : values
+                   else delete val values) active clickedCbEvt
+            clickedCbEvt <- leftmost <$> mapM (singleCb currentSelection) valueList
+        mapDyn (intercalate "|") currentSelection
 
-singleCb :: MonadWidget t m => [String] -> String -> m (Dynamic t (Maybe String))
-singleCb active txt = do
-    let isActive = elem txt active
-    cb <- el "label" (checkbox isActive def <* text txt)
+singleCb :: MonadWidget t m => Dynamic t [String] -> String -> m (Event t (Bool, String))
+singleCb activeListDyn txt = do
+    isActiveDyn <- mapDyn (elem txt) activeListDyn
+    cbEvt <- el "label" (checkboxView (constDyn Map.empty) isActiveDyn <* text txt)
     el "br" (return ())
-    mapDyn (bool Nothing (Just txt)) (_checkbox_value cb)
-
-multipleCbs :: MonadWidget t m => [String] -> [String] -> m (Dynamic t String)
-multipleCbs active txts = do
-    let addJust sofar elt = case elt of
-          Just x  -> x : sofar
-          Nothing -> sofar
-    strLst <- mapDyn reverse =<< combineDyns addJust [] =<< mapM (singleCb active) txts
-    mapDyn (intercalate ",") strLst
+    return $ fmap (, txt) cbEvt
 
 getConfigValue :: MonadWidget t m => Event t String -> PluginConfig -> String
     -> m (Dynamic t (RemoteData [String]))

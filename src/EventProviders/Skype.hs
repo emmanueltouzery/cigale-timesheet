@@ -62,7 +62,7 @@ fetchUsernameContents = fmap T.pack <$> getSkypeUsers
 
 fetchConversations :: SkypeConfigRecord -> ExceptT String IO [Text]
 fetchConversations cfg = fmap (fromSql . head) <$>
-    lift (quickSkypeQuery' cfg "select displayname from conversations order by lower(displayname)" [])
+    lift (quickSkypeQuery' cfg "select distinct displayname from conversations order by lower(displayname)" [])
 
 getSkypeUsers :: ExceptT String IO [String]
 getSkypeUsers = lift $ catchJust (guard . isDoesNotExistError) getUsersInternal (const $ return [])

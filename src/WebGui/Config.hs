@@ -18,6 +18,7 @@ import Data.Bifunctor
 import Data.Monoid
 import Control.Applicative
 import qualified Data.Text as T
+import Data.Text.Encoding
 import Data.Map (Map)
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Map as Map
@@ -286,20 +287,25 @@ comboEntry fieldContentsDyn memberName memberLabel fieldValue = do
             (def & dropdownConfig_attributes .~ constDyn ("class" =: "form-control"))
         mapDyn unCaseFold val
 
+-- returning a [String] would be better, but for now
+-- just returning a list encoded as a json string...
 multiChoiceEntry :: MonadWidget t m => Dynamic t (Map String [String])
            -> String -> String -> String
            -> m (Dynamic t String)
 multiChoiceEntry fieldContentsDyn memberName memberLabel fieldValue = do
+    let fixedValue = if fieldValue == "" then "[]" else fieldValue
     evtDyn <- dyn =<< mapDyn
-        (multiChoiceEntry_ memberName memberLabel fieldValue)
+        (multiChoiceEntry_ memberName memberLabel fixedValue)
         (nubDyn fieldContentsDyn)
-    joinDyn <$> holdDyn (constDyn "") evtDyn
+    joinDyn <$> holdDyn (constDyn "[]") evtDyn
 
 multiChoiceEntry_ :: MonadWidget t m => String -> String -> String
            -> Map String [String]
            -> m (Dynamic t String)
 multiChoiceEntry_ memberName memberLabel fieldValue fieldContents = do
-    let active = T.unpack <$> T.splitOn "|" (T.pack fieldValue)
+    let active = T.unpack <$>
+                 fromMaybe (error $ "Could not decode " ++ show fieldValue)
+                           (decodeStr fieldValue)
     el "label" $ text memberLabel
     let valueList = fromJust $ Map.lookup memberName fieldContents
     elStyle "div" (overflow auto >> height (px 150)) $ do
@@ -310,7 +316,13 @@ multiChoiceEntry_ memberName memberLabel fieldValue fieldContents = do
                    then val : values
                    else delete val values) active clickedCbEvt
             clickedCbEvt <- leftmost <$> mapM (singleCb currentSelection) valueList
-        mapDyn (intercalate "|") currentSelection
+        mapDyn encodeStr currentSelection
+
+decodeStr :: FromJSON a => String -> Maybe a
+decodeStr = decodeStrict . encodeUtf8 . T.pack
+
+encodeStr :: ToJSON a => a -> String
+encodeStr = T.unpack . decodeUtf8 . BS.toStrict . encode
 
 singleCb :: MonadWidget t m => Dynamic t [String] -> String -> m (Event t (Bool, String))
 singleCb activeListDyn txt = do

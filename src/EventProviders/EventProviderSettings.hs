@@ -64,9 +64,9 @@ cfgItemSkypeUsername :: ConfigDataInfo
 cfgItemSkypeUsername = ConfigDataInfo
     "skypeUsername" "Skype username" MtCombo Standalone
 
-cfgItemSkypeConversations :: ConfigDataInfo
-cfgItemSkypeConversations = ConfigDataInfo
-    "skypeConversations" "Conversations to show" MtMultiChoice DependsOnOthers
+cfgItemSkypeConversationsHide :: ConfigDataInfo
+cfgItemSkypeConversationsHide = ConfigDataInfo
+    "skypeConversationsHide" "Conversations to hide" MtMultiChoice DependsOnOthers
 
 skypeConfigDataType :: ConfigDataType
 skypeConfigDataType = ConfigDataType
@@ -75,7 +75,7 @@ skypeConfigDataType = ConfigDataType
         members =
           [
               cfgItemSkypeUsername,
-              cfgItemSkypeConversations
+              cfgItemSkypeConversationsHide
           ]
     }
 

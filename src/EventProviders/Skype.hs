@@ -51,9 +51,10 @@ getSkypeProvider = EventProvider
 fetchFieldContents :: ConfigDataInfo -> Maybe SkypeConfigRecord -> GlobalSettings
                    -> ExceptT String IO [Text]
 fetchFieldContents cfgDataItem mCfg _
-    | cfgDataItem == cfgItemSkypeConversations = case mCfg of
-                                                   Nothing  -> return []
-                                                   Just cfg -> fetchConversations cfg
+    | cfgDataItem == cfgItemSkypeConversationsHide =
+          case mCfg of
+            Nothing  -> return []
+            Just cfg -> fetchConversations cfg
     | cfgDataItem == cfgItemSkypeUsername      = fetchUsernameContents
     | otherwise = error ("wrong data item " <> show cfgDataItem)
 

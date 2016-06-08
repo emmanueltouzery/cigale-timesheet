@@ -47,14 +47,14 @@ deriveConfigRecord (ConfigDataType providerName cfgMembers) = do
 createConfigRecordField :: ConfigDataInfo -> Q (Name, Strict, Type)
 createConfigRecordField (ConfigDataInfo name _ mType _) = do
     let fieldName = mkName name
-    Just typeName <- lookupTypeName $ case mType of
-      MtText        -> "Text"
-      MtPassword    -> "Text"
-      MtFilePath    -> "String"
-      MtFolderPath  -> "String"
-      MtCombo       -> "Text"
-      MtMultiChoice -> "Text"
-    return (fieldName, NotStrict, ConT typeName)
+    datatype <- case mType of
+      MtText        -> [t|Text|]
+      MtPassword    -> [t|Text|]
+      MtFilePath    -> [t|String|]
+      MtFolderPath  -> [t|String|]
+      MtCombo       -> [t|Text|]
+      MtMultiChoice -> [t|[Text]|]
+    return (fieldName, NotStrict, datatype)
 
 data ConfigDataType = ConfigDataType
     {

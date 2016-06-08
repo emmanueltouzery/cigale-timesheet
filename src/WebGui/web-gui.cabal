@@ -43,7 +43,8 @@ Executable cigale-web
        th-lift,
        clay,
        mtl,
-       string-conversions
+       string-conversions,
+       vector
    js-sources:
         ../../lib/node_modules/pikaday/pikaday.js
         ../../lib/node_modules/jquery/dist/jquery.min.js

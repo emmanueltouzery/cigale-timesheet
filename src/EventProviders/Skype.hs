@@ -90,6 +90,7 @@ quickSkypeQuery' skypeCfg sql params =
 
 getSkypeEvents :: SkypeConfigRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]
 getSkypeEvents skypeCfg _ day _ = do
+    lift $ putStrLn $ "skype got conversations to hide => " ++ show (skypeConversationsHide skypeCfg)
     let todayMidnight = LocalTime day (TimeOfDay 0 0 0)
     timezone <- lift $ getTimeZone (UTCTime day 8)
     let todayMidnightUTC = localTimeToUTC timezone todayMidnight

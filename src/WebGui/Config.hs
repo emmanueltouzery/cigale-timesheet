@@ -6,10 +6,9 @@ module Config where
 import GHCJS.DOM.HTMLInputElement
 import GHCJS.DOM.Types (fromJSString)
 
-import Reflex.Dom hiding (display)
+import Reflex.Dom hiding (display, Value)
 
 import Data.Aeson as A
-import Data.Aeson.Types as A
 import GHC.Generics
 import Data.List
 import Data.Function
@@ -21,11 +20,12 @@ import qualified Data.Text as T
 import Data.Map (Map)
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Map as Map
+import qualified Data.Vector as V
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Ord
 import Clay as C hiding (map, (&), filter, head, p, url, active,
-                         name, pc, id, intersperse, reverse)
+                         name, pc, id, intersperse, reverse, Value)
 import Data.Bool (bool)
 import Data.String.Conversions
 
@@ -168,7 +168,7 @@ groupByProvider (FetchedData configDesc configVal) =
 providerByName :: [PluginConfig] -> String -> Maybe PluginConfig
 providerByName pluginConfigs name = find ((== name) . cfgPluginName) pluginConfigs
 
-type EditConfigItemRender t = (Dynamic t String, Map String (Dynamic t String))
+type EditConfigItemRender t = (Dynamic t String, Map String (Dynamic t Value))
 
 editConfigItem :: MonadWidget t m => PluginConfig -> ConfigItem -> Dynamic t (Map String [String])
                -> m (EditConfigItemRender t)
@@ -191,7 +191,7 @@ editConfigItem pc@PluginConfig{..} ConfigItem{..} fieldContentsDyn = do
             updatedDepFieldCtsDyn <- holdDyn Map.empty =<< dialogChanged pc (updated fieldDyns)
         return (srcNameInput, Map.fromList fieldInputs)
 
-dialogChanged :: MonadWidget t m => PluginConfig -> Event t [(String, String)]
+dialogChanged :: MonadWidget t m => PluginConfig -> Event t [(String, Value)]
               -> m (Event t (Map String [String]))
 dialogChanged pc@PluginConfig{..} evt = do
     let jsonEvt = (encodeToStr . Map.fromList) <$> evt
@@ -199,15 +199,20 @@ dialogChanged pc@PluginConfig{..} evt = do
     readConfigFieldContents =<< mapM (fetchConfigFieldContents jsonEvt pc) itemsToRefresh
 
 editConfigDataInfo :: MonadWidget t m => Dynamic t (Map String [String]) -> String -> A.Object -> ConfigDataInfo
-                   -> m (String, Dynamic t String)
+                   -> m (String, Dynamic t Value)
 editConfigDataInfo fieldContentsDyn cfgItemName obj ConfigDataInfo{..} = do
-    let fieldValue = readObjectField memberName obj
+    let fieldValue = HashMap.lookup (T.pack memberName) obj
+    -- TODO would be better if the individual widgets returned
+    -- their precise type and not Value, and I would have
+    -- a type index widget type->return type...
+    let valToString f name lbl val =
+            toDynValue =<< f name lbl (fromMaybe "" $ valueToStr =<< val)
     let displayer = case memberType of
-          MtPassword    -> passwordEntry
-          MtFolderPath  -> fileEntry PickFolder cfgItemName
-          MtFilePath    -> fileEntry PickFile cfgItemName
-          MtText        -> fieldEntry
-          MtCombo       -> comboEntry fieldContentsDyn
+          MtPassword    -> valToString passwordEntry
+          MtFolderPath  -> valToString (fileEntry PickFolder cfgItemName)
+          MtFilePath    -> valToString (fileEntry PickFile cfgItemName)
+          MtText        -> valToString fieldEntry
+          MtCombo       -> valToString (comboEntry fieldContentsDyn)
           MtMultiChoice -> multiChoiceEntry fieldContentsDyn
     field <- displayer memberName memberLabel fieldValue
     return (memberName, field)
@@ -259,6 +264,9 @@ passwordEntry fieldId desc fieldValue = do
         holdDyn fieldValue =<< performEvent
             (const getFieldValue <$> domEvent Change inputField)
 
+toDynValue :: MonadWidget t m => Dynamic t String -> m (Dynamic t Value)
+toDynValue = mapDyn (A.String . T.pack)
+
 -- i have to give a map to reflex, and it sorts -- I want
 -- case insensitive sorting so I have no choice but this.
 -- probably should rather use int for the key or something...
@@ -285,25 +293,20 @@ comboEntry fieldContentsDyn memberName memberLabel fieldValue = do
             (def & dropdownConfig_attributes .~ constDyn ("class" =: "form-control"))
         mapDyn unCaseFold val
 
--- returning a [String] would be better, but for now
--- just returning a list encoded as a json string...
 multiChoiceEntry :: MonadWidget t m => Dynamic t (Map String [String])
-           -> String -> String -> String
-           -> m (Dynamic t String)
+           -> String -> String -> Maybe Value
+           -> m (Dynamic t Value)
 multiChoiceEntry fieldContentsDyn memberName memberLabel fieldValue = do
-    let fixedValue = if fieldValue == "" then "[]" else fieldValue
     evtDyn <- dyn =<< mapDyn
-        (multiChoiceEntry_ memberName memberLabel fixedValue)
+        (multiChoiceEntry_ memberName memberLabel fieldValue)
         (nubDyn fieldContentsDyn)
-    joinDyn <$> holdDyn (constDyn "[]") evtDyn
+    joinDyn <$> holdDyn (constDyn $ A.Array V.empty) evtDyn
 
-multiChoiceEntry_ :: MonadWidget t m => String -> String -> String
+multiChoiceEntry_ :: MonadWidget t m => String -> String -> Maybe Value
            -> Map String [String]
-           -> m (Dynamic t String)
+           -> m (Dynamic t Value)
 multiChoiceEntry_ memberName memberLabel fieldValue fieldContents = do
-    let active = T.unpack <$>
-                 fromMaybe (error $ "Could not decode " ++ show fieldValue)
-                           (decodeStr fieldValue)
+    let active = fromMaybe [] (valueToStrList =<< fieldValue)
     el "label" $ text memberLabel
     let valueList = fromJust $ Map.lookup memberName fieldContents
     elStyle "div" (overflow auto >> height (px 150)) $ do
@@ -314,10 +317,15 @@ multiChoiceEntry_ memberName memberLabel fieldValue fieldContents = do
                    then val : values
                    else delete val values) active clickedCbEvt
             clickedCbEvt <- leftmost <$> mapM (singleCb currentSelection) valueList
-        mapDyn encodeToStr currentSelection
+        mapDyn (A.Array . V.fromList . fmap (A.String . T.pack)) currentSelection
 
-decodeStr :: FromJSON a => String -> Maybe a
-decodeStr = decodeStrict . convertString
+valueToStr :: Value -> Maybe String
+valueToStr (A.String v) = Just (T.unpack v)
+valueToStr _ = Nothing
+
+valueToStrList :: Value -> Maybe [String]
+valueToStrList (A.Array ar) = V.toList <$> sequence (valueToStr <$> ar)
+valueToStrList _ = Nothing
 
 singleCb :: MonadWidget t m => Dynamic t [String] -> String -> m (Event t (Bool, String))
 singleCb activeListDyn txt = do
@@ -478,23 +486,25 @@ readDialog (nameInput, cfgInputs) PluginConfig{..} = do
         let mName = memberName cfgDataInfo
         let inputField = fromJust $ Map.lookup mName cfgInputs
         val <- sample $ current inputField
-        return (T.pack mName, A.String $ T.pack val)
+        return (T.pack mName, val)
     return $ ConfigItem newName cfgPluginName (HashMap.fromList cfgList)
-
-readObjectField :: String -> A.Object -> String
-readObjectField fieldName aObject = fromMaybe ""
-    (A.parseMaybe (\obj -> obj .: T.pack fieldName) aObject)
 
 pluginContents :: MonadWidget t m => PluginConfig -> ConfigItem -> m ()
 pluginContents pluginConfig configContents = elAttr "table" ("class" =: "table") $
     mapM_ (getPluginElement $ configuration configContents) (cfgPluginConfig pluginConfig)
 
+myValuePrettyPrint :: Value -> String
+myValuePrettyPrint (A.String str) = T.unpack str
+myValuePrettyPrint (A.Array l) = intercalate ", " $ V.toList $ myValuePrettyPrint <$> l
+myValuePrettyPrint x@_ = show x
+
 getPluginElement :: MonadWidget t m => A.Object -> ConfigDataInfo -> m ()
 getPluginElement config ConfigDataInfo{..} = do
-    let memberValue = readObjectField memberName config
+    let memberValue = fromMaybe "No value" (HashMap.lookup (T.pack memberName) config)
+    let memberStr = myValuePrettyPrint memberValue
     let memberValueDisplay = case memberType of
-            MtPassword -> replicate (length memberValue) '*'
-            _          -> memberValue
+            MtPassword -> replicate (length memberStr) '*'
+            _          -> memberStr
     el "tr" $ do
         el "td" $ text memberLabel
         el "td" $ text memberValueDisplay

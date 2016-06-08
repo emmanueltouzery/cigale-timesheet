@@ -42,7 +42,8 @@ Executable cigale-web
        template-haskell,
        th-lift,
        clay,
-       mtl
+       mtl,
+       string-conversions
    js-sources:
         ../../lib/node_modules/pikaday/pikaday.js
         ../../lib/node_modules/jquery/dist/jquery.min.js

@@ -18,18 +18,16 @@ import Data.Bifunctor
 import Data.Monoid
 import Control.Applicative
 import qualified Data.Text as T
-import Data.Text.Encoding
 import Data.Map (Map)
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Map as Map
 import Control.Monad
 import Control.Monad.IO.Class
-import qualified Data.ByteString.Lazy as BS
-import Data.Char
 import Data.Ord
 import Clay as C hiding (map, (&), filter, head, p, url, active,
                          name, pc, id, intersperse, reverse)
 import Data.Bool (bool)
+import Data.String.Conversions
 
 import Communication
 import EventProvider
@@ -316,13 +314,10 @@ multiChoiceEntry_ memberName memberLabel fieldValue fieldContents = do
                    then val : values
                    else delete val values) active clickedCbEvt
             clickedCbEvt <- leftmost <$> mapM (singleCb currentSelection) valueList
-        mapDyn encodeStr currentSelection
+        mapDyn encodeToStr currentSelection
 
 decodeStr :: FromJSON a => String -> Maybe a
-decodeStr = decodeStrict . encodeUtf8 . T.pack
-
-encodeStr :: ToJSON a => a -> String
-encodeStr = T.unpack . decodeUtf8 . BS.toStrict . encode
+decodeStr = decodeStrict . convertString
 
 singleCb :: MonadWidget t m => Dynamic t [String] -> String -> m (Event t (Bool, String))
 singleCb activeListDyn txt = do
@@ -446,8 +441,7 @@ modalHandleSaveAction modalLevel saveEvt = do
     return savedCfgEditEvt
 
 encodeToStr :: ToJSON a => a -> String
-encodeToStr = bsToStr . encode
-    where bsToStr = map (chr . fromEnum) . BS.unpack
+encodeToStr = convertString . encode
 
 saveConfig :: MonadWidget t m => Event t ConfigChange -> m (Event t (RemoteData ConfigChange))
 saveConfig configAddEvt = do

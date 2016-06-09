@@ -91,18 +91,24 @@ quickSkypeQuery' skypeCfg sql params =
 
 getSkypeEvents :: SkypeConfigRecord -> GlobalSettings -> Day -> (() -> Url) -> ExceptT String IO [TsEvent]
 getSkypeEvents skypeCfg _ day _ = do
-    lift $ putStrLn $ "skype got conversations to hide => " ++ show (skypeConversationsHide skypeCfg)
     let todayMidnight = LocalTime day (TimeOfDay 0 0 0)
     timezone <- lift $ getTimeZone (UTCTime day 8)
     let todayMidnightUTC = localTimeToUTC timezone todayMidnight
     let minTimestamp = utcTimeToPOSIXSeconds todayMidnightUTC
     let maxTimestamp = minTimestamp + 24*3600
+    let convsToHide = skypeConversationsHide skypeCfg
+    let convsToHideParams = intersperse ',' $ const '?' <$> convsToHide
+    let allParams = [SqlPOSIXTime minTimestamp, SqlPOSIXTime maxTimestamp] ++
+                    (SqlString . T.unpack <$> convsToHide)
     r <- lift $ quickSkypeQuery' skypeCfg
-         "select chatname, from_dispname, timestamp, body_xml \
-         \from messages where timestamp >= ? and timestamp <= ? \
+         ("select chatname, from_dispname, timestamp, body_xml \
+         \from messages \
+         \join conversations on messages.convo_id = conversations.id \
+         \where timestamp >= ? and timestamp <= ? \
          \and chatname is not null and from_dispname is not null \
          \and body_xml is not null \
-         \order by timestamp" [SqlPOSIXTime minTimestamp, SqlPOSIXTime maxTimestamp]
+         \and not conversations.displayname in (" ++ convsToHideParams ++ ") \
+         \order by timestamp") allParams
 
     -- get the events grouped by chat
     let eventsAr = fmap messageByChatInfo r

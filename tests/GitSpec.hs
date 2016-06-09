@@ -20,6 +20,7 @@ spec = do
     testNoMessageUsualCommitWithCommitAfter
     testTag
     testTopDecorate
+    testTopDecorateNoHead
     testMergeConflict
 
 testMerge :: Spec
@@ -263,11 +264,37 @@ testNoMessageUsualCommitWithCommitAfter = it "parses no message usual commit wit
             commitIsCherryPicked = False
         }]
 
-        --commit 5caac9d1df215e71173a35b008b79dbe86050783 (HEAD, origin/master, origin/HEAD, master)
 testTopDecorate :: Spec
 testTopDecorate = it "parses the top commit with decorate" $ do
     let source = [strT|
         commit 5caac9d1df215e71173a35b008b79dbe86050783 (HEAD, origin/master, origin/HEAD, master)
+        Author:     Emmanuel Touzery <>
+        AuthorDate: Fri Jan 10 15:13:28 2014 +0100
+        Commit:     Emmanuel Touzery <>
+        CommitDate: Fri Jan 10 15:13:28 2014 +0100
+
+            that code really needed fixing
+
+         .../project/folder/file.java   | 25 +++++++++++++---------
+         1 file changed, 15 insertions(+), 10 deletions(-)
+
+        |]
+    testParsecExpectVal source parseCommits [
+        Commit {
+            commitDate = LocalTime (fromGregorian 2014 1 10) (TimeOfDay 15 13 28),
+            commitDesc = Just "that code really needed fixing",
+            commitFiles = [".../project/folder/file.java"],
+            commitAuthor = "Emmanuel Touzery <>",
+            commitContents = "<pre>.../project/folder/file.java   | 25 +++++++++++++---------</pre>",
+            commitIsMerge = False,
+            commitTags = [],
+            commitIsCherryPicked = False
+        }]
+
+testTopDecorateNoHead :: Spec
+testTopDecorateNoHead = it "parses the top commit with decorate (no head)" $ do
+    let source = [strT|
+        commit 5caac9d1df215e71173a35b008b79dbe86050783 (origin/tomee-port, tomee-port)
         Author:     Emmanuel Touzery <>
         AuthorDate: Fri Jan 10 15:13:28 2014 +0100
         Commit:     Emmanuel Touzery <>

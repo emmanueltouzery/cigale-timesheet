@@ -138,10 +138,7 @@ parseMerge = string "Merge: " *> readLine
 parseDecoration :: GenParser st [String]
 parseDecoration = do
     string " ("
-    decorationItems <- many1 $ do
-        val <- parseTag <|> parseParent
-        optional $ string ", "
-        return val
+    decorationItems <- (try parseTag <|> parseParent) `sepBy` string ", "
     string ")"
     return $ map (\(Tag a) -> a) $ filter isTag decorationItems
 

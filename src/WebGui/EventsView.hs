@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, RecursiveDo, JavaScriptFFI, ForeignFunctionInterface, LambdaCase #-}
+{-# LANGUAGE RecordWildCards, RecursiveDo, JavaScriptFFI, ForeignFunctionInterface #-}
 {-# LANGUAGE ScopedTypeVariables, LambdaCase, OverloadedStrings, FlexibleContexts #-}
 
 module EventsView where
@@ -355,7 +355,7 @@ detailsDiv TsEvent{..} = do
     elAttrStyle "span" ("class" =: "ellipsis") (fixedWidthStyle 400 >> absTop 20) $ text_ desc
     let extraInfoStyle = do
             textAlign (alignSide sideRight)
-            right (px 0)
+            right (px 10) -- for the scrollbar. otherwise it's cut.
             fixedWidthStyle 365
     elAttrStyle "span" ("class" =: "ellipsis") extraInfoStyle $ text_ extraInfo
 

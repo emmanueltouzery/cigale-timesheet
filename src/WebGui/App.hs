@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, DeriveGeneric, LambdaCase, OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables, LambdaCase, OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards, RecursiveDo, JavaScriptFFI, ForeignFunctionInterface #-}
 
 import GHCJS.Types

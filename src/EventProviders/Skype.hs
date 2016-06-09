@@ -68,8 +68,9 @@ fetchConversations cfg = fmap (fromSql . head) <$>
 getSkypeUsers :: ExceptT String IO [String]
 getSkypeUsers = lift $ catchJust (guard . isDoesNotExistError) getUsersInternal (const $ return [])
     where getUsersInternal = do
-              skypeDir <- skypeBaseDir
-              candidates <- sort <$> getDirectoryContents skypeDir
+              skypeDir   <- skypeBaseDir
+              candidates <- sort . filter (not . isPrefixOf ".") <$>
+                            getDirectoryContents skypeDir
               filterM (\d -> doesFileExist $ skypeDir </> d </> mainDb) candidates
 
 skypeBaseDir :: IO FilePath

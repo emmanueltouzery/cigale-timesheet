@@ -126,7 +126,7 @@ multiChoiceEntry_ memberName memberLabel fieldValue fieldContents = do
                    then val : values
                    else delete val values) active clickedCbEvt
             clickedCbEvt <- leftmost <$> mapM (singleCb currentSelection) valueList
-        mapDyn (A.Array . V.fromList . fmap (A.String . T.pack)) currentSelection
+        mapDyn strListToValue currentSelection
 
 valueToStr :: Value -> Maybe String
 valueToStr (A.String v) = Just (T.unpack v)
@@ -135,6 +135,9 @@ valueToStr _ = Nothing
 valueToStrList :: Value -> Maybe [String]
 valueToStrList (A.Array ar) = V.toList <$> sequence (valueToStr <$> ar)
 valueToStrList _ = Nothing
+
+strListToValue :: [String] -> Value
+strListToValue = A.Array . V.fromList . fmap (A.String . T.pack)
 
 singleCb :: MonadWidget t m => Dynamic t [String] -> String -> m (Event t (Bool, String))
 singleCb activeListDyn txt = do

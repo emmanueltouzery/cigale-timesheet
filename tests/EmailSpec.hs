@@ -208,7 +208,25 @@ testParseMultipartBodyTextPlainAttach = it "parse multipart body text/plain plus
             CkVORDpWRVZFTlQNCkVORDpWQ0FMRU5EQVINCg==
             --047d7bfeb46643324304e617c30e--
             |]
-    assertEqual "doesn't match" "UG92YWJsamVuaSBzdGUgYmlsaSBuYSB0YSBkb2dvZGVrLg0KDQpOYXppdjogWm9ibmkgcmVudGdl\nBiBMYXJhDQpab2JuaSByZW50Z2VuIExhcmENCktkYWo6IHBldCA0LiBva3QgMjAxMyAwNzoxMCAt\nIDA4OjEwIE9zcmVkbmppIGV2cm9wc2tpIOhhcyAtIEJlb2dyYWQNCktqZTogWkQgVmnoDQpLb2xl\nZGFyOiBldG91emVyeUBnbWFpbC5jb20NCktkbzoNCiAgICAgKiBTaW1vbmEgSHZhbGnoIFRvdXpl\nCnktIG9yZ2FuaXphdG9yDQogICAgICogRW1tYW51ZWwgVG91emVyeQ0KDQpQb2Ryb2Jub3N0aSBk\nB2dvZGthOiAgDQpodHRwczovL3d3dy5nb29nbGUuY29tL2NhbGVuZGFyL2V2ZW50P2FjdGlvbj1W\nSUVXJmVpZD1aR3R4T1dWck1tazRNbkp0Y21SelozUmtkVEF5Tm1aek16QWdaWFJ2ZFhwbGNubEFi\nUSZ0b2s9TXpFamMybHRiMjVoTG1oMllXeHBZeTUwYjNWNlpYSjVRR2R0WVdsc0xtTnZiV1JsT0Rn\nD1pUWm1Oemd5T1RobFltVTNPREl3TVdSaVlqVTBNR0U1TVRjNE1UTmlZbVF6TmpjJmN0ej1FdXJv\nCGUvQmVsZ3JhZGUmaGw9c2wNCg0KVmFiaWxvIGl6IEdvb2dsZSBLb2xlZGFyamE6IGh0dHBzOi8v\nD3d3Lmdvb2dsZS5jb20vY2FsZW5kYXIvDQoNClRvIGUtcG+5dG8gcHJlamVtYXRlIG5hIHJh6HVu\nIGV0b3V6ZXJ5QGdtYWlsLmNvbSwga2VyIHN0ZSBuYXJv6GVuaSBuYSAgDQpwb3ZhYmlsYSB2IGtv\nBGVkYXJqdSBldG91emVyeUBnbWFpbC5jb20uDQoNCshlIG5lIL5lbGl0ZSB2ZeggcHJlamVtYXRp\nIG9idmVzdGlsLCBzZSBwcmlqYXZpdGUgdiAgDQpodHRwczovL3d3dy5nb29nbGUuY29tL2NhbGVu\nZGFyLyBpbiBzcHJlbWVuaXRlIG5hc3Rhdml0dmUgb2J2ZXN0aWwgemEgdGEgIA0Ka29sZWRhci4N\nCg==" (getMultipartBodyText "047d7bfeb46643323d04e617c30c" source)
+    assertEqual "doesn't match" "Povabljeni ste bili na ta dogodek.\r\n\r\n\
+                \Naziv: Zobni rentge\ACK Lara\r\nZobni rentgen Lara\r\nKdaj:\
+                \ pet 4. okt 2013 07:10 - 08:10 Osrednji evropski \269as - \
+                \Beograd\r\nKje: ZD Vi\269\r\nKoledar: etouzery@gmail.com\r\n\
+                \Kdo:\r\n     * Simona Hvali\269 Touze\ny- organizator\r\n     \
+                \* Emmanuel Touzery\r\n\r\nPodrobnosti d\agodka:  \r\n\
+                \https://www.google.com/calendar/event?action=VIEW&eid=\
+                \ZGtxOWVrMmk4MnJtcmRzZ3RkdTAyNmZzMzAgZXRvdXplcnlAbQ&tok=\
+                \MzEjc2ltb25hLmh2YWxpYy50b3V6ZXJ5QGdtYWlsLmNvbWRlODg\SIZTZm\
+                \NzgyOThlYmU3ODIwMWRiYjU0MGE5MTc4MTNiYmQzNjc&ctz=Euro\be/Bel\
+                \grade&hl=sl\r\n\r\nVabilo iz Google Koledarja: \
+                \https://\SIww.google.com/calendar/\r\n\r\nTo e-po\353to \
+                \prejemate na ra\269un etouzery@gmail.com, ker ste \
+                \naro\269eni na  \r\npovabila v ko\EOTedarju \
+                \etouzery@gmail.com.\r\n\r\n\268e ne \382elite ve\269 \
+                \prejemati obvestil, se prijavite v  \r\nhttps://www.google\
+                \.com/calendar/ in spremenite nastavitve obvestil za \
+                \ta  \r\nkoledar.\r\n"
+                (getMultipartBodyText "047d7bfeb46643323d04e617c30c" source)
 
 testMultipartAlternative :: Spec
 testMultipartAlternative = it "parse multipart alternative body plus attach" $ do

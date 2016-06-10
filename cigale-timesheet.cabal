@@ -56,7 +56,8 @@ Library
     errors >= 2.0.0,
     http-types,
     th-printf,
-    filepath
+    filepath,
+    string-conversions
   exposed-modules:
     EventProviders,
     TsEvent,
@@ -183,4 +184,5 @@ test-suite        tests
     errors >= 2.0.0,
     http-types,
     th-printf,
-    filepath
+    filepath,
+    string-conversions

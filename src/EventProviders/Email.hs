@@ -25,6 +25,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Encoding
 import Data.Text.Read
+import Data.String.Conversions
 import GHC.Word
 import qualified Data.ByteString.Base64 as Base64
 import Text.Parsec.ByteString
@@ -33,7 +34,6 @@ import Data.Aeson.TH (deriveJSON, defaultOptions)
 import qualified Codec.Text.IConv as IConv
 import qualified Data.Map as Map
 import Data.Map (Map)
-import Data.Monoid
 import qualified Control.Applicative as A
 import Control.Arrow ( (***) )
 import Control.Error
@@ -237,6 +237,9 @@ sectionFormattedContent :: MultipartSection -> Text
 sectionFormattedContent section
     | sectionCTTransferEnc section == "quoted-printable" =
         decodeMimeContents encoding (decodeUtf8 $ BSL.toStrict $ sectionContent section)
+    | sectionCTTransferEnc section == "base64" =
+          iconvFuzzyText encoding $ convertString $ Base64.decodeLenient $
+          BSL.toStrict (sectionContent section)
     | otherwise = iconvFuzzyText encoding (sectionContent section)
     where
         encoding = sectionCharset section

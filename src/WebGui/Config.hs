@@ -247,10 +247,11 @@ displayConfigSection dynSecInfo_ = do
 displaySectionItem :: MonadWidget t m => PluginConfig -> ConfigItem -> m (Event t ConfigChange)
 displaySectionItem pluginConfig ci@ConfigItem{..} =
     elAttr "div" ("class" =: "card") $ do
-        cfgChgEvt <- elAttr "div" ("class" =: "card-header") $ do
-            text configItemName
+        let divStyle = display flex >> flexDirection rowReverse
+        cfgChgEvt <- elAttrStyle "div" ("class" =: "card-header") divStyle $ do
             delEvt <- addDeleteButton ci
             updEvt <- addEditButton pluginConfig ci
+            elStyle "span" (flexGrow 1) $ text configItemName
             -- leftmost is ok, they can't both happen at the same time
             return $ leftmost [delEvt, updEvt]
         elAttr "div" ("class" =: "card-block") $
@@ -260,7 +261,7 @@ displaySectionItem pluginConfig ci@ConfigItem{..} =
 addDeleteButton :: MonadWidget t m => ConfigItem -> m (Event t ConfigChange)
 addDeleteButton ci@ConfigItem{..} = do
     (deleteBtn, _) <- elAttrStyle' "button"
-        ("class" =: "btn btn-danger btn-sm") (float floatRight) $ text "Delete"
+        ("class" =: "btn btn-danger btn-sm") (marginRight (px 5)) $ text "Delete"
     setupModalR <- setupModal ModalLevelBasic (domEvent Click deleteBtn) $ do
         rec
             (_, deleteDlgOkEvt, _) <- buildModalBody "Delete" (DangerBtn "Delete")
@@ -275,8 +276,7 @@ addDeleteButton ci@ConfigItem{..} = do
 addEditButton :: MonadWidget t m => PluginConfig -> ConfigItem -> m (Event t ConfigChange)
 addEditButton pluginConfig ci@ConfigItem{..} = do
     let btnClass = "class" =: "btn btn-default btn-sm"
-    let btnStyle = float floatRight >> marginRight (px 5)
-    (editBtn, _) <- elAttrStyle' "button" btnClass btnStyle $ text "Edit"
+    (editBtn, _) <- elAttrStyle' "button" btnClass (marginRight (px 5)) $ text "Edit"
     fieldContentsEvt <- configModalFetchFieldContents (domEvent Click editBtn) (Just ci) pluginConfig
     fieldContentsDyn <- holdDyn Map.empty fieldContentsEvt
     setupModalR <- setupModal ModalLevelBasic fieldContentsEvt $ do

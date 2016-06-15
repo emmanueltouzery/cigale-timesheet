@@ -176,7 +176,7 @@ editConfigItem pc@PluginConfig{..} ConfigItem{..} fieldContentsDyn = do
     el "form" $ do
         rec
             srcNameInput <- elAttr "fieldset" ("class" =: "form-group") $
-                fieldEntry "sourceName" "Enter source name:" configItemName
+                fieldEntry "sourceName" "Source name" configItemName
             updatedFieldCts <-
                 combineDyn (flip Map.union) fieldContentsDyn updatedDepFieldCtsDyn
             fieldInputs <- mapM (editConfigDataInfo updatedFieldCts configItemName configuration) cfgPluginConfig
@@ -210,7 +210,8 @@ editConfigDataInfo fieldContentsDyn cfgItemName obj ConfigDataInfo{..} = do
           MtText        -> valToString fieldEntry
           MtCombo       -> valToString (comboEntry fieldContentsDyn)
           MtMultiChoice -> multiChoiceEntry fieldContentsDyn
-    field <- displayer memberName memberLabel fieldValue
+    field <- elAttr "fieldset" ("class" =: "form-group") $
+             displayer memberName memberLabel fieldValue
     return (memberName, field)
 
 getConfigValue :: MonadWidget t m => Event t String -> PluginConfig -> String

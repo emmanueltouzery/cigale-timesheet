@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, RecursiveDo, TupleSections #-}
+{-# LANGUAGE RecursiveDo, TupleSections #-}
 
 module ConfigWidgets where
 

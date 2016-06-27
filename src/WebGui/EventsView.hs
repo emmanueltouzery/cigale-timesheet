@@ -286,7 +286,7 @@ eventsTable RemoteDataLoading = return (constDyn Nothing)
 eventsTable (RemoteData (FetchResponse tsEvents _)) =
     elStyle "div" (width (px 500) >> flexShrink 0 >> overflow auto) $ do
         -- display: block is needed for overflow to work, http://stackoverflow.com/a/4457290/516188
-        let tableStyle = display block >> overflow auto
+        let tableStyle = display block >> overflow auto >> width (px 500)
         elAttrStyle "table" ("class" =: "table") tableStyle $ do
             rec
                 -- need to tell to the individual showRecords which is the current
@@ -355,8 +355,8 @@ detailsDiv TsEvent{..} = do
     elAttrStyle "span" ("class" =: "ellipsis") (fixedWidthStyle 400 >> absTop 20) $ text_ desc
     let extraInfoStyle = do
             textAlign (alignSide sideRight)
-            right (px 10) -- for the scrollbar. otherwise it's cut.
-            fixedWidthStyle 365
+            right (px 0)
+            fixedWidthStyle 360
     elAttrStyle "span" ("class" =: "ellipsis") extraInfoStyle $ text_ extraInfo
 
 displayDetails :: MonadWidget t m => Maybe TsEvent -> m ()

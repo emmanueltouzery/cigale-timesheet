@@ -370,8 +370,14 @@ displayDetails (Just TsEvent{..}) = do
         paddingAll (px 7)
     elStyle "div" divStyle $ do
         el "h3" $ text_ desc
-        el "h4" $ text_ extraInfo
+        el "h5" $ ellipsizedText 100 extraInfo
         mapM_ buildIframe fullContents
+
+ellipsizedText :: MonadWidget t m => Int -> Text -> m ()
+ellipsizedText ln txt = if T.length txt > ln
+                            then elAttr "span" ("title" =: T.unpack txt) $
+                                     text_ (T.take ln txt <> "...")
+                            else text_ txt
 
 buildIframe :: MonadWidget t m => Text -> m ()
 buildIframe cts = do

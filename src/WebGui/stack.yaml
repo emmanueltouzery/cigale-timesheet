@@ -3,10 +3,6 @@ flags: {}
 packages:
 - .
 - location:
-    git: https://github.com/sebastiaanvisser/clay.git
-    commit: e8d5b886d86dcdf619124976f47d2b31f48970bf
-  extra-dep: true
-- location:
     git: https://github.com/reflex-frp/reflex.git
     commit: 77b2a505bcd5aba0b55b7ed09107dc779a3aced6
   extra-dep: true
@@ -27,3 +23,4 @@ extra-deps:
   - these-0.6.2.1
   - ghcjs-dom-0.2.3.1
   - reflex-dom-0.3
+  - clay-0.11

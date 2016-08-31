@@ -8,6 +8,7 @@ import GHCJS.Marshal
 import GHCJS.Foreign.Callback
 import GHCJS.DOM.Element as E
 import GHCJS.DOM.Document
+import GHCJS.DOM.Node (getOwnerDocument)
 import GHCJS.DOM.EventM as DE (on, stopPropagation)
 
 import Data.Dependent.Sum (DSum ((:=>)))
@@ -245,13 +246,12 @@ createDateLabel curDate picker = do
                   return False) (updated curDate)
 
         -- close the date picker on any click anywhere else.
-        undefined
-        -- doc <- askDocument
-        -- (Just body) <- liftIO (getBody doc)
-        -- bodyElt <- wrapElement defaultDomEventHandler body
-        -- performEvent_ $ fmap (const $ liftIO $ do
-        --                            eltStripClass (_el_element label) "active"
-        --                            pickerHide picker) $ domEvent Click bodyElt
+        (Just doc) <- getOwnerDocument (_el_element label)
+        (Just body) <- liftIO (getBody doc)
+        bodyElt <- wrapElement defaultDomEventHandler body
+        performEvent_ $ fmap (const $ liftIO $ do
+                                   eltStripClass (_el_element label) "active"
+                                   pickerHide picker) $ domEvent Click bodyElt
 
     -- open or close the datepicker when the user clicks on the toggle button
     performOnDynChange cbDyn $ \isActive ->

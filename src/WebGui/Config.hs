@@ -333,20 +333,21 @@ encodeToStr :: ToJSON a => a -> String
 encodeToStr = convertString . encode
 
 saveConfig :: MonadWidget t m => Event t ConfigChange -> m (Event t (RemoteData ConfigChange))
-saveConfig configAddEvt = undefined
-    -- let makeReq = \case
-    --         (ChangeAdd cfg) -> do
-    --             let url = "/config"
-    --             xhrRequest "POST" url $
-    --                 def { _xhrRequestConfig_sendData = Just (encodeToStr cfg) }
-    --         (ChangeUpdate cfgEdit) -> do
-    --             let url = "/config?oldConfigItemName=" <> T.pack (oldConfigItemName cfgEdit)
-    --             xhrRequest "PUT" url $
-    --                 def { _xhrRequestConfig_sendData = Just (encodeToStr $ newConfigItem cfgEdit) }
-    --         (ChangeDelete cfg) -> do
-    --             let url = "/config?configItemName=" <> T.pack (configItemName cfg)
-    --             xhrRequest "DELETE" url def
-    -- httpVoidRequest makeReq configAddEvt
+saveConfig configAddEvt = do
+    let makeReq = \case
+            (ChangeAdd cfg) -> do
+                let url = "/config"
+                xhrRequest "POST" url $
+                    def { _xhrRequestConfig_sendData = encodeToStr cfg }
+            (ChangeUpdate cfgEdit) -> do
+                let url = "/config?oldConfigItemName=" <> T.pack (oldConfigItemName cfgEdit)
+                xhrRequest "PUT" url $
+                    def { _xhrRequestConfig_sendData = encodeToStr (newConfigItem cfgEdit) }
+            (ChangeDelete cfg) -> do
+                let url = "/config?configItemName=" <> T.pack (configItemName cfg)
+                xhrRequest "DELETE" url $
+                    def { _xhrRequestConfig_sendData = "" }
+    httpVoidRequest makeReq configAddEvt
 
 httpVoidRequest :: (MonadWidget t m, IsXhrPayload p) => (a -> XhrRequest p) -> Event t a
                 -> m (Event t (RemoteData a))

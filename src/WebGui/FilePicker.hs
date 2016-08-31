@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings, ScopedTypeVariables, RecursiveDo, RecordWildCards #-}
+{-# LANGUAGE TypeFamilies, FlexibleContexts #-}
 
 module FilePicker where
 
@@ -9,6 +10,9 @@ import Data.List
 import Data.Char
 import Data.Function
 import Data.Maybe
+import Data.Monoid
+import qualified Data.Text as T
+import Data.Text (Text)
 import qualified Data.Map as Map
 import Clay hiding (filter, (&), id, reverse, li, a, b)
 
@@ -17,7 +21,7 @@ import Communication
 
 data PathElem = PathElem
     {
-        prettyName :: String,
+        prettyName :: Text,
         fullPath   :: FilePath
     } deriving Show
 
@@ -56,13 +60,13 @@ buildFilePicker options openEvt = do
     urlAtLoad <- holdDyn Nothing $ Just <$> openEvt
     let noFileEvt = ffilter null openEvt
     let fileEvent = fixFile <$> ffilter (not . null) openEvt
-          where fixFile = if pickerMode options == PickFile then dropFileName else id
+          where fixFile = T.pack . if pickerMode options == PickFile then dropFileName else id
     rec
         dynBrowseInfo <- sequence
             [
                 makeSimpleXhr "/browseFolder" noFileEvt,
-                makeSimpleXhr' ("/browseFolder?path=" ++) fileEvent,
-                makeSimpleXhr' ("/browseFolder?path=" ++) (fmapMaybe getChangeFolder rx)
+                makeSimpleXhr' ("/browseFolder?path=" <>) fileEvent,
+                makeSimpleXhr' ("/browseFolder?path=" <>) (fmapMaybe (fmap T.pack . getChangeFolder) rx)
             ]
         let browseInfoEvt = leftmost (updated <$> dynBrowseInfo)
         showModalOnEvent ModalLevelSecondary openEvt
@@ -162,10 +166,10 @@ displayFile dynSelectedFile file@FileInfo{..} = do
     (rowItem, _) <- elDynAttr' "tr" dynRowAttr $ do
         elAttrStyle "td" ("align" =: "center") (width $ px 30) $ rawPointerSpan $
             constDyn (if isDirectoryFileInfo file then "&#x1f5c1;" else "&#x1f5ce;")
-        elStyle "td" (cursor pointer) $ text filename
+        elStyle "td" (cursor pointer) $ text $ T.pack filename
     return $ fmap (const file) (domEvent Click rowItem)
 
 formatPathLinks :: [PathElem] -> String -> [PathElem]
 formatPathLinks [] _ = [PathElem "root" "/"]
 formatPathLinks l@(previous:_) n =  PathElem (withoutSlashes n) (fullPath previous </> n):l
-    where withoutSlashes = filter (/= '/')
+    where withoutSlashes = T.pack . filter (/= '/')

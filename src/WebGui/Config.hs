@@ -1,5 +1,5 @@
-{-# LANGUAGE RecordWildCards, RecursiveDo, DeriveGeneric, LambdaCase #-}
-{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, TupleSections #-}
+{-# LANGUAGE RecordWildCards, RecursiveDo, DeriveGeneric, LambdaCase, FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, TupleSections, TypeFamilies #-}
 
 module Config where
 
@@ -14,6 +14,7 @@ import Data.Bifunctor
 import Data.Monoid
 import Control.Applicative
 import qualified Data.Text as T
+import Data.Text (Text)
 import Data.Map (Map)
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Map as Map
@@ -130,7 +131,7 @@ addCfgDropdownBtn :: MonadWidget t m => PluginConfig -> m (Event t ())
 addCfgDropdownBtn PluginConfig{..} = do
     (pcLnk, _) <- elAttr' "a" ("class" =: "dropdown-item" <>
                                "href"  =: "javascript:void(0);") $
-        text cfgPluginName
+        text (T.pack cfgPluginName)
     return (domEvent Click pcLnk)
 
 -- TODO obvious duplication in the way the add/edit/delete modals are handled.
@@ -164,7 +165,7 @@ groupByProvider (FetchedData configDesc configVal) =
 providerByName :: [PluginConfig] -> String -> Maybe PluginConfig
 providerByName pluginConfigs name = find ((== name) . cfgPluginName) pluginConfigs
 
-type EditConfigItemRender t = (Dynamic t String, Map String (Dynamic t Value))
+type EditConfigItemRender t = (Dynamic t Text, Map String (Dynamic t Value))
 
 editConfigItem :: MonadWidget t m => PluginConfig -> ConfigItem -> Dynamic t (Map String [String])
                -> m (EditConfigItemRender t)
@@ -176,7 +177,7 @@ editConfigItem pc@PluginConfig{..} ConfigItem{..} fieldContentsDyn = do
     el "form" $ do
         rec
             srcNameInput <- elAttr "fieldset" ("class" =: "form-group") $
-                fieldEntry "sourceName" "Source name" configItemName
+                fieldEntry "sourceName" "Source name" (T.pack configItemName)
             updatedFieldCts <-
                 combineDyn (flip Map.union) fieldContentsDyn updatedDepFieldCtsDyn
             fieldInputs <- mapM (editConfigDataInfo updatedFieldCts configItemName configuration) cfgPluginConfig
@@ -211,15 +212,15 @@ editConfigDataInfo fieldContentsDyn cfgItemName obj ConfigDataInfo{..} = do
           MtCombo       -> valToString (comboEntry fieldContentsDyn)
           MtMultiChoice -> multiChoiceEntry fieldContentsDyn
     field <- elAttr "fieldset" ("class" =: "form-group") $
-             displayer memberName memberLabel fieldValue
+             displayer (T.pack memberName) (T.pack memberLabel) fieldValue
     return (memberName, field)
 
 getConfigValue :: MonadWidget t m => Event t String -> PluginConfig -> String
     -> m (Dynamic t (RemoteData [String]))
 getConfigValue evt pluginConfig cfgItemName = do
     let url = "/configFetchFieldContents/"
-            <> cfgPluginName pluginConfig
-            <> "?configItemName=" <> cfgItemName
+            <> T.pack (cfgPluginName pluginConfig)
+            <> "?configItemName=" <> T.pack cfgItemName
     let xhrReq dataJson = xhrRequest "POST" url $
                           def { _xhrRequestConfig_sendData = Just dataJson }
     req <- performRequestAsync $ xhrReq <$> evt
@@ -239,7 +240,7 @@ displayConfigSection dynSecInfo_ = do
     dynConfigItems  <- mapDyn snd dynSecInfo
     dynParams <- combineDyn (\cfg dataInfos -> map (cfg,) dataInfos) dynPluginConfig dynConfigItems
     elAttr "div" ("class" =: "card") $ do
-        elAttr "h5" ("class" =: "card-header") $ dynText =<< mapDyn cfgPluginName dynPluginConfig
+        elAttr "h5" ("class" =: "card-header") $ dynText =<< mapDyn (T.pack . cfgPluginName) dynPluginConfig
         elAttr "div" ("class" =: "card-block") $ do
             dynEvtsAr <- mapDyn (sequence . fmap (uncurry displaySectionItem)) dynParams
             dynEvts <- fmap leftmost <$> dyn dynEvtsAr
@@ -252,7 +253,7 @@ displaySectionItem pluginConfig ci@ConfigItem{..} =
         cfgChgEvt <- elAttrStyle "div" ("class" =: "card-header") divStyle $ do
             delEvt <- addDeleteButton ci
             updEvt <- addEditButton pluginConfig ci
-            elStyle "span" (flexGrow 1) $ text configItemName
+            elStyle "span" (flexGrow 1) $ text $ T.pack configItemName
             -- leftmost is ok, they can't both happen at the same time
             return $ leftmost [delEvt, updEvt]
         elAttr "div" ("class" =: "card-block") $
@@ -266,7 +267,7 @@ addDeleteButton ci@ConfigItem{..} = do
     setupModalR <- setupModal ModalLevelBasic (domEvent Click deleteBtn) $ do
         rec
             (_, deleteDlgOkEvt, _) <- buildModalBody "Delete" (DangerBtn "Delete")
-                errorDyn (text $ "Delete the config item " <> configItemName <> "?")
+                errorDyn (text $ "Delete the config item " <> T.pack configItemName <> "?")
             errorDyn <- remoteDataErrorDescDyn saveEvt
 
             let deleteEvt = fmap (const $ ChangeDelete ci) deleteDlgOkEvt
@@ -339,15 +340,15 @@ saveConfig configAddEvt = do
                 xhrRequest "POST" url $
                     def { _xhrRequestConfig_sendData = Just (encodeToStr cfg) }
             (ChangeUpdate cfgEdit) -> do
-                let url = "/config?oldConfigItemName=" <> oldConfigItemName cfgEdit
+                let url = "/config?oldConfigItemName=" <> T.pack (oldConfigItemName cfgEdit)
                 xhrRequest "PUT" url $
                     def { _xhrRequestConfig_sendData = Just (encodeToStr $ newConfigItem cfgEdit) }
             (ChangeDelete cfg) -> do
-                let url = "/config?configItemName=" <> configItemName cfg
+                let url = "/config?configItemName=" <> T.pack (configItemName cfg)
                 xhrRequest "DELETE" url def
     httpVoidRequest makeReq configAddEvt
 
-httpVoidRequest :: MonadWidget t m => (a -> XhrRequest) -> Event t a
+httpVoidRequest :: (MonadWidget t m, IsXhrPayload p) => (a -> XhrRequest p) -> Event t a
                 -> m (Event t (RemoteData a))
 httpVoidRequest makeReq evt = do
     -- take advantage of the Traversable instance for pairs, which
@@ -361,7 +362,7 @@ readDialog :: MonadSample t m =>
               EditConfigItemRender t -> PluginConfig
               -> m ConfigItem
 readDialog (nameInput, cfgInputs) PluginConfig{..} = do
-    newName <- sample $ current nameInput
+    newName <- T.pack <$> sample $ current nameInput
     cfgList <- sequence $ flip map cfgPluginConfig $ \cfgDataInfo -> do
         let mName = memberName cfgDataInfo
         let inputField = fromJust $ Map.lookup mName cfgInputs
@@ -386,5 +387,5 @@ getPluginElement config ConfigDataInfo{..} = do
             MtPassword -> replicate (length memberStr) '*'
             _          -> memberStr
     el "tr" $ do
-        el "td" $ text memberLabel
-        el "td" $ text memberValueDisplay
+        el "td" $ text $ T.pack memberLabel
+        el "td" $ text $ T.pack memberValueDisplay

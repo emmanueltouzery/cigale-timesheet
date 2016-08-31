@@ -4,10 +4,14 @@ packages:
 - .
 - location:
     git: https://github.com/reflex-frp/reflex.git
-    commit: 77b2a505bcd5aba0b55b7ed09107dc779a3aced6
+    commit: 1511d28b08159918137171b79d9f976d9dbe9c65
+  extra-dep: true
+- location:
+    git: https://github.com/reflex-frp/reflex-dom.git
+    commit: 2a2ac99cfc71dd304840cfb691b628b3d6e75a66
   extra-dep: true
 
-resolver: lts-5.3
+resolver: lts-6.12
 
 compiler: ghcjs-0.2.0.20160414_ghc-7.10.3
 compiler-check: match-exact
@@ -19,8 +23,8 @@ setup-info:
      sha1: 6d6f307503be9e94e0c96ef1308c7cf224d06be3
 
 extra-deps:
-  - ref-tf-0.4
+  - ref-tf-0.4.0.1
   - these-0.6.2.1
-  - ghcjs-dom-0.2.3.1
-  - reflex-dom-0.3
+  - ghcjs-dom-0.2.4.0
   - clay-0.11
+  - zenc-0.1.1

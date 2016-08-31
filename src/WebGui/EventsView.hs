@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards, RecursiveDo, JavaScriptFFI, ForeignFunctionInterface #-}
-{-# LANGUAGE ScopedTypeVariables, LambdaCase, OverloadedStrings, FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables, LambdaCase, OverloadedStrings, FlexibleContexts, TypeFamilies #-}
 
 module EventsView where
 
@@ -8,7 +8,7 @@ import GHCJS.Marshal
 import GHCJS.Foreign.Callback
 import GHCJS.DOM.Element as E
 import GHCJS.DOM.Document
-import GHCJS.DOM.EventM (on, stopPropagation)
+import GHCJS.DOM.EventM as DE (on, stopPropagation)
 
 import Data.Dependent.Sum (DSum ((:=>)))
 
@@ -113,8 +113,8 @@ displayEvents respDyn = do
 
 requestDayEvents :: MonadWidget t m => Event t Day -> m (Event t (RemoteData FetchResponse))
 requestDayEvents dayEvt = do
-    let req reqUrl = xhrRequest "GET" ("/timesheet/" ++ reqUrl) def
-    asyncReq <- performRequestAsync (req . showGregorian <$> dayEvt)
+    let req reqUrl = xhrRequest "GET" ("/timesheet/" <> reqUrl) def
+    asyncReq <- performRequestAsync (req . T.pack . showGregorian <$> dayEvt)
     return (fmap readRemoteData asyncReq)
 
 getToday :: IO Day
@@ -214,53 +214,53 @@ displayPickerBlock initialDay curDate = do
     return (mergeWith (.) [fmap const pickedDateEvt, previousNextEvt])
 
 createDateLabel :: MonadWidget t m => Dynamic t Day -> PikadayPicker -> m ()
-createDateLabel curDate picker = do
-    rec
-        cbDyn <- holdDyn True (leftmost [dayToggleEvt, pickerAutoCloseEvt])
+createDateLabel curDate picker = undefined
+    -- rec
+    --     cbDyn <- holdDyn True (leftmost [dayToggleEvt, pickerAutoCloseEvt])
 
-        let labelClass = "class" =: "btn btn-secondary btn-sm"
-        let labelStyle = do
-                marginBottom (px 0)
-                width (px 180)
-                maxWidth (px 180)
-        (label, _) <- elAttrStyle' "label" labelClass labelStyle $ do
-            -- without the disabled, the event triggers twice with stopPropagation
-            void $ checkboxView (constDyn $ "disabled" =: "disabled") cbDyn
-            dynText =<< mapDyn (formatTime defaultTimeLocale "%A, %F") curDate
-        -- use stopPropagation so that I can catch the clicks on the body elsewhere
-        -- and close the date picker when the user clicks elsewhere.
-        e <- wrapDomEvent (_el_element label) (`on` E.click) stopPropagation
+    --     let labelClass = "class" =: "btn btn-secondary btn-sm"
+    --     let labelStyle = do
+    --             marginBottom (px 0)
+    --             width (px 180)
+    --             maxWidth (px 180)
+    --     (label, _) <- elAttrStyle' "label" labelClass labelStyle $ do
+    --         -- without the disabled, the event triggers twice with stopPropagation
+    --         void $ checkboxView (constDyn $ "disabled" =: "disabled") cbDyn
+    --         dynText =<< mapDyn (T.pack . formatTime defaultTimeLocale "%A, %F") curDate
+    --     -- use stopPropagation so that I can catch the clicks on the body elsewhere
+    --     -- and close the date picker when the user clicks elsewhere.
+    --     e <- wrapDomEvent (_el_element label) (`on` E.click) DE.stopPropagation
 
-        -- trigger day toggle event when the day button is pressed
-        dayToggleEvt <- performEvent $ fmap (const $ liftIO $ do
-            eltToggleClass (_el_element label) "active"
-            (cn :: String) <- getClassName (_el_element label)
-            return ("active" `isInfixOf` cn)) e
+    --     -- trigger day toggle event when the day button is pressed
+    --     dayToggleEvt <- performEvent $ fmap (const $ liftIO $ do
+    --         eltToggleClass (_el_element label) "active"
+    --         (cn :: String) <- getClassName (_el_element label)
+    --         return ("active" `isInfixOf` cn)) e
 
-        -- close the datepicker & update its date on day change.
-        pickerAutoCloseEvt <- performEvent $ fmap
-            (\d -> liftIO $ do
-                  eltStripClass (_el_element label) "active"
-                  pickerSetDate picker d
-                  return False) (updated curDate)
+    --     -- close the datepicker & update its date on day change.
+    --     pickerAutoCloseEvt <- performEvent $ fmap
+    --         (\d -> liftIO $ do
+    --               eltStripClass (_el_element label) "active"
+    --               pickerSetDate picker d
+    --               return False) (updated curDate)
 
-        -- close the date picker on any click anywhere else.
-        doc <- askDocument
-        (Just body) <- liftIO (getBody doc)
-        bodyElt <- wrapElement defaultDomEventHandler (castToElement body)
-        performEvent_ $ fmap (const $ liftIO $ do
-                                   eltStripClass (_el_element label) "active"
-                                   pickerHide picker) $ domEvent Click bodyElt
+    --     -- close the date picker on any click anywhere else.
+    --     doc <- askDocument
+    --     (Just body) <- liftIO (getBody doc)
+    --     bodyElt <- wrapElement defaultDomEventHandler body
+    --     performEvent_ $ fmap (const $ liftIO $ do
+    --                                eltStripClass (_el_element label) "active"
+    --                                pickerHide picker) $ domEvent Click bodyElt
 
-    -- open or close the datepicker when the user clicks on the toggle button
-    performOnDynChange cbDyn $ \isActive ->
-        liftIO $ (if isActive then pickerShow else pickerHide) picker
+    -- -- open or close the datepicker when the user clicks on the toggle button
+    -- performOnDynChange cbDyn $ \isActive ->
+    --     liftIO $ (if isActive then pickerShow else pickerHide) picker
 
 displayWarningBanner :: MonadWidget t m => Dynamic t (RemoteData FetchResponse) -> m ()
 displayWarningBanner respDyn = do
     let basicAttrs = "class" =: "alert alert-warning alert-dismissible" <> "role" =: "alert"
     let getErrorTxt = \case
-            RemoteData (FetchResponse _ errors@(_:_)) -> Just (intercalate ", " errors)
+            RemoteData (FetchResponse _ errors@(_:_)) -> Just (T.pack $ intercalate ", " errors)
             RemoteDataInvalid msg -> Just msg
             _ -> Nothing
     errorTxtDyn <- mapDyn getErrorTxt respDyn
@@ -329,13 +329,13 @@ recordsContents tsEvt@TsEvent{..} = do
             alignItems center
             flexDirection column
     elStyle "div" (width (px imgWidth) >> divFlexSetup) $ do
-        elAttrStyle "img" ("src" =: (getGlyphiconUrl eventIcon))
+        elAttrStyle "img" ("src" =: getGlyphiconUrl (T.pack eventIcon))
             (alignItems center) $ return ()
         let pluginNameStyle = do
                 color gray
                 fontSize (em 0.8)
                 textAlign (alignSide sideCenter)
-        elStyle "span" pluginNameStyle $ text pluginName
+        elStyle "span" pluginNameStyle $ text (T.pack pluginName)
     let detailsDivStyle = do
             absTop 0
             left (px imgWidth)
@@ -350,14 +350,14 @@ detailsDiv TsEvent{..} = do
             position absolute
             width (px w)
             maxWidth (px w)
-    elStyle "b" (absTop 0 >> fontSize (em 1.1)) $ text $
+    elStyle "b" (absTop 0 >> fontSize (em 1.1)) $ text $ T.pack $
         formatTime defaultTimeLocale "%R" $ utcToZonedTime tz eventDate
-    elAttrStyle "span" ("class" =: "ellipsis") (fixedWidthStyle 400 >> absTop 20) $ text_ desc
+    elAttrStyle "span" ("class" =: "ellipsis") (fixedWidthStyle 400 >> absTop 20) $ text desc
     let extraInfoStyle = do
             textAlign (alignSide sideRight)
             right (px 0)
             fixedWidthStyle 360
-    elAttrStyle "span" ("class" =: "ellipsis") extraInfoStyle $ text_ extraInfo
+    elAttrStyle "span" ("class" =: "ellipsis") extraInfoStyle $ text extraInfo
 
 displayDetails :: MonadWidget t m => Maybe TsEvent -> m ()
 displayDetails Nothing = return ()
@@ -369,19 +369,19 @@ displayDetails (Just TsEvent{..}) = do
         overflow auto
         paddingAll (px 7)
     elStyle "div" divStyle $ do
-        el "h3" $ text_ desc
+        el "h3" $ text desc
         el "h5" $ ellipsizedText 100 extraInfo
         mapM_ buildIframe fullContents
 
 ellipsizedText :: MonadWidget t m => Int -> Text -> m ()
 ellipsizedText ln txt = if T.length txt > ln
-                            then elAttr "span" ("title" =: T.unpack txt) $
-                                     text_ (T.take ln txt <> "...")
-                            else text_ txt
+                            then elAttr "span" ("title" =: txt) $
+                                     text (T.take ln txt <> "...")
+                            else text txt
 
 buildIframe :: MonadWidget t m => Text -> m ()
 buildIframe cts = do
-    let iframeClass = "srcdoc" =: T.unpack cts <>
+    let iframeClass = "srcdoc" =: cts <>
             "frameBorder" =: "0" <>
             "width" =: "100%"
     let iframeStyle = flexGrow 1 >> minHeight (px 0) >> minWidth (px 0)
@@ -391,21 +391,13 @@ datePicker :: MonadWidget t m => Day -> m (Event t Day, PikadayPicker)
 datePicker initialDay = do
     let pickerStyle = width (px 250) >> position absolute >> zIndex 3
     (e, _) <- elStyle' "div" pickerStyle $ return ()
-    (evt, evtTrigger) <- newEventWithTriggerRef
-    postGui <- askPostGui
-    runWithActions <- askRunWithActions
-    -- TODO very similar to fireEventRef
-    let handleTrigger val trigger = do
-          mETrigger <- liftIO $ readIORef trigger
-          case mETrigger of
-              Nothing       -> return ()
-              Just eTrigger -> runWithActions [eTrigger :=> Identity val]
+    (evt, evtTrigger) <- newTriggerEvent
     picker <- liftIO $ do
         cb <- syncCallback1 ContinueAsync $ \date -> do
             dateStr <- fromJSVal date
             case parsePikadayDate =<< dateStr of
                 Nothing -> return ()
-                Just dt -> postGui $ handleTrigger dt evtTrigger
+                Just dt -> evtTrigger dt
         picker <- initPikaday (unwrapElt e) cb
         pickerSetDate picker initialDay
         return picker

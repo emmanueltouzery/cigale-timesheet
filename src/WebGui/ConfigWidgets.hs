@@ -74,8 +74,8 @@ passwordEntry fieldId desc fieldValue = undefined
     --     holdDyn fieldValue =<< performEvent
     --         (const getFieldValue <$> domEvent Change inputField)
 
-toDynValue :: MonadWidget t m => Dynamic t String -> m (Dynamic t Value)
-toDynValue = mapDyn (A.String . T.pack)
+toDynValue :: MonadWidget t m => Dynamic t Text -> m (Dynamic t Value)
+toDynValue = mapDyn A.String
 
 -- i have to give a map to reflex, and it sorts -- I want
 -- case insensitive sorting so I have no choice but this.

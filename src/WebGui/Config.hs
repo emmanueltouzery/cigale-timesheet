@@ -167,7 +167,7 @@ providerByName pluginConfigs name = find ((== name) . cfgPluginName) pluginConfi
 
 type EditConfigItemRender t = (Dynamic t Text, Map String (Dynamic t Value))
 
-editConfigItem :: MonadWidget t m => PluginConfig -> ConfigItem -> Dynamic t (Map String [String])
+editConfigItem :: MonadWidget t m => PluginConfig -> ConfigItem -> Dynamic t (Map Text [Text])
                -> m (EditConfigItemRender t)
 editConfigItem pc@PluginConfig{..} ConfigItem{..} fieldContentsDyn = do
     when (isJust $ find (== MtPassword) (memberType <$> cfgPluginConfig)) $
@@ -189,13 +189,13 @@ editConfigItem pc@PluginConfig{..} ConfigItem{..} fieldContentsDyn = do
         return (srcNameInput, Map.fromList fieldInputs)
 
 dialogChanged :: MonadWidget t m => PluginConfig -> Event t [(String, Value)]
-              -> m (Event t (Map String [String]))
+              -> m (Event t (Map Text [Text]))
 dialogChanged pc@PluginConfig{..} evt = do
     let jsonEvt = (encodeToStr . Map.fromList) <$> evt
     let itemsToRefresh = filter ((== DependsOnOthers) . valueType) cfgPluginConfig
     readConfigFieldContents =<< mapM (fetchConfigFieldContents jsonEvt pc) itemsToRefresh
 
-editConfigDataInfo :: MonadWidget t m => Dynamic t (Map String [String]) -> String -> A.Object -> ConfigDataInfo
+editConfigDataInfo :: MonadWidget t m => Dynamic t (Map Text [Text]) -> String -> A.Object -> ConfigDataInfo
                    -> m (String, Dynamic t Value)
 editConfigDataInfo fieldContentsDyn cfgItemName obj ConfigDataInfo{..} = do
     let fieldValue = HashMap.lookup (T.pack memberName) obj
@@ -216,7 +216,7 @@ editConfigDataInfo fieldContentsDyn cfgItemName obj ConfigDataInfo{..} = do
     return (memberName, field)
 
 getConfigValue :: MonadWidget t m => Event t String -> PluginConfig -> String
-    -> m (Dynamic t (RemoteData [String]))
+    -> m (Dynamic t (RemoteData [Text]))
 getConfigValue evt pluginConfig cfgItemName = do
     let url = "/configFetchFieldContents/"
             <> T.pack (cfgPluginName pluginConfig)
@@ -296,7 +296,7 @@ addEditButton pluginConfig ci@ConfigItem{..} = do
     modalHandleSaveAction ModalLevelBasic setupModalR
 
 configModalFetchFieldContents :: MonadWidget t m => Event t () -> Maybe ConfigItem -> PluginConfig
-                              -> m (Event t (Map String [String]))
+                              -> m (Event t (Map Text [Text]))
 configModalFetchFieldContents evt mConfigItem pc@PluginConfig{..} = do
     let configJson = case mConfigItem of
           Nothing -> ""
@@ -309,17 +309,17 @@ configModalFetchFieldContents evt mConfigItem pc@PluginConfig{..} = do
           mapM (fetchConfigFieldContents jsonEvt pc) cdis
 
 readConfigFieldContents :: MonadWidget t m
-                        => [Dynamic t (RemoteData [(String, [String])])]
-                        -> m (Event t (Map String [String]))
+                        => [Dynamic t (RemoteData [(Text, [Text])])]
+                        -> m (Event t (Map Text [Text]))
 readConfigFieldContents requests = do
     remoteData <- combineDyns (combineRemoteData (++)) (RemoteData []) requests
     return $ Map.fromList <$> fmapMaybe fromRemoteData (updated remoteData)
 
 fetchConfigFieldContents :: MonadWidget t m
                          => Event t String -> PluginConfig -> ConfigDataInfo
-                         -> m (Dynamic t (RemoteData [(String, [String])]))
+                         -> m (Dynamic t (RemoteData [(Text, [Text])]))
 fetchConfigFieldContents evt pluginConfig ConfigDataInfo{..} =
-    mapDyn (fmap (replicate 1 . (memberName,))) =<<
+    mapDyn (fmap (replicate 1 . (T.pack memberName,))) =<<
         getConfigValue evt pluginConfig memberName
 
 modalHandleSaveAction :: MonadWidget t m => ModalLevel -> Event t (RemoteData b)
@@ -358,17 +358,17 @@ httpVoidRequest makeReq evt = do
     resp <- performRequestsAsync reqEvt
     return $ fmap (\(cu, rsp) -> const cu <$> readEmptyRemoteData rsp) resp
 
-readDialog :: MonadSample t m =>
+readDialog :: (MonadSample t m, Reflex t) =>
               EditConfigItemRender t -> PluginConfig
               -> m ConfigItem
 readDialog (nameInput, cfgInputs) PluginConfig{..} = do
-    newName <- T.pack <$> sample $ current nameInput
+    newName <- sample $ current nameInput
     cfgList <- sequence $ flip map cfgPluginConfig $ \cfgDataInfo -> do
         let mName = memberName cfgDataInfo
         let inputField = fromJust $ Map.lookup mName cfgInputs
         val <- sample $ current inputField
         return (T.pack mName, val)
-    return $ ConfigItem newName cfgPluginName (HashMap.fromList cfgList)
+    return $ ConfigItem (T.unpack newName) cfgPluginName (HashMap.fromList cfgList)
 
 pluginContents :: MonadWidget t m => PluginConfig -> ConfigItem -> m ()
 pluginContents pluginConfig configContents = elAttr "table" ("class" =: "table") $

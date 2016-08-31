@@ -3,10 +3,11 @@
 module ConfigWidgets where
 
 import GHCJS.DOM.HTMLInputElement
+import GHCJS.DOM.Types (fromJSString)
 
 import Reflex.Class
 import Reflex.Dynamic
-import Reflex.Dom hiding (display, Value)
+import Reflex.Dom hiding (display, Value, fromJSString)
 import Clay as C hiding (map, (&), filter, head, p, url, active,
                          name, pc, id, intersperse, reverse, Value)
 
@@ -55,24 +56,24 @@ fieldEntry fieldId desc fieldValue = do
          & textInputConfig_initialValue .~ fieldValue)
 
 passwordEntry :: MonadWidget t m => Text -> Text -> Text -> m (Dynamic t Text)
-passwordEntry fieldId desc fieldValue = undefined
-    -- elAttr "label" ("for" =: fieldId) $ text desc
-    -- elAttr "div" ("class" =: "input-group") $ do
-    --     rec
-    --         attrsDyn <- forDyn showPaswd $ \p ->
-    --             "class" =: "form-control" <>
-    --             "id"    =: fieldId <>
-    --             "value" =: fieldValue <>
-    --             "type"  =: if p then "password" else "text"
-    --         (inputField, _) <- elDynAttr' "input" attrsDyn $ return ()
-    --         showPaswd <- toggle True (domEvent Click padlock)
-    --         (padlock, _) <- elAttr' "div" ("class" =: "input-group-addon") $
-    --             rawPointerSpan =<< forDyn showPaswd (bool "&#128275;" "&#128274;")
-    --     let getFieldValue = liftIO $ do
-    --             val <- getValue (castToHTMLInputElement $ _el_element inputField)
-    --             return $ fromMaybe "" $ fromJSString <$> val
-    --     holdDyn fieldValue =<< performEvent
-    --         (const getFieldValue <$> domEvent Change inputField)
+passwordEntry fieldId desc fieldValue = do
+    elAttr "label" ("for" =: fieldId) $ text desc
+    elAttr "div" ("class" =: "input-group") $ do
+        rec
+            attrsDyn <- forDyn showPaswd $ \p ->
+                "class" =: "form-control" <>
+                "id"    =: fieldId <>
+                "value" =: fieldValue <>
+                "type"  =: if p then "password" else "text"
+            (inputField, _) <- elDynAttr' "input" attrsDyn $ return ()
+            showPaswd <- toggle True (domEvent Click padlock)
+            (padlock, _) <- elAttr' "div" ("class" =: "input-group-addon") $
+                rawPointerSpan =<< forDyn showPaswd (bool "&#128275;" "&#128274;")
+        let getFieldValue = liftIO $ do
+                val <- getValue (castToHTMLInputElement $ _el_element inputField)
+                return $ fromMaybe "" $ fromJSString <$> val
+        holdDyn fieldValue =<< performEvent
+            (const getFieldValue <$> domEvent Change inputField)
 
 toDynValue :: MonadWidget t m => Dynamic t Text -> m (Dynamic t Value)
 toDynValue = mapDyn A.String

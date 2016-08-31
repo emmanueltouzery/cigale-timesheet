@@ -214,47 +214,48 @@ displayPickerBlock initialDay curDate = do
     return (mergeWith (.) [fmap const pickedDateEvt, previousNextEvt])
 
 createDateLabel :: MonadWidget t m => Dynamic t Day -> PikadayPicker -> m ()
-createDateLabel curDate picker = undefined
-    -- rec
-    --     cbDyn <- holdDyn True (leftmost [dayToggleEvt, pickerAutoCloseEvt])
+createDateLabel curDate picker = do
+    rec
+        cbDyn <- holdDyn True (leftmost [dayToggleEvt, pickerAutoCloseEvt])
 
-    --     let labelClass = "class" =: "btn btn-secondary btn-sm"
-    --     let labelStyle = do
-    --             marginBottom (px 0)
-    --             width (px 180)
-    --             maxWidth (px 180)
-    --     (label, _) <- elAttrStyle' "label" labelClass labelStyle $ do
-    --         -- without the disabled, the event triggers twice with stopPropagation
-    --         void $ checkboxView (constDyn $ "disabled" =: "disabled") cbDyn
-    --         dynText =<< mapDyn (T.pack . formatTime defaultTimeLocale "%A, %F") curDate
-    --     -- use stopPropagation so that I can catch the clicks on the body elsewhere
-    --     -- and close the date picker when the user clicks elsewhere.
-    --     e <- wrapDomEvent (_el_element label) (`on` E.click) DE.stopPropagation
+        let labelClass = "class" =: "btn btn-secondary btn-sm"
+        let labelStyle = do
+                marginBottom (px 0)
+                width (px 180)
+                maxWidth (px 180)
+        (label, _) <- elAttrStyle' "label" labelClass labelStyle $ do
+            -- without the disabled, the event triggers twice with stopPropagation
+            void $ checkboxView (constDyn $ "disabled" =: "disabled") cbDyn
+            dynText =<< mapDyn (T.pack . formatTime defaultTimeLocale "%A, %F") curDate
+        -- use stopPropagation so that I can catch the clicks on the body elsewhere
+        -- and close the date picker when the user clicks elsewhere.
+        e <- wrapDomEvent (_el_element label) (`on` E.click) DE.stopPropagation
 
-    --     -- trigger day toggle event when the day button is pressed
-    --     dayToggleEvt <- performEvent $ fmap (const $ liftIO $ do
-    --         eltToggleClass (_el_element label) "active"
-    --         (cn :: String) <- getClassName (_el_element label)
-    --         return ("active" `isInfixOf` cn)) e
+        -- trigger day toggle event when the day button is pressed
+        dayToggleEvt <- performEvent $ fmap (const $ liftIO $ do
+            eltToggleClass (_el_element label) "active"
+            (cn :: String) <- getClassName (_el_element label)
+            return ("active" `isInfixOf` cn)) e
 
-    --     -- close the datepicker & update its date on day change.
-    --     pickerAutoCloseEvt <- performEvent $ fmap
-    --         (\d -> liftIO $ do
-    --               eltStripClass (_el_element label) "active"
-    --               pickerSetDate picker d
-    --               return False) (updated curDate)
+        -- close the datepicker & update its date on day change.
+        pickerAutoCloseEvt <- performEvent $ fmap
+            (\d -> liftIO $ do
+                  eltStripClass (_el_element label) "active"
+                  pickerSetDate picker d
+                  return False) (updated curDate)
 
-    --     -- close the date picker on any click anywhere else.
-    --     doc <- askDocument
-    --     (Just body) <- liftIO (getBody doc)
-    --     bodyElt <- wrapElement defaultDomEventHandler body
-    --     performEvent_ $ fmap (const $ liftIO $ do
-    --                                eltStripClass (_el_element label) "active"
-    --                                pickerHide picker) $ domEvent Click bodyElt
+        -- close the date picker on any click anywhere else.
+        undefined
+        -- doc <- askDocument
+        -- (Just body) <- liftIO (getBody doc)
+        -- bodyElt <- wrapElement defaultDomEventHandler body
+        -- performEvent_ $ fmap (const $ liftIO $ do
+        --                            eltStripClass (_el_element label) "active"
+        --                            pickerHide picker) $ domEvent Click bodyElt
 
-    -- -- open or close the datepicker when the user clicks on the toggle button
-    -- performOnDynChange cbDyn $ \isActive ->
-    --     liftIO $ (if isActive then pickerShow else pickerHide) picker
+    -- open or close the datepicker when the user clicks on the toggle button
+    performOnDynChange cbDyn $ \isActive ->
+        liftIO $ (if isActive then pickerShow else pickerHide) picker
 
 displayWarningBanner :: MonadWidget t m => Dynamic t (RemoteData FetchResponse) -> m ()
 displayWarningBanner respDyn = do

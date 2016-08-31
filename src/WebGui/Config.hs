@@ -217,14 +217,14 @@ editConfigDataInfo fieldContentsDyn cfgItemName obj ConfigDataInfo{..} = do
 
 getConfigValue :: MonadWidget t m => Event t String -> PluginConfig -> String
     -> m (Dynamic t (RemoteData [Text]))
-getConfigValue evt pluginConfig cfgItemName = undefined
-    -- let url = "/configFetchFieldContents/"
-    --         <> T.pack (cfgPluginName pluginConfig)
-    --         <> "?configItemName=" <> T.pack cfgItemName
-    -- let xhrReq dataJson = xhrRequest "POST" url $
-    --                       def { _xhrRequestConfig_sendData = Just dataJson }
-    -- req <- performRequestAsync $ xhrReq <$> evt
-    -- holdDyn RemoteDataLoading $ fmap readRemoteData req
+getConfigValue evt pluginConfig cfgItemName = do
+    let url = "/configFetchFieldContents/"
+            <> T.pack (cfgPluginName pluginConfig)
+            <> "?configItemName=" <> T.pack cfgItemName
+    let xhrReq dataJson = xhrRequest "POST" url $
+                          def { _xhrRequestConfig_sendData = dataJson }
+    req <- performRequestAsync $ xhrReq <$> evt
+    holdDyn RemoteDataLoading $ fmap readRemoteData req
 
 buckets :: Ord b => (a -> b) -> [a] -> [(b, [a])]
 buckets f = map (\g -> (fst $ head g, map snd g))

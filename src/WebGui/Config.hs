@@ -217,14 +217,14 @@ editConfigDataInfo fieldContentsDyn cfgItemName obj ConfigDataInfo{..} = do
 
 getConfigValue :: MonadWidget t m => Event t String -> PluginConfig -> String
     -> m (Dynamic t (RemoteData [Text]))
-getConfigValue evt pluginConfig cfgItemName = do
-    let url = "/configFetchFieldContents/"
-            <> T.pack (cfgPluginName pluginConfig)
-            <> "?configItemName=" <> T.pack cfgItemName
-    let xhrReq dataJson = xhrRequest "POST" url $
-                          def { _xhrRequestConfig_sendData = Just dataJson }
-    req <- performRequestAsync $ xhrReq <$> evt
-    holdDyn RemoteDataLoading $ fmap readRemoteData req
+getConfigValue evt pluginConfig cfgItemName = undefined
+    -- let url = "/configFetchFieldContents/"
+    --         <> T.pack (cfgPluginName pluginConfig)
+    --         <> "?configItemName=" <> T.pack cfgItemName
+    -- let xhrReq dataJson = xhrRequest "POST" url $
+    --                       def { _xhrRequestConfig_sendData = Just dataJson }
+    -- req <- performRequestAsync $ xhrReq <$> evt
+    -- holdDyn RemoteDataLoading $ fmap readRemoteData req
 
 buckets :: Ord b => (a -> b) -> [a] -> [(b, [a])]
 buckets f = map (\g -> (fst $ head g, map snd g))
@@ -333,20 +333,20 @@ encodeToStr :: ToJSON a => a -> String
 encodeToStr = convertString . encode
 
 saveConfig :: MonadWidget t m => Event t ConfigChange -> m (Event t (RemoteData ConfigChange))
-saveConfig configAddEvt = do
-    let makeReq = \case
-            (ChangeAdd cfg) -> do
-                let url = "/config"
-                xhrRequest "POST" url $
-                    def { _xhrRequestConfig_sendData = Just (encodeToStr cfg) }
-            (ChangeUpdate cfgEdit) -> do
-                let url = "/config?oldConfigItemName=" <> T.pack (oldConfigItemName cfgEdit)
-                xhrRequest "PUT" url $
-                    def { _xhrRequestConfig_sendData = Just (encodeToStr $ newConfigItem cfgEdit) }
-            (ChangeDelete cfg) -> do
-                let url = "/config?configItemName=" <> T.pack (configItemName cfg)
-                xhrRequest "DELETE" url def
-    httpVoidRequest makeReq configAddEvt
+saveConfig configAddEvt = undefined
+    -- let makeReq = \case
+    --         (ChangeAdd cfg) -> do
+    --             let url = "/config"
+    --             xhrRequest "POST" url $
+    --                 def { _xhrRequestConfig_sendData = Just (encodeToStr cfg) }
+    --         (ChangeUpdate cfgEdit) -> do
+    --             let url = "/config?oldConfigItemName=" <> T.pack (oldConfigItemName cfgEdit)
+    --             xhrRequest "PUT" url $
+    --                 def { _xhrRequestConfig_sendData = Just (encodeToStr $ newConfigItem cfgEdit) }
+    --         (ChangeDelete cfg) -> do
+    --             let url = "/config?configItemName=" <> T.pack (configItemName cfg)
+    --             xhrRequest "DELETE" url def
+    -- httpVoidRequest makeReq configAddEvt
 
 httpVoidRequest :: (MonadWidget t m, IsXhrPayload p) => (a -> XhrRequest p) -> Event t a
                 -> m (Event t (RemoteData a))

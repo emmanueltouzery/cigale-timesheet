@@ -1,16 +1,18 @@
-{-# LANGUAGE ScopedTypeVariables, LambdaCase, OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables, LambdaCase, OverloadedStrings, TypeFamilies #-}
 {-# LANGUAGE RecordWildCards, RecursiveDo, JavaScriptFFI, ForeignFunctionInterface #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 import GHCJS.Types
 import GHCJS.DOM.Types (fromJSString)
 
 import Reflex
-import Reflex.Dom hiding (display)
+import Reflex.Dom hiding (display, fromJSString)
 
 import Clay
 import Data.List
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy as TL
+import Data.Text (Text)
 import Data.Monoid
 import Control.Monad.IO.Class
 import Data.Maybe
@@ -20,8 +22,11 @@ import Common
 import Config
 import EventsView
 
-foreign import javascript unsafe "window.location.hash.substr(1)" getLocationHash :: IO JSString
+foreign import javascript unsafe "window.location.hash.substr(1)" getLocationHash_ :: IO JSString
 foreign import javascript unsafe "document.title = $1" setTitle :: JSString -> IO ()
+
+getLocationHash :: IO Text
+getLocationHash = fromJSString <$> getLocationHash_
 
 css :: Css
 css = do
@@ -83,8 +88,8 @@ addModalDialogSkeleton zIndexVal modalLevel =
 data NavLinkItem = NavLinkItem
      {
          nliActiveView :: ActiveView,
-         nliUrl :: String,
-         nliDesc :: String
+         nliUrl        :: Text,
+         nliDesc       :: Text
      }
 navLinkItems :: [NavLinkItem]
 navLinkItems =
@@ -95,7 +100,7 @@ navLinkItems =
 
 navBar :: MonadWidget t m => m (Dynamic t ActiveView)
 navBar = do
-    urlLocationHash <- liftIO $ fromJSString <$> getLocationHash
+    urlLocationHash <- liftIO getLocationHash
     rec
         viewEvts <-
             elAttrStyle "div" ("role" =: "navigation") (marginAll (px 10) >> flexShrink 0) $

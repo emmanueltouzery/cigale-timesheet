@@ -54,7 +54,7 @@ eltToggleClass elt classItem = do
         then eltStripClass elt classItem
         else setClassName elt (fullClass <> " " <> classItemS)
 
-attrOptDyn :: a -> String -> Bool -> String -> Map a String
+attrOptDyn :: a -> Text -> Bool -> Text -> Map a Text
 attrOptDyn attrib opt isShow str = attrib =: (str <> if isShow then " " <> opt else "")
 
 attrStyleWithHideIf :: Bool -> Css -> Map Text Text

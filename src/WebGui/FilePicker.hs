@@ -55,8 +55,8 @@ getChangeFolder :: PickerEventType -> Maybe FilePath
 getChangeFolder (ChangeFolderEvt x) = Just x
 getChangeFolder _ = Nothing
 
-buildFilePicker :: MonadWidget t m => FilePickerOptions -> Event t FilePath -> m (Event t FilePath)
-buildFilePicker options openEvt = do
+buildFilePicker :: MonadWidget t m => El t -> FilePickerOptions -> Event t FilePath -> m (Event t FilePath)
+buildFilePicker elt options openEvt = do
     urlAtLoad <- holdDyn Nothing $ Just <$> openEvt
     let noFileEvt = ffilter null openEvt
     let fileEvent = fixFile <$> ffilter (not . null) openEvt
@@ -72,7 +72,7 @@ buildFilePicker options openEvt = do
         showModalOnEvent ModalLevelSecondary openEvt
         browseDataDyn <- foldDyn const RemoteDataLoading browseInfoEvt
         dynMonPickerEvt <- mapDyn (displayPicker options urlAtLoad) browseDataDyn
-        rx <- readModalResult ModalLevelSecondary =<< mapDyn Just dynMonPickerEvt
+        rx <- readModalResult elt ModalLevelSecondary =<< mapDyn Just dynMonPickerEvt
     return (fmapMaybe getPickData rx)
 
 displayPicker :: MonadWidget t m => FilePickerOptions -> Dynamic t (Maybe FilePath) -> RemoteData BrowseResponse

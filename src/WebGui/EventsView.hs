@@ -141,8 +141,8 @@ addDatePicker initialDay = do
 -- TODO display any errors occuring during the prefetching
 addPreloadButton :: MonadWidget t m => m ()
 addPreloadButton = do
-    displayPreload <- iconButton 16 "glyphicons-58-history"
-    preloadEvt <- setupModal ModalLevelBasic displayPreload $ do
+    (btnElt, displayPreload) <- iconButton 16 "glyphicons-58-history"
+    preloadEvt <- setupModal btnElt ModalLevelBasic displayPreload $ do
         (preloadR, preloadOkEvt, _) <- buildModalBody "Preload data" (PrimaryBtn "Preload")
             (constDyn "") preloadDialog
         return $ tagDyn preloadR preloadOkEvt
@@ -155,7 +155,7 @@ addPreloadButton = do
             daysFetchingQueueDyn curCountDyn
         mCurDayToFetchDyn <- nubDyn <$> mapDyn headZ daysFetchingQueueDyn
         daysFetchingQueueDoneEvt <- fetchDay mCurDayToFetchDyn
-    void $ setupModal ModalLevelSecondary preloadEvt $ do
+    void $ setupModal btnElt ModalLevelSecondary preloadEvt $ do
         void $ buildModalBody "In progress" NoBtn
             (constDyn "") (progressDialog progressDyn)
         return never
@@ -204,10 +204,10 @@ displayPickerBlock initialDay curDate = do
         let btnClass = "class" =: "btn-group" <> "data-toggle" =: "buttons"
         previousNextEvt <-
             elAttrStyle "div" btnClass (position relative) $ do
-                previousDay <- fmap (const $ addDays (-1)) <$>
+                previousDay <- fmap (const $ addDays (-1)) <$> snd <$>
                     smallIconButton "glyphicons-171-step-backward"
                 createDateLabel curDate picker
-                nextDay <- fmap (const $ addDays 1) <$>
+                nextDay <- fmap (const $ addDays 1) <$> snd <$>
                     smallIconButton "glyphicons-179-step-forward"
                 return (mergeWith (.) [previousDay, nextDay])
         (pickedDateEvt, picker) <- datePicker initialDay

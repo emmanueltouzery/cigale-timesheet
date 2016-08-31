@@ -109,18 +109,18 @@ performOnDynChange :: MonadWidget t m => Dynamic t a -> (a -> WidgetHost m ()) -
 performOnDynChange dynamic action = performEvent_ $
     fmap (const $ sample (current dynamic) >>= action) $ updated dynamic
 
-button' :: MonadWidget t m => m a -> m (Event t ())
+button' :: MonadWidget t m => m a -> m (El t, Event t ())
 button' contents = do
     -- forcing white background, otherwise it stays to gray after
     -- being pressed which I find ugly.
     (e, _) <- elAttrStyle' "button"
         ("class" =: "btn btn-secondary btn-sm") (backgroundColor white) contents
-    return $ domEvent Click e
+    return (e, domEvent Click e)
 
-smallIconButton :: MonadWidget t m => Text -> m (Event t ())
+smallIconButton :: MonadWidget t m => Text -> m (El t, Event t ())
 smallIconButton = iconButton 12
 
-iconButton :: MonadWidget t m => Int -> Text -> m (Event t ())
+iconButton :: MonadWidget t m => Int -> Text -> m (El t, Event t ())
 iconButton iconHeight iconName = button' $
     elAttrStyle "img" ("src" =: getGlyphiconUrl iconName)
         (height $ px $ fromIntegral iconHeight) $ return ()
@@ -130,18 +130,18 @@ col = elStyle "td" (paddingAll (px 5))
 
 data ButtonInfo = PrimaryBtn Text | DangerBtn Text | NoBtn
 
-setupModal :: MonadWidget t m => ModalLevel -> Event t a -> m (Event t b)
+setupModal :: MonadWidget t m => El t -> ModalLevel -> Event t a -> m (Event t b)
            -> m (Event t b)
-setupModal modalLevel showEvent buildDialog = do
+setupModal elt modalLevel showEvent buildDialog = do
     showModalOnEvent modalLevel showEvent
     modalDyn <- holdDyn Nothing $ fmap Just showEvent
     dynModalVal <- forDyn modalDyn $ fmap (const buildDialog)
-    readModalResult modalLevel dynModalVal
+    readModalResult elt modalLevel dynModalVal
 
-readModalResult :: MonadWidget t m => ModalLevel -> Dynamic t (Maybe (m (Event t a)))
+readModalResult :: MonadWidget t m => El t -> ModalLevel -> Dynamic t (Maybe (m (Event t a)))
                 -> m (Event t a)
-readModalResult modalLevel dynModalVal = do
-    dynModalEvtEvt <- dynModal modalLevel dynModalVal
+readModalResult elt modalLevel dynModalVal = do
+    dynModalEvtEvt <- dynModal elt modalLevel dynModalVal
     dynModalDynEvt <- holdDyn never dynModalEvtEvt
     return (switch $ current dynModalDynEvt)
 
@@ -211,34 +211,35 @@ topLevelModalContentsId :: ModalLevel -> Text
 topLevelModalContentsId ModalLevelBasic = "toplevelmodalcontents"
 topLevelModalContentsId ModalLevelSecondary = "toplevelsecmodalcontents"
 
-dynModal :: MonadWidget t m => ModalLevel -> Dynamic t (Maybe (m a)) -> m (Event t a)
-dynModal modalLevel = dynAtEltId (topLevelModalContentsId modalLevel)
+dynModal :: MonadWidget t m => El t -> ModalLevel -> Dynamic t (Maybe (m a)) -> m (Event t a)
+dynModal elt modalLevel = dynAtEltId elt (topLevelModalContentsId modalLevel)
 
 -- | this is copy-pasted & modified from 'dyn' from reflex-dom
 -- instead of appending the nodes at the current position in the
 -- DOM, append them under the node by the ID which you give.
+-- TODO move to reflex-dom 'placeholder' mechanism?
     -- something with runImmediateDomBuilderT, see example Immediate.hs, line 184
-dynAtEltId :: MonadWidget t m => Text -> Dynamic t (Maybe (m a)) -> m (Event t a)
-dynAtEltId eltId child = undefined
-    -- (newChildBuilt, newChildBuiltTriggerRef) <- newEventWithTriggerRef
-    -- let e = fmap snd newChildBuilt
-    -- childVoidAction <- hold never e
-    -- performEvent_ $ fmap (const $ return ()) e
-    -- addVoidAction $ switch childVoidAction
-    -- doc <- askDocument
-    -- let build = \case
-    --         Nothing -> return ()
-    --         Just c  -> do
-    --             Just df <- liftIO $ createDocumentFragment doc
-    --             Just docRoot <- liftIO $ getElementById doc eltId
-    --             nodeLastChild <- liftIO $ getLastChild docRoot
-    --             void $ liftIO $ replaceChild docRoot (Just df) nodeLastChild
-    -- schedulePostBuild $ do
-    --     c <- sample $ current child
-    --     build c
-    -- addVoidAction $ ffor (updated child) $ \newChild -> do
-    --     build newChild
-    -- return $ fmap fst newChildBuilt
+dynAtEltId :: MonadWidget t m => El t -> Text -> Dynamic t (Maybe (m a)) -> m (Event t a)
+dynAtEltId elt eltId child = do
+    (newChildBuilt, newChildBuiltTriggerRef) <- newEventWithTriggerRef
+    let e = fmap snd newChildBuilt
+    childVoidAction <- hold never e
+    performEvent_ $ fmap (const $ return ()) e
+    addVoidAction $ switch childVoidAction
+    (Just doc) <- getOwnerDocument (_el_element elt)
+    let build = \case
+            Nothing -> return ()
+            Just c  -> do
+                Just df <- liftIO $ createDocumentFragment doc
+                Just docRoot <- liftIO $ getElementById doc eltId
+                nodeLastChild <- liftIO $ getLastChild docRoot
+                void $ liftIO $ replaceChild docRoot (Just df) nodeLastChild
+    schedulePostBuild $ do
+        c <- sample $ current child
+        build c
+    addVoidAction $ ffor (updated child) $ \newChild -> do
+        build newChild
+    return $ fmap fst newChildBuilt
 
 rawPointerSpan :: MonadWidget t m => Dynamic t Text -> m ()
 rawPointerSpan = rawSpan ("style" =: "cursor: pointer")

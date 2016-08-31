@@ -114,7 +114,7 @@ displayAddCfgButton pluginConfigs = do
             flexShrink 0
             paddingRight (px 30)
             paddingBottom (px 10)
-    clickEvts <- elAttrStyle "div" ("width" =: "100%") addBtnStyle $
+    (divElt, clickEvts) <- elAttrStyle' "div" ("width" =: "100%") addBtnStyle $
         elAttr "div" ("class" =: "btn-group") $ do
             elAttr "button" ("type"  =: "button" <>
                              "class" =: "btn btn-primary dropdown-toggle" <>
@@ -124,7 +124,7 @@ displayAddCfgButton pluginConfigs = do
                 $ text "Add..."
             elAttr "div" ("class" =: "dropdown-menu dropdown-menu-right") $
                 mapM addCfgDropdownBtn pluginConfigs
-    addEvts <- zipWithM (addCfgPluginAdd Nothing) pluginConfigs clickEvts
+    addEvts <- zipWithM (addCfgPluginAdd divElt Nothing) pluginConfigs clickEvts
     return (leftmost addEvts)
 
 addCfgDropdownBtn :: MonadWidget t m => PluginConfig -> m (Event t ())
@@ -136,13 +136,13 @@ addCfgDropdownBtn PluginConfig{..} = do
 
 -- TODO obvious duplication in the way the add/edit/delete modals are handled.
 -- setupModal then buildModalBody, then error event, save event, then handle save...
-addCfgPluginAdd :: MonadWidget t m => Maybe ConfigItem -> PluginConfig -> Event t ()
+addCfgPluginAdd :: MonadWidget t m => El t -> Maybe ConfigItem -> PluginConfig -> Event t ()
                 -> m (Event t ConfigChange)
-addCfgPluginAdd mConfigItem pc clickEvt = do
+addCfgPluginAdd elt mConfigItem pc clickEvt = do
     let ci = ConfigItem "" "" HashMap.empty
     fieldContentsEvt <- configModalFetchFieldContents clickEvt mConfigItem pc
     fieldContentsDyn <- holdDyn Map.empty fieldContentsEvt
-    setupModalR <- setupModal ModalLevelBasic fieldContentsEvt $ do
+    setupModalR <- setupModal elt ModalLevelBasic fieldContentsEvt $ do
         rec
             (dialogResult, addDlgOkEvt, _) <- buildModalBody "Add" (PrimaryBtn "Save")
                     errorDyn (editConfigItem pc ci fieldContentsDyn)
@@ -264,7 +264,7 @@ addDeleteButton :: MonadWidget t m => ConfigItem -> m (Event t ConfigChange)
 addDeleteButton ci@ConfigItem{..} = do
     (deleteBtn, _) <- elAttrStyle' "button"
         ("class" =: "btn btn-danger btn-sm") (marginRight (px 5)) $ text "Delete"
-    setupModalR <- setupModal ModalLevelBasic (domEvent Click deleteBtn) $ do
+    setupModalR <- setupModal deleteBtn ModalLevelBasic (domEvent Click deleteBtn) $ do
         rec
             (_, deleteDlgOkEvt, _) <- buildModalBody "Delete" (DangerBtn "Delete")
                 errorDyn (text $ "Delete the config item " <> T.pack configItemName <> "?")
@@ -281,7 +281,7 @@ addEditButton pluginConfig ci@ConfigItem{..} = do
     (editBtn, _) <- elAttrStyle' "button" btnClass (marginRight (px 5)) $ text "Edit"
     fieldContentsEvt <- configModalFetchFieldContents (domEvent Click editBtn) (Just ci) pluginConfig
     fieldContentsDyn <- holdDyn Map.empty fieldContentsEvt
-    setupModalR <- setupModal ModalLevelBasic fieldContentsEvt $ do
+    setupModalR <- setupModal editBtn ModalLevelBasic fieldContentsEvt $ do
         rec
             (dialogResult, editDlgOkEvt, _) <- buildModalBody "Edit" (PrimaryBtn "Save")
                 errorDyn (editConfigItem pluginConfig ci fieldContentsDyn)

@@ -1,5 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables, LambdaCase, OverloadedStrings, JavaScriptFFI, FlexibleContexts #-}
-{-# LANGUAGE ForeignFunctionInterface, RecordWildCards, OverloadedStrings, TypeFamilies #-}
+{-# LANGUAGE ForeignFunctionInterface, RecordWildCards, OverloadedStrings, TypeFamilies, RecursiveDo #-}
 
 module Common where
 
@@ -14,7 +14,11 @@ import Reflex.Dom hiding (display)
 import Reflex.Host.Class
 import Data.String
 
-import Clay as C hiding (filter, title, contents, action, url)
+import Control.Monad.State.Class (modify)
+import Data.List.NonEmpty (NonEmpty, nonEmpty, toList)
+import Control.Lens hiding (element)
+import Clay as C hiding (filter, title, contents, action, url, (&), placeholder, id, reverse, none)
+import qualified Clay as C
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -23,6 +27,7 @@ import Data.Monoid
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Control.Monad.IO.Class
+import Control.Monad.Trans
 import Data.Aeson
 import Control.Monad
 import Data.List
@@ -61,7 +66,7 @@ attrStyleWithHideIf :: Bool -> Css -> Map Text Text
 attrStyleWithHideIf isHide rest = "style" =: styleStr (styleWithHideIf isHide rest)
 
 styleWithHideIf :: Bool -> Css -> Css
-styleWithHideIf isHide rest = rest >> when isHide (display none)
+styleWithHideIf isHide rest = rest >> when isHide (display C.none)
 
 attrStyleHideIf :: Bool -> Map Text Text
 attrStyleHideIf isHide = "style" =: styleStr (styleHideIf isHide)
@@ -130,13 +135,13 @@ col = elStyle "td" (paddingAll (px 5))
 
 data ButtonInfo = PrimaryBtn Text | DangerBtn Text | NoBtn
 
-setupModal :: MonadWidget t m => El t -> ModalLevel -> Event t a -> m (Event t b)
-           -> m (Event t b)
-setupModal elt modalLevel showEvent buildDialog = do
-    showModalOnEvent modalLevel showEvent
-    modalDyn <- holdDyn Nothing $ fmap Just showEvent
-    dynModalVal <- forDyn modalDyn $ fmap (const buildDialog)
-    readModalResult elt modalLevel dynModalVal
+-- setupModal :: MonadWidget t m => El t -> ModalLevel -> Event t a -> m (Event t b)
+--            -> m (Event t b)
+-- setupModal elt modalLevel showEvent buildDialog = do
+--     showModalOnEvent modalLevel showEvent
+--     modalDyn <- holdDyn Nothing $ fmap Just showEvent
+--     dynModalVal <- forDyn modalDyn $ fmap (const buildDialog)
+--     readModalResult elt modalLevel dynModalVal
 
 readModalResult :: MonadWidget t m => El t -> ModalLevel -> Dynamic t (Maybe (m (Event t a)))
                 -> m (Event t a)
@@ -148,7 +153,7 @@ readModalResult elt modalLevel dynModalVal = do
 readDynMonadicEvent :: MonadWidget t m => Dynamic t (m (Event t a)) -> m (Event t a)
 readDynMonadicEvent dynMonadicEvent = do
     eventEvt <- dyn dynMonadicEvent
-    dynEvt <- holdDyn never eventEvt
+    dynEvt   <- holdDyn never eventEvt
     return $ switch (current dynEvt)
 
 buildModalBody :: MonadWidget t m => Text -> ButtonInfo
@@ -212,34 +217,90 @@ topLevelModalContentsId ModalLevelBasic = "toplevelmodalcontents"
 topLevelModalContentsId ModalLevelSecondary = "toplevelsecmodalcontents"
 
 dynModal :: MonadWidget t m => El t -> ModalLevel -> Dynamic t (Maybe (m a)) -> m (Event t a)
-dynModal elt modalLevel = dynAtEltId elt (topLevelModalContentsId modalLevel)
+dynModal elt modalLevel = dynAtEltId . fmap fromJust {-elt (topLevelModalContentsId modalLevel) -}
+
+dynAtEltId = undefined
 
 -- | this is copy-pasted & modified from 'dyn' from reflex-dom
 -- instead of appending the nodes at the current position in the
 -- DOM, append them under the node by the ID which you give.
 -- TODO move to reflex-dom 'placeholder' mechanism?
     -- something with runImmediateDomBuilderT, see example Immediate.hs, line 184
-dynAtEltId :: MonadWidget t m => El t -> Text -> Dynamic t (Maybe (m a)) -> m (Event t a)
-dynAtEltId elt eltId child = do
-    (newChildBuilt, newChildBuiltTriggerRef) <- newEventWithTriggerRef
-    let e = fmap snd newChildBuilt
-    childVoidAction <- hold never e
-    performEvent_ $ fmap (const $ return ()) e
-    addVoidAction $ switch childVoidAction
-    (Just doc) <- getOwnerDocument (_el_element elt)
-    let build = \case
-            Nothing -> return ()
-            Just c  -> do
-                Just df <- liftIO $ createDocumentFragment doc
-                Just docRoot <- liftIO $ getElementById doc eltId
-                nodeLastChild <- liftIO $ getLastChild docRoot
-                void $ liftIO $ replaceChild docRoot (Just df) nodeLastChild
-    schedulePostBuild $ do
-        c <- sample $ current child
-        build c
-    addVoidAction $ ffor (updated child) $ \newChild -> do
-        build newChild
-    return $ fmap fst newChildBuilt
+-- dynAtEltId :: MonadWidget t m => El t -> Text -> Dynamic t (Maybe (m a)) -> m (Event t a)
+-- dynAtEltId elt eltId child = do
+--     (newChildBuilt, newChildBuiltTriggerRef) <- newEventWithTriggerRef
+--     let e = fmap snd newChildBuilt
+--     childVoidAction <- hold never e
+--     performEvent_ $ fmap (const $ return ()) e
+--     addVoidAction $ switch childVoidAction
+--     (Just doc) <- getOwnerDocument (_el_element elt)
+--     let build = \case
+--             Nothing -> return ()
+--             Just c  -> do
+--                 Just df <- liftIO $ createDocumentFragment doc
+--                 Just docRoot <- liftIO $ getElementById doc eltId
+--                 nodeLastChild <- liftIO $ getLastChild docRoot
+--                 void $ liftIO $ replaceChild docRoot (Just df) nodeLastChild
+--     schedulePostBuild $ do
+--         c <- sample $ current child
+--         build c
+--     addVoidAction $ ffor (updated child) $ \newChild -> do
+--         build newChild
+--     return $ fmap fst newChildBuilt
+
+-- | Given a Dynamic of widget-creating actions, create a widget that is recreated whenever the Dynamic updates.
+--   The returned Event of widget results occurs when the Dynamic does.
+--   Note:  Often, the type 'a' is an Event, in which case the return value is an Event-of-Events that would typically be flattened (via 'switchPromptly').
+
+
+-- dynAtEltId :: (DomBuilder t m, PostBuild t m) => Dynamic t (m a) -> m (Event t a)
+-- dynAtEltId child = do
+--   postBuild <- getPostBuild
+--   let newChild = leftmost [updated child, tag (current child) postBuild]
+--   snd <$> widgetHoldInternal' (return ()) newChild
+
+-- widgetHoldInternal' :: DomBuilder t m => m a -> Event t (m b) -> m (a, Event t b)
+-- widgetHoldInternal' child0 child' = do
+--   childResult0 <- deletable (void child') child0
+--   childResult' <- liftPlaceholder'' $ def & placeholderConfig_insertAbove .~ fmap (deletable (void child')) child'
+--   return (childResult0, _placeholder_insertedAbove childResult')
+
+-- liftPlaceholder'' cfg = liftWithStateless $ \run -> placeholder'' $ fmap1 run cfg
+
+-- placeholder'' :: (DomBuilderSpace (PostBuildT t m) ~ DomBuilderSpace m) => (PlaceholderConfig above t m) -> m (Placeholder above t)
+-- placeholder'' cfg = lift $ do
+--   rec childPostBuild <- deletable (_placeholder_deletedSelf p) $ performEvent $ return () <$ _placeholder_insertedAbove p
+--       p <- placeholder $ cfg
+--         { _placeholderConfig_insertAbove = ffor (_placeholderConfig_insertAbove cfg) $ \a -> runPostBuildT a =<< headE childPostBuild
+--         }
+--   return p
+
+-- -- placeholder' cfg = do
+-- --   let cfg' = cfg
+-- --         { _placeholderConfig_insertAbove = runDynamicWriterTInternal <$> _placeholderConfig_insertAbove cfg
+-- --         }
+-- --   let manageChildren :: Event t (NonEmpty (Replaceable t (Dynamic t w))) -- ^ Add nodes on the right; these are in reverse order
+-- --                      -> Event t () -- ^ No more nodes will be added after this event fires
+-- --                      -> m (Replaceable t (Dynamic t w))
+-- --       manageChildren newChildren additionsCeased = do
+-- --         rec nextId <- hold (0 :: Int) newNextId -- We assume this will never wrap around
+-- --             let numberedNewChildren :: Event t (Int, PatchMap (Map Int (Replaceable t (Dynamic t w))))
+-- --                 numberedNewChildren = flip pushAlways newChildren $ \rcs -> do
+-- --                   let cs = reverse $ toList rcs
+-- --                   myFirstId <- sample nextId
+-- --                   let (myNextId, numbered) = mapAccumL (\n v -> (succ n, (n, Just v))) myFirstId cs
+-- --                   return (myNextId, PatchMap $ Map.fromList numbered)
+-- --                 newNextId = fst <$> numberedNewChildren
+-- --         mconcatIncrementalReplaceableDynMap Map.empty (snd <$> numberedNewChildren) additionsCeased
+-- --   rec children <- lift $ manageChildren childOutputs $ cfg ^. deleteSelf
+-- --       p <- DynamicWriterT $ do
+-- --         modify (children:)
+-- --         lift $ placeholder cfg'
+-- --       let result = fst <$> _placeholder_insertedAbove p
+-- --           childOutputs = fmapMaybe (nonEmpty . snd) $ _placeholder_insertedAbove p
+-- --   return $ p
+-- --     { _placeholder_insertedAbove = result
+-- --     }
 
 rawPointerSpan :: MonadWidget t m => Dynamic t Text -> m ()
 rawPointerSpan = rawSpan ("style" =: "cursor: pointer")
@@ -293,6 +354,13 @@ instance Monad RemoteData where
     (RemoteDataInvalid x) >>= _ = RemoteDataInvalid x
     RemoteDataLoading >>= _ = RemoteDataLoading
     RemoteData x >>= f = f x
+
+instance Monoid a => Monoid (RemoteData a) where
+    mappend = combineRemoteData mappend
+    mempty = RemoteData mempty
+    -- mappend (RemoteDataInvalid x) _ = RemoteDataInvalid x
+    -- mappend RemoteDataLoading _ = RemoteDataLoading
+    -- mappend (RemoteData a) (RemoteData b) = RemoteData (mappend a b)
 
 readEmptyRemoteData :: XhrResponse -> RemoteData ()
 readEmptyRemoteData XhrResponse{..} = case _xhrResponse_status of

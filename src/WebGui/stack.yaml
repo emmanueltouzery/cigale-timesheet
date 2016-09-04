@@ -4,11 +4,11 @@ packages:
 - .
 - location:
     git: https://github.com/reflex-frp/reflex.git
-    commit: 1511d28b08159918137171b79d9f976d9dbe9c65
+    commit: a63aba90bdea5ae5b3e1506d468613bdfedcdfa3
   extra-dep: true
 - location:
     git: https://github.com/reflex-frp/reflex-dom.git
-    commit: 2a2ac99cfc71dd304840cfb691b628b3d6e75a66
+    commit: 2a473aed0f28463c2cdbdf20cb50b37f980b757f
   extra-dep: true
 
 resolver: lts-6.12

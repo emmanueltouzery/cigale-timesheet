@@ -29,6 +29,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Monoid
 import Control.Monad.IO.Class
+import Control.Monad.Reader
 import Data.Maybe
 import Data.List
 import Control.Error
@@ -142,26 +143,27 @@ addDatePicker initialDay = do
 addPreloadButton :: MonadWidget t m => m ()
 addPreloadButton = do
     (btnElt, displayPreload) <- iconButton 16 "glyphicons-58-history"
-    preloadEvt <- setupModal btnElt ModalLevelBasic displayPreload $ do
-        (preloadR, preloadOkEvt, _) <- buildModalBody "Preload data" (PrimaryBtn "Preload")
-            (constDyn "") preloadDialog
-        return $ tagDyn preloadR preloadOkEvt
-    let dayListEvt = fmap (uncurry daysRange) preloadEvt
-    rec
-        curCountDyn <- holdDyn 0 $ fmap length dayListEvt
-        daysFetchingQueueDyn <- foldDyn ($) [] $ leftmost
-            [fmap const dayListEvt, fmap (const tail) $ daysFetchingQueueDoneEvt]
-        progressDyn <- combineDyn (\lst cnt -> (cnt - length lst)*100 `div` cnt)
-            daysFetchingQueueDyn curCountDyn
-        mCurDayToFetchDyn <- nubDyn <$> mapDyn headZ daysFetchingQueueDyn
-        daysFetchingQueueDoneEvt <- fetchDay mCurDayToFetchDyn
-    void $ setupModal btnElt ModalLevelSecondary preloadEvt $ do
-        void $ buildModalBody "In progress" NoBtn
-            (constDyn "") (progressDialog progressDyn)
-        return never
-    let doneEvt = ffilter isNothing $ updated mCurDayToFetchDyn
-    hideModalOnEvent ModalLevelBasic doneEvt
-    hideModalOnEvent ModalLevelSecondary doneEvt
+    return ()
+    -- preloadEvt <- setupModal btnElt ModalLevelBasic displayPreload $ do
+    --     (preloadR, preloadOkEvt, _) <- buildModalBody "Preload data" (PrimaryBtn "Preload")
+    --         (constDyn "") preloadDialog
+    --     return $ tagDyn preloadR preloadOkEvt
+    -- let dayListEvt = fmap (uncurry daysRange) preloadEvt
+    -- rec
+    --     curCountDyn <- holdDyn 0 $ fmap length dayListEvt
+    --     daysFetchingQueueDyn <- foldDyn ($) [] $ leftmost
+    --         [fmap const dayListEvt, fmap (const tail) $ daysFetchingQueueDoneEvt]
+    --     progressDyn <- combineDyn (\lst cnt -> (cnt - length lst)*100 `div` cnt)
+    --         daysFetchingQueueDyn curCountDyn
+    --     mCurDayToFetchDyn <- nubDyn <$> mapDyn headZ daysFetchingQueueDyn
+    --     daysFetchingQueueDoneEvt <- fetchDay mCurDayToFetchDyn
+    -- void $ setupModal btnElt ModalLevelSecondary preloadEvt $ do
+    --     void $ buildModalBody "In progress" NoBtn
+    --         (constDyn "") (progressDialog progressDyn)
+    --     return never
+    -- let doneEvt = ffilter isNothing $ updated mCurDayToFetchDyn
+    -- hideModalOnEvent ModalLevelBasic doneEvt
+    -- hideModalOnEvent ModalLevelSecondary doneEvt
 
 fetchDay :: MonadWidget t m => Dynamic t (Maybe Day) -> m (Event t FetchResponse)
 fetchDay mDayDyn = do

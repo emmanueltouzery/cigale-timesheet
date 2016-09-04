@@ -115,18 +115,19 @@ navBar = do
     return activeViewDyn
 
 addAboutButton :: MonadWidget t m => m ()
-addAboutButton = do
-    let iconUrl = getGlyphiconUrl "glyphicons-195-question-sign"
-    (image, _) <- elAttrStyle' "img"
-        ("src" =: iconUrl <> "class" =: "pull-xs-right") (cursor pointer) $ return ()
-    void $ setupModal image ModalLevelBasic (domEvent Click image) $ do
-        void $ buildModalBody "About" NoBtn
-            (constDyn "") (text "Icons from "
-                   >> elAttr "a" ("href" =: "http://glyphicons.com") (text "Glyphicons")
-                   >> text ", under a "
-                   >> elAttr "a" ("href" =: "http://creativecommons.org/licenses/by/3.0/")
-                       (text "CC BY 3.0 license."))
-        return never
+addAboutButton = return ()
+    --do
+    -- let iconUrl = getGlyphiconUrl "glyphicons-195-question-sign"
+    -- (image, _) <- elAttrStyle' "img"
+    --     ("src" =: iconUrl <> "class" =: "pull-xs-right") (cursor pointer) $ return ()
+    -- void $ setupModal image ModalLevelBasic (domEvent Click image) $ do
+    --     void $ buildModalBody "About" NoBtn
+    --         (constDyn "") (text "Icons from "
+    --                >> elAttr "a" ("href" =: "http://glyphicons.com") (text "Glyphicons")
+    --                >> text ", under a "
+    --                >> elAttr "a" ("href" =: "http://creativecommons.org/licenses/by/3.0/")
+    --                    (text "CC BY 3.0 license."))
+        -- return never
 
 navLink :: MonadWidget t m => Dynamic t ActiveView -> NavLinkItem -> m (Event t ActiveView)
 navLink activeViewDyn NavLinkItem{..} = do

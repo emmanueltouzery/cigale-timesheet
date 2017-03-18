@@ -90,6 +90,7 @@ data ConfigChangeRequest = ChangeAddRequest PluginConfig
 data ConfigChange = ChangeAdd ConfigItem
                   | ChangeUpdate ConfigUpdate
                   | ChangeDelete ConfigItem
+                  deriving Show
 
 configChangeReqGetUpdate :: ConfigChangeRequest -> Maybe (PluginConfig, ConfigItem)
 configChangeReqGetUpdate (ChangeUpdateRequest pc ci) = Just (pc, ci)
@@ -178,21 +179,22 @@ providerByName pluginConfigs name = find ((== name) . cfgPluginName) pluginConfi
 
 type EditConfigItemRender t = (Dynamic t Text, Map String (Dynamic t Value))
 
-editConfigItem :: MonadWidget t m => PluginConfig -> ConfigItem -> Dynamic t (Map Text [Text])
+editConfigItem :: MonadWidget t m => Maybe (PluginConfig, ConfigItem) -> Dynamic t (Map Text [Text])
                -> m (EditConfigItemRender t)
-editConfigItem pc@PluginConfig{..} ConfigItem{..} fieldContentsDyn = do
-    when (isJust $ find (== MtPassword) (memberType <$> cfgPluginConfig)) $
+editConfigItem Nothing _ = return (constDyn "", Map.empty)
+editConfigItem (Just (pc, ci)) fieldContentsDyn = do
+    when (isJust $ find (== MtPassword) (memberType <$> cfgPluginConfig pc)) $
         elAttr "div" ("class" =: "alert alert-warning" <> "role" =: "alert") $
             el "strong" (text "Warning") >>
                 text " passwords are stored in plain text in the configuration file!"
     el "form" $ do
         rec
             srcNameInput <- elAttr "fieldset" ("class" =: "form-group") $
-                fieldEntry "sourceName" "Source name" (T.pack configItemName)
+                fieldEntry "sourceName" "Source name" (T.pack $ configItemName ci)
             updatedFieldCts <-
                 return fieldContentsDyn
                 -- combineDyn (flip Map.union) fieldContentsDyn updatedDepFieldCtsDyn
-            fieldInputs <- mapM (editConfigDataInfo updatedFieldCts configItemName configuration) cfgPluginConfig
+            fieldInputs <- mapM (editConfigDataInfo updatedFieldCts (configItemName ci) (configuration ci)) $ cfgPluginConfig pc
             let makeListPair = \(fieldName, valDyn) ->
                      mapDyn (replicate 1 . (fieldName,)) valDyn
             fieldDyns <- fmap nubDyn $
@@ -294,16 +296,37 @@ addEditButton pluginConfig ci@ConfigItem{..} = do
     (editBtn, _) <- elAttrStyle' "button" btnClass (marginRight (px 5)) $ text "Edit"
     return $ (const $ ChangeUpdateRequest pluginConfig ci) <$> (domEvent Click editBtn)
 
-displayEditPopup :: MonadWidget t m => Event t (PluginConfig, ConfigItem) -> m (Event t ConfigChange)
+displayEditPopup :: MonadWidget t m => Event t (PluginConfig, ConfigItem)
+    -> m (Event t ConfigChange)
 displayEditPopup changeReqEvt = do
+    dynPC <- holdDyn Nothing $ Just <$> changeReqEvt
+    displayEditPopup_ dynPC
+
+displayEditPopup_ :: MonadWidget t m => Dynamic t (Maybe (PluginConfig, ConfigItem))
+    -> m (Event t ConfigChange)
+displayEditPopup_ dynPcCi = do
+    let changeReqEvt = fmapMaybe id $ updated dynPcCi
     fieldContentsEvt <- configModalFetchFieldContents changeReqEvt
     fieldContentsDyn <- holdDyn Map.empty fieldContentsEvt
-    return never
-    -- setupModalR <- setupModal editBtn ModalLevelBasic fieldContentsEvt $ do
-    --     rec
-    --         (dialogResult, editDlgOkEvt, _) <- buildModalBody "Edit" (PrimaryBtn "Save")
-    --             errorDyn (editConfigItem pluginConfig ci fieldContentsDyn)
-    --         errorDyn <- remoteDataErrorDescDyn saveEvt
+    setupModalR <- setupModal ModalLevelBasic fieldContentsEvt $ do
+        rec
+            let contentsDyn = joinDyn $ ffor dynPcCi $ \pcCi -> return (editConfigItem pcCi fieldContentsDyn)
+            (dialogResultDyn :: Dynamic t (EditConfigItemRender t), editDlgOkEvt, _) <-
+                buildModalBody "Edit" (PrimaryBtn "Save") errorDyn contentsDyn
+            errorDyn <- remoteDataErrorDescDyn saveEvt
+
+            dataDyn <- combineDyn (\a mb -> (a,) <$> mb) dialogResultDyn dynPcCi
+
+            editConfigEvt <- performEvent $ fmap
+                (\(dialogResult, (pluginConfig, ci)) -> ChangeUpdate . ConfigUpdate (configItemName ci) <$>
+                 readDialog dialogResult pluginConfig)
+                $ fmapMaybe id
+                $ tagDyn dataDyn editDlgOkEvt
+            saveEvt <- saveConfig editConfigEvt
+        hideModalOnEvent ModalLevelBasic saveEvt
+        return saveEvt
+    return $ switchPromptlyDyn $ fmapMaybe fromRemoteData <$> setupModalR
+
 
     --         editConfigEvt <- performEvent $ fmap
     --             (const $ ChangeUpdate . ConfigUpdate configItemName <$>
@@ -358,22 +381,22 @@ modalHandleSaveAction modalLevel saveEvt = do
 encodeToStr :: ToJSON a => a -> String
 encodeToStr = convertString . encode
 
--- saveConfig :: MonadWidget t m => Event t ConfigChange -> m (Event t (RemoteData ConfigChange))
--- saveConfig configAddEvt = do
---     let makeReq = \case
---             (ChangeAdd cfg) -> do
---                 let url = "/config"
---                 xhrRequest "POST" url $
---                     def { _xhrRequestConfig_sendData = encodeToStr cfg }
---             (ChangeUpdate cfgEdit) -> do
---                 let url = "/config?oldConfigItemName=" <> T.pack (oldConfigItemName cfgEdit)
---                 xhrRequest "PUT" url $
---                     def { _xhrRequestConfig_sendData = encodeToStr (newConfigItem cfgEdit) }
---             (ChangeDelete cfg) -> do
---                 let url = "/config?configItemName=" <> T.pack (configItemName cfg)
---                 xhrRequest "DELETE" url $
---                     def { _xhrRequestConfig_sendData = "" }
---     httpVoidRequest makeReq configAddEvt
+saveConfig :: MonadWidget t m => Event t ConfigChange -> m (Event t (RemoteData ConfigChange))
+saveConfig configAddEvt = do
+    let makeReq = \case
+            (ChangeAdd cfg) -> do
+                let url = "/config"
+                xhrRequest "POST" url $
+                    def { _xhrRequestConfig_sendData = encodeToStr cfg }
+            (ChangeUpdate cfgEdit) -> do
+                let url = "/config?oldConfigItemName=" <> T.pack (oldConfigItemName cfgEdit)
+                xhrRequest "PUT" url $
+                    def { _xhrRequestConfig_sendData = encodeToStr (newConfigItem cfgEdit) }
+            (ChangeDelete cfg) -> do
+                let url = "/config?configItemName=" <> T.pack (configItemName cfg)
+                xhrRequest "DELETE" url $
+                    def { _xhrRequestConfig_sendData = "" }
+    httpVoidRequest makeReq configAddEvt
 
 httpVoidRequest :: (MonadWidget t m, IsXhrPayload p) => (a -> XhrRequest p) -> Event t a
                 -> m (Event t (RemoteData a))

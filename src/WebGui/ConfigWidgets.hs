@@ -96,8 +96,8 @@ comboEntry :: MonadWidget t m => Dynamic t (Map Text [Text])
            -> m (Dynamic t Text)
 comboEntry fieldContentsDyn memberName memberLabel fieldValue = do
     let toKeyVal x = (CaseFoldString x,x)
-    let prepareComboCts = Map.fromList . map toKeyVal . fromJust . Map.lookup memberName
     itemsDyn <- mapDyn prepareComboCts fieldContentsDyn
+    let prepareComboCts = Map.fromList . map toKeyVal . fromMaybe [] . Map.lookup memberName
     elAttr "label" ("for" =: memberName) $ text memberLabel
     elAttr "div" ("class" =: "input-group") $ do
         val <- _dropdown_value <$> dropdown (CaseFoldString fieldValue) itemsDyn

@@ -21,7 +21,8 @@ Executable cigale-web
        Config,
        Common,
        EventsView,
-       FilePicker
+       FilePicker,
+       ConfigWidgets
    build-depends:
        base,
        reflex,

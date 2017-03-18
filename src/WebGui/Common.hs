@@ -135,20 +135,21 @@ col = elStyle "td" (paddingAll (px 5))
 
 data ButtonInfo = PrimaryBtn Text | DangerBtn Text | NoBtn
 
--- setupModal :: MonadWidget t m => El t -> ModalLevel -> Event t a -> m (Event t b)
---            -> m (Event t b)
--- setupModal elt modalLevel showEvent buildDialog = do
---     showModalOnEvent modalLevel showEvent
---     modalDyn <- holdDyn Nothing $ fmap Just showEvent
---     dynModalVal <- forDyn modalDyn $ fmap (const buildDialog)
---     readModalResult elt modalLevel dynModalVal
+setupModal :: MonadWidget t m => ModalLevel -> Event t a -> m (Event t b)
+           -> m (Dynamic t (Event t b))
+setupModal modalLevel showEvent buildDialog = do
+    showModalOnEvent modalLevel showEvent
+    widgetHold (return never) (const buildDialog <$> showEvent)
 
-readModalResult :: MonadWidget t m => El t -> ModalLevel -> Dynamic t (Maybe (m (Event t a)))
+readModalResult :: MonadWidget t m => ModalLevel -> Dynamic t (m (Event t a))
                 -> m (Event t a)
-readModalResult elt modalLevel dynModalVal = do
-    dynModalEvtEvt <- dynModal elt modalLevel dynModalVal
+readModalResult modalLevel dynModalVal = do
+    dynModalEvtEvt <- dyn dynModalVal
     dynModalDynEvt <- holdDyn never dynModalEvtEvt
     return (switch $ current dynModalDynEvt)
+
+joinWidgetEvent :: MonadWidget t m => Event t (m (Event t a)) -> m (Event t a)
+joinWidgetEvent evt = holdDyn (return never) evt >>= readDynMonadicEvent
 
 readDynMonadicEvent :: MonadWidget t m => Dynamic t (m (Event t a)) -> m (Event t a)
 readDynMonadicEvent dynMonadicEvent = do
@@ -157,8 +158,8 @@ readDynMonadicEvent dynMonadicEvent = do
     return $ switch (current dynEvt)
 
 buildModalBody :: MonadWidget t m => Text -> ButtonInfo
-                 -> Dynamic t Text -> m a -> m (a, Event t (), Event t ())
-buildModalBody title okBtnInfo dynErrMsg contents =
+                 -> Dynamic t Text -> Dynamic t (m a) -> m (Dynamic t a, Event t (), Event t ())
+buildModalBody title okBtnInfo dynErrMsg contentsDyn =
     elAttr "div" ("class" =: "modal-content") $ do
         elAttr "div" ("class" =: "modal-header") $ do
             let crossBtnAttrs = "type" =: "button" <> "class" =: "close"
@@ -168,7 +169,8 @@ buildModalBody title okBtnInfo dynErrMsg contents =
             elAttr "h4" ("class" =: "modal-title") $ text title
         bodyRes <- elAttr "div" ("class" =: "modal-body") $ do
             addErrorBox dynErrMsg
-            contents
+            initial <- sample (current contentsDyn)
+            widgetHold initial (updated contentsDyn)
         (okEvt, closeEvt)  <- addModalFooter okBtnInfo
         return (bodyRes, okEvt, closeEvt)
 
@@ -215,11 +217,6 @@ topLevelModalId ModalLevelSecondary = "toplevelsecmodal"
 topLevelModalContentsId :: ModalLevel -> Text
 topLevelModalContentsId ModalLevelBasic = "toplevelmodalcontents"
 topLevelModalContentsId ModalLevelSecondary = "toplevelsecmodalcontents"
-
-dynModal :: MonadWidget t m => El t -> ModalLevel -> Dynamic t (Maybe (m a)) -> m (Event t a)
-dynModal elt modalLevel = dynAtEltId . fmap fromJust {-elt (topLevelModalContentsId modalLevel) -}
-
-dynAtEltId = undefined
 
 -- | this is copy-pasted & modified from 'dyn' from reflex-dom
 -- instead of appending the nodes at the current position in the

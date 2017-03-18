@@ -4,27 +4,27 @@ packages:
 - .
 - location:
     git: https://github.com/reflex-frp/reflex.git
-    commit: a63aba90bdea5ae5b3e1506d468613bdfedcdfa3
+    commit: 02cf9dbc89ba20b6e93622e0910a76d5e9d06669
   extra-dep: true
 - location:
     git: https://github.com/reflex-frp/reflex-dom.git
-    commit: 2a473aed0f28463c2cdbdf20cb50b37f980b757f
+    commit: 59100d61282fe02aa39be602f0a73daf31e28f63
   extra-dep: true
 
-resolver: lts-6.12
-
-compiler: ghcjs-0.2.0.20160414_ghc-7.10.3
+resolver: lts-7.19
+compiler: ghcjs-0.2.1.9007019_ghc-8.0.1
 compiler-check: match-exact
+
 setup-info:
- ghcjs:
-  source:
-   ghcjs-0.2.0.20160414_ghc-7.10.3:
-     url: https://s3.amazonaws.com/ghcjs/ghcjs-0.2.0.20160414_ghc-7.10.3.tar.gz
-     sha1: 6d6f307503be9e94e0c96ef1308c7cf224d06be3
+  ghcjs:
+    source:
+      ghcjs-0.2.1.9007019_ghc-8.0.1:
+           url: http://ghcjs.tolysz.org/ghc-8.0-2017-02-05-lts-7.19-9007019.tar.gz
+           sha1: d2cfc25f9cda32a25a87d9af68891b2186ee52f9
 
 extra-deps:
   - ref-tf-0.4.0.1
-  - these-0.6.2.1
   - ghcjs-dom-0.2.4.0
   - clay-0.11
   - zenc-0.1.1
+  - prim-uniq-0.1.0.1

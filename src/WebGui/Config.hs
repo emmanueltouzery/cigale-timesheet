@@ -70,10 +70,12 @@ configView activeViewDyn = do
                 [
                     fmap const (updated readAllDyn),
                     fmap (flip applyConfigChange) configUpdateEvt,
-                    fmap (flip applyConfigChange) configAddEvt
+                    fmap (flip applyConfigChange) configAddEvt,
+                    fmap (flip applyConfigChange) configDelEvt
                 ]
             configUpdateEvt <- displayEditPopup (fmapMaybe configChangeReqGetUpdate configUpdateReqEvt)
             configAddEvt    <- displayAddPopup (fmapMaybe configChangeReqGetAdd configUpdateReqEvt)
+            configDelEvt    <-  displayDeletePopup (fmapMaybe configChangeReqGetDelete configUpdateReqEvt)
 
             configUpdateReqEvt <- displayConfig =<< mapDyn fromRemoteData configDataDyn
         return ()
@@ -94,6 +96,9 @@ data ConfigChange = ChangeAdd ConfigItem
                   | ChangeDelete ConfigItem
                   deriving Show
 
+-- TODO for sure there are ways to avoid typing the next three functions.
+-- lens prisms?
+
 configChangeReqGetUpdate :: ConfigChangeRequest -> Maybe (PluginConfig, ConfigItem)
 configChangeReqGetUpdate (ChangeUpdateRequest pc ci) = Just (pc, ci)
 configChangeReqGetUpdate _ = Nothing
@@ -101,6 +106,10 @@ configChangeReqGetUpdate _ = Nothing
 configChangeReqGetAdd :: ConfigChangeRequest -> Maybe PluginConfig
 configChangeReqGetAdd (ChangeAddRequest pc) = Just pc
 configChangeReqGetAdd _ = Nothing
+
+configChangeReqGetDelete :: ConfigChangeRequest -> Maybe ConfigItem
+configChangeReqGetDelete (ChangeDeleteRequest ci) = Just ci
+configChangeReqGetDelete _ = Nothing
 
 applyConfigChange :: RemoteData FetchedData -> ConfigChange -> RemoteData FetchedData
 applyConfigChange (RemoteData (FetchedData desc val)) chg = RemoteData (FetchedData desc newVal)
@@ -175,7 +184,6 @@ displayAddPopup addReqEvt = do
             $ fmapMaybe id
             $ tagDyn dataDyn addDlgOkEvt
         saveEvt <- saveConfig addConfigEvt
-    hideModalOnEvent ModalLevelBasic saveEvt
     return $ fmapMaybe fromRemoteData saveEvt
 
 groupByProvider :: FetchedData -> [(PluginConfig, [ConfigItem])]
@@ -290,16 +298,21 @@ addDeleteButton ci@ConfigItem{..} = do
     (deleteBtn, _) <- elAttrStyle' "button"
         ("class" =: "btn btn-danger btn-sm") (marginRight (px 5)) $ text "Delete"
     return $ (const $ ChangeDeleteRequest ci) <$> (domEvent Click deleteBtn)
-    -- setupModalR <- setupModal deleteBtn ModalLevelBasic (domEvent Click deleteBtn) $ do
-    --     rec
-    --         (_, deleteDlgOkEvt, _) <- buildModalBody "Delete" (DangerBtn "Delete")
-    --             errorDyn (text $ "Delete the config item " <> T.pack configItemName <> "?")
-    --         errorDyn <- remoteDataErrorDescDyn saveEvt
 
-    --         let deleteEvt = fmap (const $ ChangeDelete ci) deleteDlgOkEvt
-    --         saveEvt <- saveConfig deleteEvt
-    --     return saveEvt
-    -- modalHandleSaveAction ModalLevelBasic setupModalR
+displayDeletePopup :: MonadWidget t m => Event t ConfigItem -> m (Event t ConfigChange)
+displayDeletePopup deleteReqEvt = do
+    dynCi <- holdDyn Nothing $ Just <$> deleteReqEvt
+    rec
+        let contentsDyn = ffor dynCi $ \case
+                Nothing -> text ""
+                Just ci -> text $ "Delete the config item " <> T.pack (configItemName ci) <> "?"
+        (_, deleteDlgOkEvt, _) <- buildModalBody deleteReqEvt "Delete" (DangerBtn "Delete")
+            errorDyn contentsDyn
+        errorDyn <- remoteDataErrorDescDyn saveEvt
+
+        let deleteEvt = ChangeDelete <$> fmapMaybe id (tagDyn dynCi deleteDlgOkEvt)
+        saveEvt <- saveConfig deleteEvt
+    return $ fmapMaybe fromRemoteData saveEvt
 
 addEditButton :: MonadWidget t m => PluginConfig -> ConfigItem -> m (Event t ConfigChangeRequest)
 addEditButton pluginConfig ci@ConfigItem{..} = do
@@ -328,7 +341,6 @@ displayEditPopup changeReqEvt = do
             $ fmapMaybe id
             $ tagDyn dataDyn editDlgOkEvt
         saveEvt <- saveConfig editConfigEvt
-    hideModalOnEvent ModalLevelBasic saveEvt
     return $ fmapMaybe fromRemoteData saveEvt
 
 configModalFetchFieldContents :: MonadWidget t m => Event t (PluginConfig, ConfigItem)

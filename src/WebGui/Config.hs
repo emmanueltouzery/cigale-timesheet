@@ -69,9 +69,11 @@ configView activeViewDyn = do
             configDataDyn <- foldDyn ($) RemoteDataLoading $ mergeWith (.)
                 [
                     fmap const (updated readAllDyn),
-                    fmap (flip applyConfigChange) configUpdateEvt
+                    fmap (flip applyConfigChange) configUpdateEvt,
+                    fmap (flip applyConfigChange) configAddEvt
                 ]
             configUpdateEvt <- displayEditPopup (fmapMaybe configChangeReqGetUpdate configUpdateReqEvt)
+            configAddEvt    <- displayAddPopup (fmapMaybe configChangeReqGetAdd configUpdateReqEvt)
 
             configUpdateReqEvt <- displayConfig =<< mapDyn fromRemoteData configDataDyn
         return ()
@@ -95,6 +97,10 @@ data ConfigChange = ChangeAdd ConfigItem
 configChangeReqGetUpdate :: ConfigChangeRequest -> Maybe (PluginConfig, ConfigItem)
 configChangeReqGetUpdate (ChangeUpdateRequest pc ci) = Just (pc, ci)
 configChangeReqGetUpdate _ = Nothing
+
+configChangeReqGetAdd :: ConfigChangeRequest -> Maybe PluginConfig
+configChangeReqGetAdd (ChangeAddRequest pc) = Just pc
+configChangeReqGetAdd _ = Nothing
 
 applyConfigChange :: RemoteData FetchedData -> ConfigChange -> RemoteData FetchedData
 applyConfigChange (RemoteData (FetchedData desc val)) chg = RemoteData (FetchedData desc newVal)
@@ -146,26 +152,31 @@ addCfgDropdownBtn PluginConfig{..} = do
         text (T.pack cfgPluginName)
     return (domEvent Click pcLnk)
 
--- TODO obvious duplication in the way the add/edit/delete modals are handled.
--- setupModal then buildModalBody, then error event, save event, then handle save...
--- addCfgPluginAdd :: MonadWidget t m => El t -> Maybe ConfigItem -> PluginConfig -> Event t ()
---                 -> m (Event t ConfigChange)
--- addCfgPluginAdd elt mConfigItem pc clickEvt = do
---     let ci = ConfigItem "" "" HashMap.empty
---     fieldContentsEvt <- configModalFetchFieldContents clickEvt mConfigItem pc
---     fieldContentsDyn <- holdDyn Map.empty fieldContentsEvt
---     setupModalR <- setupModal elt ModalLevelBasic fieldContentsEvt $ do
---         rec
---             (dialogResult, addDlgOkEvt, _) <- buildModalBody "Add" (PrimaryBtn "Save")
---                     errorDyn (editConfigItem pc ci fieldContentsDyn)
---             errorDyn <- remoteDataErrorDescDyn saveEvt
+-- TODO pretty huge duplication between displayAddPopup and displayEditPopup
+displayAddPopup :: MonadWidget t m => Event t PluginConfig -> m (Event t ConfigChange)
+displayAddPopup addReqEvt = do
+    let ci = ConfigItem "" "" HashMap.empty
+    let addReqCiEvt = (,ci) <$> addReqEvt
+    dynPcCi <- holdDyn Nothing $ Just <$> addReqCiEvt
+    fieldContentsEvt <- configModalFetchFieldContents addReqCiEvt
+    fieldContentsDyn <- holdDyn Map.empty fieldContentsEvt
+    rec
+        let contentsDyn = joinDyn $ ffor dynPcCi $ \pcCi ->
+              return (editConfigItem pcCi fieldContentsDyn)
+        (dialogResultDyn, addDlgOkEvt, _) <-
+            buildModalBody fieldContentsEvt "Add" (PrimaryBtn "Save") errorDyn contentsDyn
+        errorDyn <- remoteDataErrorDescDyn saveEvt
 
---             editConfigEvt <- performEvent $ fmap
---                 (const $ ChangeAdd <$> readDialog dialogResult pc)
---                 addDlgOkEvt
---             saveEvt <- saveConfig editConfigEvt
---         return saveEvt
---     modalHandleSaveAction ModalLevelBasic setupModalR
+        dataDyn <- combineDyn (\a mb -> (a,) <$> mb) dialogResultDyn dynPcCi
+
+        addConfigEvt <- performEvent $ fmap
+            (\(dialogResult, (pluginConfig, ci)) -> ChangeAdd <$>
+             readDialog dialogResult pluginConfig)
+            $ fmapMaybe id
+            $ tagDyn dataDyn addDlgOkEvt
+        saveEvt <- saveConfig addConfigEvt
+    hideModalOnEvent ModalLevelBasic saveEvt
+    return $ fmapMaybe fromRemoteData saveEvt
 
 groupByProvider :: FetchedData -> [(PluginConfig, [ConfigItem])]
 groupByProvider (FetchedData configDesc configVal) =
@@ -299,13 +310,7 @@ addEditButton pluginConfig ci@ConfigItem{..} = do
 displayEditPopup :: MonadWidget t m => Event t (PluginConfig, ConfigItem)
     -> m (Event t ConfigChange)
 displayEditPopup changeReqEvt = do
-    dynPC <- holdDyn Nothing $ Just <$> changeReqEvt
-    displayEditPopup_ dynPC
-
-displayEditPopup_ :: MonadWidget t m => Dynamic t (Maybe (PluginConfig, ConfigItem))
-    -> m (Event t ConfigChange)
-displayEditPopup_ dynPcCi = do
-    let changeReqEvt = fmapMaybe id $ updated dynPcCi
+    dynPcCi <- holdDyn Nothing $ Just <$> changeReqEvt
     fieldContentsEvt <- configModalFetchFieldContents changeReqEvt
     fieldContentsDyn <- holdDyn Map.empty fieldContentsEvt
     rec

@@ -172,8 +172,6 @@ wrapInModalDialogSkeleton showEvt zIndexVal contents = do
 buildModalBody :: MonadWidget t m => Event t x -> Text -> ButtonInfo
                  -> Dynamic t Text -> Dynamic t (m a) -> m (Dynamic t a, Event t (), Event t ())
 buildModalBody showEvt title okBtnInfo dynErrMsg contentsDyn = do
-    performEvent_ $ (const $ liftIO $ putStrLn "updated contentsDyn") <$> updated contentsDyn
-    performEvent_ $ (const $ liftIO $ putStrLn "showEvt") <$> showEvt
     (modalElt, r) <- wrapInModalDialogSkeleton showEvt 5000 $
         elAttr "div" ("class" =: "modal-content") $ do
             elAttr "div" ("class" =: "modal-header") $ do

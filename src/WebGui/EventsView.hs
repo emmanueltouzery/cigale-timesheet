@@ -250,7 +250,7 @@ createDateLabel curDate picker = do
         -- close the date picker on any click anywhere else.
         (Just doc) <- getOwnerDocument (_el_element label)
         (Just body) <- liftIO (getBody doc)
-        bodyElt <- wrapElement defaultDomEventHandler body
+        bodyElt <- wrapElement defaultDomEventHandler (toElement body)
         performEvent_ $ fmap (const $ liftIO $ do
                                    eltStripClass (_el_element label) "active"
                                    pickerHide picker) $ domEvent Click bodyElt

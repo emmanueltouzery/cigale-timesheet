@@ -143,16 +143,6 @@ col = elStyle "td" (paddingAll (px 5))
 
 data ButtonInfo = PrimaryBtn Text | DangerBtn Text | NoBtn
 
-readModalResult :: MonadWidget t m => ModalLevel -> Dynamic t (m (Event t a))
-                -> m (Event t a)
-readModalResult modalLevel dynModalVal = do
-    dynModalEvtEvt <- dyn dynModalVal
-    dynModalDynEvt <- holdDyn never dynModalEvtEvt
-    return (switch $ current dynModalDynEvt)
-
-joinWidgetEvent :: MonadWidget t m => Event t (m (Event t a)) -> m (Event t a)
-joinWidgetEvent evt = holdDyn (return never) evt >>= readDynMonadicEvent
-
 readDynMonadicEvent :: MonadWidget t m => Dynamic t (m (Event t a)) -> m (Event t a)
 readDynMonadicEvent dynMonadicEvent = do
     eventEvt <- dyn dynMonadicEvent

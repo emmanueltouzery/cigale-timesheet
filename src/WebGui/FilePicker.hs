@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings, ScopedTypeVariables, RecursiveDo, RecordWildCards #-}
-{-# LANGUAGE TypeFamilies, FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies, FlexibleContexts, LambdaCase #-}
 
 module FilePicker where
 
@@ -26,7 +26,7 @@ data PathElem = PathElem
     } deriving Show
 
 data PickerOperationMode = PickFile | PickFolder deriving Eq
-data PickerEventType = ChangeFolderEvt FilePath | PickFileEvt FilePath
+data PickerEventType = ChangeFolderEvt FilePath | PickFileEvt FilePath deriving Show
 
 data FilePickerOptions = FilePickerOptions
     {
@@ -71,26 +71,26 @@ buildFilePicker elt options openEvt = do
         let browseInfoEvt = leftmost (updated <$> dynBrowseInfo)
         showModalOnEvent ModalLevelSecondary openEvt
         browseDataDyn <- foldDyn const RemoteDataLoading browseInfoEvt
-        dynMonPickerEvt <- mapDyn (displayPicker options urlAtLoad) browseDataDyn
-        rx <- readModalResult elt ModalLevelSecondary =<< mapDyn Just dynMonPickerEvt
+        rx <- displayPicker options urlAtLoad browseDataDyn
     return (fmapMaybe getPickData rx)
 
-displayPicker :: MonadWidget t m => FilePickerOptions -> Dynamic t (Maybe FilePath) -> RemoteData BrowseResponse
+displayPicker :: MonadWidget t m => FilePickerOptions -> Dynamic t (Maybe FilePath) -> Dynamic t (RemoteData BrowseResponse)
               ->  m (Event t PickerEventType)
-displayPicker options urlAtLoad remoteBrowseData = do
+displayPicker options urlAtLoad remoteBrowseDataDyn = do
     rec
         curSelected <- sample $ current urlAtLoad
-        let fetchErrorDyn = constDyn (fromMaybe "" $ remoteDataInvalidDesc remoteBrowseData)
+        let fetchErrorDyn = fromMaybe "" <$> remoteDataInvalidDesc <$> remoteBrowseDataDyn
         dynSelectedFile <- holdDyn curSelected
             $ fmap Just
             $ fmapMaybe getPickData pickerEvt
-        (pickerEvt, okEvt, _) <- buildModalBody "Pick a folder" (PrimaryBtn "OK") fetchErrorDyn $
-            case fromRemoteData remoteBrowseData of
-                Nothing -> return never
+        let contentsDyn = ffor (fromRemoteData <$> remoteBrowseDataDyn) $ \case
+                Nothing         -> return never
                 Just browseData -> displayPickerContents options dynSelectedFile browseData
+        (pickerDyn, okEvt, _) <- buildModalBody (updated urlAtLoad) "Pick a folder" (PrimaryBtn "OK") fetchErrorDyn contentsDyn
+        let pickerEvt = switchPromptlyDyn pickerDyn
         let pickedItemEvt = fmap PickFileEvt $ case pickerMode options of
                 PickFolder -> fmap browseFolderPath
-                    $ fmapMaybe (const $ fromRemoteData remoteBrowseData) okEvt
+                    $ fmapMaybe fromRemoteData $ (tagDyn remoteBrowseDataDyn) okEvt
                 PickFile -> fmapMaybe id $ tagDyn dynSelectedFile okEvt
         hideModalOnEvent ModalLevelSecondary pickedItemEvt
     return $ leftmost [pickerEvt, pickedItemEvt]

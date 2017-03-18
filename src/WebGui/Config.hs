@@ -308,33 +308,23 @@ displayEditPopup_ dynPcCi = do
     let changeReqEvt = fmapMaybe id $ updated dynPcCi
     fieldContentsEvt <- configModalFetchFieldContents changeReqEvt
     fieldContentsDyn <- holdDyn Map.empty fieldContentsEvt
-    setupModalR <- setupModal ModalLevelBasic fieldContentsEvt $ do
-        rec
-            let contentsDyn = joinDyn $ ffor dynPcCi $ \pcCi -> return (editConfigItem pcCi fieldContentsDyn)
-            (dialogResultDyn :: Dynamic t (EditConfigItemRender t), editDlgOkEvt, _) <-
-                buildModalBody "Edit" (PrimaryBtn "Save") errorDyn contentsDyn
-            errorDyn <- remoteDataErrorDescDyn saveEvt
+    rec
+        let contentsDyn = joinDyn $ ffor dynPcCi $ \pcCi ->
+              return (editConfigItem pcCi fieldContentsDyn)
+        (dialogResultDyn, editDlgOkEvt, _) <-
+            buildModalBody fieldContentsEvt "Edit" (PrimaryBtn "Save") errorDyn contentsDyn
+        errorDyn <- remoteDataErrorDescDyn saveEvt
 
-            dataDyn <- combineDyn (\a mb -> (a,) <$> mb) dialogResultDyn dynPcCi
+        dataDyn <- combineDyn (\a mb -> (a,) <$> mb) dialogResultDyn dynPcCi
 
-            editConfigEvt <- performEvent $ fmap
-                (\(dialogResult, (pluginConfig, ci)) -> ChangeUpdate . ConfigUpdate (configItemName ci) <$>
-                 readDialog dialogResult pluginConfig)
-                $ fmapMaybe id
-                $ tagDyn dataDyn editDlgOkEvt
-            saveEvt <- saveConfig editConfigEvt
-        hideModalOnEvent ModalLevelBasic saveEvt
-        return saveEvt
-    return $ switchPromptlyDyn $ fmapMaybe fromRemoteData <$> setupModalR
-
-
-    --         editConfigEvt <- performEvent $ fmap
-    --             (const $ ChangeUpdate . ConfigUpdate configItemName <$>
-    --              readDialog dialogResult pluginConfig)
-    --             editDlgOkEvt
-    --         saveEvt <- saveConfig editConfigEvt
-    --     return saveEvt
-    -- modalHandleSaveAction ModalLevelBasic setupModalR
+        editConfigEvt <- performEvent $ fmap
+            (\(dialogResult, (pluginConfig, ci)) -> ChangeUpdate . ConfigUpdate (configItemName ci) <$>
+             readDialog dialogResult pluginConfig)
+            $ fmapMaybe id
+            $ tagDyn dataDyn editDlgOkEvt
+        saveEvt <- saveConfig editConfigEvt
+    hideModalOnEvent ModalLevelBasic saveEvt
+    return $ fmapMaybe fromRemoteData saveEvt
 
 configModalFetchFieldContents :: MonadWidget t m => Event t (PluginConfig, ConfigItem)
                               -> m (Event t (Map Text [Text]))

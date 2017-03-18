@@ -45,6 +45,14 @@ showModalIdDialog = _showModalIdDialog <=< toJSVal
 unwrapElt :: El t -> JSVal
 unwrapElt = unElement . toElement . _el_element
 
+foreign import javascript unsafe "$($1).modal('show')" _showModalDialog :: JSVal -> IO ()
+showModalDialog :: El t -> IO ()
+showModalDialog = _showModalDialog . unNode . toNode . _element_raw
+
+foreign import javascript unsafe "$($1).modal('hide')" _hideModalDialog :: JSVal -> IO ()
+hideModalDialog :: El t -> IO ()
+hideModalDialog = _hideModalDialog . unNode . toNode . _element_raw
+
 eltStripClass :: IsElement self => self -> Text -> IO ()
 eltStripClass elt className = do
     curClasses <- T.splitOn " " <$> T.pack <$> getClassName elt
@@ -135,12 +143,6 @@ col = elStyle "td" (paddingAll (px 5))
 
 data ButtonInfo = PrimaryBtn Text | DangerBtn Text | NoBtn
 
-setupModal :: MonadWidget t m => ModalLevel -> Event t a -> m (Event t b)
-           -> m (Dynamic t (Event t b))
-setupModal modalLevel showEvent buildDialog = do
-    showModalOnEvent modalLevel showEvent
-    widgetHold (return never) (const buildDialog <$> showEvent)
-
 readModalResult :: MonadWidget t m => ModalLevel -> Dynamic t (m (Event t a))
                 -> m (Event t a)
 readModalResult modalLevel dynModalVal = do
@@ -157,22 +159,37 @@ readDynMonadicEvent dynMonadicEvent = do
     dynEvt   <- holdDyn never eventEvt
     return $ switch (current dynEvt)
 
-buildModalBody :: MonadWidget t m => Text -> ButtonInfo
+wrapInModalDialogSkeleton :: MonadWidget t m => Event t b -> Int -> m a -> m (El t, a)
+wrapInModalDialogSkeleton showEvt zIndexVal contents = do
+    (elt, r) <- elAttrStyle' "div"
+        ("class"    =: "modal fade" <> "tabindex" =: "-1")
+        (zIndex $ fromIntegral zIndexVal) $
+            elAttr "div" ("class" =: "modal-dialog" <>
+                          "role"  =: "document") $ contents
+    performEvent_ $ (const $ liftIO $ showModalDialog elt) <$> showEvt
+    return (elt, r)
+
+buildModalBody :: MonadWidget t m => Event t x -> Text -> ButtonInfo
                  -> Dynamic t Text -> Dynamic t (m a) -> m (Dynamic t a, Event t (), Event t ())
-buildModalBody title okBtnInfo dynErrMsg contentsDyn =
-    elAttr "div" ("class" =: "modal-content") $ do
-        elAttr "div" ("class" =: "modal-header") $ do
-            let crossBtnAttrs = "type" =: "button" <> "class" =: "close"
-                    <> "data-dismiss" =: "modal" <> "aria-label" =: "Close"
-            void $ elAttr "button" crossBtnAttrs $
-                elDynHtmlAttr' "span" ("aria-hidden" =: "true") (constDyn "&times;")
-            elAttr "h4" ("class" =: "modal-title") $ text title
-        bodyRes <- elAttr "div" ("class" =: "modal-body") $ do
-            addErrorBox dynErrMsg
-            initial <- sample (current contentsDyn)
-            widgetHold initial (updated contentsDyn)
-        (okEvt, closeEvt)  <- addModalFooter okBtnInfo
-        return (bodyRes, okEvt, closeEvt)
+buildModalBody showEvt title okBtnInfo dynErrMsg contentsDyn = do
+    performEvent_ $ (const $ liftIO $ putStrLn "updated contentsDyn") <$> updated contentsDyn
+    performEvent_ $ (const $ liftIO $ putStrLn "showEvt") <$> showEvt
+    (modalElt, r) <- wrapInModalDialogSkeleton showEvt 5000 $
+        elAttr "div" ("class" =: "modal-content") $ do
+            elAttr "div" ("class" =: "modal-header") $ do
+                let crossBtnAttrs = "type" =: "button" <> "class" =: "close"
+                        <> "data-dismiss" =: "modal" <> "aria-label" =: "Close"
+                void $ elAttr "button" crossBtnAttrs $
+                    elDynHtmlAttr' "span" ("aria-hidden" =: "true") (constDyn "&times;")
+                elAttr "h4" ("class" =: "modal-title") $ text title
+            bodyRes <- elAttr "div" ("class" =: "modal-body") $ do
+                addErrorBox dynErrMsg
+                initial <- sample (current contentsDyn)
+                widgetHold initial (updated contentsDyn)
+            (okEvt, closeEvt)  <- addModalFooter okBtnInfo
+            return (bodyRes, okEvt, closeEvt)
+    performEvent_ $ (const $ liftIO $ hideModalDialog modalElt) <$> view _2 r
+    return r
 
 addErrorBox :: MonadWidget t m => Dynamic t Text -> m ()
 addErrorBox dynErrMsg = do

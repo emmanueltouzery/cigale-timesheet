@@ -66,24 +66,9 @@ cigaleView = do
     stylesheet "pikaday.css"
     stylesheet "bootstrap.min.css"
     liftIO (setTitle "Cigale timesheet")
-    addModalDialogSkeleton 5000 ModalLevelBasic
-    addModalDialogSkeleton 99999999 ModalLevelSecondary
     activeViewDyn <- navBar
     eventsView activeViewDyn
     configView activeViewDyn
-
--- | add the skeleton of a modal dialog that can be reused by
--- other parts of the application. They'll refer to the toplevelmodal
--- and toplevelmodalcontents DOM IDs.
-addModalDialogSkeleton :: MonadWidget t m => Int -> ModalLevel -> m ()
-addModalDialogSkeleton zIndexVal modalLevel =
-    void $ elAttrStyle' "div" ("class"    =: "modal fade" <>
-                               "tabindex" =: "-1" <>
-                               "id"       =: topLevelModalId modalLevel)
-                          (zIndex $ fromIntegral zIndexVal) $
-        elAttr "div" ("class" =: "modal-dialog" <>
-                      "role"  =: "document" <>
-                      "id"    =: topLevelModalContentsId modalLevel) $ text ""
 
 data NavLinkItem = NavLinkItem
      {

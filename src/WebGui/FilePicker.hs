@@ -3,7 +3,7 @@
 
 module FilePicker where
 
-import Reflex.Dom
+import Reflex.Dom hiding (display)
 
 import System.FilePath.Posix
 import Data.List
@@ -71,12 +71,13 @@ buildFilePicker options openEvt = do
             ]
         let browseInfoEvt = leftmost (updated <$> dynBrowseInfo)
         browseDataDyn <- foldDyn const RemoteDataLoading browseInfoEvt
-        rx <- displayPicker options urlAtLoad browseDataDyn
+        rx <- displayPicker options urlAtLoad browseDataDyn openEvt
     return (fmapMaybe getPickData rx)
 
-displayPicker :: MonadWidget t m => FilePickerOptions -> Dynamic t (Maybe FilePath) -> Dynamic t (RemoteData BrowseResponse)
+displayPicker :: MonadWidget t m => FilePickerOptions -> Dynamic t (Maybe FilePath)
+              -> Dynamic t (RemoteData BrowseResponse) -> Event t FilePath
               ->  m (Event t PickerEventType)
-displayPicker options urlAtLoad remoteBrowseDataDyn = do
+displayPicker options urlAtLoad remoteBrowseDataDyn openEvt = do
     rec
         curSelected <- sample $ current urlAtLoad
         let fetchErrorDyn = fromMaybe "" <$> remoteDataInvalidDesc <$> remoteBrowseDataDyn
@@ -86,13 +87,18 @@ displayPicker options urlAtLoad remoteBrowseDataDyn = do
         let contentsDyn = ffor (fromRemoteData <$> remoteBrowseDataDyn) $ \case
                 Nothing         -> return never
                 Just browseData -> displayPickerContents options dynSelectedFile browseData
-        (pickerDyn, okEvt, _) <- buildModalBody (updated urlAtLoad) "Pick a folder" (PrimaryBtn "OK") fetchErrorDyn contentsDyn
+        displayDyn <- toggle True $
+            leftmost [const () <$> openEvt, const () <$> pickedItemEvt, closeEvt]
+        let divStyle v = ("style"::Text) =: styleStr (styleWithHideIf v $
+                position fixed >> left (px 0) >> right (px 0) >>
+                top (px 0) >> bottom (px 0) >> zIndex 15000)
+        (pickerDyn, okEvt, closeEvt) <- elDynAttr "div" (divStyle <$> displayDyn) $
+            buildModalBody' (updated urlAtLoad) "Pick a folder" (PrimaryBtn "OK") fetchErrorDyn contentsDyn
         let pickerEvt = switchPromptlyDyn pickerDyn
         let pickedItemEvt = fmap PickFileEvt $ case pickerMode options of
                 PickFolder -> fmap browseFolderPath
                     $ fmapMaybe fromRemoteData $ (tagDyn remoteBrowseDataDyn) okEvt
                 PickFile -> fmapMaybe id $ tagDyn dynSelectedFile okEvt
-        hideModalOnEvent ModalLevelSecondary pickedItemEvt
     return $ leftmost [pickerEvt, pickedItemEvt]
 
 displayPickerContents :: MonadWidget t m => FilePickerOptions
@@ -131,8 +137,8 @@ displayFiles browseData dynSelectedFile dynPickerOptions = do
             overflowY auto
             overflowX hidden
             width (pct 100)
-            minHeight (px 370)
-            maxHeight (px 370)
+            minHeight (px 150)
+            maxHeight (px 150)
     elStyle "div" divStyle $
         elAttr "table" ("class" =: "table table-sm") $ do
             dynEvt <- forDyn dynPickerOptions $ \pickerOptions ->

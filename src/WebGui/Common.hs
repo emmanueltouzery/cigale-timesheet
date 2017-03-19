@@ -162,22 +162,28 @@ wrapInModalDialogSkeleton showEvt zIndexVal contents = do
 buildModalBody :: MonadWidget t m => Event t x -> Text -> ButtonInfo
                  -> Dynamic t Text -> Dynamic t (m a) -> m (Dynamic t a, Event t (), Event t ())
 buildModalBody showEvt title okBtnInfo dynErrMsg contentsDyn = do
-    (modalElt, r) <- wrapInModalDialogSkeleton showEvt 5000 $
-        elAttr "div" ("class" =: "modal-content") $ do
-            elAttr "div" ("class" =: "modal-header") $ do
-                let crossBtnAttrs = "type" =: "button" <> "class" =: "close"
-                        <> "data-dismiss" =: "modal" <> "aria-label" =: "Close"
-                void $ elAttr "button" crossBtnAttrs $
-                    elDynHtmlAttr' "span" ("aria-hidden" =: "true") (constDyn "&times;")
-                elAttr "h4" ("class" =: "modal-title") $ text title
-            bodyRes <- elAttr "div" ("class" =: "modal-body") $ do
-                addErrorBox dynErrMsg
-                initial <- sample (current contentsDyn)
-                widgetHold initial (updated contentsDyn)
-            (okEvt, closeEvt)  <- addModalFooter okBtnInfo
-            return (bodyRes, okEvt, closeEvt)
-    performEvent_ $ (const $ liftIO $ hideModalDialog modalElt) <$> view _2 r
+    (modalElt, r) <- wrapInModalDialogSkeleton showEvt 5000
+                    (buildModalBody' showEvt title okBtnInfo dynErrMsg contentsDyn)
+    performEvent_ $ (const $ liftIO $ hideModalDialog modalElt) <$> view _2 r -- TODO this is wrong, maybe comm with the server, must wait for success
+    performEvent_ $ (const $ liftIO $ hideModalDialog modalElt) <$> view _3 r
     return r
+
+buildModalBody' :: MonadWidget t m => Event t x -> Text -> ButtonInfo
+                 -> Dynamic t Text -> Dynamic t (m a) -> m (Dynamic t a, Event t (), Event t ())
+buildModalBody' showEvt title okBtnInfo dynErrMsg contentsDyn =
+    elAttr "div" ("class" =: "modal-content") $ do
+        elAttr "div" ("class" =: "modal-header") $ do
+            let crossBtnAttrs = "type" =: "button" <> "class" =: "close"
+                    <> "data-dismiss" =: "modal" <> "aria-label" =: "Close"
+            void $ elAttr "button" crossBtnAttrs $
+                elDynHtmlAttr' "span" ("aria-hidden" =: "true") (constDyn "&times;")
+            elAttr "h4" ("class" =: "modal-title") $ text title
+        bodyRes <- elAttr "div" ("class" =: "modal-body") $ do
+            addErrorBox dynErrMsg
+            initial <- sample (current contentsDyn)
+            widgetHold initial (updated contentsDyn)
+        (okEvt, closeEvt)  <- addModalFooter okBtnInfo
+        return (bodyRes, okEvt, closeEvt)
 
 addErrorBox :: MonadWidget t m => Dynamic t Text -> m ()
 addErrorBox dynErrMsg = do
@@ -196,10 +202,9 @@ addModalFooter okBtnInfo = do
             DangerBtn txt  -> (txt, "danger", True)
             NoBtn          -> ("", "primary", False)
     elAttr "div" ("class" =: "modal-footer") $ do
-            let closeBtnAttrs = "type" =: "button" <> "data-dismiss" =: "modal"
+            let closeBtnAttrs = "type" =: "button"
                     <> "class" =: "btn btn-secondary"
-            (closeEl, _) <- elAttr' "button" closeBtnAttrs
-                $ text "Close"
+            (closeEl, _) <- elAttr' "button" closeBtnAttrs $ text "Close"
             okEl <- addOkButton okBtnClass okBtnText okVisible
             return (domEvent Click okEl, domEvent Click closeEl)
 

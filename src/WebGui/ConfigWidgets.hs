@@ -43,7 +43,7 @@ fileEntry pickerOpMode _ memberName memberLabel val = do
             (browseBtn, _) <- elAttr' "div" ("class" =: "input-group-addon") $
                 elStyle' "span" (cursor pointer) $ text "Browse..."
             updatedFilePath <- fmap T.pack <$> buildFilePicker
-                browseBtn pickerDefaultOptions { pickerMode = pickerOpMode }
+                pickerDefaultOptions { pickerMode = pickerOpMode }
                 (tagDyn inputValS $ domEvent Click browseBtn)
         return inputVal
 

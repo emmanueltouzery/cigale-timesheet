@@ -75,7 +75,7 @@ configView activeViewDyn = do
                 ]
             configUpdateEvt <- displayEditPopup (fmapMaybe configChangeReqGetUpdate configUpdateReqEvt)
             configAddEvt    <- displayAddPopup (fmapMaybe configChangeReqGetAdd configUpdateReqEvt)
-            configDelEvt    <-  displayDeletePopup (fmapMaybe configChangeReqGetDelete configUpdateReqEvt)
+            configDelEvt    <- displayDeletePopup (fmapMaybe configChangeReqGetDelete configUpdateReqEvt)
 
             configUpdateReqEvt <- displayConfig =<< mapDyn fromRemoteData configDataDyn
         return ()

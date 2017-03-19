@@ -47,6 +47,7 @@ isDirectoryFileInfo = (== -1) . filesize
 isHiddenFileInfo :: FileInfo -> Bool
 isHiddenFileInfo = isPrefixOf "." . filename
 
+-- TODO prisms or sth can get me this for free maybe?
 getPickData :: PickerEventType -> Maybe FilePath
 getPickData (PickFileEvt x) = Just x
 getPickData _ = Nothing
@@ -55,8 +56,8 @@ getChangeFolder :: PickerEventType -> Maybe FilePath
 getChangeFolder (ChangeFolderEvt x) = Just x
 getChangeFolder _ = Nothing
 
-buildFilePicker :: MonadWidget t m => El t -> FilePickerOptions -> Event t FilePath -> m (Event t FilePath)
-buildFilePicker elt options openEvt = do
+buildFilePicker :: MonadWidget t m => FilePickerOptions -> Event t FilePath -> m (Event t FilePath)
+buildFilePicker options openEvt = do
     urlAtLoad <- holdDyn Nothing $ Just <$> openEvt
     let noFileEvt = ffilter null openEvt
     let fileEvent = fixFile <$> ffilter (not . null) openEvt
@@ -69,7 +70,6 @@ buildFilePicker elt options openEvt = do
                 makeSimpleXhr' ("/browseFolder?path=" <>) (fmapMaybe (fmap T.pack . getChangeFolder) rx)
             ]
         let browseInfoEvt = leftmost (updated <$> dynBrowseInfo)
-        showModalOnEvent ModalLevelSecondary openEvt
         browseDataDyn <- foldDyn const RemoteDataLoading browseInfoEvt
         rx <- displayPicker options urlAtLoad browseDataDyn
     return (fmapMaybe getPickData rx)

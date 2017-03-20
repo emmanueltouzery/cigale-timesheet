@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings, ScopedTypeVariables, RecursiveDo, RecordWildCards #-}
-{-# LANGUAGE TypeFamilies, FlexibleContexts, LambdaCase #-}
+{-# LANGUAGE TypeFamilies, FlexibleContexts, LambdaCase, TemplateHaskell #-}
 
 module FilePicker where
 
@@ -15,6 +15,8 @@ import qualified Data.Text as T
 import Data.Text (Text)
 import qualified Data.Map as Map
 import Clay hiding (filter, (&), id, reverse, li, a, b)
+import Control.Lens
+import Control.Lens.TH
 
 import Common
 import Communication
@@ -27,6 +29,7 @@ data PathElem = PathElem
 
 data PickerOperationMode = PickFile | PickFolder deriving Eq
 data PickerEventType = ChangeFolderEvt FilePath | PickFileEvt FilePath deriving Show
+$(makePrisms ''PickerEventType)
 
 data FilePickerOptions = FilePickerOptions
     {
@@ -47,15 +50,6 @@ isDirectoryFileInfo = (== -1) . filesize
 isHiddenFileInfo :: FileInfo -> Bool
 isHiddenFileInfo = isPrefixOf "." . filename
 
--- TODO prisms or sth can get me this for free maybe?
-getPickData :: PickerEventType -> Maybe FilePath
-getPickData (PickFileEvt x) = Just x
-getPickData _ = Nothing
-
-getChangeFolder :: PickerEventType -> Maybe FilePath
-getChangeFolder (ChangeFolderEvt x) = Just x
-getChangeFolder _ = Nothing
-
 buildFilePicker :: MonadWidget t m => FilePickerOptions -> Event t FilePath -> m (Event t FilePath)
 buildFilePicker options openEvt = do
     urlAtLoad <- holdDyn Nothing $ Just <$> openEvt
@@ -67,23 +61,23 @@ buildFilePicker options openEvt = do
             [
                 makeSimpleXhr "/browseFolder" noFileEvt,
                 makeSimpleXhr' ("/browseFolder?path=" <>) fileEvent,
-                makeSimpleXhr' ("/browseFolder?path=" <>) (fmapMaybe (fmap T.pack . getChangeFolder) rx)
+                makeSimpleXhr' ("/browseFolder?path=" <>) (fmapMaybe (fmap T.pack . preview _ChangeFolderEvt) rx)
             ]
         let browseInfoEvt = leftmost (updated <$> dynBrowseInfo)
         browseDataDyn <- foldDyn const RemoteDataLoading browseInfoEvt
         rx <- displayPicker options urlAtLoad browseDataDyn openEvt
-    return (fmapMaybe getPickData rx)
+    return (fmapMaybe (preview _PickFileEvt) rx)
 
 displayPicker :: MonadWidget t m => FilePickerOptions -> Dynamic t (Maybe FilePath)
               -> Dynamic t (RemoteData BrowseResponse) -> Event t FilePath
-              ->  m (Event t PickerEventType)
+              -> m (Event t PickerEventType)
 displayPicker options urlAtLoad remoteBrowseDataDyn openEvt = do
     rec
         curSelected <- sample $ current urlAtLoad
         let fetchErrorDyn = fromMaybe "" <$> remoteDataInvalidDesc <$> remoteBrowseDataDyn
         dynSelectedFile <- holdDyn curSelected
             $ fmap Just
-            $ fmapMaybe getPickData pickerEvt
+            $ fmapMaybe (preview _PickFileEvt) pickerEvt
         let contentsDyn = ffor (fromRemoteData <$> remoteBrowseDataDyn) $ \case
                 Nothing         -> return never
                 Just browseData -> displayPickerContents options dynSelectedFile browseData

@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards, RecursiveDo, DeriveGeneric, LambdaCase, FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, TupleSections, TypeFamilies #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, TupleSections, TypeFamilies, TemplateHaskell #-}
 
 module Config where
 
@@ -20,7 +20,7 @@ import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Map as Map
 import qualified Data.Vector as V
 import Control.Monad
-import Control.Lens (view)
+import Control.Lens (view, preview, makePrisms)
 import Data.Ord
 import Clay as C hiding (map, (&), filter, head, p, url, active,
                          name, pc, id, intersperse, reverse, Value)
@@ -48,6 +48,23 @@ data FetchedData = FetchedData
         fetchedConfigVal  :: [ConfigItem]
     } deriving Show
 
+data ConfigUpdate = ConfigUpdate
+    {
+        oldConfigItemName :: String,
+        newConfigItem :: ConfigItem
+    } deriving Show
+
+data ConfigChangeRequest = ChangeAddRequest PluginConfig
+                  | ChangeUpdateRequest PluginConfig ConfigItem
+                  | ChangeDeleteRequest ConfigItem
+                  deriving Show
+$(makePrisms ''ConfigChangeRequest)
+
+data ConfigChange = ChangeAdd ConfigItem
+                  | ChangeUpdate ConfigUpdate
+                  | ChangeDelete ConfigItem
+                  deriving Show
+
 configView :: MonadWidget t m => Dynamic t ActiveView -> m ()
 configView activeViewDyn = do
     let configStyle = do
@@ -73,43 +90,12 @@ configView activeViewDyn = do
                     fmap (flip applyConfigChange) configAddEvt,
                     fmap (flip applyConfigChange) configDelEvt
                 ]
-            configUpdateEvt <- displayEditPopup (fmapMaybe configChangeReqGetUpdate configUpdateReqEvt)
-            configAddEvt    <- displayAddPopup (fmapMaybe configChangeReqGetAdd configUpdateReqEvt)
-            configDelEvt    <- displayDeletePopup (fmapMaybe configChangeReqGetDelete configUpdateReqEvt)
+            configUpdateEvt <- displayEditPopup (fmapMaybe (preview _ChangeUpdateRequest) configUpdateReqEvt)
+            configAddEvt    <- displayAddPopup (fmapMaybe (preview _ChangeAddRequest) configUpdateReqEvt)
+            configDelEvt    <- displayDeletePopup (fmapMaybe (preview _ChangeDeleteRequest) configUpdateReqEvt)
 
             configUpdateReqEvt <- displayConfig =<< mapDyn fromRemoteData configDataDyn
         return ()
-
-data ConfigUpdate = ConfigUpdate
-    {
-        oldConfigItemName :: String,
-        newConfigItem :: ConfigItem
-    } deriving Show
-
-data ConfigChangeRequest = ChangeAddRequest PluginConfig
-                  | ChangeUpdateRequest PluginConfig ConfigItem
-                  | ChangeDeleteRequest ConfigItem
-                  deriving Show
-
-data ConfigChange = ChangeAdd ConfigItem
-                  | ChangeUpdate ConfigUpdate
-                  | ChangeDelete ConfigItem
-                  deriving Show
-
--- TODO for sure there are ways to avoid typing the next three functions.
--- lens prisms?
-
-configChangeReqGetUpdate :: ConfigChangeRequest -> Maybe (PluginConfig, ConfigItem)
-configChangeReqGetUpdate (ChangeUpdateRequest pc ci) = Just (pc, ci)
-configChangeReqGetUpdate _ = Nothing
-
-configChangeReqGetAdd :: ConfigChangeRequest -> Maybe PluginConfig
-configChangeReqGetAdd (ChangeAddRequest pc) = Just pc
-configChangeReqGetAdd _ = Nothing
-
-configChangeReqGetDelete :: ConfigChangeRequest -> Maybe ConfigItem
-configChangeReqGetDelete (ChangeDeleteRequest ci) = Just ci
-configChangeReqGetDelete _ = Nothing
 
 applyConfigChange :: RemoteData FetchedData -> ConfigChange -> RemoteData FetchedData
 applyConfigChange (RemoteData (FetchedData desc val)) chg = RemoteData (FetchedData desc newVal)

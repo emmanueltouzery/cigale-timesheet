@@ -82,17 +82,18 @@ displayPicker options urlAtLoad remoteBrowseDataDyn openEvt = do
                 Nothing         -> return never
                 Just browseData -> displayPickerContents options dynSelectedFile browseData
         displayDyn <- toggle True $
-            leftmost [const () <$> openEvt, const () <$> pickedItemEvt, closeEvt]
+            leftmost [const () <$> openEvt, const () <$> pickedItemEvt
+                     , dlgCloseEvt pickerDlg]
         let divStyle v = ("style"::Text) =: styleStr (styleWithHideIf v $
                 position fixed >> left (px 0) >> right (px 0) >>
                 top (px 0) >> bottom (px 0) >> zIndex 15000)
-        (pickerDyn, okEvt, closeEvt) <- elDynAttr "div" (divStyle <$> displayDyn) $
+        pickerDlg <- elDynAttr "div" (divStyle <$> displayDyn) $
             buildModalBody' (updated urlAtLoad) "Pick a folder" (PrimaryBtn "OK") fetchErrorDyn contentsDyn
-        let pickerEvt = switchPromptlyDyn pickerDyn
+        let pickerEvt = switchPromptlyDyn (dlgContentsDyn pickerDlg)
         let pickedItemEvt = fmap PickFileEvt $ case pickerMode options of
                 PickFolder -> fmap browseFolderPath
-                    $ fmapMaybe fromRemoteData $ (tagDyn remoteBrowseDataDyn) okEvt
-                PickFile -> fmapMaybe id $ tagDyn dynSelectedFile okEvt
+                    $ fmapMaybe fromRemoteData $ (tagDyn remoteBrowseDataDyn) (dlgOkEvt pickerDlg)
+                PickFile -> fmapMaybe id $ tagDyn dynSelectedFile $ dlgOkEvt pickerDlg
     return $ leftmost [pickerEvt, pickedItemEvt]
 
 displayPickerContents :: MonadWidget t m => FilePickerOptions

@@ -159,17 +159,23 @@ wrapInModalDialogSkeleton showEvt zIndexVal contents = do
     performEvent_ $ (const $ liftIO $ showModalDialog elt) <$> showEvt
     return (elt, r)
 
+data ModalBody t a = ModalBody
+    { dlgContentsDyn :: Dynamic t a
+    , dlgOkEvt       :: Event t ()
+    , dlgCloseEvt    :: Event t ()
+    }
+
 buildModalBody :: MonadWidget t m => Event t x -> Text -> ButtonInfo
-                 -> Dynamic t Text -> Dynamic t (m a) -> m (Dynamic t a, Event t (), Event t ())
+                 -> Dynamic t Text -> Dynamic t (m a) -> m (ModalBody t a, IO ())
 buildModalBody showEvt title okBtnInfo dynErrMsg contentsDyn = do
     (modalElt, r) <- wrapInModalDialogSkeleton showEvt 5000
                     (buildModalBody' showEvt title okBtnInfo dynErrMsg contentsDyn)
-    performEvent_ $ (const $ liftIO $ hideModalDialog modalElt) <$> view _2 r -- TODO this is wrong, maybe comm with the server, must wait for success
-    performEvent_ $ (const $ liftIO $ hideModalDialog modalElt) <$> view _3 r
-    return r
+    let hideModal = hideModalDialog modalElt
+    performEvent_ $ const (liftIO hideModal) <$> dlgCloseEvt r
+    return (r, hideModal)
 
 buildModalBody' :: MonadWidget t m => Event t x -> Text -> ButtonInfo
-                 -> Dynamic t Text -> Dynamic t (m a) -> m (Dynamic t a, Event t (), Event t ())
+                 -> Dynamic t Text -> Dynamic t (m a) -> m (ModalBody t a)
 buildModalBody' showEvt title okBtnInfo dynErrMsg contentsDyn =
     elAttr "div" ("class" =: "modal-content") $ do
         elAttr "div" ("class" =: "modal-header") $ do
@@ -183,7 +189,7 @@ buildModalBody' showEvt title okBtnInfo dynErrMsg contentsDyn =
             initial <- sample (current contentsDyn)
             widgetHold initial (updated contentsDyn)
         (okEvt, closeEvt)  <- addModalFooter okBtnInfo
-        return (bodyRes, okEvt, closeEvt)
+        return (ModalBody bodyRes okEvt closeEvt)
 
 addErrorBox :: MonadWidget t m => Dynamic t Text -> m ()
 addErrorBox dynErrMsg = do

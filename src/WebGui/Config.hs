@@ -25,6 +25,7 @@ import Data.Ord
 import Clay as C hiding (map, (&), filter, head, p, url, active,
                          name, pc, id, intersperse, reverse, Value)
 import Data.String.Conversions
+import Control.Monad.Trans
 
 import Communication
 import EventProvider
@@ -51,7 +52,7 @@ data FetchedData = FetchedData
 data ConfigUpdate = ConfigUpdate
     {
         oldConfigItemName :: String,
-        newConfigItem :: ConfigItem
+        newConfigItem     :: ConfigItem
     } deriving Show
 
 data ConfigChangeRequest = ChangeAddRequest PluginConfig
@@ -91,7 +92,7 @@ configView activeViewDyn = do
                     fmap (flip applyConfigChange) configDelEvt
                 ]
             configUpdateEvt <- displayEditPopup (fmapMaybe (preview _ChangeUpdateRequest) configUpdateReqEvt)
-            configAddEvt    <- displayAddPopup (fmapMaybe (preview _ChangeAddRequest) configUpdateReqEvt)
+            configAddEvt    <- displayAddPopup  (fmapMaybe (preview _ChangeAddRequest) configUpdateReqEvt)
             configDelEvt    <- displayDeletePopup (fmapMaybe (preview _ChangeDeleteRequest) configUpdateReqEvt)
 
             configUpdateReqEvt <- displayConfig =<< mapDyn fromRemoteData configDataDyn
@@ -158,8 +159,9 @@ displayAddPopup addReqEvt = do
     rec
         let contentsDyn = joinDyn $ ffor dynPcCi $ \pcCi ->
               return (editConfigItem pcCi fieldContentsDyn)
-        (dialogResultDyn, addDlgOkEvt, _) <-
-            buildModalBody fieldContentsEvt "Add" (PrimaryBtn "Save") errorDyn contentsDyn
+        (dlgResult, dlgClose) <- buildModalBody fieldContentsEvt "Add" (PrimaryBtn "Save") errorDyn contentsDyn
+        let dialogResultDyn = dlgContentsDyn dlgResult
+        let addDlgOkEvt = dlgOkEvt dlgResult
         errorDyn <- remoteDataErrorDescDyn saveEvt
 
         dataDyn <- combineDyn (\a mb -> (a,) <$> mb) dialogResultDyn dynPcCi
@@ -170,7 +172,10 @@ displayAddPopup addReqEvt = do
             $ fmapMaybe id
             $ tagDyn dataDyn addDlgOkEvt
         saveEvt <- saveConfig addConfigEvt
-    return $ fmapMaybe fromRemoteData saveEvt
+    -- TODO this bit of code is duplicated in a couple of spots
+    let cfgChange = fmapMaybe fromRemoteData saveEvt
+    performEvent_ $ const (liftIO dlgClose) <$> cfgChange
+    return cfgChange
 
 groupByProvider :: FetchedData -> [(PluginConfig, [ConfigItem])]
 groupByProvider (FetchedData configDesc configVal) =
@@ -292,13 +297,15 @@ displayDeletePopup deleteReqEvt = do
         let contentsDyn = ffor dynCi $ \case
                 Nothing -> text ""
                 Just ci -> text $ "Delete the config item " <> T.pack (configItemName ci) <> "?"
-        (_, deleteDlgOkEvt, _) <- buildModalBody deleteReqEvt "Delete" (DangerBtn "Delete")
-            errorDyn contentsDyn
+        (dlgInfo, dlgClose) <- buildModalBody deleteReqEvt "Delete" (DangerBtn "Delete") errorDyn contentsDyn
+        let deleteDlgOkEvt = dlgOkEvt dlgInfo
         errorDyn <- remoteDataErrorDescDyn saveEvt
 
         let deleteEvt = ChangeDelete <$> fmapMaybe id (tagDyn dynCi deleteDlgOkEvt)
         saveEvt <- saveConfig deleteEvt
-    return $ fmapMaybe fromRemoteData saveEvt
+    let cfgChange = fmapMaybe fromRemoteData saveEvt
+    performEvent_ $ const (liftIO dlgClose) <$> cfgChange
+    return cfgChange
 
 addEditButton :: MonadWidget t m => PluginConfig -> ConfigItem -> m (Event t ConfigChangeRequest)
 addEditButton pluginConfig ci@ConfigItem{..} = do
@@ -315,8 +322,9 @@ displayEditPopup changeReqEvt = do
     rec
         let contentsDyn = joinDyn $ ffor dynPcCi $ \pcCi ->
               return (editConfigItem pcCi fieldContentsDyn)
-        (dialogResultDyn, editDlgOkEvt, _) <-
-            buildModalBody fieldContentsEvt "Edit" (PrimaryBtn "Save") errorDyn contentsDyn
+        (dlgInfo, dlgClose) <- buildModalBody fieldContentsEvt "Edit" (PrimaryBtn "Save") errorDyn contentsDyn
+        let dialogResultDyn = dlgContentsDyn dlgInfo
+        let editDlgOkEvt = dlgOkEvt dlgInfo
         errorDyn <- remoteDataErrorDescDyn saveEvt
 
         dataDyn <- combineDyn (\a mb -> (a,) <$> mb) dialogResultDyn dynPcCi
@@ -327,7 +335,9 @@ displayEditPopup changeReqEvt = do
             $ fmapMaybe id
             $ tagDyn dataDyn editDlgOkEvt
         saveEvt <- saveConfig editConfigEvt
-    return $ fmapMaybe fromRemoteData saveEvt
+    let cfgChange = fmapMaybe fromRemoteData saveEvt
+    performEvent_ $ const (liftIO dlgClose) <$> cfgChange
+    return cfgChange
 
 configModalFetchFieldContents :: MonadWidget t m => Event t (PluginConfig, ConfigItem)
                               -> m (Event t (Map Text [Text]))

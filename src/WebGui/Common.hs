@@ -1,22 +1,16 @@
 {-# LANGUAGE ScopedTypeVariables, LambdaCase, OverloadedStrings, JavaScriptFFI, FlexibleContexts #-}
-{-# LANGUAGE ForeignFunctionInterface, RecordWildCards, OverloadedStrings, TypeFamilies, RecursiveDo #-}
+{-# LANGUAGE ForeignFunctionInterface, RecordWildCards, TypeFamilies #-}
 
 module Common where
 
 import GHCJS.Types
 import GHCJS.DOM.Element
 import GHCJS.DOM.Node
-import GHCJS.DOM.Document
 import GHCJS.DOM.Types hiding (Text, Event)
-import GHCJS.Marshal
 
 import Reflex.Dom hiding (display)
-import Reflex.Host.Class
 import Data.String
 
-import Control.Monad.State.Class (modify)
-import Data.List.NonEmpty (NonEmpty, nonEmpty, toList)
-import Control.Lens hiding (element)
 import Clay as C hiding (filter, title, contents, action, url, (&), placeholder, id, reverse, none)
 import qualified Clay as C
 import Data.Maybe
@@ -27,7 +21,6 @@ import Data.Monoid
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Control.Monad.IO.Class
-import Control.Monad.Trans
 import Data.Aeson
 import Control.Monad
 import Data.List

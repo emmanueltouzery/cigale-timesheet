@@ -105,6 +105,10 @@ elDynAttrStyle' elementTag dynAttrs styleCss child = do
     newAttrsDyn <- forDyn dynAttrs (<> "style" =: styleStr styleCss)
     elDynAttr' elementTag newAttrsDyn child
 
+elDynAttrStyle :: MonadWidget t m => Text -> Dynamic t (Map Text Text) -> Css -> m a -> m a
+elDynAttrStyle elementTag dynAttrs styleCss child =
+    snd <$> elDynAttrStyle' elementTag dynAttrs styleCss child
+
 -- the tail . init removes leading and trailing {}
 -- see https://github.com/sebastiaanvisser/clay/issues/120
 styleStr :: Css -> Text
@@ -166,7 +170,7 @@ data ModalBody t a = ModalBody
     }
 
 buildModalBody :: MonadWidget t m => Event t x -> Text -> ButtonInfo
-                 -> Dynamic t Text -> Dynamic t (m a) -> m (ModalBody t a, IO ())
+               -> Dynamic t Text -> Dynamic t (m a) -> m (ModalBody t a, IO ())
 buildModalBody showEvt title okBtnInfo dynErrMsg contentsDyn = do
     (modalElt, r) <- wrapInModalDialogSkeleton showEvt 5000
                     (buildModalBody' showEvt title okBtnInfo dynErrMsg contentsDyn)
@@ -323,12 +327,6 @@ rawSpan attrs = void . elDynHtmlAttr' "span" attrs
 
 getGlyphiconUrl :: Text -> Text
 getGlyphiconUrl iconBase = "glyphicons_free/glyphicons/png/" <> iconBase <> ".png"
-
-progressDialog :: MonadWidget t m => Dynamic t Int -> m ()
-progressDialog percentDyn = do
-    attrsDyn <- forDyn percentDyn $ \percent ->
-        ("class" =: "progress" <> "value" =: T.pack (show percent) <> "max" =: "100")
-    elDynAttr "progress" attrsDyn $ dynText =<< mapDyn ((<> "%") . T.pack . show) percentDyn
 
 showModalOnEvent :: MonadWidget t m => ModalLevel -> Event t a -> m ()
 showModalOnEvent modalLevel evt = performEvent_ $ fmap

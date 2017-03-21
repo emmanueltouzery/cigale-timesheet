@@ -143,35 +143,28 @@ addDatePicker initialDay = do
 addPreloadButton :: MonadWidget t m => m ()
 addPreloadButton = do
     (btnElt, displayPreload) <- iconButton 16 "glyphicons-58-history"
-    return ()
-    -- preloadEvt <- setupModal btnElt ModalLevelBasic displayPreload $ do
-    --     (preloadR, preloadOkEvt, _) <- buildModalBody "Preload data" (PrimaryBtn "Preload")
-    --         (constDyn "") preloadDialog
-    --     return $ tagDyn preloadR preloadOkEvt
-    -- let dayListEvt = fmap (uncurry daysRange) preloadEvt
-    -- rec
-    --     curCountDyn <- holdDyn 0 $ fmap length dayListEvt
-    --     daysFetchingQueueDyn <- foldDyn ($) [] $ leftmost
-    --         [fmap const dayListEvt, fmap (const tail) $ daysFetchingQueueDoneEvt]
-    --     progressDyn <- combineDyn (\lst cnt -> (cnt - length lst)*100 `div` cnt)
-    --         daysFetchingQueueDyn curCountDyn
-    --     mCurDayToFetchDyn <- nubDyn <$> mapDyn headZ daysFetchingQueueDyn
-    --     daysFetchingQueueDoneEvt <- fetchDay mCurDayToFetchDyn
-    -- void $ setupModal btnElt ModalLevelSecondary preloadEvt $ do
-    --     void $ buildModalBody "In progress" NoBtn
-    --         (constDyn "") (progressDialog progressDyn)
-    --     return never
-    -- let doneEvt = ffilter isNothing $ updated mCurDayToFetchDyn
-    -- hideModalOnEvent ModalLevelBasic doneEvt
-    -- hideModalOnEvent ModalLevelSecondary doneEvt
+    rec
+        (dlgBody, dlgClose) <- buildModalBody displayPreload "Preload data"
+            (PrimaryBtn "Preload") (constDyn "") (constDyn $ preloadDialog progressDyn)
+        let preloadEvt = tagDyn (joinDyn $ dlgContentsDyn dlgBody) (dlgOkEvt dlgBody)
+        let dayListEvt = fmap (uncurry daysRange) preloadEvt
+        curCountDyn <- holdDyn 0 $ leftmost [length <$> dayListEvt, const 0 <$> displayPreload]
+        daysFetchingQueueDyn <- foldDyn ($) [] $ leftmost
+            [fmap const dayListEvt, fmap (const tail) $ daysFetchingQueueDoneEvt]
+        progressDyn <- combineDyn (\lst cnt -> if cnt == 0 then 0 else (cnt - length lst)*100 `div` cnt)
+            daysFetchingQueueDyn curCountDyn
+        mCurDayToFetchDyn <- nubDyn <$> mapDyn headZ daysFetchingQueueDyn
+        daysFetchingQueueDoneEvt <- fetchDay mCurDayToFetchDyn
+    let doneEvt = ffilter isNothing $ updated mCurDayToFetchDyn
+    performEvent_ $ (const $ liftIO dlgClose) <$> doneEvt
 
 fetchDay :: MonadWidget t m => Dynamic t (Maybe Day) -> m (Event t FetchResponse)
 fetchDay mDayDyn = do
     fetched <- requestDayEvents $ fmapMaybe id $ updated mDayDyn
     return $ fmapMaybe fromRemoteData fetched
 
-preloadDialog :: MonadWidget t m => m (Dynamic t (Day, Day))
-preloadDialog = do
+preloadDialog :: MonadWidget t m => Dynamic t Int -> m (Dynamic t (Day, Day))
+preloadDialog percentDyn = do
     today <- liftIO getToday
     -- fetch from the first day of the previous month
     let prefetchStart = addGregorianMonthsClip (-1) $
@@ -181,7 +174,7 @@ preloadDialog = do
                   \ if you have to wait for each day to load separately."
     el "p" $ text "You can preload data for a certain time interval\
                   \ to minimize the waiting later."
-    elStyle "table" (paddingBottom $ px 15) $ do
+    interval <- elStyle "table" (paddingBottom $ px 15) $ do
         rec dynStartDay <- el "tr" $ do
             col $ text "Pick a start date:"
             col $ do
@@ -193,6 +186,15 @@ preloadDialog = do
                 endDayChangeEvt <- displayPickerBlock prefetchEnd dynEndDay
                 foldDyn ($) prefetchEnd endDayChangeEvt
         combineDyn (,) dynStartDay dynEndDay
+    progressWidget percentDyn
+    return interval
+
+progressWidget :: MonadWidget t m => Dynamic t Int -> m ()
+progressWidget percentDyn = do
+    attrsDyn <- forDyn percentDyn $ \percent ->
+        ("class" =: "progress" <> "value" =: T.pack (show percent) <> "max" =: "100")
+    elDynAttrStyle "progress" attrsDyn (height (px 50) >> paddingAll (px 15)) $
+        dynText =<< mapDyn ((<> "%") . T.pack . show) percentDyn
 
 daysRange :: Day -> Day -> [Day]
 daysRange start end

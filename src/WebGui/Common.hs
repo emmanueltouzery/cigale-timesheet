@@ -34,14 +34,6 @@ import Data.List
 
 data ActiveView = ActiveViewEvents | ActiveViewConfig deriving (Eq, Show)
 
-foreign import javascript unsafe "$('#'+$1).modal('hide')" _hideModalIdDialog :: JSVal -> IO ()
-hideModalIdDialog :: Text -> IO ()
-hideModalIdDialog = _hideModalIdDialog <=< toJSVal
-
-foreign import javascript unsafe "$('#'+$1).modal('show')" _showModalIdDialog :: JSVal -> IO ()
-showModalIdDialog :: Text -> IO ()
-showModalIdDialog = _showModalIdDialog <=< toJSVal
-
 unwrapElt :: El t -> JSVal
 unwrapElt = unElement . toElement . _el_element
 
@@ -227,98 +219,6 @@ addOkButton okBtnClass okBtnText isShow = do
         $ text okBtnText
     return okEl
 
--- a secondary modal is on top of the basic one (modal in modal)
-data ModalLevel = ModalLevelBasic | ModalLevelSecondary
-
-topLevelModalId :: ModalLevel -> Text
-topLevelModalId ModalLevelBasic = "toplevelmodal"
-topLevelModalId ModalLevelSecondary = "toplevelsecmodal"
-
-topLevelModalContentsId :: ModalLevel -> Text
-topLevelModalContentsId ModalLevelBasic = "toplevelmodalcontents"
-topLevelModalContentsId ModalLevelSecondary = "toplevelsecmodalcontents"
-
--- | this is copy-pasted & modified from 'dyn' from reflex-dom
--- instead of appending the nodes at the current position in the
--- DOM, append them under the node by the ID which you give.
--- TODO move to reflex-dom 'placeholder' mechanism?
-    -- something with runImmediateDomBuilderT, see example Immediate.hs, line 184
--- dynAtEltId :: MonadWidget t m => El t -> Text -> Dynamic t (Maybe (m a)) -> m (Event t a)
--- dynAtEltId elt eltId child = do
---     (newChildBuilt, newChildBuiltTriggerRef) <- newEventWithTriggerRef
---     let e = fmap snd newChildBuilt
---     childVoidAction <- hold never e
---     performEvent_ $ fmap (const $ return ()) e
---     addVoidAction $ switch childVoidAction
---     (Just doc) <- getOwnerDocument (_el_element elt)
---     let build = \case
---             Nothing -> return ()
---             Just c  -> do
---                 Just df <- liftIO $ createDocumentFragment doc
---                 Just docRoot <- liftIO $ getElementById doc eltId
---                 nodeLastChild <- liftIO $ getLastChild docRoot
---                 void $ liftIO $ replaceChild docRoot (Just df) nodeLastChild
---     schedulePostBuild $ do
---         c <- sample $ current child
---         build c
---     addVoidAction $ ffor (updated child) $ \newChild -> do
---         build newChild
---     return $ fmap fst newChildBuilt
-
--- | Given a Dynamic of widget-creating actions, create a widget that is recreated whenever the Dynamic updates.
---   The returned Event of widget results occurs when the Dynamic does.
---   Note:  Often, the type 'a' is an Event, in which case the return value is an Event-of-Events that would typically be flattened (via 'switchPromptly').
-
-
--- dynAtEltId :: (DomBuilder t m, PostBuild t m) => Dynamic t (m a) -> m (Event t a)
--- dynAtEltId child = do
---   postBuild <- getPostBuild
---   let newChild = leftmost [updated child, tag (current child) postBuild]
---   snd <$> widgetHoldInternal' (return ()) newChild
-
--- widgetHoldInternal' :: DomBuilder t m => m a -> Event t (m b) -> m (a, Event t b)
--- widgetHoldInternal' child0 child' = do
---   childResult0 <- deletable (void child') child0
---   childResult' <- liftPlaceholder'' $ def & placeholderConfig_insertAbove .~ fmap (deletable (void child')) child'
---   return (childResult0, _placeholder_insertedAbove childResult')
-
--- liftPlaceholder'' cfg = liftWithStateless $ \run -> placeholder'' $ fmap1 run cfg
-
--- placeholder'' :: (DomBuilderSpace (PostBuildT t m) ~ DomBuilderSpace m) => (PlaceholderConfig above t m) -> m (Placeholder above t)
--- placeholder'' cfg = lift $ do
---   rec childPostBuild <- deletable (_placeholder_deletedSelf p) $ performEvent $ return () <$ _placeholder_insertedAbove p
---       p <- placeholder $ cfg
---         { _placeholderConfig_insertAbove = ffor (_placeholderConfig_insertAbove cfg) $ \a -> runPostBuildT a =<< headE childPostBuild
---         }
---   return p
-
--- -- placeholder' cfg = do
--- --   let cfg' = cfg
--- --         { _placeholderConfig_insertAbove = runDynamicWriterTInternal <$> _placeholderConfig_insertAbove cfg
--- --         }
--- --   let manageChildren :: Event t (NonEmpty (Replaceable t (Dynamic t w))) -- ^ Add nodes on the right; these are in reverse order
--- --                      -> Event t () -- ^ No more nodes will be added after this event fires
--- --                      -> m (Replaceable t (Dynamic t w))
--- --       manageChildren newChildren additionsCeased = do
--- --         rec nextId <- hold (0 :: Int) newNextId -- We assume this will never wrap around
--- --             let numberedNewChildren :: Event t (Int, PatchMap (Map Int (Replaceable t (Dynamic t w))))
--- --                 numberedNewChildren = flip pushAlways newChildren $ \rcs -> do
--- --                   let cs = reverse $ toList rcs
--- --                   myFirstId <- sample nextId
--- --                   let (myNextId, numbered) = mapAccumL (\n v -> (succ n, (n, Just v))) myFirstId cs
--- --                   return (myNextId, PatchMap $ Map.fromList numbered)
--- --                 newNextId = fst <$> numberedNewChildren
--- --         mconcatIncrementalReplaceableDynMap Map.empty (snd <$> numberedNewChildren) additionsCeased
--- --   rec children <- lift $ manageChildren childOutputs $ cfg ^. deleteSelf
--- --       p <- DynamicWriterT $ do
--- --         modify (children:)
--- --         lift $ placeholder cfg'
--- --       let result = fst <$> _placeholder_insertedAbove p
--- --           childOutputs = fmapMaybe (nonEmpty . snd) $ _placeholder_insertedAbove p
--- --   return $ p
--- --     { _placeholder_insertedAbove = result
--- --     }
-
 rawPointerSpan :: MonadWidget t m => Dynamic t Text -> m ()
 rawPointerSpan = rawSpan ("style" =: "cursor: pointer")
 
@@ -327,14 +227,6 @@ rawSpan attrs = void . elDynHtmlAttr' "span" attrs
 
 getGlyphiconUrl :: Text -> Text
 getGlyphiconUrl iconBase = "glyphicons_free/glyphicons/png/" <> iconBase <> ".png"
-
-showModalOnEvent :: MonadWidget t m => ModalLevel -> Event t a -> m ()
-showModalOnEvent modalLevel evt = performEvent_ $ fmap
-    (const $ liftIO $ showModalIdDialog $ topLevelModalId modalLevel) evt
-
-hideModalOnEvent :: MonadWidget t m => ModalLevel -> Event t a -> m ()
-hideModalOnEvent modalLevel evt = performEvent_ $ fmap
-    (const $ liftIO $ hideModalIdDialog $ topLevelModalId modalLevel) evt
 
 combineDyns :: (Reflex t, MonadHold t m) => (b -> a -> b) -> b -> [Dynamic t a]
             -> m (Dynamic t b)

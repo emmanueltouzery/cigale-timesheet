@@ -374,13 +374,6 @@ readConfigFieldContents requests = do
 --     nameDyn <- holdDyn "" (view _1 <$> evt)
 --     combineDyn (\name cts -> (replicate 1 (T.pack name), cts)) nameDyn contentsDyn
 
-modalHandleSaveAction :: MonadWidget t m => ModalLevel -> Event t (RemoteData b)
-                      -> m (Event t b)
-modalHandleSaveAction modalLevel saveEvt = do
-    let savedCfgEditEvt = fmapMaybe fromRemoteData saveEvt
-    hideModalOnEvent modalLevel savedCfgEditEvt
-    return savedCfgEditEvt
-
 encodeToStr :: ToJSON a => a -> String
 encodeToStr = convertString . encode
 

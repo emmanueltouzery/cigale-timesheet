@@ -42,7 +42,8 @@ deriveConfigRecord (ConfigDataType providerName cfgMembers) = do
     let cfgDataName = mkName (providerName ++ "ConfigRecord")
     let ctrName  = mkName (providerName ++ "ConfigRecord")
     fields <- forM cfgMembers createConfigRecordField
-    return [DataD [] cfgDataName [] [RecC ctrName fields] [''Show]]
+    showT  <- [t|Show|]
+    return [DataD [] cfgDataName [] Nothing [RecC ctrName fields] [showT]]
 
 createConfigRecordField :: ConfigDataInfo -> Q (Name, Strict, Type)
 createConfigRecordField (ConfigDataInfo name _ mType _) = do
@@ -54,7 +55,8 @@ createConfigRecordField (ConfigDataInfo name _ mType _) = do
       MtFolderPath  -> [t|String|]
       MtCombo       -> [t|Text|]
       MtMultiChoice -> [t|[Text]|]
-    return (fieldName, NotStrict, datatype)
+    st <- bang noSourceUnpackedness noSourceStrictness
+    return (fieldName, st, datatype)
 
 data ConfigDataType = ConfigDataType
     {

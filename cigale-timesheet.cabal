@@ -20,7 +20,6 @@ Library
   Build-Depends:
     base,
     bytestring >= 0.10.0.0,
-    MonadCatchIO-transformers,
     mtl,
     aeson >= 0.7.0.0,
     codec-mbox,
@@ -146,7 +145,6 @@ test-suite        tests
   Build-depends:
     base,
     bytestring >= 0.10.0.0,
-    MonadCatchIO-transformers,
     mtl,
     aeson >= 0.7.0.0,
     codec-mbox,

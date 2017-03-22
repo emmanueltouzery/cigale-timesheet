@@ -20,7 +20,7 @@ import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Map as Map
 import qualified Data.Vector as V
 import Control.Monad
-import Control.Lens (view, preview, makePrisms)
+import Control.Lens (preview, makePrisms)
 import Data.Ord
 import Clay as C hiding (map, (&), filter, head, p, url, active,
                          name, pc, id, intersperse, reverse, Value)
@@ -74,8 +74,8 @@ configView activeViewDyn = do
             flexDirection column
             paddingRight (px 10)
             overflow auto
-    attrsDyn <- forDyn activeViewDyn $ \curView ->
-        attrStyleWithHideIf (curView /= ActiveViewConfig) configStyle
+    let attrsDyn = ffor activeViewDyn $ \curView ->
+          attrStyleWithHideIf (curView /= ActiveViewConfig) configStyle
     elDynAttr "div" attrsDyn $ do
         -- TODO getPostBuild ... maybe when the tab is loaded instead?
         postBuild  <- getPostBuild
@@ -95,7 +95,7 @@ configView activeViewDyn = do
             configAddEvt    <- displayAddPopup  (fmapMaybe (preview _ChangeAddRequest) configUpdateReqEvt)
             configDelEvt    <- displayDeletePopup (fmapMaybe (preview _ChangeDeleteRequest) configUpdateReqEvt)
 
-            configUpdateReqEvt <- displayConfig =<< mapDyn fromRemoteData configDataDyn
+            configUpdateReqEvt <- displayConfig (fmap fromRemoteData configDataDyn)
         return ()
 
 applyConfigChange :: RemoteData FetchedData -> ConfigChange -> RemoteData FetchedData
@@ -107,15 +107,14 @@ applyConfigChange (RemoteData (FetchedData desc val)) chg = RemoteData (FetchedD
            ChangeDelete ci -> filter (/= ci) val
 applyConfigChange _ _ = error "applyConfigChange called on unloaded data??"
 
-displayConfig :: MonadWidget t m => Dynamic t (Maybe FetchedData)
-              -> m (Event t ConfigChangeRequest)
+displayConfig :: MonadWidget t m => Dynamic t (Maybe FetchedData) -> m (Event t ConfigChangeRequest)
 displayConfig dynFetchedData = do
     rec
-        cfgByProvider <- mapDyn (fromMaybe []) =<< mapDyn (liftA groupByProvider) dynFetchedData
+        let cfgByProvider = fromMaybe [] . liftA groupByProvider <$> dynFetchedData
         let addCfgBtn = displayAddCfgButton . maybe [] fetchedConfigDesc
-        addCfgEvt <- holdDyn never =<< (dyn =<< mapDyn addCfgBtn dynFetchedData)
+        addCfgEvt <- holdDyn never =<< dyn (addCfgBtn <$> dynFetchedData)
         cfgChgEvt <- elStyle "div" (flexGrow 1 >> overflow auto) $
-            mapDyn leftmost =<< simpleList cfgByProvider displayConfigSection
+                    fmap leftmost <$> simpleList cfgByProvider displayConfigSection
     return $ leftmost $ fmap (switch . current) [addCfgEvt, cfgChgEvt]
 
 displayAddCfgButton :: MonadWidget t m => [PluginConfig] -> m (Event t ConfigChangeRequest)
@@ -127,7 +126,7 @@ displayAddCfgButton pluginConfigs = do
             flexShrink 0
             paddingRight (px 30)
             paddingBottom (px 10)
-    (divElt, clickEvts) <- elAttrStyle' "div" ("width" =: "100%") addBtnStyle $
+    clickEvts <- elAttrStyle "div" ("width" =: "100%") addBtnStyle $
         elAttr "div" ("class" =: "btn-group") $ do
             elAttr "button" ("type"  =: "button" <>
                              "class" =: "btn btn-primary dropdown-toggle" <>
@@ -157,7 +156,7 @@ displayAddPopup addReqEvt = do
     fieldContentsEvt <- configModalFetchFieldContents addReqCiEvt
     fieldContentsDyn <- holdDyn Map.empty fieldContentsEvt
     rec
-        let contentsDyn = joinDyn $ ffor dynPcCi $ \pcCi ->
+        let contentsDyn = join $ ffor dynPcCi $ \pcCi ->
               return (editConfigItem pcCi fieldContentsDyn)
         (dlgResult, dlgClose) <- buildModalBody fieldContentsEvt "Add" (PrimaryBtn "Save") errorDyn contentsDyn
         let dialogResultDyn = dlgContentsDyn dlgResult

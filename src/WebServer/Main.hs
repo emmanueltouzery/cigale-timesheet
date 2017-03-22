@@ -231,7 +231,7 @@ configVal = disableCaching $ do
         else writeLBS "[]"
 
 readRequestBodyBS :: Snap BS8.ByteString
-readRequestBodyBS = BSL.toStrict <$> readRequestBody requestBodyReadSize
+readRequestBodyBS = BSL.toStrict <$> readRequestBody (fromIntegral requestBodyReadSize)
 
 addConfigEntry :: Snap ()
 addConfigEntry = setActionResponse $ do

@@ -137,18 +137,19 @@ addDatePicker initialDay = do
 -- TODO display any errors occuring during the prefetching
 addPreloadButton :: MonadWidget t m => m ()
 addPreloadButton = do
-    (btnElt, displayPreload) <- iconButton 16 "glyphicons-58-history"
+    displayPreload <- snd <$> iconButton 16 "glyphicons-58-history"
     rec
         (dlgBody, dlgClose) <- buildModalBody displayPreload "Preload data"
             (PrimaryBtn "Preload") (constDyn "") (constDyn $ preloadDialog progressDyn)
-        let preloadEvt = tagDyn (joinDyn $ dlgContentsDyn dlgBody) (dlgOkEvt dlgBody)
+        let preloadEvt = tagPromptlyDyn (join $ dlgContentsDyn dlgBody) (dlgOkEvt dlgBody)
         let dayListEvt = fmap (uncurry daysRange) preloadEvt
         curCountDyn <- holdDyn 0 $ leftmost [length <$> dayListEvt, const 0 <$> displayPreload]
         daysFetchingQueueDyn <- foldDyn ($) [] $ leftmost
             [fmap const dayListEvt, fmap (const tail) $ daysFetchingQueueDoneEvt]
-        progressDyn <- combineDyn (\lst cnt -> if cnt == 0 then 0 else (cnt - length lst)*100 `div` cnt)
-            daysFetchingQueueDyn curCountDyn
-        mCurDayToFetchDyn <- uniqDyn <$> mapDyn headZ daysFetchingQueueDyn
+        let progressDyn = zipDynWith
+                (\lst cnt -> if cnt == 0 then 0 else (cnt - length lst)*100 `div` cnt)
+                daysFetchingQueueDyn curCountDyn
+        let mCurDayToFetchDyn = uniqDyn (headZ <$> daysFetchingQueueDyn)
         daysFetchingQueueDoneEvt <- fetchDay mCurDayToFetchDyn
     let doneEvt = ffilter isNothing $ updated mCurDayToFetchDyn
     performEvent_ $ (const $ liftIO dlgClose) <$> doneEvt
@@ -180,16 +181,16 @@ preloadDialog percentDyn = do
             col $ do
                 endDayChangeEvt <- displayPickerBlock prefetchEnd dynEndDay
                 foldDyn ($) prefetchEnd endDayChangeEvt
-        combineDyn (,) dynStartDay dynEndDay
+        return $ zipDynWith (,) dynStartDay dynEndDay
     progressWidget percentDyn
     return interval
 
 progressWidget :: MonadWidget t m => Dynamic t Int -> m ()
 progressWidget percentDyn = do
-    attrsDyn <- forDyn percentDyn $ \percent ->
-        ("class" =: "progress" <> "value" =: T.pack (show percent) <> "max" =: "100")
+    let attrsDyn = ffor percentDyn $ \percent ->
+          "class" =: "progress" <> "value" =: T.pack (show percent) <> "max" =: "100"
     elDynAttrStyle "progress" attrsDyn (height (px 50) >> paddingAll (px 15)) $
-        dynText =<< mapDyn ((<> "%") . T.pack . show) percentDyn
+        dynText $ ((<> "%") . T.pack . show) <$> percentDyn
 
 daysRange :: Day -> Day -> [Day]
 daysRange start end
@@ -226,30 +227,30 @@ createDateLabel curDate picker = do
         (label, _) <- elAttrStyle' "label" labelClass labelStyle $ do
             -- without the disabled, the event triggers twice with stopPropagation
             void $ checkboxView (constDyn $ "disabled" =: "disabled") cbDyn
-            dynText =<< mapDyn (T.pack . formatTime defaultTimeLocale "%A, %F") curDate
+            dynText $ fmap (T.pack . formatTime defaultTimeLocale "%A, %F") curDate
         -- use stopPropagation so that I can catch the clicks on the body elsewhere
         -- and close the date picker when the user clicks elsewhere.
-        e <- wrapDomEvent (_el_element label) (`on` E.click) DE.stopPropagation
+        e <- wrapDomEvent (_element_raw label) (`on` E.click) DE.stopPropagation
 
         -- trigger day toggle event when the day button is pressed
         dayToggleEvt <- performEvent $ fmap (const $ liftIO $ do
-            eltToggleClass (_el_element label) "active"
-            (cn :: String) <- getClassName (_el_element label)
+            eltToggleClass (_element_raw label) "active"
+            (cn :: String) <- getClassName (_element_raw label)
             return ("active" `isInfixOf` cn)) e
 
         -- close the datepicker & update its date on day change.
         pickerAutoCloseEvt <- performEvent $ fmap
             (\d -> liftIO $ do
-                  eltStripClass (_el_element label) "active"
+                  eltStripClass (_element_raw label) "active"
                   pickerSetDate picker d
                   return False) (updated curDate)
 
         -- close the date picker on any click anywhere else.
-        (Just doc) <- getOwnerDocument (_el_element label)
+        (Just doc) <- getOwnerDocument (_element_raw label)
         (Just body) <- liftIO (getBody doc)
         bodyElt <- wrapElement defaultDomEventHandler (toElement body)
         performEvent_ $ fmap (const $ liftIO $ do
-                                   eltStripClass (_el_element label) "active"
+                                   eltStripClass (_element_raw label) "active"
                                    pickerHide picker) $ domEvent Click bodyElt
 
     -- open or close the datepicker when the user clicks on the toggle button
@@ -263,14 +264,14 @@ displayWarningBanner respDyn = do
             RemoteData (FetchResponse _ errors@(_:_)) -> Just (T.pack $ intercalate ", " errors)
             RemoteDataInvalid msg -> Just msg
             _ -> Nothing
-    errorTxtDyn <- mapDyn getErrorTxt respDyn
+    let errorTxtDyn = getErrorTxt <$> respDyn
 
     let styleContents e = attrStyleWithHideIf (isNothing e) $ do
             width (pct 65)
             marginLeft auto
             marginRight auto
             flexShrink 0
-    blockAttrs <- forDyn errorTxtDyn (\e -> basicAttrs <> styleContents e)
+    let blockAttrs = ffor errorTxtDyn (\e -> basicAttrs <> styleContents e)
     elDynAttr "div" blockAttrs $ do
         elAttr "button" ("type" =: "button" <>
                          "class" =: "close" <>
@@ -278,7 +279,7 @@ displayWarningBanner respDyn = do
             void $ elDynHtmlAttr' "span" ("aria-hidden" =: "true") (constDyn "&times;")
             elAttr "span" ("class" =: "sr-only") $ text "Close"
         elStyle "strong" (paddingRight $ px 7) $ text "Error"
-        el "span" $ dynText =<< mapDyn (fromMaybe "") errorTxtDyn
+        el "span" $ dynText $ fromMaybe "" <$> errorTxtDyn
 
 eventsTable :: MonadWidget t m => RemoteData FetchResponse -> m (Dynamic t (Maybe TsEvent))
 eventsTable (RemoteDataInvalid _) = return (constDyn Nothing)
@@ -312,8 +313,8 @@ absTop y = position absolute >> top (px y)
 
 showRecord :: MonadWidget t m => Dynamic t (Maybe TsEvent) -> TsEvent -> m (Event t TsEvent)
 showRecord curEventDyn tsEvt@TsEvent{..} = do
-    rowAttrs <- forDyn curEventDyn $ \curEvt ->
-        "class" =: if curEvt == Just tsEvt then "table-active" else ""
+    let rowAttrs = ffor curEventDyn $ \curEvt ->
+          "class" =: if curEvt == Just tsEvt then "table-active" else ""
     (e, _) <- elDynAttr' "tr" rowAttrs $
         elStyle "td" (height (px 60) >> width (px 500) >> cursor pointer) $
             elStyle "div" (position relative) $

@@ -11,7 +11,8 @@ import GHCJS.DOM.Types hiding (Text, Event)
 import Reflex.Dom hiding (display)
 import Data.String
 
-import Clay as C hiding (filter, title, contents, action, url, (&), placeholder, id, reverse, none)
+import Clay as C hiding (filter, title, contents, action, url, (&),
+                         placeholder, id, reverse, none, initial)
 import qualified Clay as C
 import Data.Maybe
 import Data.Text (Text)
@@ -28,15 +29,15 @@ import Data.List
 data ActiveView = ActiveViewEvents | ActiveViewConfig deriving (Eq, Show)
 
 unwrapElt :: El t -> JSVal
-unwrapElt = unElement . toElement . _el_element
+unwrapElt = unNode . toNode . _element_raw
 
 foreign import javascript unsafe "$($1).modal('show')" _showModalDialog :: JSVal -> IO ()
 showModalDialog :: El t -> IO ()
-showModalDialog = _showModalDialog . unNode . toNode . _element_raw
+showModalDialog = _showModalDialog . unwrapElt
 
 foreign import javascript unsafe "$($1).modal('hide')" _hideModalDialog :: JSVal -> IO ()
 hideModalDialog :: El t -> IO ()
-hideModalDialog = _hideModalDialog . unNode . toNode . _element_raw
+hideModalDialog = _hideModalDialog . unwrapElt
 
 eltStripClass :: IsElement self => self -> Text -> IO ()
 eltStripClass elt className = do
@@ -87,7 +88,7 @@ elAttrStyle elementTag attrs styleCss child =
 elDynAttrStyle' :: MonadWidget t m => Text -> Dynamic t (Map Text Text) -> Css -> m a
                 -> m (El t, a)
 elDynAttrStyle' elementTag dynAttrs styleCss child = do
-    newAttrsDyn <- forDyn dynAttrs (<> "style" =: styleStr styleCss)
+    let newAttrsDyn = ffor dynAttrs (<> "style" =: styleStr styleCss)
     elDynAttr' elementTag newAttrsDyn child
 
 elDynAttrStyle :: MonadWidget t m => Text -> Dynamic t (Map Text Text) -> Css -> m a -> m a
@@ -141,7 +142,7 @@ readDynMonadicEvent dynMonadicEvent = do
 wrapInModalDialogSkeleton :: MonadWidget t m => Event t b -> Int -> m a -> m (El t, a)
 wrapInModalDialogSkeleton showEvt zIndexVal contents = do
     (elt, r) <- elAttrStyle' "div"
-        ("class"    =: "modal fade" <> "tabindex" =: "-1")
+        ("class" =: "modal fade" <> "tabindex" =: "-1")
         (zIndex $ fromIntegral zIndexVal) $
             elAttr "div" ("class" =: "modal-dialog" <>
                           "role"  =: "document") $ contents
@@ -158,14 +159,14 @@ buildModalBody :: MonadWidget t m => Event t x -> Text -> ButtonInfo
                -> Dynamic t Text -> Dynamic t (m a) -> m (ModalBody t a, IO ())
 buildModalBody showEvt title okBtnInfo dynErrMsg contentsDyn = do
     (modalElt, r) <- wrapInModalDialogSkeleton showEvt 5000
-                    (buildModalBody' showEvt title okBtnInfo dynErrMsg contentsDyn)
+                    (buildModalBody' title okBtnInfo dynErrMsg contentsDyn)
     let hideModal = hideModalDialog modalElt
     performEvent_ $ const (liftIO hideModal) <$> dlgCloseEvt r
     return (r, hideModal)
 
-buildModalBody' :: MonadWidget t m => Event t x -> Text -> ButtonInfo
+buildModalBody' :: MonadWidget t m => Text -> ButtonInfo
                  -> Dynamic t Text -> Dynamic t (m a) -> m (ModalBody t a)
-buildModalBody' showEvt title okBtnInfo dynErrMsg contentsDyn =
+buildModalBody' title okBtnInfo dynErrMsg contentsDyn =
     elAttr "div" ("class" =: "modal-content") $ do
         elAttr "div" ("class" =: "modal-header") $ do
             let crossBtnAttrs = "type" =: "button" <> "class" =: "close"
@@ -182,10 +183,10 @@ buildModalBody' showEvt title okBtnInfo dynErrMsg contentsDyn =
 
 addErrorBox :: MonadWidget t m => Dynamic t Text -> m ()
 addErrorBox dynErrMsg = do
-    dynAttrs <- forDyn dynErrMsg $ \errMsg ->
-        "class" =: "alert alert-danger"
-        <> "role" =: "alert"
-        <> attrStyleHideIf (T.null errMsg)
+    let dynAttrs = ffor dynErrMsg $ \errMsg ->
+          "class" =: "alert alert-danger"
+          <> "role" =: "alert"
+          <> attrStyleHideIf (T.null errMsg)
     elDynAttr "div" dynAttrs $ do
         elStyle "strong" (paddingRight $ px 7) $ text "Error"
         dynText dynErrMsg
@@ -221,10 +222,9 @@ rawSpan attrs = void . elDynHtmlAttr' "span" attrs
 getGlyphiconUrl :: Text -> Text
 getGlyphiconUrl iconBase = "glyphicons_free/glyphicons/png/" <> iconBase <> ".png"
 
-combineDyns :: (Reflex t, MonadHold t m) => (b -> a -> b) -> b -> [Dynamic t a]
-            -> m (Dynamic t b)
-combineDyns _ item []   = return (constDyn item)
-combineDyns f item rest = foldM (combineDyn f) (constDyn item) rest
+combineDyns :: Reflex t => (b -> a -> b) -> b -> [Dynamic t a] -> Dynamic t b
+combineDyns _ item []   = constDyn item
+combineDyns f item rest = foldl' (zipDynWith f) (constDyn item) rest
 
 data RemoteData a = RemoteDataInvalid Text | RemoteDataLoading | RemoteData a deriving Show
 

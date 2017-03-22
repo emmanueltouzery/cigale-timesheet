@@ -11,13 +11,9 @@ import GHCJS.DOM.Document
 import GHCJS.DOM.Node (getOwnerDocument)
 import GHCJS.DOM.EventM as DE (on, stopPropagation)
 
-import Data.Dependent.Sum (DSum ((:=>)))
-
 import Reflex
 import Reflex.Dom hiding (display)
-import Reflex.Host.Class
 
-import Data.IORef
 import Control.Monad.Identity
 import Clay as C hiding (col, div, id, start, end, focus, dt)
 import Data.Time.Clock
@@ -29,7 +25,6 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Monoid
 import Control.Monad.IO.Class
-import Control.Monad.Reader
 import Data.Maybe
 import Data.List
 import Control.Error
@@ -70,8 +65,8 @@ eventsView activeViewDyn = do
             display flex
             flexDirection column
             overflow auto
-    attrsDyn <- forDyn activeViewDyn $ \curView ->
-        attrStyleWithHideIf (curView /= ActiveViewEvents) rootStyle
+    let attrsDyn = ffor activeViewDyn $ \curView ->
+          attrStyleWithHideIf (curView /= ActiveViewEvents) rootStyle
     elDynAttr "div" attrsDyn $ eventsViewContents
 
 eventsViewContents :: MonadWidget t m => m ()
@@ -94,8 +89,8 @@ eventsViewContents = do
     displayEvents respDyn
 
     -- display the progress indicator if needed.
-    holdAttrs <- forDyn respDyn $ \curEvt ->
-        "id" =: "pleasehold" <> attrStyleHideIf (not $ isRemoteDataLoading curEvt)
+    let holdAttrs = ffor respDyn $ \curEvt ->
+          "id" =: "pleasehold" <> attrStyleHideIf (not $ isRemoteDataLoading curEvt)
     elDynAttr "div" holdAttrs $ text "Please hold..."
     return ()
 
@@ -108,10 +103,10 @@ displayEvents respDyn = do
             marginTop (px 20)
             overflow auto -- !!
     elStyle "div" divStyle $ do
-        tableRes <- mapDyn eventsTable respDyn >>= dyn >>= holdDyn (constDyn Nothing)
-        -- nubDyn to avoid blinking if you click on the already-selected event.
-        let curEvtDyn = nubDyn (joinDyn tableRes)
-        void $ mapDyn displayDetails curEvtDyn >>= dyn
+        tableRes <- dyn (fmap eventsTable respDyn) >>= holdDyn (constDyn Nothing)
+        -- uniqDyn to avoid blinking if you click on the already-selected event.
+        let curEvtDyn = uniqDyn (join tableRes)
+        void $ dyn $ fmap displayDetails curEvtDyn
 
 requestDayEvents :: MonadWidget t m => Event t Day -> m (Event t (RemoteData FetchResponse))
 requestDayEvents dayEvt = do
@@ -153,7 +148,7 @@ addPreloadButton = do
             [fmap const dayListEvt, fmap (const tail) $ daysFetchingQueueDoneEvt]
         progressDyn <- combineDyn (\lst cnt -> if cnt == 0 then 0 else (cnt - length lst)*100 `div` cnt)
             daysFetchingQueueDyn curCountDyn
-        mCurDayToFetchDyn <- nubDyn <$> mapDyn headZ daysFetchingQueueDyn
+        mCurDayToFetchDyn <- uniqDyn <$> mapDyn headZ daysFetchingQueueDyn
         daysFetchingQueueDoneEvt <- fetchDay mCurDayToFetchDyn
     let doneEvt = ffilter isNothing $ updated mCurDayToFetchDyn
     performEvent_ $ (const $ liftIO dlgClose) <$> doneEvt

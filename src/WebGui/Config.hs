@@ -205,10 +205,8 @@ editConfigItem (Just (pc, ci)) fieldContentsDyn = do
                 return fieldContentsDyn
                 -- combineDyn (flip Map.union) fieldContentsDyn updatedDepFieldCtsDyn
             fieldInputs <- mapM (editConfigDataInfo updatedFieldCts (configItemName ci) (configuration ci)) $ cfgPluginConfig pc
-            let makeListPair = \(fieldName, valDyn) ->
-                     mapDyn (replicate 1 . (fieldName,)) valDyn
-            fieldDyns <- fmap nubDyn $
-                combineDyns (++) [] =<< mapM makeListPair fieldInputs
+            let makeListPair = \(fieldName, valDyn) -> fmap (replicate 1 . (fieldName,)) valDyn
+            let fieldDyns = uniqDyn $ combineDyns (++) [] $ makeListPair <$> fieldInputs
             -- updatedDepFieldCtsDyn <- holdDyn Map.empty =<< dialogChanged pc (updated fieldDyns)
         return (srcNameInput, Map.fromList fieldInputs)
 
@@ -358,13 +356,10 @@ configModalFetchFieldContents changeReqEvt = do
             zipDynWith (zipWith (\ci rtTexts -> fmap (T.pack $ memberName ci,) rtTexts)) configItemsDyn fieldXhrDataDyn
     return $ Map.fromList <$> (fmapMaybe fromRemoteData $ sequence <$> updated fetchedDyn)
 
-readConfigFieldContents :: MonadWidget t m
-                        => [Dynamic t (RemoteData [(Text, [Text])])]
-                        -> m (Event t (Map Text [Text]))
-readConfigFieldContents requests = do
-    -- TODO mconcatDyn??
-    remoteData <- combineDyns (combineRemoteData (++)) (RemoteData []) requests
-    return $ Map.fromList <$> fmapMaybe fromRemoteData (updated remoteData)
+readConfigFieldContents :: Reflex t => [Dynamic t (RemoteData [(Text, [Text])])] -> Event t (Map Text [Text])
+readConfigFieldContents requests = Map.fromList <$> fmapMaybe fromRemoteData (updated remoteData)
+  -- TODO mconcatDyn??
+  where remoteData = combineDyns (combineRemoteData (++)) (RemoteData []) requests
 
 -- fetchConfigFieldContents :: MonadWidget t m
 --                          => Event t (String, PluginConfig, ConfigDataInfo)

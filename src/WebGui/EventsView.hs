@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, RecursiveDo, JavaScriptFFI, ForeignFunctionInterface #-}
+{-# LANGUAGE RecordWildCards, RecursiveDo, JavaScriptFFI, ForeignFunctionInterface, TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables, LambdaCase, OverloadedStrings, FlexibleContexts, TypeFamilies #-}
 
 module EventsView where
@@ -302,8 +302,8 @@ foreign import javascript unsafe
     "-(new Date(parseInt($1)).getTimezoneOffset())" -- the offset is the wrong way...
     _getTimezoneOffsetMinsForDateMs :: JSVal -> IO Int
 getTimezoneOffsetMinsForDateMs :: UTCTime -> IO Int
-getTimezoneOffsetMinsForDateMs = (_getTimezoneOffsetMinsForDateMs <=< toJSVal) . show
-    . (*1000) . (floor :: NominalDiffTime -> Integer) . utcTimeToPOSIXSeconds
+getTimezoneOffsetMinsForDateMs = (_getTimezoneOffsetMinsForDateMs <=< toJSVal) . show @Int
+    . (*1000) . floor . utcTimeToPOSIXSeconds
 
 getCurrentTimeZoneJS :: UTCTime -> IO TimeZone
 getCurrentTimeZoneJS = fmap minutesToTimeZone . getTimezoneOffsetMinsForDateMs

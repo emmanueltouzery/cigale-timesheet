@@ -11,6 +11,7 @@ import Reflex.Dom hiding (display, Value, fromJSString)
 import Clay as C hiding (map, (&), filter, head, p, url, active,
                          name, pc, id, intersperse, reverse, Value)
 
+import Control.Monad (join)
 import Data.Monoid
 import Data.Maybe
 import Data.List
@@ -39,12 +40,11 @@ fileEntry pickerOpMode _ memberName memberLabel val = do
                  & textInputConfig_attributes .~ constDyn inputAttrs
                  & textInputConfig_initialValue .~ val
                  & textInputConfig_setValue .~ updatedFilePath)
-            inputValS <- mapDyn T.unpack inputVal
             (browseBtn, _) <- elAttr' "div" ("class" =: "input-group-addon") $
                 elStyle' "span" (cursor pointer) $ text "Browse..."
             updatedFilePath <- fmap T.pack <$> buildFilePicker
                 pickerDefaultOptions { pickerMode = pickerOpMode }
-                (tagDyn inputValS $ domEvent Click browseBtn)
+                (tagPromptlyDyn (T.unpack <$> inputVal) (domEvent Click browseBtn))
         return inputVal
 
 fieldEntry :: MonadWidget t m => Text -> Text -> Text -> m (Dynamic t Text)
@@ -60,23 +60,20 @@ passwordEntry fieldId desc fieldValue = do
     elAttr "label" ("for" =: fieldId) $ text desc
     elAttr "div" ("class" =: "input-group") $ do
         rec
-            attrsDyn <- forDyn showPaswd $ \p ->
-                "class" =: "form-control" <>
-                "id"    =: fieldId <>
-                "value" =: fieldValue <>
-                "type"  =: if p then "password" else "text"
+            let attrsDyn = ffor showPaswd $ \p ->
+                  "class" =: "form-control" <>
+                  "id"    =: fieldId <>
+                  "value" =: fieldValue <>
+                  "type"  =: if p then "password" else "text"
             (inputField, _) <- elDynAttr' "input" attrsDyn $ return ()
             showPaswd <- toggle True (domEvent Click padlock)
             (padlock, _) <- elAttr' "div" ("class" =: "input-group-addon") $
-                rawPointerSpan =<< forDyn showPaswd (bool "&#128275;" "&#128274;")
+                rawPointerSpan $ ffor showPaswd (bool "&#128275;" "&#128274;")
         let getFieldValue = liftIO $ do
-                val <- getValue (castToHTMLInputElement $ _el_element inputField)
+                val <- getValue (castToHTMLInputElement $ _element_raw inputField)
                 return $ fromMaybe "" $ fromJSString <$> val
         holdDyn fieldValue =<< performEvent
             (const getFieldValue <$> domEvent Change inputField)
-
-toDynValue :: MonadWidget t m => Dynamic t Text -> m (Dynamic t Value)
-toDynValue = mapDyn A.String
 
 -- i have to give a map to reflex, and it sorts -- I want
 -- case insensitive sorting so I have no choice but this.
@@ -97,21 +94,20 @@ comboEntry :: MonadWidget t m => Dynamic t (Map Text [Text])
 comboEntry fieldContentsDyn memberName memberLabel fieldValue = do
     let toKeyVal x = (CaseFoldString x,x)
     let prepareComboCts = Map.fromList . map toKeyVal . fromMaybe [] . Map.lookup memberName
-    itemsDyn <- mapDyn prepareComboCts fieldContentsDyn
+    let itemsDyn = prepareComboCts <$> fieldContentsDyn
     elAttr "label" ("for" =: memberName) $ text memberLabel
     elAttr "div" ("class" =: "input-group") $ do
         val <- _dropdown_value <$> dropdown (CaseFoldString fieldValue) itemsDyn
             (def & dropdownConfig_attributes .~ constDyn ("class" =: "form-control"))
-        mapDyn unCaseFold val
+        return (unCaseFold <$> val)
 
 multiChoiceEntry :: MonadWidget t m => Dynamic t (Map Text [Text])
            -> Text -> Text -> Maybe Value
            -> m (Dynamic t Value)
 multiChoiceEntry fieldContentsDyn memberName memberLabel fieldValue = do
-    evtDyn <- dyn =<< mapDyn
-        (multiChoiceEntry_ memberName memberLabel fieldValue)
-        (nubDyn fieldContentsDyn)
-    joinDyn <$> holdDyn (constDyn $ A.Array V.empty) evtDyn
+    evtDyn <- dyn $
+        multiChoiceEntry_ memberName memberLabel fieldValue <$> uniqDyn fieldContentsDyn
+    join <$> holdDyn (constDyn $ A.Array V.empty) evtDyn
 
 multiChoiceEntry_ :: MonadWidget t m => Text -> Text -> Maybe Value
            -> Map Text [Text]
@@ -128,7 +124,7 @@ multiChoiceEntry_ memberName memberLabel fieldValue fieldContents = do
                    then val : values
                    else delete val values) active clickedCbEvt
             clickedCbEvt <- leftmost <$> mapM (singleCb currentSelection) valueList
-        mapDyn strListToValue currentSelection
+        return (strListToValue <$> currentSelection)
 
 valueToStr :: Value -> Maybe Text
 valueToStr (A.String v) = Just v
@@ -143,7 +139,7 @@ strListToValue = A.Array . V.fromList . fmap A.String
 
 singleCb :: MonadWidget t m => Dynamic t [Text] -> Text -> m (Event t (Bool, Text))
 singleCb activeListDyn txt = do
-    isActiveDyn <- mapDyn (elem txt) activeListDyn
+    let isActiveDyn = elem txt <$> activeListDyn
     cbEvt <- el "label" (checkboxView (constDyn Map.empty) isActiveDyn <* text txt)
     el "br" (return ())
     return $ fmap (, txt) cbEvt

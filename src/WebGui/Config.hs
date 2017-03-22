@@ -224,7 +224,7 @@ editConfigDataInfo fieldContentsDyn cfgItemName obj ConfigDataInfo{..} = do
     -- their precise type and not Value, and I would have
     -- a type index widget type->return type...
     let valToString f name lbl val =
-            toDynValue =<< f name lbl (fromMaybe "" $ valueToStr =<< val)
+            fmap A.String <$> f name lbl (fromMaybe "" $ valueToStr =<< val)
     let displayer = case memberType of
           MtPassword    -> valToString passwordEntry
           MtFolderPath  -> valToString (fileEntry PickFolder cfgItemName)

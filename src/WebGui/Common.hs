@@ -41,7 +41,7 @@ hideModalDialog = _hideModalDialog . unwrapElt
 
 eltStripClass :: IsElement self => self -> Text -> IO ()
 eltStripClass elt className = do
-    curClasses <- T.splitOn " " <$> T.pack <$> getClassName elt
+    curClasses <- T.splitOn " " . T.pack <$> getClassName elt
     let newClasses = T.unpack <$> filter (/= className) curClasses
     setClassName elt (unwords newClasses)
 
@@ -145,8 +145,8 @@ wrapInModalDialogSkeleton showEvt zIndexVal contents = do
         ("class" =: "modal fade" <> "tabindex" =: "-1")
         (zIndex $ fromIntegral zIndexVal) $
             elAttr "div" ("class" =: "modal-dialog" <>
-                          "role"  =: "document") $ contents
-    performEvent_ $ (const $ liftIO $ showModalDialog elt) <$> showEvt
+                          "role"  =: "document") contents
+    performEvent_ $ const (liftIO $ showModalDialog elt) <$> showEvt
     return (elt, r)
 
 data ModalBody t a = ModalBody

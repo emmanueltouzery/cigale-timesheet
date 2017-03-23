@@ -92,8 +92,8 @@ displayPicker options urlAtLoad remoteBrowseDataDyn openEvt = do
         let pickerEvt = switchPromptlyDyn (dlgContentsDyn pickerDlg)
         let pickedItemEvt = fmap PickFileEvt $ case pickerMode options of
                 PickFolder -> fmap browseFolderPath
-                    $ fmapMaybe fromRemoteData $ (tagDyn remoteBrowseDataDyn) (dlgOkEvt pickerDlg)
-                PickFile -> fmapMaybe id $ tagDyn dynSelectedFile $ dlgOkEvt pickerDlg
+                    $ fmapMaybe fromRemoteData $ (tagPromptlyDyn remoteBrowseDataDyn) (dlgOkEvt pickerDlg)
+                PickFile -> fmapMaybe id $ tagPromptlyDyn dynSelectedFile $ dlgOkEvt pickerDlg
     return $ leftmost [pickerEvt, pickedItemEvt]
 
 displayPickerContents :: MonadWidget t m => FilePickerOptions
@@ -108,8 +108,8 @@ displayPickerContents options dynSelectedFile browseData = do
         fileInfoEvent <- displayFiles browseData dynSelectedFile dynPickerOptions
         dynShowHidden <- fmap _checkbox_value $ el "label" $
             checkbox (showHiddenFiles options) def <* text "Show hidden files"
-        dynPickerOptions <- forDyn dynShowHidden $ \sh ->
-            FilePickerOptions { showHiddenFiles = sh, pickerMode = pickerMode options }
+        let dynPickerOptions = ffor dynShowHidden $ \sh ->
+              FilePickerOptions { showHiddenFiles = sh, pickerMode = pickerMode options }
     let readTableEvent fi = let fullPath = path </> filename fi in
             if isDirectoryFileInfo fi
             then ChangeFolderEvt fullPath
@@ -136,8 +136,8 @@ displayFiles browseData dynSelectedFile dynPickerOptions = do
             maxHeight (px 150)
     elStyle "div" divStyle $
         elAttr "table" ("class" =: "table table-sm") $ do
-            dynEvt <- forDyn dynPickerOptions $ \pickerOptions ->
-                leftmost <$> mapM
+            let dynEvt = ffor dynPickerOptions $ \pickerOptions ->
+                  leftmost <$> mapM
                     (displayFile dynSelectedFile)
                     (getFiles browseData pickerOptions)
             readDynMonadicEvent dynEvt
@@ -161,9 +161,9 @@ filesSort a b
 displayFile :: MonadWidget t m => Dynamic t (Maybe FilePath) -> FileInfo
             -> m (Event t FileInfo)
 displayFile dynSelectedFile file@FileInfo{..} = do
-    dynRowAttr <- forDyn dynSelectedFile $ \selFile ->
-        if fmap takeFileName selFile == Just filename
-            then ("class" =: "table-active") else Map.empty
+    let dynRowAttr = ffor dynSelectedFile $ \selFile ->
+          if fmap takeFileName selFile == Just filename
+          then ("class" =: "table-active") else Map.empty
     (rowItem, _) <- elDynAttr' "tr" dynRowAttr $ do
         elAttrStyle "td" ("align" =: "center") (width $ px 30) $ rawPointerSpan $
             constDyn (if isDirectoryFileInfo file then "&#x1f5c1;" else "&#x1f5ce;")

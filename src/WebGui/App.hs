@@ -16,7 +16,6 @@ import Data.Text (Text)
 import Data.Monoid
 import Control.Monad.IO.Class
 import Data.Maybe
-import Control.Monad
 
 import Common
 import Config
@@ -115,9 +114,9 @@ addAboutButton = do
 
 navLink :: MonadWidget t m => Dynamic t ActiveView -> NavLinkItem -> m (Event t ActiveView)
 navLink activeViewDyn NavLinkItem{..} = do
-    attrs <- forDyn activeViewDyn $ \curView ->
-        "href" =: ("#" <> nliUrl) <>
+    let attrs = ffor activeViewDyn $ \curView ->
+          "href" =: ("#" <> nliUrl) <>
             attrOptDyn "class" "active" (curView == nliActiveView) "nav-link"
     (lnk, _) <- elAttr "li" ("class" =: "nav-item") $
         elDynAttrStyle' "a" attrs ("outline" -: "0") $ text nliDesc
-    return $ fmap (const nliActiveView) $ domEvent Click lnk
+    return $ const nliActiveView <$> domEvent Click lnk

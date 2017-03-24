@@ -115,7 +115,7 @@ multiChoiceEntry_ :: MonadWidget t m => Text -> Text -> Maybe Value
 multiChoiceEntry_ memberName memberLabel fieldValue fieldContents = do
     let active = fromMaybe [] (valueToStrList =<< fieldValue)
     el "label" $ text memberLabel
-    let valueList = fromJust $ Map.lookup memberName fieldContents
+    let valueList = fromMaybe [] $ Map.lookup memberName fieldContents
     elStyle "div" (overflow auto >> height (px 150)) $ do
         rec
             currentSelection <- foldDyn

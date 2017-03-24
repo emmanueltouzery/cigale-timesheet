@@ -150,15 +150,16 @@ addCfgDropdownBtn PluginConfig{..} = do
 -- TODO pretty huge duplication between displayAddPopup and displayEditPopup
 displayAddPopup :: MonadWidget t m => Event t PluginConfig -> m (Event t ConfigChange)
 displayAddPopup addReqEvt = do
-    let ci = ConfigItem "" "" HashMap.empty
-    let addReqCiEvt = (,ci) <$> addReqEvt
-    dynPcCi <- holdDyn Nothing $ Just <$> addReqCiEvt
+    let addReqCiEvt = (, Nothing) <$> addReqEvt
     fieldContentsEvt <- configModalFetchFieldContents addReqCiEvt
     fieldContentsDyn <- holdDyn Map.empty fieldContentsEvt
     rec
+        let ci = ConfigItem "" "" HashMap.empty
+        dynPcCi <- holdDyn Nothing $ Just . (,ci) <$> addReqEvt
         let contentsDyn = join $ ffor dynPcCi $ \pcCi ->
               return (editConfigItem pcCi fieldContentsDyn)
-        (dlgResult, dlgClose) <- buildModalBody fieldContentsEvt "Add" (PrimaryBtn "Save") errorDyn contentsDyn
+        (dlgResult, dlgClose) <-
+            buildModalBody fieldContentsEvt "Add" (PrimaryBtn "Save") errorDyn contentsDyn
         let dialogResultDyn = dlgContentsDyn dlgResult
         let addDlgOkEvt = dlgOkEvt dlgResult
         errorDyn <- remoteDataErrorDescDyn saveEvt
@@ -310,13 +311,13 @@ addEditButton :: MonadWidget t m => PluginConfig -> ConfigItem -> m (Event t Con
 addEditButton pluginConfig ci@ConfigItem{..} = do
     let btnClass = "class" =: "btn btn-default btn-sm"
     (editBtn, _) <- elAttrStyle' "button" btnClass (marginRight (px 5)) $ text "Edit"
-    return $ (const $ ChangeUpdateRequest pluginConfig ci) <$> (domEvent Click editBtn)
+    return $ const (ChangeUpdateRequest pluginConfig ci) <$> domEvent Click editBtn
 
 displayEditPopup :: MonadWidget t m => Event t (PluginConfig, ConfigItem)
     -> m (Event t ConfigChange)
 displayEditPopup changeReqEvt = do
     dynPcCi <- holdDyn Nothing $ Just <$> changeReqEvt
-    fieldContentsEvt <- configModalFetchFieldContents changeReqEvt
+    fieldContentsEvt <- configModalFetchFieldContents $ fmap Just <$> changeReqEvt
     fieldContentsDyn <- holdDyn Map.empty fieldContentsEvt
     rec
         let contentsDyn = join $ ffor dynPcCi $ \pcCi ->
@@ -338,13 +339,15 @@ displayEditPopup changeReqEvt = do
     performEvent_ $ const (liftIO dlgClose) <$> cfgChange
     return cfgChange
 
-configModalFetchFieldContents :: MonadWidget t m => Event t (PluginConfig, ConfigItem)
+configModalFetchFieldContents :: MonadWidget t m => Event t (PluginConfig, Maybe ConfigItem)
                               -> m (Event t (Map Text [Text]))
 configModalFetchFieldContents changeReqEvt = do
-    let configJson ci = encodeToStr $ configuration ci
+    let configJson = \case
+          Nothing -> ""
+          Just ci -> encodeToStr $ configuration ci
     let needsPrefetch = flip elem [MtCombo, MtMultiChoice] . memberType
-    let fieldsToFetch (pc, ci) =
-            (configJson ci, pc, filter needsPrefetch (cfgPluginConfig pc))
+    let fieldsToFetch (pc, mCi) =
+            (configJson mCi, pc, filter needsPrefetch (cfgPluginConfig pc))
     let toFetchEvt = fieldsToFetch <$> changeReqEvt
     fieldXhrRespEvt <-
         performRequestsAsync ((\(_json, pc, cis) -> map (getConfigReq _json pc) cis) <$> toFetchEvt)

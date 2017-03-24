@@ -20,7 +20,7 @@ import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Map as Map
 import qualified Data.Vector as V
 import Control.Monad
-import Control.Lens (preview, makePrisms)
+import Control.Lens
 import Data.Ord
 import Clay as C hiding (map, (&), a, filter, head, p, url, active,
                          name, pc, id, intersperse, reverse, Value)
@@ -201,20 +201,19 @@ editConfigItem (Just (pc, ci)) fieldContentsDyn = do
             srcNameInput <- elAttr "fieldset" ("class" =: "form-group") $
                 fieldEntry "sourceName" "Source name" (T.pack $ configItemName ci)
             updatedFieldCts <-
-                return fieldContentsDyn
-                -- combineDyn (flip Map.union) fieldContentsDyn updatedDepFieldCtsDyn
+                combineDyn (flip Map.union) fieldContentsDyn updatedDepFieldCtsDyn
             fieldInputs <- mapM (editConfigDataInfo updatedFieldCts (configItemName ci) (configuration ci)) $ cfgPluginConfig pc
             let makeListPair = \(fieldName, valDyn) -> fmap (replicate 1 . (fieldName,)) valDyn
             let fieldDyns = uniqDyn $ combineDyns (++) [] $ makeListPair <$> fieldInputs
-            -- updatedDepFieldCtsDyn <- holdDyn Map.empty =<< dialogChanged pc (updated fieldDyns)
+            updatedDepFieldCtsDyn <- holdDyn Map.empty =<< dialogChanged pc (updated fieldDyns)
         return (srcNameInput, Map.fromList fieldInputs)
 
--- dialogChanged :: MonadWidget t m => PluginConfig -> Event t [(String, Value)]
---               -> m (Event t (Map Text [Text]))
--- dialogChanged pc@PluginConfig{..} evt = do
---     let jsonEvt = (encodeToStr . Map.fromList) <$> evt
---     let itemsToRefresh = filter ((== DependsOnOthers) . valueType) cfgPluginConfig
---     readConfigFieldContents =<< mapM (fetchConfigFieldContents jsonEvt pc) itemsToRefresh
+dialogChanged :: MonadWidget t m => PluginConfig -> Event t [(String, Value)]
+              -> m (Event t (Map Text [Text]))
+dialogChanged pc@PluginConfig{..} evt = do
+    let jsonEvt = (encodeToStr . Map.fromList) <$> evt
+    let itemsToRefresh = filter ((== DependsOnOthers) . valueType) cfgPluginConfig
+    readConfigFieldContents <$> mapM (fetchConfigFieldContents jsonEvt pc) itemsToRefresh
 
 editConfigDataInfo :: MonadWidget t m => Dynamic t (Map Text [Text]) -> String -> A.Object -> ConfigDataInfo
                    -> m (String, Dynamic t Value)
@@ -237,15 +236,19 @@ editConfigDataInfo fieldContentsDyn cfgItemName obj ConfigDataInfo{..} = do
     return (memberName, field)
 
 getConfigReq :: String -> PluginConfig -> ConfigDataInfo -> XhrRequest Text
-    -- -> m (Dynamic t (RemoteData [Text]))
 getConfigReq dataJson pluginConfig ConfigDataInfo{..} = do
     let url = "/configFetchFieldContents/"
             <> cfgPluginName pluginConfig
             <> "?configItemName=" <> memberName
     xhrRequest "POST" (T.pack url) $
         def { _xhrRequestConfig_sendData = T.pack dataJson }
-    -- req <- performRequestAsync $ xhrReq <$> evt
-    -- holdDyn RemoteDataLoading $ fmap readRemoteData req
+
+getConfigValue :: MonadWidget t m => Event t String -> PluginConfig -> ConfigDataInfo
+               -> m (Dynamic t (RemoteData [Text]))
+getConfigValue dataJsonEvt pc ci = do
+    let reqEvt = ffor dataJsonEvt $ \dataJson -> getConfigReq dataJson pc ci
+    req <- performRequestAsync reqEvt
+    holdDyn RemoteDataLoading $ fmap readRemoteData req
 
 buckets :: Ord b => (a -> b) -> [a] -> [(b, [a])]
 buckets f = map (\g -> (fst $ head g, map snd g))
@@ -343,30 +346,27 @@ configModalFetchFieldContents changeReqEvt = do
     let needsPrefetch = flip elem [MtCombo, MtMultiChoice] . memberType
     let fieldsToFetch (pc, ci) =
             (configJson ci, pc, filter needsPrefetch (cfgPluginConfig pc))
-
     let toFetchEvt = fieldsToFetch <$> changeReqEvt
-
-    (fieldXhrRespEvt :: Event t [XhrResponse]) <-
+    fieldXhrRespEvt <-
         performRequestsAsync ((\(_json, pc, cis) -> map (getConfigReq _json pc) cis) <$> toFetchEvt)
-    (fieldXhrDataDyn :: Dynamic t [RemoteData [Text]]) <-
+    fieldXhrDataDyn <-
             holdDyn [] $ map readRemoteData <$> fieldXhrRespEvt
     configItemsDyn <- holdDyn [] $ (\(_, _, cis) -> cis) <$> toFetchEvt
-    let (fetchedDyn :: Dynamic t [RemoteData (Text, [Text])]) =
-            zipDynWith (zipWith (\ci rtTexts -> fmap (T.pack $ memberName ci,) rtTexts)) configItemsDyn fieldXhrDataDyn
+    let fetchedDyn = zipDynWith (zipWith (\ci rtTexts -> fmap (T.pack $ memberName ci,) rtTexts)) configItemsDyn fieldXhrDataDyn
     return $ Map.fromList <$> (fmapMaybe fromRemoteData $ sequence <$> updated fetchedDyn)
 
-readConfigFieldContents :: Reflex t => [Dynamic t (RemoteData [(Text, [Text])])] -> Event t (Map Text [Text])
+readConfigFieldContents :: Reflex t
+                        => [Dynamic t (RemoteData [(Text, [Text])])]
+                        -> Event t (Map Text [Text])
 readConfigFieldContents requests = Map.fromList <$> fmapMaybe fromRemoteData (updated remoteData)
-  -- TODO mconcatDyn??
   where remoteData = combineDyns (combineRemoteData (++)) (RemoteData []) requests
 
--- fetchConfigFieldContents :: MonadWidget t m
---                          => Event t (String, PluginConfig, ConfigDataInfo)
---                          -> m (Dynamic t (RemoteData [(Text, [Text])]))
--- fetchConfigFieldContents evt = do
---     contentsDyn <- getConfigValue evt
---     nameDyn <- holdDyn "" (view _1 <$> evt)
---     combineDyn (\name cts -> (replicate 1 (T.pack name), cts)) nameDyn contentsDyn
+fetchConfigFieldContents :: MonadWidget t m
+                         => Event t String -> PluginConfig -> ConfigDataInfo
+                         -> m (Dynamic t (RemoteData [(Text, [Text])]))
+fetchConfigFieldContents evt pluginConfig cfgDataInfo =
+    fmap (fmap (replicate 1 . (T.pack (memberName cfgDataInfo),))) <$>
+        getConfigValue evt pluginConfig cfgDataInfo
 
 encodeToStr :: ToJSON a => a -> String
 encodeToStr = convertString . encode

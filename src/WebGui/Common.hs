@@ -1,5 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables, LambdaCase, OverloadedStrings, JavaScriptFFI, FlexibleContexts #-}
-{-# LANGUAGE ForeignFunctionInterface, RecordWildCards, TypeFamilies #-}
+{-# LANGUAGE ForeignFunctionInterface, RecordWildCards, TypeFamilies, TemplateHaskell #-}
 
 module Common where
 
@@ -25,6 +25,7 @@ import Control.Monad.IO.Class
 import Data.Aeson
 import Control.Monad
 import Data.List
+import Control.Lens
 
 data ActiveView = ActiveViewEvents | ActiveViewConfig deriving (Eq, Show)
 
@@ -227,6 +228,7 @@ combineDyns _ item []   = constDyn item
 combineDyns f item rest = foldl' (zipDynWith f) (constDyn item) rest
 
 data RemoteData a = RemoteDataInvalid Text | RemoteDataLoading | RemoteData a deriving Show
+$(makePrisms ''RemoteData)
 
 combineRemoteData :: (a -> b -> c) -> RemoteData a -> RemoteData b -> RemoteData c
 combineRemoteData _ (RemoteDataInvalid x) _ = RemoteDataInvalid x
@@ -287,16 +289,11 @@ isRemoteDataLoading :: RemoteData a -> Bool
 isRemoteDataLoading RemoteDataLoading = True
 isRemoteDataLoading _ = False
 
-remoteDataInvalidDesc :: RemoteData a -> Maybe Text
-remoteDataInvalidDesc (RemoteDataInvalid x) = Just x
-remoteDataInvalidDesc _ = Nothing
-
 remoteDataErrorDescDyn :: MonadWidget t m => Event t (RemoteData a) -> m (Dynamic t Text)
-remoteDataErrorDescDyn evt = holdDyn "" (fmapMaybe remoteDataInvalidDesc evt)
+remoteDataErrorDescDyn evt = holdDyn "" (fmapMaybe (preview _RemoteDataInvalid) evt)
 
 fromRemoteData :: RemoteData a -> Maybe a
-fromRemoteData (RemoteData x) = Just x
-fromRemoteData _ = Nothing
+fromRemoteData = preview _RemoteData
 
 makeSimpleXhr :: (MonadWidget t m, FromJSON a) => Text -> Event t b
               -> m (Dynamic t (RemoteData a))

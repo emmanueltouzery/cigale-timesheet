@@ -74,7 +74,7 @@ displayPicker :: MonadWidget t m => FilePickerOptions -> Dynamic t (Maybe FilePa
 displayPicker options urlAtLoad remoteBrowseDataDyn openEvt = do
     rec
         curSelected <- sample $ current urlAtLoad
-        let fetchErrorDyn = fromMaybe "" <$> remoteDataInvalidDesc <$> remoteBrowseDataDyn
+        let fetchErrorDyn = fromMaybe "" <$> preview _RemoteDataInvalid <$> remoteBrowseDataDyn
         dynSelectedFile <- holdDyn curSelected
             $ fmap Just
             $ fmapMaybe (preview _PickFileEvt) pickerEvt

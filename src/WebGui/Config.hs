@@ -156,7 +156,7 @@ displayAddPopup addReqEvt = do
     rec
         let ci = ConfigItem "" "" HashMap.empty
         dynPcCi <- holdDyn Nothing $ Just . (,ci) <$> addReqEvt
-        let contentsDyn = join $ ffor dynPcCi $ \pcCi ->
+        let contentsDyn = dynPcCi >>= \pcCi ->
               return (editConfigItem pcCi fieldContentsDyn)
         (dlgResult, dlgClose) <-
             buildModalBody fieldContentsEvt "Add" (PrimaryBtn "Save") errorDyn contentsDyn
@@ -320,7 +320,7 @@ displayEditPopup changeReqEvt = do
     fieldContentsEvt <- configModalFetchFieldContents $ fmap Just <$> changeReqEvt
     fieldContentsDyn <- holdDyn Map.empty fieldContentsEvt
     rec
-        let contentsDyn = join $ ffor dynPcCi $ \pcCi ->
+        let contentsDyn = dynPcCi >>= \pcCi ->
               return (editConfigItem pcCi fieldContentsDyn)
         (dlgInfo, dlgClose) <-
             buildModalBody fieldContentsEvt "Edit" (PrimaryBtn "Save") errorDyn contentsDyn

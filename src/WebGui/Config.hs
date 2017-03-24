@@ -346,11 +346,14 @@ configModalFetchFieldContents changeReqEvt = do
           Nothing -> ""
           Just ci -> encodeToStr $ configuration ci
     let needsPrefetch  = flip elem [MtCombo, MtMultiChoice] . memberType
+    -- config items for which to prefetch...
     let prefetchCis pc =  filter needsPrefetch (cfgPluginConfig pc)
     let prefetchReqs pc mCfgItem = getConfigReq (configJson mCfgItem) pc <$> prefetchCis pc
+    -- do prefetch
     fieldXhrRespEvt <- performRequestsAsync $ uncurry prefetchReqs <$> changeReqEvt
+    -- get a dynamic and match back the config items with their prefetched values
     fieldXhrDataDyn <- holdDyn [] $ map readRemoteData <$> fieldXhrRespEvt
-    configItemsDyn  <- holdDyn [] $ prefetchCis . fst <$> changeReqEvt
+    configItemsDyn  <- holdDyn [] $ prefetchCis . fst  <$> changeReqEvt
     let fetchedDyn = zipDynWith (zipWith (\ci rtTexts -> fmap (T.pack $ memberName ci,) rtTexts)) configItemsDyn fieldXhrDataDyn
     return $ Map.fromList <$> fmapMaybe fromRemoteData (sequence <$> updated fetchedDyn)
 

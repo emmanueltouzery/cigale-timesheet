@@ -322,7 +322,8 @@ displayEditPopup changeReqEvt = do
     rec
         let contentsDyn = join $ ffor dynPcCi $ \pcCi ->
               return (editConfigItem pcCi fieldContentsDyn)
-        (dlgInfo, dlgClose) <- buildModalBody fieldContentsEvt "Edit" (PrimaryBtn "Save") errorDyn contentsDyn
+        (dlgInfo, dlgClose) <-
+            buildModalBody fieldContentsEvt "Edit" (PrimaryBtn "Save") errorDyn contentsDyn
         let dialogResultDyn = dlgContentsDyn dlgInfo
         let editDlgOkEvt = dlgOkEvt dlgInfo
         errorDyn <- remoteDataErrorDescDyn saveEvt

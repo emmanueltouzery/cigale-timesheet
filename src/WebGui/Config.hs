@@ -345,17 +345,14 @@ configModalFetchFieldContents changeReqEvt = do
     let configJson = \case
           Nothing -> ""
           Just ci -> encodeToStr $ configuration ci
-    let needsPrefetch = flip elem [MtCombo, MtMultiChoice] . memberType
-    let fieldsToFetch (pc, mCi) =
-            (configJson mCi, pc, filter needsPrefetch (cfgPluginConfig pc))
-    let toFetchEvt = fieldsToFetch <$> changeReqEvt
-    fieldXhrRespEvt <-
-        performRequestsAsync ((\(_json, pc, cis) -> map (getConfigReq _json pc) cis) <$> toFetchEvt)
-    fieldXhrDataDyn <-
-            holdDyn [] $ map readRemoteData <$> fieldXhrRespEvt
-    configItemsDyn <- holdDyn [] $ (\(_, _, cis) -> cis) <$> toFetchEvt
+    let needsPrefetch  = flip elem [MtCombo, MtMultiChoice] . memberType
+    let prefetchCis pc =  filter needsPrefetch (cfgPluginConfig pc)
+    let prefetchReqs pc mCfgItem = getConfigReq (configJson mCfgItem) pc <$> prefetchCis pc
+    fieldXhrRespEvt <- performRequestsAsync $ uncurry prefetchReqs <$> changeReqEvt
+    fieldXhrDataDyn <- holdDyn [] $ map readRemoteData <$> fieldXhrRespEvt
+    configItemsDyn  <- holdDyn [] $ prefetchCis . fst <$> changeReqEvt
     let fetchedDyn = zipDynWith (zipWith (\ci rtTexts -> fmap (T.pack $ memberName ci,) rtTexts)) configItemsDyn fieldXhrDataDyn
-    return $ Map.fromList <$> (fmapMaybe fromRemoteData $ sequence <$> updated fetchedDyn)
+    return $ Map.fromList <$> fmapMaybe fromRemoteData (sequence <$> updated fetchedDyn)
 
 readConfigFieldContents :: Reflex t
                         => [Dynamic t (RemoteData [(Text, [Text])])]

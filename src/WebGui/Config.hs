@@ -200,8 +200,7 @@ editConfigItem (Just (pc, ci)) fieldContentsDyn = do
         rec
             srcNameInput <- elAttr "fieldset" ("class" =: "form-group") $
                 fieldEntry "sourceName" "Source name" (T.pack $ configItemName ci)
-            updatedFieldCts <-
-                combineDyn (flip Map.union) fieldContentsDyn updatedDepFieldCtsDyn
+            let updatedFieldCts = zipDynWith (flip Map.union) fieldContentsDyn updatedDepFieldCtsDyn
             fieldInputs <- mapM (editConfigDataInfo updatedFieldCts (configItemName ci) (configuration ci)) $ cfgPluginConfig pc
             let makeListPair = \(fieldName, valDyn) -> fmap (replicate 1 . (fieldName,)) valDyn
             let fieldDyns = uniqDyn $ combineDyns (++) [] $ makeListPair <$> fieldInputs

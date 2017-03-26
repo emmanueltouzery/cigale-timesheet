@@ -87,12 +87,7 @@ eventsViewContents = do
         curDate <- addDatePicker initialDay
 
     displayEvents respDyn
-
-    -- display the progress indicator if needed.
-    let holdAttrs = ffor respDyn $ \curEvt ->
-          "id" =: "pleasehold" <> attrStyleHideIf (not $ isRemoteDataLoading curEvt)
-    elDynAttr "div" holdAttrs $ text "Please hold..."
-    return ()
+    displayLoadingThrobber respDyn
 
 displayEvents :: MonadWidget t m => Dynamic t (RemoteData FetchResponse) -> m ()
 displayEvents respDyn = do

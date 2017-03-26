@@ -304,3 +304,9 @@ makeSimpleXhr' :: (MonadWidget t m, FromJSON a) => (b -> Text) -> Event t b
 makeSimpleXhr' getUrl evt = do
     req <- performRequestAsync $ (\evtVal -> xhrRequest "GET" (getUrl evtVal) def) <$> evt
     holdDyn RemoteDataLoading $ fmap readRemoteData req
+
+displayLoadingThrobber :: MonadWidget t m => Dynamic t (RemoteData a) -> m ()
+displayLoadingThrobber respDyn = do
+    let holdAttrs = ffor respDyn $ \resp ->
+          "id" =: "pleasehold" <> attrStyleHideIf (not $ isRemoteDataLoading resp)
+    void $ elDynAttr "div" holdAttrs $ text "Please hold..."

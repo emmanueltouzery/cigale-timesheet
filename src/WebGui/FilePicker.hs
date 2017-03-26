@@ -16,7 +16,7 @@ import Data.Text (Text)
 import qualified Data.Map as Map
 import Clay hiding (filter, (&), id, reverse, li, a, b)
 import Control.Lens
-import Control.Lens.TH
+import Control.Monad
 
 import Common
 import Communication
@@ -61,29 +61,32 @@ buildFilePicker options openEvt = do
             [
                 makeSimpleXhr "/browseFolder" noFileEvt,
                 makeSimpleXhr' ("/browseFolder?path=" <>) fileEvent,
-                makeSimpleXhr' ("/browseFolder?path=" <>) (fmapMaybe (fmap T.pack . preview _ChangeFolderEvt) rx)
+                makeSimpleXhr' ("/browseFolder?path=" <>) folderChgEvt
             ]
+        let folderChgEvt = fmapMaybe (fmap T.pack . preview _ChangeFolderEvt) rx
+        let resetEvt = leftmost [void noFileEvt, void fileEvent, void folderChgEvt]
         let browseInfoEvt = leftmost (updated <$> dynBrowseInfo)
-        browseDataDyn <- foldDyn const RemoteDataLoading browseInfoEvt
-        rx <- displayPicker options urlAtLoad browseDataDyn openEvt
+        browseDataDyn <- holdDyn RemoteDataLoading browseInfoEvt
+        rx <- displayPicker options urlAtLoad browseDataDyn resetEvt openEvt
     return (fmapMaybe (preview _PickFileEvt) rx)
 
 displayPicker :: MonadWidget t m => FilePickerOptions -> Dynamic t (Maybe FilePath)
-              -> Dynamic t (RemoteData BrowseResponse) -> Event t FilePath
+              -> Dynamic t (RemoteData BrowseResponse) -> Event t () -> Event t FilePath
               -> m (Event t PickerEventType)
-displayPicker options urlAtLoad remoteBrowseDataDyn openEvt = do
+displayPicker options urlAtLoad remoteBrowseDataDyn resetEvt openEvt = do
     rec
         curSelected <- sample $ current urlAtLoad
-        let fetchErrorDyn = fromMaybe "" <$> preview _RemoteDataInvalid <$> remoteBrowseDataDyn
-        dynSelectedFile <- holdDyn curSelected
-            $ fmap Just
-            $ fmapMaybe (preview _PickFileEvt) pickerEvt
-        let contentsDyn = ffor (fromRemoteData <$> remoteBrowseDataDyn) $ \case
-                Nothing         -> return never
-                Just browseData -> displayPickerContents options dynSelectedFile browseData
+        let fetchErrorDyn = fromMaybe "" . preview _RemoteDataInvalid <$> remoteBrowseDataDyn
+        dynSelectedFile <- holdDyn curSelected $
+            Just <$> fmapMaybe (preview _PickFileEvt) pickerEvt
+        let loadingResp = BrowseResponse "root" []
+        loadingDyn <- holdDyn (RemoteData loadingResp) $ leftmost [updated remoteBrowseDataDyn, const RemoteDataLoading <$> resetEvt]
+        displayLoadingThrobber loadingDyn
+        let dirRespDyn = fromMaybe loadingResp . fromRemoteData <$> remoteBrowseDataDyn
+        let contentsDyn = displayPickerContents options dynSelectedFile <$> dirRespDyn
+
         displayDyn <- toggle True $
-            leftmost [const () <$> openEvt, const () <$> pickedItemEvt
-                     , dlgCloseEvt pickerDlg]
+            leftmost [void openEvt, void pickedItemEvt, dlgCloseEvt pickerDlg]
         let divStyle v = ("style"::Text) =: styleStr (styleWithHideIf v $
                 position fixed >> left (px 0) >> right (px 0) >>
                 top (px 0) >> bottom (px 0) >> zIndex 15000)

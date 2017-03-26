@@ -55,7 +55,7 @@ css = do
         marginLeft (px (-100))
         marginTop (px (-25))
         lineHeight (px 50)
-        zIndex 2001
+        zIndex 100000
 
 main :: IO ()
 main = mainWidgetWithCss (T.encodeUtf8 $ TL.toStrict $ render css) cigaleView

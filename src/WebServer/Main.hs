@@ -15,11 +15,9 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import System.Process (rawSystem)
 import Control.Applicative
-import Network.TCP (openTCPPort)
-import Network.Stream (close)
 import Control.Concurrent (forkIO)
 import Control.Exception
-import Control.Error
+import Control.Error hiding (tryJust)
 import System.IO.Error
 import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
@@ -126,20 +124,13 @@ startWebApp = do
     let snapConfig = setPort appPort .
                      setAccessLog ConfigNoLog .
                      setErrorLog ConfigNoLog $
+                     setStartupHook (const $ void $ forkIO openApp) -- open the browser once we're up
                      defaultConfig
-    forkIO openInBrowser
-    httpServe snapConfig (site installPath)
+    -- catch the already in use error (port already used, in case the server was already running)
+    r <- tryJust (guard . isAlreadyInUseError) (httpServe snapConfig (site installPath))
+    -- if the server was already running, simply open the browser
+    when (isLeft r) openApp
 
--- wait for the port to be opened then
--- start the browser on the URL of the app.
--- If we start right away the server may
--- not be ready.
-openInBrowser :: IO ()
-openInBrowser = do
-    portOpen <- try (openTCPPort "127.0.0.1" appPort)
-    case portOpen of
-        Left (_ :: SomeException) -> openInBrowser
-        Right conn -> close conn >> openApp
 
 browsers :: [(String, IO ())]
 browsers =

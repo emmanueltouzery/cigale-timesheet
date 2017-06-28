@@ -79,6 +79,16 @@ skypeConfigDataType = ConfigDataType
           ]
     }
 
+slackConfigDataType :: ConfigDataType
+slackConfigDataType = ConfigDataType
+    {
+        dataName = "Slack",
+        members =
+          [
+              ConfigDataInfo "slackToken" "Token" MtPassword Standalone
+          ]
+    }
+
 redmineConfigDataType :: ConfigDataType
 redmineConfigDataType = ConfigDataType
     {

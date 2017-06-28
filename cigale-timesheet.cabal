@@ -56,7 +56,8 @@ Library
     http-types,
     th-printf,
     filepath,
-    string-conversions
+    string-conversions,
+    slack-web
   exposed-modules:
     EventProviders,
     TsEvent,
@@ -69,6 +70,7 @@ Library
     Svn,
     Hg,
     Email,
+    Slack,
     Skype,
     Ical,
     EventProviderSettings

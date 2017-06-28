@@ -11,6 +11,7 @@ import Svn
 import Hg
 import Ical
 import Skype
+import Slack
 import Redmine
 
 plugins :: [EventProvider Value Value]
@@ -21,4 +22,5 @@ plugins = [
     eventProviderWrap getHgProvider,
     eventProviderWrap getIcalProvider,
     eventProviderWrap getSkypeProvider,
+    eventProviderWrap getSlackProvider,
     eventProviderWrap getRedmineProvider]

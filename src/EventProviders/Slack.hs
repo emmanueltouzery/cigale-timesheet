@@ -50,19 +50,22 @@ getSlackMessages (SlackConfigRecord token) _ date _ = do
     case groups of
       Left er    -> throwE er
       Right grps -> ExceptT $ fmap (fmap catMaybes . sequence) <$>
-          traverse (fetchMessages slackRun date $ Slack.historyFetchAll token groupsHistory) $ Slack.groupId <$> listRspGroups grps
+          traverse (fetchMessages token slackRun date groupsHistory groupId groupName) $ listRspGroups grps
 
-fetchMessages :: (ClientM (Response HistoryRsp) -> IO (Either String HistoryRsp))
+fetchMessages :: Text
+              -> (ClientM (Response HistoryRsp) -> IO (Either String HistoryRsp))
               -> Day
-              -> (Text -> Int -> SlackTimestamp -> SlackTimestamp -> ClientM (Slack.Response HistoryRsp))
-              -> Text
+              -> (Text -> HistoryReq -> ClientM (Response HistoryRsp))
+              -> (a -> Text)
+              -> (a -> Text)
+              -> a
               -> IO (Either String (Maybe TsEvent))
-fetchMessages slackRun date fetcher item = do
-    historyRsp <- slackRun $ fetcher
-               item messagesFetchBy
+fetchMessages token slackRun date fetcher convId convName item = do
+    historyRsp <- slackRun $ Slack.historyFetchAll token fetcher
+               (convId item) messagesFetchBy
                (mkSlackTimestamp $ UTCTime date 0)
                (mkSlackTimestamp $ UTCTime (addDays 1 date) 0)
-    return $ fmapR (messagesToEvent "channel name" . historyRspMessages) historyRsp
+    return $ fmapR (messagesToEvent (convName item) . historyRspMessages) historyRsp
 
 messagesToEvent :: Text -> [Slack.Message] -> Maybe TsEvent
 messagesToEvent _ [] = Nothing

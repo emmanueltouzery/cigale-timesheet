@@ -6,16 +6,22 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Calendar
 import Data.Time.Clock
+import Data.Maybe
 import Control.Error
 import Control.Monad.Trans
 import Data.Aeson.TH (deriveJSON, defaultOptions)
+import Servant.Client
 import Web.Slack as Slack
 import Web.Slack.Common as Slack
+import Web.Slack.Group as Slack
 
 import TsEvent
 import qualified Util
 import EventProvider
 import EventProviderSettings
+
+messagesFetchBy :: Int
+messagesFetchBy = 100
 
 deriveConfigRecord slackConfigDataType
 deriveJSON defaultOptions ''SlackConfigRecord
@@ -30,23 +36,33 @@ getSlackProvider = EventProvider
         fetchFieldCts = Nothing
     }
 
--- TODO bring upstream in slack-web?
-historyRspGetMessages :: Slack.HistoryRsp -> Maybe [Slack.Message]
-historyRspGetMessages (HistoryRsp True messages _) = Just messages
-historyRspGetMessages _ = Nothing
+reduceErrors :: Either ServantError (Slack.Response a) -> Either String a
+reduceErrors (Left er) = Left (show er)
+reduceErrors (Right (Left er)) = Left (show er)
+reduceErrors (Right (Right x)) = Right x
 
 getSlackMessages :: SlackConfigRecord -> GlobalSettings -> Day -> (() -> Url)
                  -> ExceptT String IO [TsEvent]
 getSlackMessages (SlackConfigRecord token) _ date _ = do
     manager <- lift Slack.mkManager
-    -- groups <- Slack.run manager (Slack.groupsList token mkListReq)
-    historyRsp <- lift $ Slack.run manager $ Slack.historyFetchAll token groupsHistory
-               "G3PJZTADV" 50
+    let slackRun = fmap reduceErrors . Slack.run manager
+    groups <- lift $ slackRun (Slack.groupsList token)
+    case groups of
+      Left er    -> throwE er
+      Right grps -> ExceptT $ fmap (fmap catMaybes . sequence) <$>
+          traverse (fetchMessages slackRun date $ Slack.historyFetchAll token groupsHistory) $ Slack.groupId <$> listRspGroups grps
+
+fetchMessages :: (ClientM (Response HistoryRsp) -> IO (Either String HistoryRsp))
+              -> Day
+              -> (Text -> Int -> SlackTimestamp -> SlackTimestamp -> ClientM (Slack.Response HistoryRsp))
+              -> Text
+              -> IO (Either String (Maybe TsEvent))
+fetchMessages slackRun date fetcher item = do
+    historyRsp <- slackRun $ fetcher
+               item messagesFetchBy
                (mkSlackTimestamp $ UTCTime date 0)
                (mkSlackTimestamp $ UTCTime (addDays 1 date) 0)
-    lift $ print historyRsp
-    return $ fromMaybe []
-        (sequence [messagesToEvent "channel name" =<< historyRspGetMessages =<< hush historyRsp])
+    return $ fmapR (messagesToEvent "channel name" . historyRspMessages) historyRsp
 
 messagesToEvent :: Text -> [Slack.Message] -> Maybe TsEvent
 messagesToEvent _ [] = Nothing
@@ -63,4 +79,4 @@ messagesToEvent channel msgs@(msg:_) = Just TsEvent
 formatMessages :: [Slack.Message] -> Text
 formatMessages msgs = T.intercalate "<br/>" (formatMessage <$> msgs)
     where formatMessage Message{..} = Util.linksForceNewWindow $
-              T.concat ["<b>", T.pack $ show messageUser, ":<b> ", messageText]
+              T.concat ["<b>", T.pack $ show messageUser, ":</b> ", messageText]

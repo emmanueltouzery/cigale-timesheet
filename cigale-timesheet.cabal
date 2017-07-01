@@ -57,6 +57,7 @@ Library
     th-printf,
     filepath,
     string-conversions,
+    servant-client,
     slack-web
   exposed-modules:
     EventProviders,

@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, TemplateHaskell, RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings, TemplateHaskell, RecordWildCards, RankNTypes #-}
 
 module Slack where
 
@@ -17,6 +17,7 @@ import Web.Slack as Slack
 import Web.Slack.Common as Slack
 import Web.Slack.User as Slack
 import Web.Slack.Group as Slack
+import Web.Slack.Channel as Slack
 
 import TsEvent
 import qualified Util
@@ -51,14 +52,32 @@ getSlackMessages (SlackConfigRecord token) _ date _ = do
     let slackRun = fmap reduceErrors . Slack.run manager
     users <- ExceptT $ slackRun (Slack.usersList token)
     let userIdToName = Map.fromList $ (userId &&& userName) <$> listRspMembers users
-    groups <- lift $ slackRun (Slack.groupsList token)
+    let getMsgs = getMessages slackRun token date userIdToName
+    groupEvts <- getMsgs Slack.groupsList listRspGroups groupsHistory groupId groupName
+    channelEvts <- getMsgs (`Slack.channelsList` mkListReq) listRspChannels channelsHistory channelId channelName
+    return (groupEvts ++ channelEvts)
+
+type SlackRun = forall a. (ClientM (Response a) -> IO (Either String a))
+
+getMessages :: SlackRun
+            -> Text
+            -> Day
+            -> Map UserId Text
+            -> (Text -> ClientM (Response chatlist))
+            -> (chatlist -> [chat])
+            -> (Text -> HistoryReq -> ClientM (Response HistoryRsp))
+            -> (chat -> Text)
+            -> (chat -> Text)
+            -> ExceptT String IO [TsEvent]
+getMessages slackRun token date userIdToName getList listGetChats getHistory getChatId getChatName = do
+    groups <- lift $ slackRun (getList token)
     case groups of
       Left er    -> throwE er
       Right grps -> ExceptT $ fmap (fmap catMaybes . sequence) <$>
-          traverse (fetchMessages token slackRun date userIdToName groupsHistory groupId groupName) $ listRspGroups grps
+          traverse (fetchMessages token slackRun date userIdToName getHistory getChatId getChatName) $ listGetChats grps
 
 fetchMessages :: Text
-              -> (ClientM (Response HistoryRsp) -> IO (Either String HistoryRsp))
+              -> SlackRun
               -> Day
               -> Map UserId Text
               -> (Text -> HistoryReq -> ClientM (Response HistoryRsp))

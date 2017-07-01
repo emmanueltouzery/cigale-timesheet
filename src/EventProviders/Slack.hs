@@ -57,8 +57,16 @@ getSlackMessages (SlackConfigRecord token) _ date _ = do
     let getMsgs = getMessages slackRun token date getUserName
     groupEvts <- getMsgs Slack.groupsList listRspGroups groupsHistory groupId groupName
     channelEvts <- getMsgs (`Slack.channelsList` mkListReq) listRspChannels channelsHistory channelId channelName
-    imsEvts <- getMsgs Slack.imList listRspIms imHistory imId (getUserName . imUser)
-    return (groupEvts ++ channelEvts ++ imsEvts)
+    imEvts <- getMsgs Slack.imList listRspIms imHistory imId (getUserName . imUser)
+    -- I don't think I need to fetch MPIMs for now. If I do, I get overlaps with groups.
+    -- https://api.slack.com/types/group
+    -- "For compatibility with older clients, mpims can appear as private
+    -- channels unless rtm.start is called with mpim_aware=1."
+    -- https://api.slack.com/types/mpim
+    -- "For compatibility with older clients, mpims can appear as groups
+    -- unless rtm.start is called with mpim_aware=1."
+    -- mpimEvts <- getMsgs Slack.mpimList listRspGroups mpimHistory groupId groupName
+    return (groupEvts ++ channelEvts ++ imEvts)
 
 type SlackRun = forall a. (ClientM (Response a) -> IO (Either String a))
 
@@ -73,11 +81,11 @@ getMessages :: SlackRun
             -> (chat -> Text)
             -> ExceptT String IO [TsEvent]
 getMessages slackRun token date getUserName getList listGetChats getHistory getChatId getChatName = do
-    groups <- lift $ slackRun (getList token)
-    case groups of
-      Left er    -> throwE er
-      Right grps -> ExceptT $ fmap (fmap catMaybes . sequence) <$>
-          traverse (fetchMessages token slackRun date getUserName getHistory getChatId getChatName) $ listGetChats grps
+    chats <- lift $ slackRun (getList token)
+    case chats of
+      Left  er    -> throwE er
+      Right chts -> ExceptT $ fmap (fmap catMaybes . sequence) <$>
+          traverse (fetchMessages token slackRun date getUserName getHistory getChatId getChatName) $ listGetChats chts
 
 fetchMessages :: Text
               -> SlackRun

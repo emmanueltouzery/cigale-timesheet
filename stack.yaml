@@ -8,7 +8,7 @@ packages:
 - '.'
 - location:
     git: https://github.com/jpvillaisaza/slack-web
-    commit: d8d9db9802ee84873962262b783c8909d48a6824
+    commit: 2a99f71cd831bf81c7d49f83905ff8c25a256795
   extra-dep: true
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)

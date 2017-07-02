@@ -8,6 +8,7 @@ import Data.Time.Calendar
 import Data.Time.Clock
 import Data.Time.LocalTime
 import Data.Maybe
+import Data.Monoid
 import Data.Map as Map hiding (filter)
 import Control.Error
 import Control.Arrow ((&&&))
@@ -56,7 +57,7 @@ getSlackMessages (SlackConfigRecord token) _ date _ = do
     let userIdToName = Map.fromList $ (userId &&& userName) <$> listRspMembers users
     let getUserName = fromMaybe "Unknown user" . flip Map.lookup userIdToName
     let getMsgs = getMessages slackRun token date getUserName
-    groupEvts <- getMsgs Slack.groupsList listRspGroups groupsHistory groupId groupName
+    groupEvts <- getMsgs Slack.groupsList listRspGroups groupsHistory groupId (niceGroupName getUserName)
     channelEvts <- getMsgs (`Slack.channelsList` mkListReq) listRspChannels channelsHistory channelId channelName
     imEvts <- getMsgs Slack.imList listRspIms imHistory imId (getUserName . imUser)
     -- I don't think I need to fetch MPIMs for now. If I do, I get overlaps with groups.
@@ -68,6 +69,11 @@ getSlackMessages (SlackConfigRecord token) _ date _ = do
     -- unless rtm.start is called with mpim_aware=1."
     -- mpimEvts <- getMsgs Slack.mpimList listRspGroups mpimHistory groupId groupName
     return (groupEvts ++ channelEvts ++ imEvts)
+
+niceGroupName :: (UserId -> Text) -> Group -> Text
+niceGroupName getUserName Group{..} = if groupIsMpim
+    then T.intercalate ", " $ getUserName <$> groupMembers
+    else groupName
 
 type SlackRun = forall a. (ClientM (Response a) -> IO (Either String a))
 

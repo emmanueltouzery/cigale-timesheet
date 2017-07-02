@@ -6,6 +6,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Calendar
 import Data.Time.Clock
+import Data.Time.LocalTime
 import Data.Maybe
 import Data.Map as Map hiding (filter)
 import Control.Error
@@ -83,7 +84,7 @@ getMessages :: SlackRun
 getMessages slackRun token date getUserName getList listGetChats getHistory getChatId getChatName = do
     chats <- lift $ slackRun (getList token)
     case chats of
-      Left  er    -> throwE er
+      Left  er   -> throwE er
       Right chts -> ExceptT $ fmap (fmap catMaybes . sequence) <$>
           traverse (fetchMessages token slackRun date getUserName getHistory getChatId getChatName) $ listGetChats chts
 
@@ -97,10 +98,13 @@ fetchMessages :: Text
               -> a
               -> IO (Either String (Maybe TsEvent))
 fetchMessages token slackRun date getUserName fetcher convId convName item = do
+    tz <- getCurrentTimeZone
+    let startOfDayUTC day = mkSlackTimestamp $ localTimeToUTC tz $
+            LocalTime day $ TimeOfDay 0 0 0
     historyRsp <- slackRun $ Slack.historyFetchAll token fetcher
                (convId item) messagesFetchBy
-               (mkSlackTimestamp $ UTCTime date 0)
-               (mkSlackTimestamp $ UTCTime (addDays 1 date) 0)
+               (startOfDayUTC date)
+               (startOfDayUTC $ addDays 1 date)
     return $ fmapR (messagesToEvent (convName item) getUserName . historyRspMessages) historyRsp
 
 messagesToEvent :: Text -> (UserId -> Text) -> [Slack.Message] -> Maybe TsEvent

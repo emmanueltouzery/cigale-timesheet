@@ -12,7 +12,8 @@ It will look at traces of your past activity in your system. Here are the event 
 * The emails you sent (mbox format, for instance Thunderbird)
 * Ical sources (for instance Google calendar)
 * Source control activity (GIT, HG, SVN)
-* Skype chats
+* Slack chats
+* Skype chats (if you use the old linux client)
 * Redmine bug and wiki activity
 
 ![Main view detail](https://raw.github.com/wiki/emmanueltouzery/cigale-timesheet/main-crop.png)

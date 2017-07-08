@@ -58,7 +58,8 @@ Library
     filepath,
     string-conversions,
     servant-client,
-    slack-web
+    slack-web,
+    mmorph
   exposed-modules:
     EventProviders,
     TsEvent,

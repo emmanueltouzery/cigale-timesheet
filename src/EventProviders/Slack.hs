@@ -5,16 +5,15 @@ module Slack where
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Calendar
-import Data.Time.Clock
 import Data.Time.LocalTime
 import Data.Maybe
-import Data.Monoid
 import Data.Map as Map hiding (filter)
 import Control.Error
 import Control.Arrow ((&&&))
 import Control.Monad.Trans
+import Control.Monad.Reader
+import Control.Monad.Morph
 import Data.Aeson.TH (deriveJSON, defaultOptions)
-import Servant.Client
 import Web.Slack as Slack
 import Web.Slack.Common as Slack
 import Web.Slack.User as Slack
@@ -33,6 +32,9 @@ messagesFetchBy = 100
 deriveConfigRecord slackConfigDataType
 deriveJSON defaultOptions ''SlackConfigRecord
 
+type CigaleSlack a = ExceptT SlackClientError (ReaderT SlackConfig IO) a
+type SlackResponse a = ReaderT SlackConfig IO (Response a)
+
 getSlackProvider :: EventProvider SlackConfigRecord ()
 getSlackProvider = EventProvider
     {
@@ -43,22 +45,20 @@ getSlackProvider = EventProvider
         fetchFieldCts = Nothing
     }
 
-reduceErrors :: Either ServantError (Slack.Response a) -> Either String a
-reduceErrors (Left er) = Left (show er)
-reduceErrors (Right (Left er)) = Left (show er)
-reduceErrors (Right (Right x)) = Right x
-
 getSlackMessages :: SlackConfigRecord -> GlobalSettings -> Day -> (() -> Url)
                  -> ExceptT String IO [TsEvent]
 getSlackMessages (SlackConfigRecord token) _ date _ = do
-    manager <- lift Slack.mkManager
-    let slackRun = fmap reduceErrors . Slack.run manager
-    users <- ExceptT $ slackRun (Slack.usersList token)
+    slackConfig <- lift (Slack.mkSlackConfig token)
+    fmapLT show $ hoist (flip runReaderT slackConfig) (getSlackMessages' date)
+
+getSlackMessages' :: Day -> CigaleSlack [TsEvent]
+getSlackMessages' date = do
+    users <- ExceptT Slack.usersList
     let userIdToName = Map.fromList $ (userId &&& userName) <$> listRspMembers users
     let getUserName = fromMaybe "Unknown user" . flip Map.lookup userIdToName
-    let getMsgs = getMessages slackRun token date getUserName
+    let getMsgs = getMessages date getUserName
     groupEvts <- getMsgs Slack.groupsList listRspGroups groupsHistory groupId (niceGroupName getUserName)
-    channelEvts <- getMsgs (`Slack.channelsList` mkListReq) listRspChannels channelsHistory channelId channelName
+    channelEvts <- getMsgs (Slack.channelsList mkListReq) listRspChannels channelsHistory channelId channelName
     imEvts <- getMsgs Slack.imList listRspIms imHistory imId (getUserName . imUser)
     -- I don't think I need to fetch MPIMs for now. If I do, I get overlaps with groups.
     -- https://api.slack.com/types/group
@@ -75,43 +75,37 @@ niceGroupName getUserName Group{..} = if groupIsMpim
     then T.intercalate ", " $ getUserName <$> groupMembers
     else groupName
 
-type SlackRun = forall a. (ClientM (Response a) -> IO (Either String a))
+getMessages
+    :: Day
+    -> (UserId -> Text)
+    -> SlackResponse chatlist
+    -> (chatlist -> [chat])
+    -> (HistoryReq -> SlackResponse HistoryRsp)
+    -> (chat -> Text)
+    -> (chat -> Text)
+    -> CigaleSlack [TsEvent]
+getMessages date getUserName getList listGetChats getHistory getChatId getChatName = do
+    chats <- listGetChats <$> ExceptT getList
+    let fetchChat = fetchMessages date getUserName getHistory getChatId getChatName
+    catMaybes <$> traverse fetchChat chats
 
-getMessages :: SlackRun
-            -> Text
-            -> Day
-            -> (UserId -> Text)
-            -> (Text -> ClientM (Response chatlist))
-            -> (chatlist -> [chat])
-            -> (Text -> HistoryReq -> ClientM (Response HistoryRsp))
-            -> (chat -> Text)
-            -> (chat -> Text)
-            -> ExceptT String IO [TsEvent]
-getMessages slackRun token date getUserName getList listGetChats getHistory getChatId getChatName = do
-    chats <- lift $ slackRun (getList token)
-    case chats of
-      Left  er   -> throwE er
-      Right chts -> ExceptT $ fmap (fmap catMaybes . sequence) <$>
-          traverse (fetchMessages token slackRun date getUserName getHistory getChatId getChatName) $ listGetChats chts
-
-fetchMessages :: Text
-              -> SlackRun
-              -> Day
-              -> (UserId -> Text)
-              -> (Text -> HistoryReq -> ClientM (Response HistoryRsp))
-              -> (a -> Text)
-              -> (a -> Text)
-              -> a
-              -> IO (Either String (Maybe TsEvent))
-fetchMessages token slackRun date getUserName fetcher convId convName item = do
-    tz <- getCurrentTimeZone
+fetchMessages
+    :: Day
+    -> (UserId -> Text)
+    -> (HistoryReq -> SlackResponse HistoryRsp)
+    -> (a -> Text)
+    -> (a -> Text)
+    -> a
+    -> CigaleSlack (Maybe TsEvent)
+fetchMessages date getUserName fetcher convId convName item = do
+    tz <- liftIO getCurrentTimeZone
     let startOfDayUTC day = mkSlackTimestamp $ localTimeToUTC tz $
             LocalTime day $ TimeOfDay 0 0 0
-    historyRsp <- slackRun $ Slack.historyFetchAll token fetcher
+    historyRsp <- ExceptT $ Slack.historyFetchAll fetcher
                (convId item) messagesFetchBy
                (startOfDayUTC date)
                (startOfDayUTC $ addDays 1 date)
-    return $ fmapR (messagesToEvent (convName item) getUserName . historyRspMessages) historyRsp
+    return $ messagesToEvent (convName item) getUserName $ historyRspMessages historyRsp
 
 messagesToEvent :: Text -> (UserId -> Text) -> [Slack.Message] -> Maybe TsEvent
 messagesToEvent _ _ [] = Nothing

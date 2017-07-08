@@ -7,6 +7,7 @@ import qualified Data.Text as T
 import Data.Time.Calendar
 import Data.Time.LocalTime
 import Data.Maybe
+import Data.Monoid
 import Data.Map as Map hiding (filter)
 import Control.Error
 import Control.Arrow ((&&&))
@@ -58,7 +59,8 @@ getSlackMessages' date = do
     let getUserName = fromMaybe "Unknown user" . flip Map.lookup userIdToName
     let getMsgs = getMessages date getUserName
     groupEvts <- getMsgs Slack.groupsList listRspGroups groupsHistory groupId (niceGroupName getUserName)
-    channelEvts <- getMsgs (Slack.channelsList mkListReq) listRspChannels channelsHistory channelId channelName
+    channelEvts <- getMsgs (Slack.channelsList mkListReq) listRspChannels
+                           channelsHistory channelId (("#" <>) . channelName)
     imEvts <- getMsgs Slack.imList listRspIms imHistory imId (getUserName . imUser)
     -- I don't think I need to fetch MPIMs for now. If I do, I get overlaps with groups.
     -- https://api.slack.com/types/group
@@ -73,7 +75,7 @@ getSlackMessages' date = do
 niceGroupName :: (UserId -> Text) -> Group -> Text
 niceGroupName getUserName Group{..} = if groupIsMpim
     then T.intercalate ", " $ getUserName <$> groupMembers
-    else groupName
+    else "🔒" <> groupName
 
 getMessages
     :: Day

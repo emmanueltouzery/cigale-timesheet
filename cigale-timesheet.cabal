@@ -12,6 +12,13 @@ Category:            Tools
 Build-type:          Custom
 Cabal-version:       >=1.8
 
+custom-setup
+  setup-depends:
+    base >= 4.7 && < 5,
+    Cabal < 1.25,
+    directory,
+    process,
+    bytestring
 
 Library
   hs-source-dirs:
@@ -76,7 +83,7 @@ Library
     Skype,
     Ical,
     EventProviderSettings
-  ghc-options: -threaded -Wall -funbox-strict-fields -O2
+  ghc-options: -Wall -funbox-strict-fields -O2
                -fno-warn-unused-do-bind
 
 Executable cigale-timesheet

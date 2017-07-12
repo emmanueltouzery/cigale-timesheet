@@ -8,19 +8,17 @@ import Data.Time.Calendar
 import Data.Time.LocalTime
 import Data.Maybe
 import Data.Monoid
-import Data.Map as Map hiding (filter)
 import Control.Error
-import Control.Arrow ((&&&))
 import Control.Monad.Trans
 import Control.Monad.Reader
 import Control.Monad.Morph
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Web.Slack as Slack
 import Web.Slack.Common as Slack
-import Web.Slack.User as Slack
 import Web.Slack.Group as Slack
 import Web.Slack.Channel as Slack
 import Web.Slack.Im as Slack
+import Web.Slack.MessageParser as Slack
 
 import TsEvent
 import qualified Util
@@ -55,8 +53,7 @@ getSlackMessages (SlackConfigRecord token) _ date _ = do
 getSlackMessages' :: Day -> CigaleSlack [TsEvent]
 getSlackMessages' date = do
     users <- ExceptT Slack.usersList
-    let userIdToName = Map.fromList $ (userId &&& userName) <$> listRspMembers users
-    let getUserName = fromMaybe "Unknown user" . flip Map.lookup userIdToName
+    let getUserName = Slack.getUserDesc unUserId users
     let getMsgs = getMessages date getUserName
     groupEvts <- getMsgs Slack.groupsList listRspGroups groupsHistory groupId (niceGroupName getUserName)
     channelEvts <- getMsgs (Slack.channelsList mkListReq) listRspChannels
@@ -126,4 +123,5 @@ formatMessages getUserName msgs = T.intercalate "<br/>" (formatMessage <$> rever
     where
       msgsWithUser = filter (isJust . messageUser) msgs
       formatMessage Message{..} = Util.linksForceNewWindow $
-          T.concat ["<b>", getUserName (fromJust messageUser), ":</b> ", messageText]
+          T.concat ["<b>", getUserName (fromJust messageUser), ":</b> ", messageCts messageText]
+      messageCts = Slack.messageToHtml getUserName

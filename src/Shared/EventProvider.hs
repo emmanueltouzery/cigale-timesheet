@@ -2,7 +2,7 @@
 {-# LANGUAGE KindSignatures, DataKinds #-}
 module EventProvider (
     GlobalSettings(GlobalSettings), EventProvider(..), MemberType(..), ConfigValueType(..),
-    eventProviderWrap, getSettingsFolder, deriveConfigRecord,
+    eventProviderWrap, getSettingsFolder, getDataFolder, deriveConfigRecord,
     ConfigDataType(..), ConfigDataInfo(..), ContentType, FolderPath, Url) where
 
 import Data.Time.Calendar
@@ -65,7 +65,11 @@ data ConfigDataType = ConfigDataType
     } deriving (Eq, Show, Generic)
 instance ToJSON ConfigDataType
 
-data GlobalSettings = GlobalSettings { getSettingsFolder :: String }
+data GlobalSettings = GlobalSettings
+    {
+        getSettingsFolder :: String,
+        getDataFolder :: String
+    }
 
 type FolderPath  = String
 type ContentType = String

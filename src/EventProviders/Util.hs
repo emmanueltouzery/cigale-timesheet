@@ -8,6 +8,9 @@ import Data.List (transpose)
 import qualified Data.Text as T
 import Data.Text (Text)
 import Data.Time.Clock
+import Data.Char
+import Data.Aeson.TH
+import Data.Aeson.Types hiding (parse)
 import Text.ParserCombinators.Parsec
 import qualified Text.Parsec.Text as T
 import qualified Text.Parsec as T
@@ -103,3 +106,8 @@ tryS = Ex.try
 findM :: Monad m => (a -> m Bool) -> [a] -> m (Maybe a)
 findM _ []     = return Nothing
 findM f (x:xs) = f x >>= bool (findM f xs) (return $ Just x)
+
+camelCaseJsonDecoder name = defaultOptions
+  {
+    fieldLabelModifier = fmap toLower . camelTo2 '_' . drop (T.length name)
+  }

@@ -6,6 +6,7 @@ if [ ! -d "lib/node_modules" ]; then
     npm install pikaday@1.4.0 --prefix lib
     npm install jquery@2.1.4 --prefix lib
     npm install bootstrap@4.0.0-alpha.2 --prefix lib
+    npm install emoji-datasource@3.0.0 --prefix lib
 fi
 
 cd src/WebGui/
@@ -47,5 +48,6 @@ cp -R "$htmljspath/bin/cigale-web.jsexe" "$exepath/share"
 # pikaday has a strange .c9 folders with a bad pikaday.css.
 find lib/ -name "*.css" -not -path "*/.c9/*" -exec cp \{\} "$exepath/share/cigale-web.jsexe/" \;
 cp -R lib/glyphicons_free/ "$exepath/share/cigale-web.jsexe/"
+cp -R lib/node_modules/emoji-datasource "$exepath/share/cigale-web.jsexe/"
 
 echo "built the app, copied the files, all set up and ready to go!"

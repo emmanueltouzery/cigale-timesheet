@@ -23,6 +23,8 @@ import System.Timeout (timeout)
 import Control.Concurrent.MSem
 import Control.Concurrent.Async
 import qualified Data.Traversable as T
+import System.FilePath
+import Paths_cigale_timesheet
 
 import qualified Config
 import qualified EventProviders
@@ -85,7 +87,12 @@ processConfig date config = do
 getGlobalSettings :: IO GlobalSettings
 getGlobalSettings = do
     settingsFolder <- Config.getSettingsFolder
-    return GlobalSettings { getSettingsFolder = settingsFolder }
+    appDataDir <- Paths_cigale_timesheet.getDataFileName "."
+    return GlobalSettings
+      {
+          getSettingsFolder = settingsFolder,
+          getDataFolder = appDataDir </> "../../cigale-web.jsexe/"
+      }
 
 fetchProvider :: Text -> GlobalSettings -> Day -> Config.EventSource Value Value -> IO (Either String [TsEvent])
 fetchProvider configItemName settings day eventSource = do

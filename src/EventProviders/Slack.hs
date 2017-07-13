@@ -8,11 +8,17 @@ import Data.Time.Calendar
 import Data.Time.LocalTime
 import Data.Maybe
 import Data.Monoid
+import qualified Data.ByteString.Lazy as B
+import qualified Data.Map as Map
+import Data.Map (Map)
+import Control.Arrow ((&&&))
 import Control.Error
 import Control.Monad.Trans
 import Control.Monad.Reader
 import Control.Monad.Morph
-import Data.Aeson.TH (deriveJSON, defaultOptions)
+import Data.Aeson.TH
+import Data.Aeson
+import System.FilePath
 import Web.Slack as Slack
 import Web.Slack.Common as Slack
 import Web.Slack.Group as Slack
@@ -44,17 +50,31 @@ getSlackProvider = EventProvider
         fetchFieldCts = Nothing
     }
 
+type EmojiMap = Map Text Text
+
 getSlackMessages :: SlackConfigRecord -> GlobalSettings -> Day -> (() -> Url)
                  -> ExceptT String IO [TsEvent]
-getSlackMessages (SlackConfigRecord token) _ date _ = do
+getSlackMessages (SlackConfigRecord token) globalSettings date _ = do
+    emojis <- readEmojiInfo (getDataFolder globalSettings </> "emoji-datasource/emoji_pretty.json")
     slackConfig <- lift (Slack.mkSlackConfig token)
-    fmapLT show $ hoist (flip runReaderT slackConfig) (getSlackMessages' date)
+    fmapLT show $ hoist (flip runReaderT slackConfig) (getSlackMessages' emojis date)
 
-getSlackMessages' :: Day -> CigaleSlack [TsEvent]
-getSlackMessages' date = do
+readEmojiInfo :: FilePath -> ExceptT String IO EmojiMap
+readEmojiInfo path = do
+  list <- ExceptT $ eitherDecode <$> B.readFile path
+  return $ Map.fromList $ (emojiShortName &&& emojiUnified) <$> list
+
+getSlackMessages' :: EmojiMap -> Day -> CigaleSlack [TsEvent]
+getSlackMessages' emojiMap date = do
+    let htmlRenderers = defaultHtmlRenderers
+          {
+            emoticonRenderer = \code -> case Map.lookup code emojiMap of
+              Just unicode -> "&#x" <> unicode <> ";"
+              Nothing      -> ":" <> code <> ":"
+          }
     users <- ExceptT Slack.usersList
     let getUserName = Slack.getUserDesc unUserId users
-    let getMsgs = getMessages date getUserName
+    let getMsgs = getMessages htmlRenderers date getUserName
     groupEvts <- getMsgs Slack.groupsList listRspGroups groupsHistory groupId (niceGroupName getUserName)
     channelEvts <- getMsgs (Slack.channelsList mkListReq) listRspChannels
                            channelsHistory channelId (("#" <>) . channelName)
@@ -75,7 +95,8 @@ niceGroupName getUserName Group{..} = if groupIsMpim
     else "🔒" <> groupName
 
 getMessages
-    :: Day
+    :: HtmlRenderers
+    -> Day
     -> (UserId -> Text)
     -> SlackResponse chatlist
     -> (chatlist -> [chat])
@@ -83,20 +104,21 @@ getMessages
     -> (chat -> Text)
     -> (chat -> Text)
     -> CigaleSlack [TsEvent]
-getMessages date getUserName getList listGetChats getHistory getChatId getChatName = do
+getMessages htmlRenderers date getUserName getList listGetChats getHistory getChatId getChatName = do
     chats <- listGetChats <$> ExceptT getList
-    let fetchChat = fetchMessages date getUserName getHistory getChatId getChatName
+    let fetchChat = fetchMessages htmlRenderers date getUserName getHistory getChatId getChatName
     catMaybes <$> traverse fetchChat chats
 
 fetchMessages
-    :: Day
+    :: HtmlRenderers
+    -> Day
     -> (UserId -> Text)
     -> (HistoryReq -> SlackResponse HistoryRsp)
     -> (a -> Text)
     -> (a -> Text)
     -> a
     -> CigaleSlack (Maybe TsEvent)
-fetchMessages date getUserName fetcher convId convName item = do
+fetchMessages htmlRenderers date getUserName fetcher convId convName item = do
     tz <- liftIO getCurrentTimeZone
     let startOfDayUTC day = mkSlackTimestamp $ localTimeToUTC tz $
             LocalTime day $ TimeOfDay 0 0 0
@@ -104,24 +126,35 @@ fetchMessages date getUserName fetcher convId convName item = do
                (convId item) messagesFetchBy
                (startOfDayUTC date)
                (startOfDayUTC $ addDays 1 date)
-    return $ messagesToEvent (convName item) getUserName $ historyRspMessages historyRsp
+    return $ messagesToEvent (convName item) htmlRenderers getUserName $ historyRspMessages historyRsp
 
-messagesToEvent :: Text -> (UserId -> Text) -> [Slack.Message] -> Maybe TsEvent
-messagesToEvent _ _ [] = Nothing
-messagesToEvent channel getUserName msgs@(msg:_) = Just TsEvent
+messagesToEvent :: Text -> HtmlRenderers -> (UserId -> Text) -> [Slack.Message] -> Maybe TsEvent
+messagesToEvent _ _ _ [] = Nothing
+messagesToEvent channel htmlRenderers getUserName msgs@(msg:_) = Just TsEvent
     {
         pluginName   = getModuleName getSlackProvider,
         eventIcon    = "glyphicons-245-conversation",
         eventDate    = slackTimestampTime (messageTs msg),
         desc         = channel,
         extraInfo    = "",
-        fullContents = Just (formatMessages getUserName msgs)
+        fullContents = Just (formatMessages htmlRenderers getUserName msgs)
     }
 
-formatMessages :: (UserId -> Text) -> [Slack.Message] -> Text
-formatMessages getUserName msgs = T.intercalate "<br/>" (formatMessage <$> reverse msgsWithUser)
+formatMessages :: HtmlRenderers -> (UserId -> Text) -> [Slack.Message] -> Text
+formatMessages htmlRenderers getUserName msgs =
+  T.intercalate "<br/>" (formatMessage <$> reverse msgsWithUser)
     where
       msgsWithUser = filter (isJust . messageUser) msgs
       formatMessage Message{..} = Util.linksForceNewWindow $
           T.concat ["<b>", getUserName (fromJust messageUser), ":</b> ", messageCts messageText]
-      messageCts = Slack.messageToHtml getUserName
+      messageCts = Slack.messageToHtml htmlRenderers getUserName
+
+-- emoji decoding
+
+data Emoji = Emoji
+    {
+        emojiShortName :: Text,
+        emojiUnified   :: Text
+    } deriving Show
+
+deriveFromJSON (Util.camelCaseJsonDecoder "emoji") ''Emoji

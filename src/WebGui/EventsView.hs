@@ -133,12 +133,26 @@ addDatePicker initialDay = do
 addPreloadButton :: MonadWidget t m => m ()
 addPreloadButton = do
     displayPreload <- snd <$> iconButton 16 "glyphicons-58-history"
+    let absP = do
+        position absolute
+        top (px 0)
+        bottom (px 0)
+        left (px 0)
+        right (px 0)
+        opacity 0
+        zIndex 90000
+    -- prevent the user from interacting with the preload dialog while preloading
+    -- is ongoing, by covering the whole screen by a translucent div that'll
+    -- intercept the clicks
+    let blockingDivStyle v = "style" =: styleStr (styleWithHideIf v absP)
     rec
+        elDynAttr "div" (blockingDivStyle <$> not <$> isFetchingOngoing) (return ())
         (dlgBody, dlgClose) <- buildModalBody displayPreload "Preload data"
             (PrimaryBtn "Preload") (constDyn "") (constDyn $ preloadDialog progressDyn)
         let preloadEvt = tagPromptlyDyn (join $ dlgContentsDyn dlgBody) (dlgOkEvt dlgBody)
         let dayListEvt = fmap (uncurry daysRange) preloadEvt
         curCountDyn <- holdDyn 0 $ leftmost [length <$> dayListEvt, const 0 <$> displayPreload]
+        let isFetchingOngoing = (>0) . length <$> daysFetchingQueueDyn
         daysFetchingQueueDyn <- foldDyn ($) [] $ leftmost
             [fmap const dayListEvt, fmap (const tail) $ daysFetchingQueueDoneEvt]
         let progressDyn = zipDynWith

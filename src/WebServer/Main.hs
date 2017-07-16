@@ -169,6 +169,7 @@ site installPath =
             ("config", method DELETE deleteConfigEntry),
             ("browseFolder", browseFolder),
             ("getExtraData", httpGetExtraData),
+            ("prefetchedDays", prefetchedDays),
             ("configFetchFieldContents/:providerName", method POST httpConfigFetchFieldContents)
           ] <|>
     dir "cigale" (serveDirectory installPath)
@@ -284,3 +285,10 @@ httpGetEventSource = do
     config       <- liftIO $ readConfig EventProviders.plugins
     noteET ("no such config item: " <> TE.encodeUtf8 cfgItemName) $
         find ((==cfgItemName) . srcName) config
+
+prefetchedDays :: Snap ()
+prefetchedDays = setActionResponse $ do
+    modifyResponse $ setContentType "application/json"
+    prefetchFiles <- liftIO $ listDirectory =<< getPrefetchFolder
+    let prefetchedDates = catMaybes $ map (parseMaybe parsePrefetchFilename . T.pack) prefetchFiles
+    return $ BSL.toStrict $ encode $ T.pack . show <$> prefetchedDates

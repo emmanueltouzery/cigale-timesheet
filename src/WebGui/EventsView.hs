@@ -36,7 +36,7 @@ import Common
 newtype PikadayPicker = PikadayPicker { unPicker :: JSVal }
 
 foreign import javascript unsafe
-    "$r = new Pikaday({firstDay: 1,onSelect: function(picker) {\
+    "$r = new Pikaday({firstDay: 1,events: [], onSelect: function(picker) {\
         \$2(picker.toString()) }}); $1.appendChild($r.el)"
     _initPikaday :: JSVal -> Callback (JSVal -> IO ()) -> IO JSVal
 
@@ -49,6 +49,13 @@ foreign import javascript unsafe
 
 pickerSetDate :: PikadayPicker -> Day -> IO ()
 pickerSetDate picker day = _pickerSetDate (unPicker picker) =<< toJSVal (showGregorian day)
+
+foreign import javascript unsafe
+   "$1.config({events: $2.map(function(d) { return new Date(d).toDateString(); })})"
+   _pickerSetEvents :: JSVal -> JSVal -> IO ()
+
+pickerSetEvents :: PikadayPicker -> [Text] -> IO ()
+pickerSetEvents picker events = _pickerSetEvents (unPicker picker) =<< toJSVal events
 
 foreign import javascript unsafe "$1.hide()" _pickerHide :: JSVal -> IO ()
 pickerHide :: PikadayPicker -> IO ()
@@ -75,6 +82,11 @@ eventsViewContents = do
         -- initialize on yesterday, because it's finished i can cache it.
         today <- liftIO getToday
         let initialDay = addDays (-1) today
+
+        postBuild <- getPostBuild
+        prefetchedDays <- requestPrefetchedDays (leftmost [postBuild, preloadEvt, void responseEvt])
+        prefetchedDaysDyn <- holdDyn [] $ fmapMaybe fromRemoteData prefetchedDays
+        
         -- TODO getPostBuild ... maybe when the tab is loaded instead?
         loadRecordsEvent <- leftmost <$> sequence
             [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
@@ -84,7 +96,7 @@ eventsViewContents = do
         respDyn <- holdDyn RemoteDataLoading $ leftmost
             [fmap (const RemoteDataLoading) loadRecordsEvent, responseEvt]
         displayWarningBanner respDyn
-        curDate <- addDatePicker initialDay
+        (curDate, preloadEvt) <- addDatePicker prefetchedDaysDyn initialDay
 
     displayEvents respDyn
     displayLoadingThrobber respDyn
@@ -109,29 +121,36 @@ requestDayEvents dayEvt = do
     asyncReq <- performRequestAsync (req . T.pack . showGregorian <$> dayEvt)
     return (fmap readRemoteData asyncReq)
 
+requestPrefetchedDays :: MonadWidget t m => Event t a -> m (Event t (RemoteData [Text]))
+requestPrefetchedDays evt = do
+  let req = xhrRequest "GET" "/prefetchedDays" def
+  asyncReq <- performRequestAsync (const req <$> evt)
+  return (fmap readRemoteData asyncReq)
+
 getToday :: IO Day
 getToday = do
     tz <- liftIO (getCurrentTimeZoneJS =<< getCurrentTime)
     curLocalTime <- liftIO (utcToLocalTime tz <$> getCurrentTime)
     return (localDay curLocalTime)
 
-addDatePicker :: MonadWidget t m => Day -> m (Dynamic t Day)
-addDatePicker initialDay = do
+addDatePicker :: MonadWidget t m => Dynamic t [Text] -> Day -> m (Dynamic t Day, Event t ())
+addDatePicker prefetchedDates initialDay = do
     rec
         -- update current day based on user actions
         curDate <- foldDyn ($) initialDay dayChangeEvt
         -- the date picker has position: absolute & will position itself
         -- relative to the nearest ancestor with position: relative.
-        dayChangeEvt <-
-            elStyle "table" (marginLeft $ px 10) $ el "tr" $
-                col (text "Day to display:") *>
-                col (displayPickerBlock initialDay curDate) <*
-                col addPreloadButton
-    return curDate
+        (dayChangeEvt, preloadEvt) <-
+            elStyle "table" (marginLeft $ px 10) $ el "tr" $ do
+                col (text "Day to display:")
+                _dayChangeEvt <- col (displayPickerBlock prefetchedDates initialDay curDate)
+                _preloadEvt   <- col (addPreloadButton prefetchedDates)
+                return (_dayChangeEvt, _preloadEvt)
+    return (curDate, preloadEvt)
 
 -- TODO display any errors occuring during the prefetching
-addPreloadButton :: MonadWidget t m => m ()
-addPreloadButton = do
+addPreloadButton :: MonadWidget t m => Dynamic t [Text] -> m (Event t ())
+addPreloadButton prefetchedDates = do
     displayPreload <- snd <$> iconButton 16 "glyphicons-58-history"
     let absP = do
         position absolute
@@ -148,7 +167,7 @@ addPreloadButton = do
     rec
         elDynAttr "div" (blockingDivStyle <$> not <$> isFetchingOngoing) (return ())
         (dlgBody, dlgClose) <- buildModalBody displayPreload "Preload data"
-            (PrimaryBtn "Preload") (constDyn "") (constDyn $ preloadDialog progressDyn)
+            (PrimaryBtn "Preload") (constDyn "") (constDyn $ preloadDialog prefetchedDates progressDyn)
         let preloadEvt = tagPromptlyDyn (join $ dlgContentsDyn dlgBody) (dlgOkEvt dlgBody)
         let dayListEvt = fmap (uncurry daysRange) preloadEvt
         curCountDyn <- holdDyn 0 $ leftmost [length <$> dayListEvt, const 0 <$> displayPreload]
@@ -162,14 +181,15 @@ addPreloadButton = do
         daysFetchingQueueDoneEvt <- fetchDay mCurDayToFetchDyn
     let doneEvt = ffilter isNothing $ updated mCurDayToFetchDyn
     performEvent_ $ (const $ liftIO dlgClose) <$> doneEvt
+    return (void doneEvt)
 
 fetchDay :: MonadWidget t m => Dynamic t (Maybe Day) -> m (Event t FetchResponse)
 fetchDay mDayDyn = do
     fetched <- requestDayEvents $ fmapMaybe id $ updated mDayDyn
     return $ fmapMaybe fromRemoteData fetched
 
-preloadDialog :: MonadWidget t m => Dynamic t Int -> m (Dynamic t (Day, Day))
-preloadDialog percentDyn = do
+preloadDialog :: MonadWidget t m => Dynamic t [Text] -> Dynamic t Int -> m (Dynamic t (Day, Day))
+preloadDialog prefetchedDates percentDyn = do
     today <- liftIO getToday
     -- fetch from the first day of the previous month
     let prefetchStart = addGregorianMonthsClip (-1) $
@@ -183,12 +203,12 @@ preloadDialog percentDyn = do
         rec dynStartDay <- el "tr" $ do
             col $ text "Pick a start date:"
             col $ do
-                startDayChangeEvt <- displayPickerBlock prefetchStart dynStartDay
+                startDayChangeEvt <- displayPickerBlock prefetchedDates prefetchStart dynStartDay
                 foldDyn ($) prefetchStart startDayChangeEvt
         rec dynEndDay <- el "tr" $ do
             col $ text "Pick an end date:"
             col $ do
-                endDayChangeEvt <- displayPickerBlock prefetchEnd dynEndDay
+                endDayChangeEvt <- displayPickerBlock prefetchedDates prefetchEnd dynEndDay
                 foldDyn ($) prefetchEnd endDayChangeEvt
         return $ zipDynWith (,) dynStartDay dynEndDay
     progressWidget percentDyn
@@ -207,8 +227,8 @@ daysRange start end
     | start == end = [start]
     | otherwise    = []
 
-displayPickerBlock :: MonadWidget t m => Day -> Dynamic t Day -> m (Event t (Day -> Day))
-displayPickerBlock initialDay curDate = do
+displayPickerBlock :: MonadWidget t m => Dynamic t [Text] -> Day -> Dynamic t Day -> m (Event t (Day -> Day))
+displayPickerBlock prefetchedDates initialDay curDate = do
     rec
         let btnClass = "class" =: "btn-group" <> "data-toggle" =: "buttons"
         previousNextEvt <-
@@ -219,7 +239,7 @@ displayPickerBlock initialDay curDate = do
                 nextDay <- fmap (const $ addDays 1) <$> snd <$>
                     smallIconButton "glyphicons-179-step-forward"
                 return (mergeWith (.) [previousDay, nextDay])
-        (pickedDateEvt, picker) <- datePicker initialDay
+        (pickedDateEvt, picker) <- datePicker prefetchedDates initialDay
     liftIO (pickerHide picker)
     return (mergeWith (.) [fmap const pickedDateEvt, previousNextEvt])
 
@@ -397,8 +417,8 @@ buildIframe cts = do
     let iframeStyle = flexGrow 1 >> minHeight (px 0) >> minWidth (px 0)
     elAttrStyle "iframe" iframeClass iframeStyle (return ())
 
-datePicker :: MonadWidget t m => Day -> m (Event t Day, PikadayPicker)
-datePicker initialDay = do
+datePicker :: (MonadWidget t m) => Dynamic t [Text] -> Day -> m (Event t Day, PikadayPicker)
+datePicker prefetchedDates initialDay = do
     let pickerStyle = width (px 250) >> position absolute >> zIndex 3
     (e, _) <- elStyle' "div" pickerStyle $ return ()
     (evt, evtTrigger) <- newTriggerEvent
@@ -411,6 +431,7 @@ datePicker initialDay = do
         picker <- initPikaday (unwrapElt e) cb
         pickerSetDate picker initialDay
         return picker
+    performEvent_ $ fmap (liftIO . pickerSetEvents picker) $ updated prefetchedDates
     return (evt, picker)
 
 -- the format from pikaday is "Tue Dec 22 2015 00:00:00 GMT+0100 (CET)" for me.

@@ -57,8 +57,18 @@ css = do
         lineHeight (px 50)
         zIndex 100000
 
+-- the highlighting in the pikaday date picker for days
+-- which have events (which I use for days for which we
+-- already prefetched events) is too flashy for me.
+-- reduce it only to underline.
+overridePikaday :: TL.Text
+overridePikaday = "\ntd[class=has-event] .pika-button:not(:hover)  {\
+    \box-shadow: none !important; color: #666 !important;\
+    \font-weight: normal !important; background: #f5f5f5 !important;\
+    \text-decoration: underline !important};"
+
 main :: IO ()
-main = mainWidgetWithCss (T.encodeUtf8 $ TL.toStrict $ render css) cigaleView
+main = mainWidgetWithCss (T.encodeUtf8 $ TL.toStrict $ render css <> overridePikaday) cigaleView
 
 cigaleView :: MonadWidget t m => m ()
 cigaleView = do

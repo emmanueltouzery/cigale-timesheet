@@ -50,14 +50,19 @@ requestBodyReadSize = 65536
 appUrl :: String
 appUrl = "http://localhost:" ++ show appPort ++ "/cigale"
 
+browserParamDiscriminator :: String
+browserParamDiscriminator = "--browserParam="
+
 main :: IO ()
 main = do
     args <- getArgs
     getPrefetchFolder >>= createDirectoryIfMissing True
     removeObsoletePrefetch
+    let browserArgs = drop (length browserParamDiscriminator) <$>
+          filter (isPrefixOf browserParamDiscriminator) args
     if args == ["--prefetch"]
         then doPrefetch
-        else startWebApp
+        else startWebApp browserArgs
 
 doPrefetch :: IO ()
 doPrefetch = do
@@ -114,8 +119,8 @@ wipePrefetchFiles = do
 parsePrefetchFilename :: T.GenParser st Day
 parsePrefetchFilename = parseDate <* T.string ".json"
 
-startWebApp :: IO ()
-startWebApp = do
+startWebApp :: [String] -> IO ()
+startWebApp browserArgs = do
     -- set up the folder where the html/js from the cigale-web
     -- project where copied.
     appDataDir <- Paths_cigale_timesheet.getDataFileName "."
@@ -124,36 +129,49 @@ startWebApp = do
     let snapConfig = setPort appPort .
                      setAccessLog ConfigNoLog .
                      setErrorLog ConfigNoLog $
-                     setStartupHook (const $ void $ forkIO openApp) -- open the browser once we're up
+                     setStartupHook (const $ void $ forkIO $ openApp browserArgs) -- open the browser once we're up
                      defaultConfig
     -- catch the already in use error (port already used, in case the server was already running)
     r <- tryJust (guard . isAlreadyInUseError) (httpServe snapConfig (site installPath))
     -- if the server was already running, simply open the browser
-    when (isLeft r) openApp
+    when (isLeft r) (openApp browserArgs)
 
 
-browsers :: [(String, IO ())]
+browsers :: [(String, [String] -> IO ())]
 browsers =
     [
-        ("google-chrome", void $ rawSystem "google-chrome" ["--app=" ++ appUrl]),
-        ("chromium-browser", void $ rawSystem "chromium-browser" ["--app=" ++ appUrl]),
+        ("google-chrome", void . runChromeLike "google-chrome"),
+        ("chromium-browser", void . runChromeLike "chromium-browser"),
         ("epiphany", runEpiphany)
     ]
+
 fallbackBrowser :: IO ()
 fallbackBrowser = void $ rawSystem "xdg-open" [appUrl]
 
-runEpiphany :: IO ()
-runEpiphany = do
+runChromeLike :: String -> [String] -> IO ()
+runChromeLike browserExeName args = do
+    settingsFolder <- Config.getSettingsFolder
+    let profileDir = settingsFolder ++ "/chrome-profile-app-cigale-timesheet"
+    let chromeParams = ["--name=cigale-timesheet",
+                         "--user-data-dir=" ++ profileDir,
+                         "--app=" ++ appUrl,
+                         "--class=cigale-timesheet",
+                         "--no-first-run"] ++ args
+    void $ rawSystem browserExeName chromeParams
+
+runEpiphany :: [String] ->IO ()
+runEpiphany args = do
     putStrLn "WARNING: epiphany as of 3.18 shows some bugs in the rendering."
     settingsFolder <- Config.getSettingsFolder
     let profileDir = settingsFolder ++ "/epiphany-profile-app-cigale-timesheet"
     createDirectoryIfMissing True profileDir
-    void $ rawSystem "epiphany" ["--application-mode", "--profile=" ++ profileDir, appUrl]
+    void $ rawSystem "epiphany" $
+        ["--application-mode", "--profile=" ++ profileDir, appUrl] ++ args
 
-openApp :: IO ()
-openApp = findM (hasProgram . fst) browsers >>= \case
+openApp :: [String] -> IO ()
+openApp browserArgs = findM (hasProgram . fst) browsers >>= \case
     Nothing       -> fallbackBrowser
-    Just (_, cmd) -> cmd
+    Just (_, cmd) -> cmd browserArgs
 
 hasProgram :: String -> IO Bool
 hasProgram prog = isJust <$> findExecutable prog

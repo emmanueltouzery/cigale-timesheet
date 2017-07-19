@@ -170,11 +170,11 @@ buildModalBody' :: MonadWidget t m => Text -> ButtonInfo
 buildModalBody' title okBtnInfo dynErrMsg contentsDyn =
     elAttr "div" ("class" =: "modal-content") $ do
         elAttr "div" ("class" =: "modal-header") $ do
+            elAttr "h5" ("class" =: "modal-title") $ text title
             let crossBtnAttrs = "type" =: "button" <> "class" =: "close"
                     <> "data-dismiss" =: "modal" <> "aria-label" =: "Close"
             void $ elAttr "button" crossBtnAttrs $
                 elDynHtmlAttr' "span" ("aria-hidden" =: "true") (constDyn "&times;")
-            elAttr "h4" ("class" =: "modal-title") $ text title
         bodyRes <- elAttr "div" ("class" =: "modal-body") $ do
             addErrorBox dynErrMsg
             initial <- sample (current contentsDyn)

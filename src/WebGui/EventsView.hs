@@ -217,9 +217,14 @@ preloadDialog prefetchedDates percentDyn = do
 progressWidget :: MonadWidget t m => Dynamic t Int -> m ()
 progressWidget percentDyn = do
     let attrsDyn = ffor percentDyn $ \percent ->
-          "class" =: "progress" <> "value" =: T.pack (show percent) <> "max" =: "100"
-    elDynAttrStyle "progress" attrsDyn (height (px 50) >> paddingAll (px 15)) $
-        dynText $ ((<> "%") . T.pack . show) <$> percentDyn
+          "class" =: "progress-bar"
+          <> "role" =: "progressbar"
+          <> "aria-valuenow" =: T.pack (show percent)
+          <> "style" =: ("width:" <> T.pack (show percent) <> "%")
+          <> "aria-valuemax" =: "100"
+          <> "aria-valuemin" =: "0"
+    elAttrStyle "div" ("class" =: "progress") (marginAll $ px 15) $
+        elDynAttr "div" attrsDyn $ return ()
 
 daysRange :: Day -> Day -> [Day]
 daysRange start end

@@ -101,7 +101,7 @@ navBar = do
                 elAttr "ul" ("class" =: "nav nav-tabs") $ do
                     elAttr "span" ("class" =: "navbar-brand") $ text "Cigale"
                     e <- mapM (navLink activeViewDyn) navLinkItems
-                    addAboutButton
+                    elAttr "li" ("class" =: "nav-item ml-auto") addAboutButton
                     return e
         let curView = fromMaybe ActiveViewEvents $
                           nliActiveView <$> find ((== urlLocationHash) . nliUrl) navLinkItems
@@ -112,7 +112,7 @@ addAboutButton :: MonadWidget t m => m ()
 addAboutButton = do
     let iconUrl = getGlyphiconUrl "glyphicons-195-question-sign"
     (image, _) <- elAttrStyle' "img"
-        ("src" =: iconUrl <> "class" =: "pull-xs-right") (cursor pointer) $ return ()
+        ("src" =: iconUrl <> "class" =: "navbar-text") (cursor pointer) $ return ()
     let modalCts =
             text "Icons from "
             >> elAttr "a" ("href" =: "http://glyphicons.com") (text "Glyphicons")

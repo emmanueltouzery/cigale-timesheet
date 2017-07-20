@@ -272,7 +272,7 @@ displayConfigSection dynSecInfo_ = do
 
 displaySectionItem :: MonadWidget t m => PluginConfig -> ConfigItem -> m (Event t ConfigChangeRequest)
 displaySectionItem pluginConfig ci@ConfigItem{..} =
-    elAttr "div" ("class" =: "card") $ do
+    elAttrStyle "div" ("class" =: "card") (marginAll $ px 20) $ do
         let divStyle = display flex >> flexDirection rowReverse
         cfgChgEvt <- elAttrStyle "div" ("class" =: "card-header") divStyle $ do
             delEvt <- addDeleteButton ci
@@ -288,7 +288,7 @@ addDeleteButton :: MonadWidget t m => ConfigItem -> m (Event t ConfigChangeReque
 addDeleteButton ci@ConfigItem{..} = do
     (deleteBtn, _) <- elAttrStyle' "button"
         ("class" =: "btn btn-danger btn-sm") (marginRight (px 5)) $ text "Delete"
-    return $ (const $ ChangeDeleteRequest ci) <$> (domEvent Click deleteBtn)
+    return $ const (ChangeDeleteRequest ci) <$> domEvent Click deleteBtn
 
 displayDeletePopup :: MonadWidget t m => Event t ConfigItem -> m (Event t ConfigChange)
 displayDeletePopup deleteReqEvt = do

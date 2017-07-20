@@ -175,7 +175,7 @@ addPreloadButton prefetchedDates = do
         daysFetchingQueueDyn <- foldDyn ($) [] $ leftmost
             [fmap const dayListEvt, fmap (const tail) $ daysFetchingQueueDoneEvt]
         let progressDyn = zipDynWith
-                (\lst cnt -> if cnt == 0 then 0 else (cnt - length lst)*100 `div` cnt)
+                (\lst cnt -> if cnt == 0 then Nothing else Just $ (cnt - length lst)*100 `div` cnt)
                 daysFetchingQueueDyn curCountDyn
         let mCurDayToFetchDyn = uniqDyn (headZ <$> daysFetchingQueueDyn)
         daysFetchingQueueDoneEvt <- fetchDay mCurDayToFetchDyn
@@ -188,7 +188,7 @@ fetchDay mDayDyn = do
     fetched <- requestDayEvents $ fmapMaybe id $ updated mDayDyn
     return $ fmapMaybe fromRemoteData fetched
 
-preloadDialog :: MonadWidget t m => Dynamic t [Text] -> Dynamic t Int -> m (Dynamic t (Day, Day))
+preloadDialog :: MonadWidget t m => Dynamic t [Text] -> Dynamic t (Maybe Int) -> m (Dynamic t (Day, Day))
 preloadDialog prefetchedDates percentDyn = do
     today <- liftIO getToday
     -- fetch from the first day of the previous month
@@ -214,17 +214,41 @@ preloadDialog prefetchedDates percentDyn = do
     progressWidget percentDyn
     return interval
 
-progressWidget :: MonadWidget t m => Dynamic t Int -> m ()
+-- progress display widget.
+-- Nothing -> gray progress bar
+-- Just 0  -> indeterminate state progress bar
+-- Just n  -> progress bar at n%
+progressWidget :: MonadWidget t m => Dynamic t (Maybe Int) -> m ()
 progressWidget percentDyn = do
-    let attrsDyn = ffor percentDyn $ \percent ->
-          "class" =: "progress-bar"
-          <> "role" =: "progressbar"
-          <> "aria-valuenow" =: T.pack (show percent)
-          <> "style" =: ("width:" <> T.pack (show percent) <> "%")
-          <> "aria-valuemax" =: "100"
-          <> "aria-valuemin" =: "0"
-    elAttrStyle "div" ("class" =: "progress") (marginAll $ px 15) $
-        elDynAttr "div" attrsDyn $ return ()
+    -- if I do all with one progress div, 100% width for the "indeterminate"
+    -- animation -- see https://github.com/twbs/bootstrap/issues/23131 then
+    -- there's an animation of it going down from 100% to 0% when it starts
+    -- => I need two progress bars, one at 100% width for the pre-start display,
+    -- one for dynamic width for afterwards.
+    let preRunAttrsDyn = ffor percentDyn $ \percent ->
+          let basicStyle = "role" =: "progressbar"
+                <> "aria-valuemax" =: "100"
+                <> "aria-valuemin" =: "0"
+                <> "aria-valuenow" =: "0"
+                <> "style" =: "width: 100%; background-color: lightgray" in
+          case percent of
+            Nothing -> basicStyle
+                      <> "class" =: "progress-bar"
+            Just 0 -> basicStyle
+                      <> "class" =: "progress-bar progress-bar-striped progress-bar-animated"
+            _ -> "style" =: "display: none"
+    let runAttrsDyn = ffor percentDyn $ \percent ->
+          case percent of
+            Just prct -> "role" =: "progressbar"
+                         <> "aria-valuemax" =: "100"
+                         <> "aria-valuemin" =: "0"
+                         <> "aria-valuenow" =: T.pack (show prct)
+                         <> "style" =: ("width:" <> T.pack (show prct) <> "%")
+                         <> "class" =: "progress-bar"
+            _ -> "style" =: "display: none"
+    elAttrStyle "div" ("class" =: "progress") (marginAll $ px 15) $ do
+        elDynAttr "div" preRunAttrsDyn $ return ()
+        elDynAttr "div" runAttrsDyn $ return ()
 
 daysRange :: Day -> Day -> [Day]
 daysRange start end

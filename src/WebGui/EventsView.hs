@@ -174,22 +174,44 @@ addPreloadButton prefetchedDates = do
         let isFetchingOngoing = (>0) . length <$> daysFetchingQueueDyn
         daysFetchingQueueDyn <- foldDyn ($) [] $ leftmost
             [fmap const dayListEvt, fmap (const tail) $ daysFetchingQueueDoneEvt]
-        let progressDyn = zipDynWith
-                (\lst cnt -> if cnt == 0 then Nothing else Just $ (cnt - length lst)*100 `div` cnt)
-                daysFetchingQueueDyn curCountDyn
+        let progressDyn = zip3DynWith progressInfo
+                daysFetchingQueueDyn curCountDyn hadErrorsDyn
         let mCurDayToFetchDyn = uniqDyn (headZ <$> daysFetchingQueueDyn)
         daysFetchingQueueDoneEvt <- fetchDay mCurDayToFetchDyn
+
+        -- when an error comes when fetching, we set the whole fetching
+        -- as failed (Set). But when the user clicks the button to restart
+        -- the fetching, we reset everything to non failed (Reset).
+        let errorSet = (EsrSet . not . null . fetchErrors) <$> daysFetchingQueueDoneEvt
+        let errorReset = (const $ EsrReset False) <$> dlgOkEvt dlgBody
+        hadErrorsDyn <- foldDyn
+                     (\resp soFar -> case resp of
+                         EsrSet failed -> if failed then failed else soFar
+                         EsrReset status -> status)
+                     False (leftmost [errorSet, errorReset])
     let doneEvt = ffilter isNothing $ updated mCurDayToFetchDyn
-    performEvent_ $ (const $ liftIO dlgClose) <$> doneEvt
+    -- close the dialog if we're done and there were no errors
+    let closeEvt = ffilter not
+          (attachPromptlyDynWith (\hadErr _ -> hadErr) hadErrorsDyn doneEvt)
+    performEvent_ $ (const $ liftIO dlgClose) <$> closeEvt
     return (void doneEvt)
+
+data ErrorsSetOrReset = EsrSet Bool | EsrReset Bool
+
+progressInfo :: [a] -> Int -> Bool -> ProgressInfo
+progressInfo prgList doneCount hadErrors = 
+  let progressCtor = if hadErrors then PrgFailure else PrgSuccess in
+    if doneCount == 0
+      then PrgNotOperating
+      else progressCtor $ (doneCount - length prgList)*100 `div` doneCount
 
 fetchDay :: MonadWidget t m => Dynamic t (Maybe Day) -> m (Event t FetchResponse)
 fetchDay mDayDyn = do
     fetched <- requestDayEvents $ fmapMaybe id $ updated mDayDyn
     return $ fmapMaybe fromRemoteData fetched
 
-preloadDialog :: MonadWidget t m => Dynamic t [Text] -> Dynamic t (Maybe Int) -> m (Dynamic t (Day, Day))
-preloadDialog prefetchedDates percentDyn = do
+preloadDialog :: MonadWidget t m => Dynamic t [Text] -> Dynamic t ProgressInfo -> m (Dynamic t (Day, Day))
+preloadDialog prefetchedDates progressDyn = do
     today <- liftIO getToday
     -- fetch from the first day of the previous month
     let prefetchStart = addGregorianMonthsClip (-1) $
@@ -211,40 +233,47 @@ preloadDialog prefetchedDates percentDyn = do
                 endDayChangeEvt <- displayPickerBlock prefetchedDates prefetchEnd dynEndDay
                 foldDyn ($) prefetchEnd endDayChangeEvt
         return $ zipDynWith (,) dynStartDay dynEndDay
-    progressWidget percentDyn
+    progressWidget progressDyn
     return interval
 
+data ProgressInfo
+  = PrgNotOperating
+  | PrgSuccess Int
+  | PrgFailure Int
+
 -- progress display widget.
--- Nothing -> gray progress bar
--- Just 0  -> indeterminate state progress bar
--- Just n  -> progress bar at n%
-progressWidget :: MonadWidget t m => Dynamic t (Maybe Int) -> m ()
-progressWidget percentDyn = do
+-- PrgSuccess 0 shows an indeterminate progress bar animation
+progressWidget :: MonadWidget t m => Dynamic t ProgressInfo -> m ()
+progressWidget progressDyn = do
     -- if I do all with one progress div, 100% width for the "indeterminate"
     -- animation -- see https://github.com/twbs/bootstrap/issues/23131 then
     -- there's an animation of it going down from 100% to 0% when it starts
     -- => I need two progress bars, one at 100% width for the pre-start display,
     -- one for dynamic width for afterwards.
-    let preRunAttrsDyn = ffor percentDyn $ \percent ->
+    let preRunAttrsDyn = ffor progressDyn $ \progressV ->
           let basicStyle = "role" =: "progressbar"
                 <> "aria-valuemax" =: "100"
                 <> "aria-valuemin" =: "0"
                 <> "aria-valuenow" =: "0"
                 <> "style" =: "width: 100%; background-color: lightgray" in
-          case percent of
-            Nothing -> basicStyle
-                      <> "class" =: "progress-bar"
-            Just 0 -> basicStyle
-                      <> "class" =: "progress-bar progress-bar-striped progress-bar-animated"
+          case progressV of
+            PrgNotOperating  -> basicStyle <>
+                "class" =: "progress-bar"
+            PrgSuccess 0 -> basicStyle <>
+                "class" =: "progress-bar progress-bar-striped progress-bar-animated"
             _ -> "style" =: "display: none"
-    let runAttrsDyn = ffor percentDyn $ \percent ->
-          case percent of
-            Just prct -> "role" =: "progressbar"
-                         <> "aria-valuemax" =: "100"
-                         <> "aria-valuemin" =: "0"
-                         <> "aria-valuenow" =: T.pack (show prct)
-                         <> "style" =: ("width:" <> T.pack (show prct) <> "%")
-                         <> "class" =: "progress-bar"
+    let displayValueStyle prct =
+          "role" =: "progressbar"
+          <> "aria-valuemax" =: "100"
+          <> "aria-valuemin" =: "0"
+          <> "aria-valuenow" =: T.pack (show prct)
+          <> "style" =: ("width:" <> T.pack (show prct) <> "%")
+    let runAttrsDyn = ffor progressDyn $ \progressV ->
+          case progressV of
+            PrgSuccess prct ->
+              displayValueStyle prct <> "class" =: "progress-bar"
+            PrgFailure prct ->
+              displayValueStyle prct <> "class" =: "progress-bar bg-danger"
             _ -> "style" =: "display: none"
     elAttrStyle "div" ("class" =: "progress") (marginAll $ px 15) $ do
         elDynAttr "div" preRunAttrsDyn $ return ()

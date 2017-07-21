@@ -12,7 +12,7 @@ import Reflex.Dom hiding (display)
 import Data.String
 
 import Clay as C hiding (filter, title, contents, action, url, (&),
-                         placeholder, id, reverse, none, initial)
+                         placeholder, id, reverse, none, initial, a, b)
 import qualified Clay as C
 import Data.Maybe
 import Data.Text (Text)
@@ -310,3 +310,8 @@ displayLoadingThrobber respDyn = do
     let holdAttrs = ffor respDyn $ \resp ->
           "id" =: "pleasehold" <> attrStyleHideIf (not $ isRemoteDataLoading resp)
     void $ elDynAttr "div" holdAttrs $ text "Please hold..."
+
+-- hopelessly naive implementation
+zip3DynWith :: Reflex t =>
+  (a -> b -> c -> d) -> Dynamic t a -> Dynamic t b -> Dynamic t c -> Dynamic t d
+zip3DynWith f d1 d2 d3 = zipDynWith (\a (b,c) -> f a b c) d1 (zipDynWith (,) d2 d3)

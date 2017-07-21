@@ -35,6 +35,9 @@ fileEntry pickerOpMode _ memberName memberLabel val = do
     elAttr "div" ("class" =: "input-group") $ do
         rec
             let inputAttrs = "id" =: memberName <> "class" =: "form-control"
+            updatedFilePath <- fmap T.pack <$> buildFilePicker
+                pickerDefaultOptions { pickerMode = pickerOpMode }
+                (tagPromptlyDyn (T.unpack <$> inputVal) (domEvent Click browseBtn))
             inputVal <- _textInput_value <$> textInput
                 (def
                  & textInputConfig_attributes .~ constDyn inputAttrs
@@ -42,9 +45,6 @@ fileEntry pickerOpMode _ memberName memberLabel val = do
                  & textInputConfig_setValue .~ updatedFilePath)
             (browseBtn, _) <- elAttr' "div" ("class" =: "input-group-addon") $
                 elStyle' "span" (cursor pointer) $ text "Browse..."
-            updatedFilePath <- fmap T.pack <$> buildFilePicker
-                pickerDefaultOptions { pickerMode = pickerOpMode }
-                (tagPromptlyDyn (T.unpack <$> inputVal) (domEvent Click browseBtn))
         return inputVal
 
 fieldEntry :: MonadWidget t m => Text -> Text -> Text -> m (Dynamic t Text)

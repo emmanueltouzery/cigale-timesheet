@@ -122,10 +122,11 @@ displayPickerContents options dynSelectedFile browseData = do
 displayBreadcrumb :: MonadWidget t m => [PathElem] -> m [Event t FilePath]
 displayBreadcrumb [] = return []
 displayBreadcrumb [level] = do
-    (li, _) <- elAttr' "li" ("class" =: "active") $ text (prettyName level)
+    (li, _) <- elAttr' "li" ("class" =: "breadcrumb-item active") $ text (prettyName level)
     return [const "/" <$> domEvent Click li]
 displayBreadcrumb (level:xs) = do
-    (lnk, _) <- el "li" $ elAttr' "a" ("href" =: "javascript:void(0)") $ text (prettyName level)
+    (lnk, _) <- elAttr' "li" ("class" =: "breadcrumb-item") $
+        elAttr' "a" ("href" =: "javascript:void(0)") $ text (prettyName level)
     (:) <$> return (const (fullPath level) <$> domEvent Click lnk) <*> displayBreadcrumb xs
 
 displayFiles :: MonadWidget t m => BrowseResponse -> Dynamic t (Maybe FilePath)

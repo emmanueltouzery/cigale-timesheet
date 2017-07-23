@@ -2,6 +2,7 @@
 set -e
 
 if [ ! -e "lib/.v1" ]; then
+    rm -Rf lib/node_modules/
     mkdir -p lib/node_modules
     npm install pikaday@1.6.1 --prefix lib
     npm install jquery@3.1.1 --prefix lib

@@ -1,19 +1,15 @@
 #!/usr/bin/env bash
 set -e
 
-if [ ! -e "lib/.v1" ]; then
+if [ ! -e "lib/.v2" ]; then
     rm -Rf lib/node_modules/
     mkdir -p lib/node_modules
     npm install pikaday@1.6.1 --prefix lib
     npm install jquery@3.1.1 --prefix lib
-    npm install popper.js@1.10.8 --prefix lib
-    cd lib
-    wget https://github.com/twbs/bootstrap/tarball/082c9d92fe1057f8dddda32e1002983d82c681aa
-    tar xvfz 082c9d92fe1057f8dddda32e1002983d82c681aa
-    rm 082c9d92fe1057f8dddda32e1002983d82c681aa
-    cd ..
+    npm install popper.js@1.11.1 --prefix lib
+    npm install bootstrap@4.0.0-beta --prefix lib
     npm install emoji-datasource@3.0.0 --prefix lib
-    touch lib/.v1
+    touch lib/.v2
 fi
 
 cd src/WebGui/

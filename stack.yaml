@@ -6,10 +6,6 @@ resolver: lts-8.20
 # Local packages, usually specified by relative directory name
 packages:
 - '.'
-- location:
-    git: https://github.com/jpvillaisaza/slack-web
-    commit: 42f89176db07acdb6834b6a2ccbc753f1afa2d9e
-  extra-dep: true
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
 extra-deps:
@@ -17,7 +13,7 @@ extra-deps:
 - dom-selector-0.2.0.1
 - th-printf-0.3.1
 - HDBC-sqlite3-2.3.3.1
-- slack-web-0.1.0
+- slack-web-0.2.0.1
 
 
 # Override default flag values for local packages and extra-deps

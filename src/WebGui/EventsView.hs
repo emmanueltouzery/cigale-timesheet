@@ -141,7 +141,7 @@ addDatePicker prefetchedDates initialDay = do
         -- the date picker has position: absolute & will position itself
         -- relative to the nearest ancestor with position: relative.
         (dayChangeEvt, preloadEvt) <-
-            elStyle "table" (marginLeft $ px 10) $ el "tr" $ do
+            elStyle "table" (marginLeft (px 10) >> display flex) $ el "tr" $ do
                 col (text "Day to display:")
                 _dayChangeEvt <- col (displayPickerBlock prefetchedDates initialDay curDate)
                 _preloadEvt   <- col (addPreloadButton prefetchedDates)
@@ -288,7 +288,7 @@ daysRange start end
 displayPickerBlock :: MonadWidget t m => Dynamic t [Text] -> Day -> Dynamic t Day -> m (Event t (Day -> Day))
 displayPickerBlock prefetchedDates initialDay curDate = do
     rec
-        let btnClass = "class" =: "btn-group" <> "data-toggle" =: "buttons"
+        let btnClass = "class" =: "btn-group btn-group-toggle" <> "data-toggle" =: "buttons"
         previousNextEvt <-
             elAttrStyle "div" btnClass (position relative) $ do
                 previousDay <- fmap (const $ addDays (-1)) <$> snd <$>

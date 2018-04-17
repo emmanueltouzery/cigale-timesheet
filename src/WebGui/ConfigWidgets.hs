@@ -43,8 +43,9 @@ fileEntry pickerOpMode _ memberName memberLabel val = do
                  & textInputConfig_attributes .~ constDyn inputAttrs
                  & textInputConfig_initialValue .~ val
                  & textInputConfig_setValue .~ updatedFilePath)
-            (browseBtn, _) <- elAttr' "div" ("class" =: "input-group-addon") $
-                elStyle' "span" (cursor pointer) $ text "Browse..."
+            (browseBtn, _) <- elAttr' "div" ("class" =: "input-group-append") $
+                elAttrStyle' "span" ("class" =: "input-group-text") (cursor pointer) $
+                    text "Browse..."
         return inputVal
 
 fieldEntry :: MonadWidget t m => Text -> Text -> Text -> m (Dynamic t Text)
@@ -67,11 +68,12 @@ passwordEntry fieldId desc fieldValue = do
                   "type"  =: if p then "password" else "text"
             (inputField, _) <- elDynAttr' "input" attrsDyn $ return ()
             showPaswd <- toggle True (domEvent Click padlock)
-            (padlock, _) <- elAttr' "div" ("class" =: "input-group-addon") $
-                rawPointerSpan $ ffor showPaswd (bool "&#128275;" "&#128274;")
+            (padlock, _) <- elAttr' "div" ("class" =: "input-group-append") $
+                rawSpan ("style" =: "cursor: pointer" <> "class" =: "input-group-text") $
+                    ffor showPaswd (bool "&#128275;" "&#128274;")
         let getFieldValue = liftIO $ do
                 val <- getValue (castToHTMLInputElement $ _element_raw inputField)
-                return $ fromMaybe "" $ fromJSString <$> val
+                return $ maybe "" fromJSString val
         holdDyn fieldValue =<< performEvent
             (const getFieldValue <$> domEvent Change inputField)
 

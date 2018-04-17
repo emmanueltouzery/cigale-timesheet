@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 set -e
 
-if [ ! -e "lib/.v2" ]; then
+if [ ! -e "lib/.v3" ]; then
     rm -Rf lib/node_modules/
     mkdir -p lib/node_modules
-    npm install pikaday@1.6.1 --prefix lib
+    npm install pikaday@1.7.0 --prefix lib
     npm install jquery@3.1.1 --prefix lib
-    npm install popper.js@1.11.1 --prefix lib
-    npm install bootstrap@4.0.0-beta --prefix lib
+    npm install popper.js@1.14.3 --prefix lib
+    npm install bootstrap@4.1.0 --prefix lib
     npm install emoji-datasource@3.0.0 --prefix lib
-    touch lib/.v2
+    touch lib/.v3
 fi
 
 cd src/WebGui/

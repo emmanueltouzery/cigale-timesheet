@@ -86,7 +86,7 @@ eventsViewContents = do
         postBuild <- getPostBuild
         prefetchedDays <- requestPrefetchedDays (leftmost [postBuild, preloadEvt, void responseEvt])
         prefetchedDaysDyn <- holdDyn [] $ fmapMaybe fromRemoteData prefetchedDays
-        
+
         -- TODO getPostBuild ... maybe when the tab is loaded instead?
         loadRecordsEvent <- leftmost <$> sequence
             [pure $ updated curDate, fmap (const initialDay) <$> getPostBuild]
@@ -140,8 +140,12 @@ addDatePicker prefetchedDates initialDay = do
         curDate <- foldDyn ($) initialDay dayChangeEvt
         -- the date picker has position: absolute & will position itself
         -- relative to the nearest ancestor with position: relative.
+        let tableStyle = do
+                marginLeft (px 10)
+                marginBottom (px 10)
+                display flex
         (dayChangeEvt, preloadEvt) <-
-            elStyle "table" (marginLeft (px 10) >> display flex) $ el "tr" $ do
+            elStyle "table" tableStyle $ el "tr" $ do
                 col (text "Day to display:")
                 _dayChangeEvt <- col (displayPickerBlock prefetchedDates initialDay curDate)
                 _preloadEvt   <- col (addPreloadButton prefetchedDates)
@@ -199,7 +203,7 @@ addPreloadButton prefetchedDates = do
 data ErrorsSetOrReset = EsrSet Bool | EsrReset Bool
 
 progressInfo :: [a] -> Int -> Bool -> ProgressInfo
-progressInfo prgList doneCount hadErrors = 
+progressInfo prgList doneCount hadErrors =
   let progressCtor = if hadErrors then PrgFailure else PrgSuccess in
     if doneCount == 0
       then PrgNotOperating

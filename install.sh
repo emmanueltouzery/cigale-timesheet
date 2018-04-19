@@ -45,6 +45,7 @@ echo "installed the GHC compiler!"
 
 stack install
 exepath=$(stack path --local-install-root)
+mkdir -p "$exepath"
 
 cp -R "$htmljspath/bin/cigale-web.jsexe" "$exepath/share"
 

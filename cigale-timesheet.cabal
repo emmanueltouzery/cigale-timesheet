@@ -66,6 +66,8 @@ Library
     string-conversions,
     servant-client,
     slack-web,
+    http-client,
+    http-client-tls,
     mmorph
   exposed-modules:
     EventProviders,

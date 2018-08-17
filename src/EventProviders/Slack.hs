@@ -25,6 +25,8 @@ import Web.Slack.Group as Slack
 import Web.Slack.Channel as Slack
 import Web.Slack.Im as Slack
 import Web.Slack.MessageParser as Slack
+import Network.HTTP.Client (newManager, managerResponseTimeout, responseTimeoutMicro)
+import Network.HTTP.Client.TLS (tlsManagerSettings)
 
 import TsEvent
 import qualified Util
@@ -33,6 +35,9 @@ import EventProviderSettings
 
 messagesFetchBy :: Int
 messagesFetchBy = 100
+
+slackTimeoutMillis :: Int
+slackTimeoutMillis = 30000
 
 deriveConfigRecord slackConfigDataType
 deriveJSON defaultOptions ''SlackConfigRecord
@@ -56,7 +61,9 @@ getSlackMessages :: SlackConfigRecord -> GlobalSettings -> Day -> (() -> Url)
                  -> ExceptT String IO [TsEvent]
 getSlackMessages (SlackConfigRecord token) globalSettings date _ = do
     emojis <- readEmojiInfo (getDataFolder globalSettings </> "emoji-datasource/emoji_pretty.json")
-    slackConfig <- lift (Slack.mkSlackConfig token)
+    mgr <- lift $ newManager $
+        tlsManagerSettings {managerResponseTimeout = responseTimeoutMicro (slackTimeoutMillis*1000) }
+    let slackConfig = Slack.SlackConfig mgr token
     fmapLT show $ hoist (flip runReaderT slackConfig) (getSlackMessages' emojis date)
 
 readEmojiInfo :: FilePath -> ExceptT String IO EmojiMap

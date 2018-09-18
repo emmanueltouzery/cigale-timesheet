@@ -32,9 +32,9 @@ import EventProvider
 import TsEvent
 import Communication
 
--- 15 seconds max runtime before a fetch is aborted.
+-- 30 seconds max runtime before a fetch is aborted.
 maxRuntimeFetchMicros :: Int
-maxRuntimeFetchMicros = 15000000
+maxRuntimeFetchMicros = 30000000
 
 fetchingConcurrentThreads :: Int
 fetchingConcurrentThreads = 3

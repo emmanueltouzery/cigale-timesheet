@@ -6,10 +6,12 @@ module EventsView where
 import GHCJS.Types
 import GHCJS.Marshal
 import GHCJS.Foreign.Callback
-import GHCJS.DOM.Element as E
+import qualified GHCJS.DOM.GlobalEventHandlers as E
+import GHCJS.DOM.Element (getClassName, toElement)
 import GHCJS.DOM.Document
 import GHCJS.DOM.Node (getOwnerDocument)
 import GHCJS.DOM.EventM as DE (on, stopPropagation)
+import qualified GHCJS.DOM.Types as DOM
 
 import Reflex
 import Reflex.Dom hiding (display)
@@ -112,7 +114,7 @@ displayEvents respDyn = do
     elStyle "div" divStyle $ do
         tableRes <- dyn (fmap eventsTable respDyn) >>= holdDyn (constDyn Nothing)
         -- uniqDyn to avoid blinking if you click on the already-selected event.
-        let curEvtDyn = uniqDyn (join tableRes)
+        curEvtDyn <- holdUniqDyn (join tableRes)
         void $ dyn $ fmap displayDetails curEvtDyn
 
 requestDayEvents :: MonadWidget t m => Event t Day -> m (Event t (RemoteData FetchResponse))
@@ -321,7 +323,8 @@ createDateLabel curDate picker = do
             dynText $ fmap (T.pack . formatTime defaultTimeLocale "%A, %F") curDate
         -- use stopPropagation so that I can catch the clicks on the body elsewhere
         -- and close the date picker when the user clicks elsewhere.
-        e <- wrapDomEvent (_element_raw label) (`on` E.click) DE.stopPropagation
+        domElt <- DOM.unsafeCastTo DOM.HTMLElement $ _element_raw label
+        e <- wrapDomEvent domElt (`on` E.click) DE.stopPropagation
 
         -- trigger day toggle event when the day button is pressed
         dayToggleEvt <- performEvent $ fmap (const $ liftIO $ do
@@ -339,7 +342,8 @@ createDateLabel curDate picker = do
         -- close the date picker on any click anywhere else.
         (Just doc) <- getOwnerDocument (_element_raw label)
         (Just body) <- liftIO (getBody doc)
-        bodyElt <- wrapElement defaultDomEventHandler (toElement body)
+        (Just rawBodyElt) <- DOM.castTo DOM.HTMLElement $ toElement body
+        bodyElt <- wrapElement defaultDomEventHandler rawBodyElt
         performEvent_ $ fmap (const $ liftIO $ do
                                    eltStripClass (_element_raw label) "active"
                                    pickerHide picker) $ domEvent Click bodyElt

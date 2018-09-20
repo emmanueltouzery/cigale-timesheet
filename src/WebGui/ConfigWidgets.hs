@@ -8,6 +8,7 @@ import GHCJS.DOM.Types (fromJSString)
 import Reflex.Class
 import Reflex.Dynamic
 import Reflex.Dom hiding (display, Value, fromJSString)
+import qualified GHCJS.DOM.Types as DOM
 import Clay as C hiding (map, (&), filter, head, p, url, active,
                          name, pc, id, intersperse, reverse, Value)
 
@@ -72,7 +73,7 @@ passwordEntry fieldId desc fieldValue = do
                 rawSpan ("style" =: "cursor: pointer" <> "class" =: "input-group-text") $
                     ffor showPaswd (bool "&#128275;" "&#128274;")
         let getFieldValue = liftIO $ do
-                val <- getValue (castToHTMLInputElement $ _element_raw inputField)
+                val <- getValue =<< DOM.unsafeCastTo DOM.HTMLInputElement (_element_raw inputField)
                 return $ maybe "" fromJSString val
         holdDyn fieldValue =<< performEvent
             (const getFieldValue <$> domEvent Change inputField)

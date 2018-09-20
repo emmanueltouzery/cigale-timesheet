@@ -204,7 +204,7 @@ editConfigItem (Just (pc, ci)) fieldContentsDyn = do
             let updatedFieldCts = zipDynWith (flip Map.union) fieldContentsDyn updatedDepFieldCtsDyn
             fieldInputs <- mapM (editConfigDataInfo updatedFieldCts (configItemName ci) (configuration ci)) $ cfgPluginConfig pc
             let makeListPair = \(fieldName, valDyn) -> fmap (replicate 1 . (fieldName,)) valDyn
-            let fieldDyns = uniqDyn $ combineDyns (++) [] $ makeListPair <$> fieldInputs
+            fieldDyns <- holdUniqDyn $ combineDyns (++) [] $ makeListPair <$> fieldInputs
             updatedDepFieldCtsDyn <- holdDyn Map.empty =<< dialogChanged pc (updated fieldDyns)
         return (srcNameInput, Map.fromList fieldInputs)
 
@@ -259,7 +259,7 @@ buckets f = map (\g -> (fst $ head g, map snd g))
 displayConfigSection :: MonadWidget t m => Dynamic t (PluginConfig, [ConfigItem])
                      -> m (Event t ConfigChangeRequest)
 displayConfigSection dynSecInfo_ = do
-    let dynSecInfo = uniqDyn dynSecInfo_
+    dynSecInfo <- holdUniqDyn dynSecInfo_
     let dynPluginConfig = fst <$> dynSecInfo
     let dynConfigItems  = snd <$> dynSecInfo
     let dynParams = zipDynWith (\cfg dataInfos -> map (cfg,) dataInfos) dynPluginConfig dynConfigItems

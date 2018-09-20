@@ -4,27 +4,33 @@ packages:
 - .
 - location:
     git: https://github.com/reflex-frp/reflex.git
-    commit: 02cf9dbc89ba20b6e93622e0910a76d5e9d06669
+    commit: 50305c797c41a27660b74f543e204e902c086bbf
   extra-dep: true
 - location:
     git: https://github.com/reflex-frp/reflex-dom.git
-    commit: 59100d61282fe02aa39be602f0a73daf31e28f63
+    commit: 2bc47782128a9c71222816afca407997d47f043a
   extra-dep: true
+  subdirs:
+    - reflex-dom
+    - reflex-dom-core
 
-resolver: lts-7.19
-compiler: ghcjs-0.2.1.9007019_ghc-8.0.1
+resolver: lts-8.11
+compiler: ghcjs-0.2.1.9008011_ghc-8.0.2
 compiler-check: match-exact
-
 setup-info:
   ghcjs:
     source:
-      ghcjs-0.2.1.9007019_ghc-8.0.1:
-           url: http://ghcjs.tolysz.org/ghc-8.0-2017-02-05-lts-7.19-9007019.tar.gz
-           sha1: d2cfc25f9cda32a25a87d9af68891b2186ee52f9
+      ghcjs-0.2.1.9008011_ghc-8.0.2:
+           url: https://github.com/matchwood/ghcjs-stack-dist/raw/master/ghcjs-0.2.1.9008011.tar.gz
+           sha1: a72a5181124baf64bcd0e68a8726e65914473b3b
 
 extra-deps:
   - ref-tf-0.4.0.1
-  - ghcjs-dom-0.2.4.0
+  - ghcjs-dom-0.8.0.0
   - clay-0.11
   - zenc-0.1.1
   - prim-uniq-0.1.0.1
+  - dependent-sum-template-0.0.0.6
+  - ghcjs-dom-jsffi-0.8.0.0
+  - jsaddle-0.8.3.2
+

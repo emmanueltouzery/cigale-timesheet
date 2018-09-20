@@ -17,7 +17,8 @@ import Reflex
 import Reflex.Dom hiding (display)
 
 import Control.Monad.Identity
-import Clay as C hiding (col, div, id, start, end, focus, dt)
+import Clay as C hiding (col, div, id, start, end, focus, dt, span, filter)
+import Data.Char (toUpper, isUpper)
 import Data.Time.Clock
 import Data.Time.Calendar
 import Data.Time.Format
@@ -502,4 +503,15 @@ datePicker prefetchedDates initialDay = do
 
 -- the format from pikaday is "Tue Dec 22 2015 00:00:00 GMT+0100 (CET)" for me.
 parsePikadayDate :: String -> Maybe Day
-parsePikadayDate = parseTimeM False defaultTimeLocale "%a %b %d %Y %X GMT%z (%Z)"
+parsePikadayDate = parseTimeM False defaultTimeLocale "%a %b %d %Y %X GMT%z (%Z)" . shortenTZname
+
+-- chrome is now giving a long-form timezone name
+-- (like 'Central European Summer Time'), but at first
+-- sight haskell knows only about the TZ name acronyms
+-- (like 'CEST'). So shorten the TZ name as first pass
+-- to date parsing.
+-- "Tue Dec 22 2015 00:00:00 GMT+0100 (Central European Time)"
+-- => "Tue Dec 22 2015 00:00:00 GMT+0100 (CET)"
+shortenTZname :: String -> String
+shortenTZname dte = beforeTz ++ "(" ++ (filter isUpper tz) ++ ")"
+  where (beforeTz,tz) = span (/= '(') dte

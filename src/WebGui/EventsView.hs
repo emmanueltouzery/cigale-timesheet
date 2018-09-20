@@ -182,7 +182,7 @@ addPreloadButton prefetchedDates = do
             [fmap const dayListEvt, fmap (const tail) $ daysFetchingQueueDoneEvt]
         let progressDyn = zip3DynWith progressInfo
                 daysFetchingQueueDyn curCountDyn hadErrorsDyn
-        let mCurDayToFetchDyn = uniqDyn (headZ <$> daysFetchingQueueDyn)
+        mCurDayToFetchDyn <- holdUniqDyn (headZ <$> daysFetchingQueueDyn)
         daysFetchingQueueDoneEvt <- fetchDay mCurDayToFetchDyn
 
         -- when an error comes when fetching, we set the whole fetching

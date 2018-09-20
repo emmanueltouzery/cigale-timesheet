@@ -108,8 +108,9 @@ multiChoiceEntry :: MonadWidget t m => Dynamic t (Map Text [Text])
            -> Text -> Text -> Maybe Value
            -> m (Dynamic t Value)
 multiChoiceEntry fieldContentsDyn memberName memberLabel fieldValue = do
+    uniqFieldContentsDyn <- holdUniqDyn fieldContentsDyn
     evtDyn <- dyn $
-        multiChoiceEntry_ memberName memberLabel fieldValue <$> uniqDyn fieldContentsDyn
+        multiChoiceEntry_ memberName memberLabel fieldValue <$> uniqFieldContentsDyn
     join <$> holdDyn (constDyn $ A.Array V.empty) evtDyn
 
 multiChoiceEntry_ :: MonadWidget t m => Text -> Text -> Maybe Value

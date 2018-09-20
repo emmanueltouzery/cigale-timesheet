@@ -18,7 +18,7 @@ import Reflex.Dom hiding (display)
 
 import Control.Monad.Identity
 import Clay as C hiding (col, div, id, start, end, focus, dt, span, filter)
-import Data.Char (toUpper, isUpper)
+import Data.Char (isUpper)
 import Data.Time.Clock
 import Data.Time.Calendar
 import Data.Time.Format

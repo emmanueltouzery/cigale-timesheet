@@ -12,11 +12,21 @@ if [ ! -e "lib/.v3" ]; then
     touch lib/.v3
 fi
 
+# i need slack 1.x for the ghcjs support, 'stack setup'
+# ghcjs support was dropped for slack 2.x...
+if [ ! -e "stack" ]; then
+    mkdir stack
+    cd stack
+    wget https://github.com/commercialhaskell/stack/releases/download/v1.9.3/stack-1.9.3-linux-x86_64.tar.gz
+    tar xvfz stack-1.9.3-linux-x86_64.tar.gz
+    cd ..
+fi
+
 cd src/WebGui/
 
 # install the ghcjs compiler
 echo "will now install the GHCJS compiler, this should take a while..."
-stack setup
+../../stack/stack-1.9.3-linux-x86_64/stack setup
 echo "installed the GHCJS compiler!"
 
 # happy needs GHC in the path to build.

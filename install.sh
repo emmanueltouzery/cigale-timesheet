@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-if [ ! -e "lib/.v3" ]; then
+if [ ! -e "lib/.v4" ]; then
     rm -Rf lib/node_modules/
     mkdir -p lib/node_modules
     npm install pikaday@1.7.0 --prefix lib
@@ -9,8 +9,10 @@ if [ ! -e "lib/.v3" ]; then
     npm install popper.js@1.14.3 --prefix lib
     npm install bootstrap@4.1.0 --prefix lib
     npm install emoji-datasource@3.0.0 --prefix lib
-    touch lib/.v3
+    npm install node@8.9.4 --prefix lib # ghcjs#668
+    touch lib/.v4
 fi
+export PATH=./lib/node_modules/node/bin/:$PATH
 
 # i need slack 1.x for the ghcjs support, 'stack setup'
 # ghcjs support was dropped for slack 2.x...
@@ -35,11 +37,8 @@ cd ../..
 export PATH=$PATH:`stack path --bin-path`
 cd src/WebGui/
 
-stack install happy
-export PATH=$PATH:~/.local/bin
-
 echo "building the client-side app"
-stack build
+../../stack/stack-1.9.3-linux-x86_64/stack build
 echo "built the client-side app"
 
 # I have two projects, the executable cannot find the html/js

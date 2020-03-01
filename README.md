@@ -1,3 +1,5 @@
+# I don't maintain anymore this application. I've written a new version in rust/gtk, please use [that one](https://github.com/emmanueltouzery/cigale)
+
 # Cigale timesheet
 
 > "La Cigale, ayant chanté tout l'Été, se trouva fort dépourvue quand la bise fut venue."
